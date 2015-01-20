@@ -176,14 +176,14 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
   }
 
   static inline __i<V> op_load_input(elx_conv_params_t &xc, InputType *input,
-      const int _ih, const int _iw, const int _I2, const int _T, __mmask64 k,
+      const int _ih, const int _iw, const int _g2, const int _T, __mmask64 k,
       __m512i index)
   {
     __i<V> res;
 #if defined(WITH_VNNI)
     if (F_traits<F>::is_blocked_input) {
       MD4(InputType, ainput0, input, xc.I2, xc.ih, xc.iw, V);
-      MD3(InputType, ainput1, &md4(ainput0, _I2, _ih, _iw, 0), T, S, V);
+      MD3(InputType, ainput1, &md4(ainput0, _g2, _ih, _iw, 0), T, S, V);
       __i<V> in = _mm<V>::load_epi32(&md3(ainput1, _T, 0, 0));
 #if defined(WITH_VBMI)
       res = _mm512_maskz_permutexvar_epi8(k, index, in);
@@ -206,13 +206,13 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
   }
 
   static inline __i<V> op_load_weights(elx_conv_params_t &xc,
-      WeightsType *weights, const int _kh)
+      WeightsType *weights, const int _g2, const int _kh)
   {
     __i<V> res;
 #if defined(WITH_VNNI)
-    MD2(int8_t, aweights, weights, xc.kh, V * Vx);
+    MD3(int8_t, aweights, weights, xc.ic2, xc.kh, V * Vx);
     if (F_traits<F>::is_compact_weights) {
-      res = _mm<V>::load_epi32(&md2(aweights, _kh, 0));
+      res = _mm<V>::load_epi32(&md3(aweights, _g2, _kh, 0));
     } else {
       el_error("elk: not supported weights format");
     }
@@ -294,104 +294,115 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
     __i<V> index_right = _mm512_set_epi8(PERM_INDEX_RIGHT);
     __i<V> mmout[T], mminp;
 
-    // clear output
-    unroll_for (_T, T) {
-      mmout[_T] = _mm<V>::setzero_epi32();;
-    }
+    MD2(BiasType, abias, bias, xc.ic2, V);
+    MD2(ScaleType, aweights_scale, weights_scale, xc.ic2, V);
+    MD2(ScaleType, aweights_factor, weights_factor, xc.ic2, V);
+    MD2(RoutputType, aroutput, routput, xc.ic2, xc.oh * xc.ow * V);
 
-    if (S == 1) {
-      __i<V> mmwei_x210, mmwei_210x;
-      if (!pad_l && !pad_r) { // mid
-        for (int _kh = khs; _kh < khe; ++_kh) {
-          mmwei_x210 = op_load_weights(xc, weights, _kh);
-          mmwei_210x = _mm512_slli_epi32(mmwei_x210, 8);
+    for (int _g2 = 0; _g2 < xc.ic2; ++_g2) {
+      // clear output
+      unroll_for (_T, T) {
+        mmout[_T] = _mm<V>::setzero_epi32();;
+      }
 
-          unroll_for(_T, (T + 1) / 2) {
-            mminp = op_load_input(xc, input, _kh - AKH, -1, 0, 2 * _T, k_mid, index_mid);
-            mmout[2 * _T] = op_int8_fma(mmout[2 * _T], mminp, mmwei_x210);
-            if ((2 * _T + 1) < T)
-              mmout[2 * _T + 1] = op_int8_fma(mmout[2 * _T + 1], mminp, mmwei_210x);
+      if (S == 1) {
+        __i<V> mmwei_x210, mmwei_210x;
+        if (!pad_l && !pad_r) { // mid
+          for (int _kh = khs; _kh < khe; ++_kh) {
+            mmwei_x210 = op_load_weights(xc, weights, _g2, _kh);
+            mmwei_210x = _mm512_slli_epi32(mmwei_x210, 8);
+
+            unroll_for(_T, (T + 1) / 2) {
+              mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, 2 * _T, k_mid, index_mid);
+              mmout[2 * _T] = op_int8_fma(mmout[2 * _T], mminp, mmwei_x210);
+              if ((2 * _T + 1) < T)
+                mmout[2 * _T + 1] = op_int8_fma(mmout[2 * _T + 1], mminp, mmwei_210x);
+            }
+          }
+        } else if (pad_l && !pad_r) { // left-mid
+          for (int _kh = khs; _kh < khe; ++_kh) {
+            mmwei_x210 = op_load_weights(xc, weights, _g2, _kh);
+            mmwei_210x = _mm512_slli_epi32(mmwei_x210, 8);
+
+            mminp = op_load_input(xc, input, _kh - AKH, 0, _g2, 0, k_left, index_left);
+            mmout[0] = op_int8_fma(mmout[0], mminp, mmwei_x210);
+
+            unroll_for(_T, T / 2) {
+              mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, 2 * _T + 1, k_mid, index_mid);
+              mmout[2 * _T + 1] = op_int8_fma(mmout[2 * _T + 1], mminp, mmwei_x210);
+              if ((2 * _T + 2) < T)
+                mmout[2 * _T + 2] = op_int8_fma(mmout[2 * _T + 2], mminp, mmwei_210x);
+            }
+          }
+        } else if (!pad_l && pad_r) { // mid-right
+          for (int _kh = khs; _kh < khe; ++_kh) {
+            mmwei_x210 = op_load_weights(xc, weights, _g2, _kh);
+            mmwei_210x = _mm512_slli_epi32(mmwei_x210, 8);
+
+            unroll_for(_T, T / 2) {
+              mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, 2 * _T, k_mid, index_mid);
+              mmout[2 * _T] = op_int8_fma(mmout[2 * _T], mminp, mmwei_x210);
+              if ((2 * _T + 1) < (T - 1))
+                mmout[2 * _T + 1] = op_int8_fma(mmout[2 * _T + 1], mminp, mmwei_210x);
+            }
+            mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, T - 1, k_right, index_right);
+            mmout[T - 1] = op_int8_fma(mmout[T - 1], mminp, mmwei_x210);
+          }
+        } else { // left-mid-right
+          for (int _kh = khs; _kh < khe; ++_kh) {
+            mmwei_x210 = op_load_weights(xc, weights, _g2, _kh);
+            mmwei_210x = _mm512_slli_epi32(mmwei_x210, 8);
+
+            mminp = op_load_input(xc, input, _kh - AKH, 0, _g2, 0, k_left, index_left);
+            mmout[0] = op_int8_fma(mmout[0], mminp, mmwei_x210);
+
+            unroll_for(_T, (T - 1) / 2) {
+              mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, 2 * _T + 1, k_mid, index_mid);
+              mmout[2 * _T + 1] = op_int8_fma(mmout[2 * _T + 1], mminp, mmwei_x210);
+              if ((2 * _T + 2) < (T - 1))
+                mmout[2 * _T + 2] = op_int8_fma(mmout[2 * _T + 2], mminp, mmwei_210x);
+            }
+            mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, T - 1, k_right, index_right);
+            mmout[T - 1] = op_int8_fma(mmout[T - 1], mminp, mmwei_x210);
           }
         }
-      } else if (pad_l && !pad_r) { // left-mid
+      } else {
+        __i<V> mmwei;
         for (int _kh = khs; _kh < khe; ++_kh) {
-          mmwei_x210 = op_load_weights(xc, weights, _kh);
-          mmwei_210x = _mm512_slli_epi32(mmwei_x210, 8);
-
-          mminp = op_load_input(xc, input, _kh - AKH, 0, 0, 0, k_left, index_left);
-          mmout[0] = op_int8_fma(mmout[0], mminp, mmwei_x210);
-
-          unroll_for(_T, T / 2) {
-            mminp = op_load_input(xc, input, _kh - AKH, -1, 0, 2 * _T + 1, k_mid, index_mid);
-            mmout[2 * _T + 1] = op_int8_fma(mmout[2 * _T + 1], mminp, mmwei_x210);
-            if ((2 * _T + 2) < T)
-              mmout[2 * _T + 2] = op_int8_fma(mmout[2 * _T + 2], mminp, mmwei_210x);
+          mmwei = op_load_weights(xc, weights, _g2, _kh);
+          // left
+          if (pad_l) {
+            mminp = op_load_input(xc, input, _kh - AKH, 0, _g2, 0, k_left, index_left);
+            mmout[0] = op_int8_fma(mmout[0], mminp, mmwei);
+          } else {
+            mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, 0, k_mid, index_mid);
+            mmout[0] = op_int8_fma(mmout[0], mminp, mmwei);
           }
-        }
-      } else if (!pad_l && pad_r) { // mid-right
-        for (int _kh = khs; _kh < khe; ++_kh) {
-          mmwei_x210 = op_load_weights(xc, weights, _kh);
-          mmwei_210x = _mm512_slli_epi32(mmwei_x210, 8);
-
-          unroll_for(_T, T / 2) {
-            mminp = op_load_input(xc, input, _kh - AKH, -1, 0, 2 * _T, k_mid, index_mid);
-            mmout[2 * _T] = op_int8_fma(mmout[2 * _T], mminp, mmwei_x210);
-            if ((2 * _T + 1) < (T - 1))
-              mmout[2 * _T + 1] = op_int8_fma(mmout[2 * _T + 1], mminp, mmwei_210x);
+          // mid
+          unroll_from_to(_T, 1, T - 1) {
+            mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, _T, k_mid, index_mid);
+            mmout[_T] = op_int8_fma(mmout[_T], mminp, mmwei);
           }
-          mminp = op_load_input(xc, input, _kh - AKH, -1, 0, T - 1, k_right, index_right);
-          mmout[T - 1] = op_int8_fma(mmout[T - 1], mminp, mmwei_x210);
-        }
-      } else { // left-mid-right
-        for (int _kh = khs; _kh < khe; ++_kh) {
-          mmwei_x210 = op_load_weights(xc, weights, _kh);
-          mmwei_210x = _mm512_slli_epi32(mmwei_x210, 8);
-
-          mminp = op_load_input(xc, input, _kh - AKH, 0, 0, 0, k_left, index_left);
-          mmout[0] = op_int8_fma(mmout[0], mminp, mmwei_x210);
-
-          unroll_for(_T, (T - 1) / 2) {
-            mminp = op_load_input(xc, input, _kh - AKH, -1, 0, 2 * _T + 1, k_mid, index_mid);
-            mmout[2 * _T + 1] = op_int8_fma(mmout[2 * _T + 1], mminp, mmwei_x210);
-            if ((2 * _T + 2) < (T - 1))
-              mmout[2 * _T + 2] = op_int8_fma(mmout[2 * _T + 2], mminp, mmwei_210x);
+          // right
+          if (pad_r) {
+            mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, T - 1, k_right, index_right);
+            mmout[T-1] = op_int8_fma(mmout[T - 1], mminp, mmwei);
+          } else {
+            mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, T - 1, k_mid, index_mid);
+            mmout[T-1] = op_int8_fma(mmout[T - 1], mminp, mmwei);
           }
-          mminp = op_load_input(xc, input, _kh - AKH, -1, 0, T - 1, k_right, index_right);
-          mmout[T - 1] = op_int8_fma(mmout[T - 1], mminp, mmwei_x210);
         }
       }
-    } else {
-      __i<V> mmwei;
-      for (int _kh = khs; _kh < khe; ++_kh) {
-        mmwei = op_load_weights(xc, weights, _kh);
-        // left
-        if (pad_l) {
-          mminp = op_load_input(xc, input, _kh - AKH, 0, 0, 0, k_left, index_left);
-          mmout[0] = op_int8_fma(mmout[0], mminp, mmwei);
-        } else {
-          mminp = op_load_input(xc, input, _kh - AKH, -1, 0, 0, k_mid, index_mid);
-          mmout[0] = op_int8_fma(mmout[0], mminp, mmwei);
-        }
-        // mid
-        unroll_from_to(_T, 1, T - 1) {
-          mminp = op_load_input(xc, input, _kh - AKH, -1, 0, _T, k_mid, index_mid);
-          mmout[_T] = op_int8_fma(mmout[_T], mminp, mmwei);
-        }
-        // right
-        if (pad_r) {
-          mminp = op_load_input(xc, input, _kh - AKH, -1, 0, T - 1, k_right, index_right);
-          mmout[T-1] = op_int8_fma(mmout[T - 1], mminp, mmwei);
-        } else {
-          mminp = op_load_input(xc, input, _kh - AKH, -1, 0, T - 1, k_mid, index_mid);
-          mmout[T-1] = op_int8_fma(mmout[T - 1], mminp, mmwei);
-        }
-      }
-    }
 
-    // store output
-    unroll_for (_T, T) {
-      op_restore_output(xc, output, routput, bias, mmout[_T],
-          src_scale, src_factor, weights_scale, weights_factor, _T, attr);
+      // store output
+      unroll_for (_T, T) {
+        op_restore_output(xc, output,
+                          &md2(aroutput, _g2, 0),
+                          &md2(abias, _g2, 0), mmout[_T],
+                          src_scale, src_factor,
+                          &md2(aweights_scale, _g2, 0),
+                          &md2(aweights_factor, _g2, 0), _T, attr);
+      }
     }
   }
 

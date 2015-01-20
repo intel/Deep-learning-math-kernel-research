@@ -63,8 +63,8 @@ Instance_elx_conv_direct_depthwise_lp_t::elx_conv_direct_depthwise_lp_t(eld_conv
   this->ic3 = 1;
   this->I2 = 1;
 
-  this->ic2 = this->IC / V;
-  this->oc2 = this->OC / V;
+  this->ic2 = this->G / V;
+  this->oc2 = this->G / V;
 
   xopt_ = 0xa160;
 
