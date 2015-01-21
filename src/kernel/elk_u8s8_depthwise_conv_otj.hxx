@@ -177,7 +177,7 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
 
   static inline __i<V> op_load_input(elx_conv_params_t &xc, InputType *input,
       const int _ih, const int _iw, const int _g2, const int _T, __mmask64 k,
-      __m512i index)
+      __m512i index_8)
   {
     __i<V> res;
 #if defined(WITH_VNNI)
@@ -194,7 +194,7 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
           13, 9,  5, 1,
           12, 8,  4, 0);
       auto in_32 = _mm512_permutexvar_epi32(index_32, in);
-      res = _mm512_maskz_shuffle_epi8(k, in_32, index);
+      res = _mm512_maskz_shuffle_epi8(k, in_32, index_8);
 #endif
     } else {
       el_error("elk: not supported input format");
@@ -275,6 +275,41 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
         x8 = _mm<V>::cvtusepi32_epi8(s32);
       _mm_store_si128((__m128i *)rout, x8);
     }
+  }
+
+  static inline __i<V> op_restore_output_u32(elx_conv_params_t &xc, OutputType *output,
+      RoutputType *routput, BiasType *bias, __i<V> res, ScaleType *src_scale,
+      ScaleType *src_factor, ScaleType *weights_scale, ScaleType *weights_factor,
+      const int _T, const int attr)
+  {
+    //static_assert(std::is_same<RoutputType, uint8_t>::value, "Expect U8 output only");
+
+    MD1(float, aweights_scale, weights_scale, V);
+    MD1(float, aweights_factor, weights_factor, V);
+
+    auto scale = *(__m<V> *)weights_scale;
+    auto factor = *(__m<V> *)weights_factor;
+
+    // restore and requantization
+    __m<V> fout = _mm<V>::cvtepi32_ps(res);
+    fout = fout * scale + factor;
+
+    // fuse relu
+    if (get_attr(attr, relu_idx)) {
+      fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
+    }
+
+    // return output
+    __i<V> u32 = _mm<V>::cvt_roundps_epi32(
+        fout, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
+    return u32;
+  }
+
+  static void printv(__i<V> vec, const char *tag) {
+    printf("%s: ", tag);
+    for (int i = 0; i < V; ++i)
+      printf("0x%08x ", ((unsigned int*)&vec)[i]);
+    printf("\n");
   }
 
   static inline void
@@ -395,13 +430,72 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
       }
 
       // store output
-      unroll_for (_T, T) {
-        op_restore_output(xc, output,
-                          &md2(aroutput, _g2, 0),
-                          &md2(abias, _g2, 0), mmout[_T],
-                          src_scale, src_factor,
-                          &md2(aweights_scale, _g2, 0),
-                          &md2(aweights_factor, _g2, 0), _T, attr);
+      if (std::is_same<RoutputType, uint8_t>::value) {
+        unroll_for(_T, T / 4) {
+          __i<V> out_u32, out_u32_tmp;
+          // restore
+          out_u32 = op_restore_output_u32(xc, output,
+                            &md2(aroutput, _g2, 0),
+                            &md2(abias, _g2, 0), mmout[4 * _T],
+                            src_scale, src_factor,
+                            &md2(aweights_scale, _g2, 0),
+                            &md2(aweights_factor, _g2, 0), _T, attr);
+          out_u32_tmp = op_restore_output_u32(xc, output,
+                            &md2(aroutput, _g2, 0),
+                            &md2(abias, _g2, 0), mmout[4 * _T + 1],
+                            src_scale, src_factor,
+                            &md2(aweights_scale, _g2, 0),
+                            &md2(aweights_factor, _g2, 0), _T, attr);
+          out_u32_tmp = _mm512_slli_epi32(out_u32_tmp, 8);
+          out_u32 += out_u32_tmp;
+          out_u32_tmp = op_restore_output_u32(xc, output,
+                            &md2(aroutput, _g2, 0),
+                            &md2(abias, _g2, 0), mmout[4 * _T + 2],
+                            src_scale, src_factor,
+                            &md2(aweights_scale, _g2, 0),
+                            &md2(aweights_factor, _g2, 0), _T, attr);
+          out_u32_tmp = _mm512_slli_epi32(out_u32_tmp, 16);
+          out_u32 += out_u32_tmp;
+          out_u32_tmp = op_restore_output_u32(xc, output,
+                            &md2(aroutput, _g2, 0),
+                            &md2(abias, _g2, 0), mmout[4 * _T + 3],
+                            src_scale, src_factor,
+                            &md2(aweights_scale, _g2, 0),
+                            &md2(aweights_factor, _g2, 0), _T, attr);
+          out_u32_tmp = _mm512_slli_epi32(out_u32_tmp, 24);
+          out_u32 += out_u32_tmp;
+
+          __i<V> index_32 = _mm<V>::set_epi32(
+              15, 11, 7, 3,
+              14, 10, 6, 2,
+              13, 9,  5, 1,
+              12, 8,  4, 0);
+
+          // transpose
+          out_u32 = _mm512_shuffle_epi8(out_u32, index_mid);
+          out_u32 = _mm512_permutexvar_epi32(index_32, out_u32);
+
+          // store
+          MD2(RoutputType, arout, &md2(aroutput, _g2, 0), T, V);
+          _mm<V>::store_epi32(&md2(arout, 4 * _T, 0), out_u32);
+        }
+        unroll_for (_T, T % 4) {
+          op_restore_output(xc, output,
+                            &md2(aroutput, _g2, 0),
+                            &md2(abias, _g2, 0), mmout[4 * (T / 4) + _T],
+                            src_scale, src_factor,
+                            &md2(aweights_scale, _g2, 0),
+                            &md2(aweights_factor, _g2, 0), 4 * (T / 4) + _T, attr);
+        }
+      } else {
+        unroll_for (_T, T) {
+          op_restore_output(xc, output,
+                            &md2(aroutput, _g2, 0),
+                            &md2(abias, _g2, 0), mmout[_T],
+                            src_scale, src_factor,
+                            &md2(aweights_scale, _g2, 0),
+                            &md2(aweights_factor, _g2, 0), _T, attr);
+        }
       }
     }
   }
