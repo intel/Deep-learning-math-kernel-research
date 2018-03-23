@@ -1,5 +1,6 @@
 CXX      = icc
-CXXFLAGS = -g -O2 -std=c++11 -fopenmp -qopt-report=5 -Iinclude/ -Isrc/
+DFLAGS   = -g #-qopt-report=5
+CXXFLAGS = -O2 -std=c++11 -fopenmp -Iinclude/ -Isrc/ $(DFLAGS)
 LDFLAGS  = -Llib/
 LDLIBS   = -liomp5
 
@@ -14,12 +15,14 @@ test     = $(OBJDIR)/conv
 all: $(test)
 
 $(test): $(OBJECTS)
-	@mkdir -p $(OBJDIR)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $(test) $(OBJECTS) $(LDLIBS)
 
-$(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
+$(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cpp | $(OBJDIR)
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
 
+$(OBJDIR):
+	@mkdir -p $(OBJDIR)
+    
 clean:
 	rm -f $(OBJECTS) $(OBJDIR)/*.optrpt $(test) $(lib)
 

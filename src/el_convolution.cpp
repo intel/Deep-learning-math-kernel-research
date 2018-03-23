@@ -136,13 +136,13 @@ int elx_conv_winograd(eld_conv_t &desc, T *input, T *weights, T *output, T *bias
     }
     float (&twei)[5][5][16][16] =
         *reinterpret_cast<float (*)[5][5][16][16]>(x.twei);
-    for (int i = 0; i<1; ++i) {
+    for (int i = 0; i < 100000; ++i) {
         //elk_trans_weights_ref(twei, wei);
         elk_trans_weights(twei, wei);
     }
-    for (int i = 0; i < 5*5*16*16; i++) {
-        printf("%f\n", x.twei[i]);
-    }
+    //for (int i = 0; i < 5*5*16*16; i++) {
+    //    printf("%f\n", x.twei[i]);
+    //}
 }
 
 template<typename T>
