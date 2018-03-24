@@ -6,64 +6,85 @@
 
 namespace euler {
 
-template<typename T>
-int eld_conv_setup(eld_conv_t &desc)
-{
-    elx_conv_t &x = desc.x;
 
+eld_conv_t::eld_conv_t() {
+    pads      = { 1, 1, 1, 1 };
+    strides   = { 1, 1 };
+    dilations = { 1, 1 };
+    sizes     = { 0, 0, 0, 0 };
+    algorithm = CONV_DIRECT;
+    tile_size = 0;
+    with_relu = false;
+    with_bias = false;
+}
+
+template<typename T> int
+eld_conv_t::setup()
+{
     // Dimensions
-    if (desc.dims.input.c != desc.dims.weights.i ||
-        desc.dims.input.n  != desc.dims.output.n ||
-        desc.dims.output.c != desc.dims.weights.o) {
+    if (dims.input.c != dims.weights.i ||
+        dims.input.n  != dims.output.n ||
+        dims.output.c != dims.weights.o) {
         eld_error("Dimension error");
         return ELD_GENERAL_ERROR;
     }
-    x.n  = desc.dims.input.n;
-    x.ic = desc.dims.input.c;
-    x.oc = desc.dims.output.c;
-    x.ih = desc.dims.input.h;
-    x.iw = desc.dims.input.w;
-    x.oh = desc.dims.output.h;
-    x.ow = desc.dims.output.w;
-    x.kh = desc.dims.weights.h;
-    x.kw = desc.dims.weights.w;
+
+    sizes.input   = sizeof(T) * dims.input.n * dims.input.c
+                              * dims.input.h * dims.input.w;
+    sizes.weights = sizeof(T) * dims.weights.o * dims.weights.i
+                              * dims.weights.h * dims.weights.w;
+    sizes.output  = sizeof(T) * dims.output.n * dims.output.c
+                              * dims.output.h * dims.output.w;
+    sizes.bias    = sizeof(T) * dims.bias.c;
+
+    x.n  = dims.input.n;
+    x.ic = dims.input.c;
+    x.oc = dims.output.c;
+    x.ih = dims.input.h;
+    x.iw = dims.input.w;
+    x.oh = dims.output.h;
+    x.ow = dims.output.w;
+    x.kh = dims.weights.h;
+    x.kw = dims.weights.w;
+    // TODO:Check CPUID
+    x.v = 16; // avx512
+
+    x.OC = x.oc / x.v;
+    x.IC = x.ic / x.v;
     // TODO:Check output dimensions
 
     // Formats
     // TODO:Check formats
-    if (desc.formats.input != nChw16c ||
-        desc.formats.output != nChw16c ||
-        desc.formats.weights != OIhw16i16o) {
+    if (formats.input != nChw16c ||
+        formats.output != nChw16c ||
+        formats.weights != OIhw16i16o) {
         eld_error("Unimplemented");
         return ELD_UNIMPLEMENTED;
     }
-    // TODO:Check CPUID
-    x.v = 16; // avx512
-
-    printf("desc.x.oh=%d\n", desc.x.oh);
 
     // Direct
-    if (desc.algorithm == CONV_DIRECT) {
+    if (algorithm == CONV_DIRECT) {
         eld_error("Unimplemented");
         return ELD_UNIMPLEMENTED;
     }
 
     // Winograd
-    if (desc.algorithm == CONV_WINOGRAD) {
-        if (desc.dilations.h > 1 ||
-            desc.dilations.w > 1 ||
-            desc.tile_size != 5 ||
-            desc.strides.h != 1 ||
-            desc.strides.w != 1 ||
-            desc.dims.weights.h != 3 ||
-            desc.dims.weights.w != 3) {
+    if (algorithm == CONV_WINOGRAD) {
+        if (dilations.h > 1 ||
+            dilations.w > 1 ||
+            tile_size != 5 ||
+            strides.h != 1 ||
+            strides.w != 1 ||
+            dims.weights.h != 3 ||
+            dims.weights.w != 3) {
             eld_error("Unimplemented");
             return ELD_UNIMPLEMENTED;
         }
-        x.t = desc.tile_size;
-        x.ot = desc.tile_size - 2;
+        x.t = tile_size;
+        x.ot = tile_size - 2;
 
-        x.twei = (float *)malloc(3 * 3 * 16 * 16 * 4);
+        int size = sizeof(float) * tile_size * tile_size * x.ic * x.oc;
+        x.tr_weights = (float *)malloc(size);
     }
 
     // Winograd
@@ -71,6 +92,6 @@ int eld_conv_setup(eld_conv_t &desc)
 
 }
 
-template int eld_conv_setup<float>(eld_conv_t &desc);
+template int eld_conv_t::setup<float>();
 
 }

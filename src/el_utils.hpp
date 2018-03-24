@@ -15,6 +15,9 @@ typedef std::chrono::duration<float, std::milli> Duration;
     _T(printf("time: %s, th=%d, %.2f ms\n", #n, \
         omp_get_thread_num(), Duration(__e##n - __s##n).count()));
 
+#define MD(type, array, dims, ptr) \
+    type (&array)dims = *reinterpret_cast<type (*)dims>(ptr)
+
 namespace euler {
 
 template <typename T, typename P>

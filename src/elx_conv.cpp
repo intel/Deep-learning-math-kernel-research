@@ -6,6 +6,9 @@
 
 namespace euler {
 
+
+int elk_trans_weights(eld_conv_t &desc, float *tr_weights, float *weights);
+
 template<typename T>
 int elx_conv_winograd(eld_conv_t &desc, T *input, T *weights, T *output, T *bias)
 {
@@ -54,29 +57,33 @@ int elx_conv_winograd(eld_conv_t &desc, T *input, T *weights, T *output, T *bias
     // Tasks breakdown: O.i
     // hwio -> Oitt16o
     // desc.info.twei
-#if 0
-    for (int o = 0; o < p.OC; ++o) {
-        for (int i = 0; i < p.ic; ++i) {
-        }
-    }
-#endif
-    // weights -> twei
-
 
     elx_conv_t &x = desc.x;
-    float wei[3][3][16][16];
-    for (int i = 0; i < 3*3*16*16; i++) {
-        ((float *)wei)[i] = i;
+
+    // weights -> tr_weights
+    elx_trans_weights(desc, x.tr_weights, weights);
+
+#if 0
+    for (int i = 0; i < x.ic * x.oc * 25; ++i) {
+        printf("%f\n", x.tr_weights[i]);
     }
-    float (&twei)[5][5][16][16] =
-        *reinterpret_cast<float (*)[5][5][16][16]>(x.twei);
-    for (int i = 0; i < 100000; ++i) {
-        //elk_trans_weights_ref(twei, wei);
-        elk_trans_weights(twei, wei);
+#endif
+
+}
+
+int elx_trans_weights(eld_conv_t &desc, float *tr_weights, float *weights)
+{
+    elx_conv_t &x = desc.x;
+    MD(float, from, [x.OC][x.IC][3][3][16][16], weights);
+    MD(float, to,   [x.OC][x.IC][5][5][16][16], tr_weights);
+    // TODO: test MD
+
+#pragma omp parallel for collapse(2)
+    for (int o = 0; o < x.OC; ++o) {
+        for (int i = 0; i < x.IC; ++i) {
+            elk_trans_weights(to[o][i], from[o][i]);
+        }
     }
-    //for (int i = 0; i < 5*5*16*16; i++) {
-    //    printf("%f\n", x.twei[i]);
-    //}
 }
 
 template<typename T>

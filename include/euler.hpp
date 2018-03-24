@@ -30,10 +30,10 @@ enum {
 };
 
 struct elx_conv_t {
-    int n, ih, iw, ic, oc, kh, kw, oh, ow;
+    int n, ih, iw, ic, oc, kh, kw, oh, ow, IC, OC;
     int v, t, ot; // {vector, tile, out-tile}-size
     int lpad, rpad, tpad, bpad;
-    float *twei;
+    float *tr_weights;
 };
 
 // Convolution desc
@@ -60,18 +60,14 @@ struct eld_conv_t {
     bool with_bias;
 
     // Defaults
-    eld_conv_t () {
-        pads      = {1, 1, 1, 1};
-        strides   = {1, 1};
-        dilations = {1, 1};
-        algorithm = CONV_DIRECT;
-        tile_size = 0;
-        with_relu = false;
-        with_bias = false;
-    }
+    eld_conv_t ();
+    template<typename T> int setup();
+
+    // Auto computed
+    struct { int input, weights, output, bias; } sizes;
 
     // Internal
-    elx_conv_t x;
+    elx_conv_t x; // TODO: hide the structure
 };
 
 // Convolution desc setup

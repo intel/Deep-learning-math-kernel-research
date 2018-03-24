@@ -1,3 +1,5 @@
+# TODO debug build
+
 CXX      := icc
 DFLAGS   := -g #-qopt-report=5
 CXXFLAGS := -O2 -std=c++11 -fopenmp -fPIC -Iinclude/ -Isrc/ $(DFLAGS)
