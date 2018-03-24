@@ -8,18 +8,19 @@ SRC_DIR  := src
 OBJ_DIR  := build
 TEST_DIR := test
 BIN_DIR  := $(OBJ_DIR)/bin
+LIB_DIR  := $(OBJ_DIR)/lib
 
 TCXX     := icc
 TCXXFLAGS:= -g -O2 -std=c++11 -fopenmp -pie -fPIE -Iinclude/
-TLDFLAGS := -Llib -L$(BIN_DIR) -liomp5 -lel -Wl,-rpath=$(BIN_DIR)
+TLDFLAGS := -Llib -L$(LIB_DIR) -liomp5 -lel -Wl,-rpath=$(LIB_DIR)
 
 SOURCES  := $(shell ls $(SRC_DIR)/*.cpp)
 TESTS    := $(shell ls $(TEST_DIR)/*.cpp)
 OBJECTS  := $(SOURCES:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/$(SRC_DIR)/%.o)
 TESTOBJS := $(TESTS:$(TEST_DIR)/%.cpp=$(OBJ_DIR)/$(TEST_DIR)/%.o)
 
-LIB      = $(BIN_DIR)/libel.so
-TEST     = $(BIN_DIR)/conv
+LIB      = $(LIB_DIR)/libel.so
+TEST     = $(BIN_DIR)/el_conv
 
 .PHONY: lib test clean
 

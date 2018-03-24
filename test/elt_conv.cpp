@@ -25,7 +25,7 @@ int main() {
         .output  = nChw16c
     },
     desc.pads      = { 1, 1, 1, 1 };
-    desc.with_bias = true;
+    desc.with_bias = false;
     desc.algorithm = CONV_WINOGRAD;
     desc.tile_size = 5;
     desc.with_relu = false;

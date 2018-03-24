@@ -60,6 +60,9 @@ pragma_unroll
     }
 }
 
+__declspec(cpu_dispatch(generic, skylake_avx512))
+void elk_trans_weights(float to[5][5][16][16], float from[3][3][16][16]) { }
+
 #define IMM_BCAST16(x) x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x
 __declspec(cpu_specific(skylake_avx512))
 void elk_trans_weights(float to[5][5][16][16], float from[3][3][16][16])
