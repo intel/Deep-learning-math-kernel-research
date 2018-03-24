@@ -169,64 +169,8 @@ int elx_conv(eld_conv_t &desc, T *input, T *weights, T *output, T *bias)
     return ELX_OK;
 }
 
-template int elx_conv<float>(eld_conv_t &desc,
-    float *input, float *weights, float *output, float *bias);
+template int elx_conv<float>(eld_conv_t &desc, float *input, float *weights,
+                             float *output, float *bias);
+template int eld_conv_setup<float>(eld_conv_t &desc);
 
 }
-
-#if 1
-int main() {
-    // EXAMPLE_CODE 
-    //
-    using namespace euler;
-    // 1. allocate memory
-    float *input, *weights, *output, *bias;
-    input = (float *)1;
-    weights = (float *)1;
-    output = (float *)1;
-    // allocate memory buffers
-
-    // 2, create convolution desc
-    // In C++14
-#if __cplusplus > 201402L
-    eld_conv_t desc = {
-        .dims = {
-            .input   = { 64, 224, 224, 3 },
-            .weights = { 3, 3, 3, 128 },
-            .output  = { 64, 224, 224, 128 },
-        },
-        .formats = { nhwc, hwio, nhwc },
-        .pads      = { 1, 1, 1, 1 },
-        .strides   = { 1, 1 },
-        .algorithm = CONV_DIRECT,
-        .with_relu = false,
-        .with_bias = true
-    };
-#else
-    // Or in C++11
-    eld_conv_t desc;
-    desc.dims = {
-        .input   = { 64, 224, 224, 3 },
-        .weights = { 3, 3, 3, 128 },
-        .output  = { 64, 224, 224, 128 }
-    };
-    desc.formats = {
-        .input   = nChw16c,
-        .weights = OIhw16i16o,
-        .output  = nChw16c
-    },
-    desc.pads      = { 1, 1, 1, 1 };
-    desc.with_bias = true;
-    desc.algorithm = CONV_WINOGRAD;
-    desc.tile_size = 5;
-    desc.with_relu = false;
-#endif
-    eld_conv_setup<float>(desc);
-
-    // 3. execute convolution
-    if (ELX_OK != elx_conv<float>(desc, input, weights, output, bias)) {
-        // error
-        printf("Error\n");
-    }
-}
-#endif

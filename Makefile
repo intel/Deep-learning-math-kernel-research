@@ -1,28 +1,49 @@
-CXX      = icc
-DFLAGS   = -g #-qopt-report=5
-CXXFLAGS = -O2 -std=c++11 -fopenmp -Iinclude/ -Isrc/ $(DFLAGS)
-LDFLAGS  = -Llib/
-LDLIBS   = -liomp5
+CXX      := icc
+DFLAGS   := -g #-qopt-report=5
+CXXFLAGS := -O2 -std=c++11 -fopenmp -fPIC -Iinclude/ -Isrc/ $(DFLAGS)
+LDFLAGS  := -Llib/
+LDLIBS   := -liomp5
 
-SRCDIR   := src
-OBJDIR   := build
-SOURCES  := $(shell ls src/*.cpp)
-OBJECTS  := $(SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
+SRC_DIR  := src
+OBJ_DIR  := build
+TEST_DIR := test
+BIN_DIR  := $(OBJ_DIR)/bin
 
-lib      = libel.so
-test     = $(OBJDIR)/conv
+TCXX     := icc
+TCXXFLAGS:= -g -O2 -std=c++11 -fopenmp -pie -fPIE -Iinclude/
+TLDFLAGS := -Llib -L$(BIN_DIR) -liomp5 -lel -Wl,-rpath=$(BIN_DIR)
 
-all: $(test)
+SOURCES  := $(shell ls $(SRC_DIR)/*.cpp)
+TESTS    := $(shell ls $(TEST_DIR)/*.cpp)
+OBJECTS  := $(SOURCES:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/$(SRC_DIR)/%.o)
+TESTOBJS := $(TESTS:$(TEST_DIR)/%.cpp=$(OBJ_DIR)/$(TEST_DIR)/%.o)
 
-$(test): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $(test) $(OBJECTS) $(LDLIBS)
+LIB      = $(BIN_DIR)/libel.so
+TEST     = $(BIN_DIR)/conv
 
-$(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cpp | $(OBJDIR)
+.PHONY: lib test clean
+
+all  : lib test
+lib  : $(LIB)
+test : $(TEST)
+
+$(TEST): $(TESTOBJS) $(LIB)
+	@mkdir -p $(dir $@)
+	$(TCXX) $(TCXXFLAGS) $(TLDFLAGS) -o $@ $(TESTOBJS)
+
+$(TESTOBJS): $(OBJ_DIR)/$(TEST_DIR)/%.o : $(TEST_DIR)/%.cpp
+	@mkdir -p $(dir $@)
+	$(TCXX) $(TCXXFLAGS) -o $@ -c $<
+
+$(LIB): $(OBJECTS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) --shared -o $@ $(OBJECTS) $(LDLIBS)
+
+$(OBJECTS): $(OBJ_DIR)/$(SRC_DIR)/%.o : $(SRC_DIR)/%.cpp
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
 
-$(OBJDIR):
-	@mkdir -p $(OBJDIR)
-    
 clean:
-	rm -f $(OBJECTS) $(OBJDIR)/*.optrpt $(test) $(lib)
+	@rm -f $(TEST) $(LIB)
+	@find $(OBJ_DIR) -name "*.o" -exec rm -f {} \;
 
