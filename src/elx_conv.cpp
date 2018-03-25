@@ -68,7 +68,7 @@ int elx_conv_winograd(eld_conv_t &desc, T *input, T *weights, T *output, T *bias
         printf("%f\n", x.tr_weights[i]);
     }
 #endif
-
+    return 0;
 }
 
 int elx_trans_weights(eld_conv_t &desc, float *tr_weights, float *weights)
@@ -84,6 +84,7 @@ int elx_trans_weights(eld_conv_t &desc, float *tr_weights, float *weights)
             elk_trans_weights(to[o][i], from[o][i]);
         }
     }
+    return 0;
 }
 
 template<typename T>

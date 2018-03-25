@@ -1,32 +1,38 @@
-# TODO debug build
+CXX       := icc
+CXXFLAGS  := -Wall -Werror -Wextra -std=c++11 -fopenmp -fPIC -Iinclude/ -Isrc/
+LDFLAGS   := -Llib/
+LDLIBS    := -liomp5
+TCXX      := icc
+TCXXFLAGS := -std=c++11 -fopenmp -pie -fPIE -Iinclude/
+TLDFLAGS   = -Llib -L$(LIB_DIR) -liomp5 -lel -Wl,-rpath=$(LIB_DIR)
 
-CXX      := icc
-DFLAGS   := -g #-qopt-report=5
-CXXFLAGS := -O2 -std=c++11 -fopenmp -fPIC -Iinclude/ -Isrc/ $(DFLAGS)
-LDFLAGS  := -Llib/
-LDLIBS   := -liomp5
+BUILD_DIR := build
+DEBUG     ?= 0
+ifeq ($(DEBUG), 1)
+CXXFLAGS  += -DDEBUG -g -O0 -qopt-report=5
+TCXXFLAGS += -DDEBUG -g -O0
+OBJ_DIR   := $(BUILD_DIR)/debug
+else
+CXXFLAGS  += -O2 -DNDEBUG
+TCXXFLAGS += -O2 -DNDEBUG
+OBJ_DIR   := $(BUILD_DIR)/release
+endif
 
-SRC_DIR  := src
-OBJ_DIR  := build
-TEST_DIR := test
-BIN_DIR  := $(OBJ_DIR)/bin
-LIB_DIR  := $(OBJ_DIR)/lib
+SRC_DIR   = src
+TEST_DIR  = test
+BIN_DIR   = $(OBJ_DIR)/bin
+LIB_DIR   = $(OBJ_DIR)/lib
 
-TCXX     := icc
-TCXXFLAGS:= -g -O2 -std=c++11 -fopenmp -pie -fPIE -Iinclude/
-TLDFLAGS := -Llib -L$(LIB_DIR) -liomp5 -lel -Wl,-rpath=$(LIB_DIR)
+SOURCES   = $(shell ls $(SRC_DIR)/*.cpp)
+TESTS     = $(shell ls $(TEST_DIR)/*.cpp)
+OBJECTS   = $(SOURCES:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/$(SRC_DIR)/%.o)
+TESTOBJS  = $(TESTS:$(TEST_DIR)/%.cpp=$(OBJ_DIR)/$(TEST_DIR)/%.o)
 
-SOURCES  := $(shell ls $(SRC_DIR)/*.cpp)
-TESTS    := $(shell ls $(TEST_DIR)/*.cpp)
-OBJECTS  := $(SOURCES:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/$(SRC_DIR)/%.o)
-TESTOBJS := $(TESTS:$(TEST_DIR)/%.cpp=$(OBJ_DIR)/$(TEST_DIR)/%.o)
+LIB       = $(LIB_DIR)/libel.so
+TEST      = $(BIN_DIR)/el_conv
 
-LIB      = $(LIB_DIR)/libel.so
-TEST     = $(BIN_DIR)/el_conv
-
-.PHONY: lib test clean
-
-all  : lib test
+.PHONY: lib test debug release distclean print_results
+all  : lib test print_results
 lib  : $(LIB)
 test : $(TEST)
 
@@ -50,3 +56,9 @@ clean:
 	@rm -f $(TEST) $(LIB)
 	@find $(OBJ_DIR) -name "*.o" -exec rm -f {} \;
 
+print_results:
+	@echo
+	@echo Build done:
+	@echo "    " $(LIB)
+	@echo "    " $(TEST)
+	@echo
