@@ -54,9 +54,13 @@ $(OBJECTS): $(OBJ_DIR)/$(SRC_DIR)/%.o : $(SRC_DIR)/%.cpp
 
 clean:
 	@rm -f $(TEST) $(LIB)
-	@find $(OBJ_DIR) -name "*.o" -exec rm -f {} \;
+	@find $(OBJ_DIR) \( -name "*.o" -o -name "*.optrpt" \) -exec rm -f {} \;
 
-print_results:
+distclean:
+	@find $(BUILD_DIR) \( -name "*.o" -o -name "*.optrpt" \) -exec rm -f {} \;
+	@find $(BUILD_DIR) \( -name "$(shell basename $(LIB))" -o -name "$(shell basename $(TEST))" \) -prune -exec rm -rf {} \;
+
+print_results: lib test
 	@echo
 	@echo Build done:
 	@echo "    " $(LIB)
