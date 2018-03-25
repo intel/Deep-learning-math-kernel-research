@@ -36,6 +36,8 @@ struct elx_conv_t {
     float *tr_weights;
 };
 
+struct elx_conv_t;
+
 // Convolution desc
 struct eld_conv_t {
     // Conv parameters
@@ -64,10 +66,11 @@ struct eld_conv_t {
     template<typename T> int setup();
 
     // Auto computed
+    struct { int input, weights, output, bias; } byte_sizes;
     struct { int input, weights, output, bias; } sizes;
 
     // Internal
-    elx_conv_t x; // TODO: hide the structure
+    elx_conv_t x;
 };
 
 // Convolution desc setup

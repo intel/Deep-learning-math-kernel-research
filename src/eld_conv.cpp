@@ -29,13 +29,18 @@ eld_conv_t::setup()
         return ELD_GENERAL_ERROR;
     }
 
-    sizes.input   = sizeof(T) * dims.input.n * dims.input.c
-                              * dims.input.h * dims.input.w;
-    sizes.weights = sizeof(T) * dims.weights.o * dims.weights.i
-                              * dims.weights.h * dims.weights.w;
-    sizes.output  = sizeof(T) * dims.output.n * dims.output.c
-                              * dims.output.h * dims.output.w;
-    sizes.bias    = sizeof(T) * dims.bias.c;
+    sizes.input   = accumulate(dims.input.n, dims.input.c,
+                               dims.input.h, dims.input.w);
+    sizes.weights = accumulate(dims.weights.o, dims.weights.i,
+                               dims.weights.h, dims.weights.w);
+    sizes.output  = accumulate(dims.output.n, dims.output.c,
+                               dims.output.h, dims.output.w);
+    sizes.bias    = dims.bias.c;
+
+    byte_sizes.input   = sizeof(T) * sizes.input;
+    byte_sizes.weights = sizeof(T) * sizes.weights;
+    byte_sizes.output  = sizeof(T) * sizes.output;
+    byte_sizes.bias    = sizeof(T) * sizes.bias;
 
     x.n  = dims.input.n;
     x.ic = dims.input.c;

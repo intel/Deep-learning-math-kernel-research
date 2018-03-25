@@ -28,11 +28,11 @@ int main() {
 
     // 2. allocate memory
     float *input, *weights, *output, *bias;
-    input = (float *)malloc(desc.sizes.input);
-    weights = (float *)malloc(desc.sizes.weights);
-    output = (float *)malloc(desc.sizes.output);
+    input = (float *)malloc(desc.byte_sizes.input);
+    weights = (float *)malloc(desc.byte_sizes.weights);
+    output = (float *)malloc(desc.byte_sizes.output);
 
-    for (int i = 0; i < desc.sizes.weights / 4; i++) {
+    for (int i = 0; i < desc.sizes.weights; i++) {
         weights[i] = i % 32;
     }
 

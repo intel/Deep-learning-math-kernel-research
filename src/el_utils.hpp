@@ -30,6 +30,11 @@ inline bool one_of(T val, P item, Args... item_others) {
 template <typename... Args>
 inline bool any_null(Args... ptrs) { return one_of(nullptr, ptrs...); }
 
+template<typename T> inline T accumulate(T tn) {return tn; }
+template<typename T, typename... Args>
+inline T accumulate(T a, Args... args) { return a * accumulate(args...); }
+
+
 inline void eld_error(const char *msg) {
     printf("Euler:d: %s\n", msg);
 }
