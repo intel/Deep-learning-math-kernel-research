@@ -2,10 +2,9 @@
 #include <assert.h>
 #include "euler.hpp"
 #include "el_utils.hpp"
-#include "elk_conv.hpp"
+#include "elx_conv.hpp"
 
 namespace euler {
-
 
 eld_conv_t::eld_conv_t() {
     pads      = { 1, 1, 1, 1 };
@@ -16,6 +15,15 @@ eld_conv_t::eld_conv_t() {
     tile_size = 0;
     with_relu = false;
     with_bias = false;
+}
+
+eld_conv_t::~eld_conv_t() {
+    if (xc->tr_weights != nullptr) {
+        free(xc->tr_weights);
+    }
+    if (xc != nullptr) {
+        free(xc);
+    }
 }
 
 template<typename T> int
@@ -42,20 +50,22 @@ eld_conv_t::setup()
     byte_sizes.output  = sizeof(T) * sizes.output;
     byte_sizes.bias    = sizeof(T) * sizes.bias;
 
-    x.n  = dims.input.n;
-    x.ic = dims.input.c;
-    x.oc = dims.output.c;
-    x.ih = dims.input.h;
-    x.iw = dims.input.w;
-    x.oh = dims.output.h;
-    x.ow = dims.output.w;
-    x.kh = dims.weights.h;
-    x.kw = dims.weights.w;
-    // TODO:Check CPUID
-    x.v = 16; // avx512
+    elx_conv_t *x = (elx_conv_t *)malloc(sizeof(elx_conv_t));
 
-    x.OC = x.oc / x.v;
-    x.IC = x.ic / x.v;
+    x->n  = dims.input.n;
+    x->ic = dims.input.c;
+    x->oc = dims.output.c;
+    x->ih = dims.input.h;
+    x->iw = dims.input.w;
+    x->oh = dims.output.h;
+    x->ow = dims.output.w;
+    x->kh = dims.weights.h;
+    x->kw = dims.weights.w;
+    // TODO:Check CPUID
+    x->v = 16; // avx512
+
+    x->OC = x->oc / x->v;
+    x->IC = x->ic / x->v;
     // TODO:Check output dimensions
 
     // Formats
@@ -85,12 +95,14 @@ eld_conv_t::setup()
             eld_error("Unimplemented");
             return ELD_UNIMPLEMENTED;
         }
-        x.t = tile_size;
-        x.ot = tile_size - 2;
+        x->t = tile_size;
+        x->ot = tile_size - 2;
 
-        int size = sizeof(float) * tile_size * tile_size * x.ic * x.oc;
-        x.tr_weights = (float *)malloc(size);
+        int size = sizeof(float) * tile_size * tile_size * x->ic * x->oc;
+        x->tr_weights = (float *)malloc(size);
     }
+
+    xc = x;
 
     // Winograd
     return ELD_OK;

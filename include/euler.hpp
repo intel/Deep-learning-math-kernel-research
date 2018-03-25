@@ -29,13 +29,6 @@ enum {
     OIhw16i16o
 };
 
-struct elx_conv_t {
-    int n, ih, iw, ic, oc, kh, kw, oh, ow, IC, OC;
-    int v, t, ot; // {vector, tile, out-tile}-size
-    int lpad, rpad, tpad, bpad;
-    float *tr_weights;
-};
-
 struct elx_conv_t;
 
 // Convolution desc
@@ -62,15 +55,16 @@ struct eld_conv_t {
     bool with_bias;
 
     // Defaults
-    eld_conv_t ();
+    eld_conv_t();
+    ~eld_conv_t();
     template<typename T> int setup();
 
     // Auto computed
     struct { int input, weights, output, bias; } byte_sizes;
     struct { int input, weights, output, bias; } sizes;
 
-    // Internal
-    elx_conv_t x;
+    // Internal data used by elx
+    elx_conv_t *xc;
 };
 
 // Convolution desc setup

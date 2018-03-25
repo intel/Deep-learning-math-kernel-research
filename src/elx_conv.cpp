@@ -2,15 +2,16 @@
 #include <assert.h>
 #include "euler.hpp"
 #include "el_utils.hpp"
+#include "elx_conv.hpp"
 #include "elk_conv.hpp"
 
 namespace euler {
 
 
-int elk_trans_weights(eld_conv_t &desc, float *tr_weights, float *weights);
+int elk_trans_weights(elx_conv_t &xc, float *tr_weights, float *weights);
 
 template<typename T>
-int elx_conv_winograd(eld_conv_t &desc, T *input, T *weights, T *output, T *bias)
+int elx_conv_winograd(elx_conv_t &xc, T *input, T *weights, T *output, T *bias)
 {
     // Notation
     // ========
@@ -58,10 +59,8 @@ int elx_conv_winograd(eld_conv_t &desc, T *input, T *weights, T *output, T *bias
     // hwio -> Oitt16o
     // desc.info.twei
 
-    elx_conv_t &x = desc.x;
-
     // weights -> tr_weights
-    elx_trans_weights(desc, x.tr_weights, weights);
+    elx_trans_weights(xc, xc.tr_weights, weights);
 
 #if 0
     for (int i = 0; i < x.ic * x.oc * 25; ++i) {
@@ -71,16 +70,15 @@ int elx_conv_winograd(eld_conv_t &desc, T *input, T *weights, T *output, T *bias
     return 0;
 }
 
-int elx_trans_weights(eld_conv_t &desc, float *tr_weights, float *weights)
+int elx_trans_weights(elx_conv_t &xc, float *tr_weights, float *weights)
 {
-    elx_conv_t &x = desc.x;
-    MD(float, from, [x.OC][x.IC][3][3][16][16], weights);
-    MD(float, to,   [x.OC][x.IC][5][5][16][16], tr_weights);
+    MD(float, from, [xc.OC][xc.IC][3][3][16][16], weights);
+    MD(float, to,   [xc.OC][xc.IC][5][5][16][16], tr_weights);
     // TODO: test MD
 
 #pragma omp parallel for collapse(2)
-    for (int o = 0; o < x.OC; ++o) {
-        for (int i = 0; i < x.IC; ++i) {
+    for (int o = 0; o < xc.OC; ++o) {
+        for (int i = 0; i < xc.IC; ++i) {
             elk_trans_weights(to[o][i], from[o][i]);
         }
     }
@@ -104,7 +102,7 @@ int elx_conv(eld_conv_t &desc, T *input, T *weights, T *output, T *bias)
     } else {
         assert(desc.algorithm == CONV_WINOGRAD);
         __tstart(twei);
-        elx_conv_winograd<T>(desc, input, weights, output, bias);
+        elx_conv_winograd<T>(*desc.xc, input, weights, output, bias);
         __tend(twei);
 
     }
