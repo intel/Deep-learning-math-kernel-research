@@ -50,22 +50,22 @@ eld_conv_t::setup()
     byte_sizes.output  = sizeof(T) * sizes.output;
     byte_sizes.bias    = sizeof(T) * sizes.bias;
 
-    elx_conv_t *x = (elx_conv_t *)malloc(sizeof(elx_conv_t));
+    xc = (elx_conv_t *)malloc(sizeof(elx_conv_t));
 
-    x->n  = dims.input.n;
-    x->ic = dims.input.c;
-    x->oc = dims.output.c;
-    x->ih = dims.input.h;
-    x->iw = dims.input.w;
-    x->oh = dims.output.h;
-    x->ow = dims.output.w;
-    x->kh = dims.weights.h;
-    x->kw = dims.weights.w;
+    xc->n  = dims.input.n;
+    xc->ic = dims.input.c;
+    xc->oc = dims.output.c;
+    xc->ih = dims.input.h;
+    xc->iw = dims.input.w;
+    xc->oh = dims.output.h;
+    xc->ow = dims.output.w;
+    xc->kh = dims.weights.h;
+    xc->kw = dims.weights.w;
     // TODO:Check CPUID
-    x->v = 16; // avx512
+    xc->V = 16; // avx512
 
-    x->OC = x->oc / x->v;
-    x->IC = x->ic / x->v;
+    xc->OC = xc->oc / xc->V;
+    xc->IC = xc->ic / xc->V;
     // TODO:Check output dimensions
 
     // Formats
@@ -95,14 +95,16 @@ eld_conv_t::setup()
             eld_error("Unimplemented");
             return ELD_UNIMPLEMENTED;
         }
-        x->t = tile_size;
-        x->ot = tile_size - 2;
+        xc->T = tile_size;
+        xc->To = tile_size - 2;
+        xc->IH = xc->ih / xc->To; // TODO, padding, tail
+        xc->IW = xc->iw / xc->To; // TODO
+        xc->OH = xc->oh / xc->To;
+        xc->OW = xc->ow / xc->To;
 
-        int size = sizeof(float) * tile_size * tile_size * x->ic * x->oc;
-        x->tr_weights = (float *)malloc(size);
+        int size = sizeof(float) * tile_size * tile_size * xc->ic * xc->oc;
+        xc->tr_weights = (float *)malloc(size);
     }
-
-    xc = x;
 
     // Winograd
     return ELD_OK;

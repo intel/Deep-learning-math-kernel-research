@@ -6,8 +6,12 @@ namespace euler {
 
 
 struct elx_conv_t {
-    int n, ih, iw, ic, oc, kh, kw, oh, ow, IC, OC;
-    int v, t, ot; // {vector, tile, out-tile}-size
+    // plain
+    int n, ih, iw, ic, oc, kh, kw, oh, ow;
+    // blocks
+    int IH, IW, IC, OC, OH, OW;
+    // block unit, {vector, tile, out-tile}-size
+    int V, T, To;
     int lpad, rpad, tpad, bpad;
     float *tr_weights;
 };
