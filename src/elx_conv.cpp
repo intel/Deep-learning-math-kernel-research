@@ -26,12 +26,6 @@ int elx_trans_weights(elx_conv_t &xc, F *tr_weights, F *weights)
 }
 
 template<typename F, const int T>
-int elk_trans_input(elx_conv_t &xc, F tr_input[T][T][16], F *input)
-{
-    return 0;
-}
-
-template<typename F, const int T>
 int elx_conv_winograd(elx_conv_t &xc, F *input, F *weights, F *output, F *bias)
 {
     // Notation
@@ -83,6 +77,7 @@ int elx_conv_winograd(elx_conv_t &xc, F *input, F *weights, F *output, F *bias)
     // weights -> tr_weights
     elx_trans_weights<F, T>(xc, xc.tr_weights, weights);
     int V = xc.V;
+    MD(F, ainput, [xc.n][xc.IC][xc.ih][xc.iw][16], input);
 
     for (int n = 0; n < xc.n; ++n)     {
     for (int oh = 0; oh < xc.OH; ++oh) {
@@ -92,7 +87,7 @@ int elx_conv_winograd(elx_conv_t &xc, F *input, F *weights, F *output, F *bias)
         for (int ic = 0; ic < xc.IC; ++ic) {
             // input -> tr_input
             F tr_input[T][T][V];
-            //elk_trans_input(xc, tr_input, input);
+            elk_trans_input<F, T>(xc, tr_input, (F *)ainput[n][ic], oh, ow);
             // gemm
             //elk_gemm(xc, tr_output, tr_input, tr_weights[oc][:]);
         }

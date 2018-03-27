@@ -277,5 +277,18 @@ void elk_trans_weights(float to[5][5][16][16], float from[3][3][16][16])
     }
 }
 
+
+template<typename F, const int T> int
+elk_trans_input(elx_conv_t &xc, F tr_input[T][T][16], F *input, int oh, int ow)
+{
+    return 0;
+}
+
+template<> int
+elk_trans_input<float, 5>(elx_conv_t &xc, float tr_input[5][5][16], float *input, int oh, int ow)
+{
+    return 0;
+}
+
 }
 
