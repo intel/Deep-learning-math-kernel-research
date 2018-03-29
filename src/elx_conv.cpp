@@ -13,6 +13,8 @@ int elk_trans_weights(elx_conv_t<float> &xc, float *tweights, float *weights);
 template<typename F, const int T, const int K>
 int elx_trans_weights(elx_conv_t<F> &xc, F *tweights, F *weights)
 {
+    xc.trans_weights(xc);
+
 #pragma omp parallel for collapse(2)
     for (int _oc2 = 0; _oc2 < xc.oc2; ++_oc2) {
         for (int _ic2 = 0; _ic2 < xc.ic2; ++_ic2) {

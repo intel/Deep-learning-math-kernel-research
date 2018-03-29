@@ -54,7 +54,7 @@ eld_conv_t<F>::setup()
     byte_sizes.bias    = sizeof(F) * sizes.bias;
 
     //xc = (elx_conv_t *)malloc(sizeof(elx_conv_t));
-    xc = new elx_conv_t<F>();
+    xc = (new elk_conv_t<F, 5, 3>()); // TODO
 
     xc->n  = dims.input.n;
     xc->ic = dims.input.c;

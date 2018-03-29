@@ -5,7 +5,7 @@
 namespace euler {
 
 
-template<typename F> //, const int T, const int K>
+template<typename F>
 class elx_conv_t {
 public:
     // dimension length
@@ -19,16 +19,25 @@ public:
     int lpad, rpad, tpad, bpad;
     F *tweights;
 
-/*
-    template<typename F, const int T, const int K>
-    using cb_trans_weights = void (*)(elx_conv_t&,
-                                      F atweights[T][T][16][16],
-                                      F aweights[K][K][16][16]);
-
-    template<typename F, const int T, const int K>
-    cb_trans_weights<F,T,K> *trans_weights;
-*/
+    virtual void trans_weights(elx_conv_t<F>&) = 0;
+                          //F atweights[T][T][16][16],
+                          //F aweights[K][K][16][16]) = 0;
 };
+
+template<typename F, const int T, const int K>
+class elk_conv_t : public elx_conv_t<F> {
+public:
+    virtual void trans_weights(elx_conv_t<F>&)
+                          //F atweights[T][T][16][16],
+                          //F aweights[K][K][16][16])
+    { printf("................in elk_conv_t\n"); }
+
+};
+
+template void elk_conv_t<float, 5, 3>::
+trans_weights(elx_conv_t<float>&);
+              //float atweights[5][5][16][16],
+              //float aweights[3][3][16][16]);
 
 }
 #endif // __ELX_CONV_HPP__

@@ -237,7 +237,6 @@ elk_trans_input(elx_conv_t<F> &xc, F atinput[T][T][16], F *input, int _oh2, int 
 template<> void
 elk_trans_input<float, 5, 3>(elx_conv_t<float> &xc, float atinput[5][5][16], float *input, int _oh2, int _ow2)
 {
-    printf("nx.n=%d\n", xc.n);
     _allow_cpu_features(_FEATURE_AVX512F);
     const float z2  = 2.0f;
     const float z3  = 3.0f;
