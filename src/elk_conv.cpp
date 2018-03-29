@@ -1,72 +1,23 @@
 #include <stdio.h>
 #include <assert.h>
 #include <x86intrin.h>
-#include "euler.hpp"
+#include "elx_conv.hpp"
 #include "el_utils.hpp"
 
 namespace euler {
 
-
-#define pragma_unroll _Pragma("unroll")
-
-void elk_trans_weights_ref(float Fw_[5][5][16][16], float F[3][3][16][16]) // F(3x3, 3x3)
-{
-    const float r1_2 = 1.0f / 2.0f;
-    const float r1_3 = 1.0f / 3.0f;
-    const float r1_6 = 1.0f / 6.0f;
-    const float r2_3 = 2.0f / 3.0f;
-
-    float Fw[5][16];
-    float T[5][3][16];
-    float t0[16];
-    float t1[16];
-
-#undef E
-#undef R
-#define E(x) F[x][i][j][k]
-#define R(x) T[x][i][k]
-    for (int j = 0; j < 16; j++) {
-pragma_unroll
-        for (int i = 0; i < 3; i++) {
-#pragma omp simd
-            for (int k = 0; k < 16; k++) {
-                R(0) = r1_2 * E(0);
-                R(1) = -r1_6 * E(0) + r1_6 * E(1)-r1_6 * E(2);
-                R(2) = -r1_2 * E(0)-r1_2 * E(1)-r1_2 * E(2);
-                R(3) = r1_6 * E(0) + r1_3 * E(1) + r2_3 * E(2);
-                R(4) = E(2);
-            }
-        }
-#undef E
-#undef R
-#define E(x) T[i][x][k]
-#define R(x) Fw[x][k]
-pragma_unroll
-        for (int i = 0; i < 5; i++) {
-#pragma omp simd
-            for (int k = 0; k < 16; k++) {
-                R(0) = r1_2 * E(0);
-                R(1) = -r1_6 * E(0) + r1_6 * E(1)-r1_6 * E(2);
-                R(2) = -r1_2 * E(0)-r1_2 * E(1)-r1_2 * E(2);
-                R(3) = r1_6 * E(0) + r1_3 * E(1) + r2_3 * E(2);
-                R(4) = E(2);
-
-pragma_unroll
-                for (int l = 0; l < 5; l++) {
-                    Fw_[i][l][j][k] = Fw[l][k];
-                }
-            }
-        }
-    }
-}
-
-__declspec(cpu_dispatch(generic, skylake_avx512))
-void elk_trans_weights(float to[5][5][16][16], float from[3][3][16][16]) { }
+extern template class elx_conv_t<float>;
+template<typename F, const int T, const int K> void
+elk_trans_weights(F atweights[T][T][16][16],
+                  F aweights[K][K][16][16]) { }
 
 #define IMM_BCAST16(x) x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x
-__declspec(cpu_specific(skylake_avx512))
-void elk_trans_weights(float to[5][5][16][16], float from[3][3][16][16])
+template<> void
+elk_trans_weights<float, 5, 3>(float atweights[5][5][16][16],
+                               float aweights[3][3][16][16])
 {
+    _allow_cpu_features(_FEATURE_AVX512F);
+
     // Constants
     __m512 r12  = _mm512_set_ps(IMM_BCAST16(1.0f  / 12.0f));
     __m512 r_12 = _mm512_set_ps(IMM_BCAST16(-1.0f / 12.0f));
@@ -75,7 +26,6 @@ void elk_trans_weights(float to[5][5][16][16], float from[3][3][16][16])
     __m512 r4   = _mm512_set_ps(IMM_BCAST16(1.0f  / 4.0f));
     __m512 r_4  = _mm512_set_ps(IMM_BCAST16(-1.0f / 4.0f));
     __m512 r3   = _mm512_set_ps(IMM_BCAST16(1.0f  / 3.0f));
-    __m512 r_3  = _mm512_set_ps(IMM_BCAST16(-1.0f / 3.0f));
     __m512 r2   = _mm512_set_ps(IMM_BCAST16(1.0f  / 2.0f));
     __m512 r_2  = _mm512_set_ps(IMM_BCAST16(-1.0f / 2.0f));
     __m512 r2_3 = _mm512_set_ps(IMM_BCAST16(2.0f  / 3.0f));
@@ -92,9 +42,9 @@ void elk_trans_weights(float to[5][5][16][16], float from[3][3][16][16])
            t04, t14, t24, t34 /*, t44 */;
 #undef F
 #undef T
-#define F(h,w) from[h][w][ic]
-#define T(h,w) to[h][w][ic]
-    for (int ic = 0; ic < 16; ++ic) {
+#define F(h,w) aweights[h][w][_V]
+#define T(h,w) atweights[h][w][_V]
+    for (int _V = 0; _V < 16; ++_V) {
         f00 = _mm512_load_ps(F(0,0));
         f01 = _mm512_load_ps(F(0,1));
         f02 = _mm512_load_ps(F(0,2));
@@ -211,8 +161,8 @@ void elk_trans_weights(float to[5][5][16][16], float from[3][3][16][16])
     }
 }
 
-__declspec(cpu_specific(generic))
-void elk_trans_weights(float to[5][5][16][16], float from[3][3][16][16])
+//__declspec(cpu_specific(generic))
+void elk_trans_weights_c(float to[5][5][16][16], float from[3][3][16][16])
 {
     const float r12 = 1.0f / 12.0f;
     const float r6  = 1.0f / 6.0f;
@@ -226,12 +176,12 @@ void elk_trans_weights(float to[5][5][16][16], float from[3][3][16][16])
           C30[16], C31[16], C32[16];
 #undef F
 #undef T
-#define F(h,w) from[h][w][ic][oc]
-#define T(h,w) to[h][w][ic][oc]
-#define C(c,n) C##c##n[oc]
-    for (int ic = 0; ic < 16; ++ic) {
+#define F(h,w) from[h][w][_IV][_OV]
+#define T(h,w) to[h][w][_IV][_OV]
+#define C(c,n) C##c##n[_OV]
+    for (int _IV = 0; _IV < 16; ++_IV) {
 #pragma omp simd
-        for (int oc = 0; oc < 16; ++oc) {
+        for (int _OV = 0; _OV < 16; ++_OV) {
             T(0,0) = r4 * F(0,0);
             T(1,0) = -r12 * (F(0,0) - F(1,0) + F(2,0));
             T(2,0) = -r4 * (F(0,0) + F(1,0) + F(2,0));
@@ -278,17 +228,119 @@ void elk_trans_weights(float to[5][5][16][16], float from[3][3][16][16])
 }
 
 
-template<typename F, const int T> int
-elk_trans_input(elx_conv_t &xc, F tr_input[T][T][16], F *input, int oh, int ow)
-{
-    return 0;
-}
+template<typename F, const int T, const int K> void
+elk_trans_input(elx_conv_t<F> &xc, F atinput[T][T][16], F *input, int _oh2, int _ow2)
+{ }
 
-template<> int
-elk_trans_input<float, 5>(elx_conv_t &xc, float tr_input[5][5][16], float *input, int oh, int ow)
+#if 1
+// F(3x3, 3x3): T=5, OT=3, K=3
+template<> void
+elk_trans_input<float, 5, 3>(elx_conv_t<float> &xc, float atinput[5][5][16], float *input, int _oh2, int _ow2)
 {
-    return 0;
+    printf("nx.n=%d\n", xc.n);
+    _allow_cpu_features(_FEATURE_AVX512F);
+    const float z2  = 2.0f;
+    const float z3  = 3.0f;
+    const float z4  = 4.0f;
+    const float z6  = 6.0f;
+
+    //MD(float, ainput, [xc.ih][xc.iw][16], input);
+    auto f = [&](int _hT, int _wT, int _V) {
+        int _ih = _oh2 * 3 - xc.lpad + _hT;
+        int _iw = _ow2 * 3 - xc.tpad + _wT;
+        int _i = _ih * 16 * xc.iw + _iw * 16 + _V;
+        if (_ih < 0 || _iw < 0 || _ih >= xc.ih || _iw >= xc.iw)
+            return 0.0f;
+        else
+            return *(input + _i);
+            //return ainput[_ih][_iw][_V];
+    };
+
+#undef F
+#undef C
+#undef T
+#define F(_hT, _wT) f(_hT, _wT, _V)
+//#define F(_hT, _wT) ainput[_oh2 * 3 - xc.lpad + _hT][_ow2 * 3 - xc.tpad + _wT][_V]
+#define C(n) C##n[_V]
+#define T(_hT, _wT) atinput[_hT][_wT][_V]
+
+    float C1[16], C2[16], C3[16];
+#pragma omp simd
+    for (int _V = 0; _V < 16; ++_V) {
+        C(1) = F(1,1) + z2 * F(1,2) - z2 * F(1,0) - F(1,3);
+        C(2) = F(2,1) + z2 * F(2,2) - z2 * F(2,0) - F(2,3);
+        C(3) = F(3,1) + z2 * F(3,2) - z2 * F(3,0) - F(3,3);
+        T(0,0) = z4 * F(0,0) - z2 * F(0,1) - z4 * F(0,2) + z2 * F(0,3) + C(1) + z2 * C(2) - C(3);
+        T(1,0) = z3 * C(2) - z2 * C(1) - C(3);
+        T(2,0) = z2 * C(1) + C(2) - C(3);
+        T(3,0) = C(1) - C(3);
+        T(4,0) = z2 * F(4,0) - F(4,1) - z2 * F(4,2) + F(4,3) - z2 * C(1) + C(2) + z2 * C(3);
+
+        C(1) = z3 * F(1,2) - z2 * F(1,1) - F(1,3);
+        C(2) = z3 * F(2,2) - z2 * F(2,1) - F(2,3);
+        C(3) = z3 * F(3,2) - z2 * F(3,1) - F(3,3);
+        T(0,1) = z4 * F(0,1) - z6 * F(0,2) + z2 * F(0,3) + C(1) + z2 * C(2) - C(3);
+        T(1,1) = z3 * C(2) - z2 * C(1) - C(3);
+        T(2,1) = z2 * C(1) + C(2) - C(3);
+        T(3,1) = C(1) - C(3);
+        T(4,1) = z2 * F(4,1) - z3 * F(4,2) + F(4,3) - z2 * C(1) + C(2) + z2 * C(3);
+
+        C(1) = z2 * F(1,1) + F(1,2) - F(1,3);
+        C(2) = z2 * F(2,1) + F(2,2) - F(2,3);
+        C(3) = z2 * F(3,1) + F(3,2) - F(3,3);
+        T(0,2) = z2 * F(0,3) - z2 * F(0,2) - z4 * F(0,1) + C(1) + z2 * C(2) - C(3);
+        T(1,2) = z3 * C(2) - z2 * C(1) - C(3);
+        T(2,2) = z2 * C(1) + C(2) - C(3);
+        T(3,2) = C(1) - C(3);
+        T(4,2) = F(4,3) - z2 * F(4,1) - F(4,2) - z2 * C(1) + C(2) + z2 * C(3);
+
+        C(1) = F(1,1) - F(1,3);
+        C(2) = F(2,1) - F(2,3);
+        C(3) = F(3,1) - F(3,3);
+        T(0,3) = z2 * F(0,3) - z2 * F(0,1) + C(1) + z2 * C(2) - C(3);
+        T(1,3) = z3 * C(2) - z2 * C(1) - C(3);
+        T(2,3) = z2 * C(1) + C(2) - C(3);
+        T(3,3) = C(1) - C(3);
+        T(4,3) = F(4,3) - F(4,1) - z2 * C(1) + C(2) + z2 * C(3);
+
+        C(1) = F(1,2) + z2 * F(1,3) - z2 * F(1,1) - F(1,4);
+        C(2) = F(2,2) + z2 * F(2,3) - z2 * F(2,1) - F(2,4);
+        C(3) = F(3,2) + z2 * F(3,3) - z2 * F(3,1) - F(3,4);
+        T(0,4) = z4 * F(0,1) - z2 * F(0,2) - z4 * F(0,3)  + z2 * F(0,4) + C(1) + z2 * C(2) - C(3);
+        T(1,4) = z3 * C(2) - z2 * C(1) - C(3);
+        T(2,4) = z2 * C(1) + C(2) - C(3);
+        T(3,4) = C(1) - C(3);
+        T(4,4) = z2 * F(4,1) - F(4,2) - z2 * F(4,3) + F(4,4) - z2 * C(1) + C(2) + z2 * C(3);
+    }
 }
+#endif
+
+#if 0
+template<>
+__declspec(cpu_specific(skylake_avx512))
+void elk_trans_input<float, 5, 3>(elx_conv_t &xc, float atinput[5][5][16], float *input, int _oh2, int _ow2)
+{
+    // Inputs
+    __m512 f00, f01, f02, f03, f04,
+           f10, f11, f12, f13, f14,
+           f20, f21, f22, f23, f24,
+           f30, f31, f32, f33, f34,
+           f40, f41, f42, f43, f44;
+    __m512 c1, c2, c3;
+    __m512 t00, t01, t02, t03, t04,
+           t10, t11, t12, t13, t14,
+           t20, t21, t22, t23, t24,
+           t30, t31, t32, t33, t34,
+           t40, t41, t42, t43, t44;
+
+    // Cache
+    // Outputs
+}
+#endif
+
+//template void
+//elk_trans_input<float, 5, 3>(elx_conv_t &xc, float atinput[5][5][16], float *input, int _oh2, int _ow2);
+
 
 }
 

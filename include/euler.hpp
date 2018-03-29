@@ -29,9 +29,10 @@ enum {
     OIhw16i16o
 };
 
-struct elx_conv_t;
+template<typename F> struct elx_conv_t;
 
 // Convolution desc
+template<typename F>
 struct eld_conv_t {
     // Conv parameters
     struct {
@@ -57,23 +58,19 @@ struct eld_conv_t {
     // Defaults
     eld_conv_t();
     ~eld_conv_t();
-    template<typename T> int setup();
+    int setup();
 
     // Auto computed
     struct { int input, weights, output, bias; } byte_sizes;
     struct { int input, weights, output, bias; } sizes;
 
     // Internal data used by elx
-    elx_conv_t *xc;
+    elx_conv_t<F> *xc;
 };
-
-// Convolution desc setup
-template<typename T>
-int eld_conv_setup(eld_conv_t &desc);
 
 // Convolution execution
 template<typename T>
-int elx_conv(eld_conv_t &desc, T *input, T *weights, T *output, T *bias);
+int elx_conv(eld_conv_t<T> &desc, T *input, T *weights, T *output, T *bias);
 
 }
 

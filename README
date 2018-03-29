@@ -32,8 +32,39 @@ Link to Euler:
 Examples:
     See test/elt_xxx.cpp
 
-Name conventions:
+Naming conventions (files, functions, classes):
     eld: descriptor
-    elx: exection functoin
-    elk: kernel function
+    elx: exection functoin (stateless)
+    elk: kernel function (stateless)
     elt: test
+
+Naming conventions (numbering):
+    Cardinal number
+        // dimension
+        n, ic, oc, ih, iw, oh, ow, kh, kw, t
+        // blocked dimension
+        ic2, oc2, ih2, iw2, oh2, ow2, t2 // blocked
+        ic3, oc3, t3, ...                // 2nd level blocked
+        // blocking unit, normally IV = OV = I = O, IT = T
+        V, T, OT
+        // 2nd level blocking unit
+        I2, O2, T2
+    Ordinal number
+        // dimension
+        _n, _ic, _oc, _ih, _iw, _oh, _ow, _kh, _kw, ...
+        // blocked dimension
+        _ic2, _oc2, _ih2, _iw2, _oh2, _ow2, _t2 // blocked
+        _ic3, _oc3, _t3, ...                    // 2nd level blocked
+        // blocking unit
+        _V, _T, _IV, _OV, _IT, _OT, _hT, _wT
+        _I2, _O2, _T2, ...
+
+Naming conventions (tensor):
+    // pointer type
+    input, output, weights, bias
+    // md-array
+    ainput, aoutput, aweights
+    // tensor for transform (from or to)
+    tinput, toutput, tweights
+    // transformed md-array
+    atinput, atoutput, atweights

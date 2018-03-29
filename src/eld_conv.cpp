@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 #include "euler.hpp"
 #include "el_utils.hpp"
@@ -6,7 +7,8 @@
 
 namespace euler {
 
-eld_conv_t::eld_conv_t() {
+template<typename F>
+eld_conv_t<F>::eld_conv_t() {
     pads      = { 1, 1, 1, 1 };
     strides   = { 1, 1 };
     dilations = { 1, 1 };
@@ -17,17 +19,18 @@ eld_conv_t::eld_conv_t() {
     with_bias = false;
 }
 
-eld_conv_t::~eld_conv_t() {
-    if (xc->tr_weights != nullptr) {
-        free(xc->tr_weights);
+template<typename F>
+eld_conv_t<F>::~eld_conv_t() {
+    if (xc->tweights != nullptr) {
+        delete xc->tweights;
     }
     if (xc != nullptr) {
         free(xc);
     }
 }
 
-template<typename T> int
-eld_conv_t::setup()
+template<typename F> int
+eld_conv_t<F>::setup()
 {
     // Dimensions
     if (dims.input.c != dims.weights.i ||
@@ -45,12 +48,13 @@ eld_conv_t::setup()
                                dims.output.h, dims.output.w);
     sizes.bias    = dims.bias.c;
 
-    byte_sizes.input   = sizeof(T) * sizes.input;
-    byte_sizes.weights = sizeof(T) * sizes.weights;
-    byte_sizes.output  = sizeof(T) * sizes.output;
-    byte_sizes.bias    = sizeof(T) * sizes.bias;
+    byte_sizes.input   = sizeof(F) * sizes.input;
+    byte_sizes.weights = sizeof(F) * sizes.weights;
+    byte_sizes.output  = sizeof(F) * sizes.output;
+    byte_sizes.bias    = sizeof(F) * sizes.bias;
 
-    xc = (elx_conv_t *)malloc(sizeof(elx_conv_t));
+    //xc = (elx_conv_t *)malloc(sizeof(elx_conv_t));
+    xc = new elx_conv_t<F>();
 
     xc->n  = dims.input.n;
     xc->ic = dims.input.c;
@@ -64,8 +68,8 @@ eld_conv_t::setup()
     // TODO:Check CPUID
     xc->V = 16; // avx512
 
-    xc->OC = xc->oc / xc->V;
-    xc->IC = xc->ic / xc->V;
+    xc->ic2 = xc->ic / xc->V;
+    xc->oc2 = xc->oc / xc->V;
     // TODO:Check output dimensions
 
     // Formats
@@ -96,14 +100,17 @@ eld_conv_t::setup()
             return ELD_UNIMPLEMENTED;
         }
         xc->T = tile_size;
-        xc->To = tile_size - 2;
-        xc->IH = xc->ih / xc->To; // TODO, padding, tail
-        xc->IW = xc->iw / xc->To; // TODO
-        xc->OH = xc->oh / xc->To;
-        xc->OW = xc->ow / xc->To;
+        xc->OT = tile_size - 2;
+        xc->ih2 = xc->ih / xc->OT; // TODO, padding, tail
+        xc->iw2 = xc->iw / xc->OT; // TODO
+        xc->oh2 = xc->oh / xc->OT;
+        xc->ow2 = xc->ow / xc->OT;
 
-        int size = sizeof(float) * tile_size * tile_size * xc->ic * xc->oc;
-        xc->tr_weights = (float *)malloc(size);
+        int size = sizeof(F) * tile_size * tile_size * xc->ic * xc->oc;
+        xc->tweights = (float *)malloc(size);
+
+        //trans_weights = template<> elk_trans_weights<float, xc->T, xc->kw>
+        //    (elx_conv_t&, float [5][5][16][16], float [3][3][16][16]);
     }
 
     // Winograd
@@ -111,6 +118,8 @@ eld_conv_t::setup()
 
 }
 
-template int eld_conv_t::setup<float>();
+template eld_conv_t<float>::eld_conv_t();
+template eld_conv_t<float>::~eld_conv_t();
+template int eld_conv_t<float>::setup();
 
 }

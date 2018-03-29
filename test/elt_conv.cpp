@@ -7,7 +7,7 @@ using namespace euler;
 
 int main() {
     // 1, create convolution desc
-    eld_conv_t desc;
+    eld_conv_t<float> desc;
     desc.dims = {
         .input   = { 4, 224, 224, 1024 },
         .weights = { 3, 3, 1024, 512 },
@@ -24,7 +24,7 @@ int main() {
     desc.tile_size = 5;
     desc.with_relu = false;
 
-    desc.setup<float>();
+    desc.setup();
 
     // 2. allocate memory
     float *input, *weights, *output, *bias;
@@ -32,6 +32,9 @@ int main() {
     weights = (float *)malloc(desc.byte_sizes.weights);
     output = (float *)malloc(desc.byte_sizes.output);
 
+    for (int i = 0; i < desc.sizes.input; i++) {
+        input[i] = i % 18;
+    }
     for (int i = 0; i < desc.sizes.weights; i++) {
         weights[i] = i % 32;
     }
