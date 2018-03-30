@@ -7,29 +7,79 @@
 
 namespace euler {
 
-
-int elk_trans_weights(elx_conv_t<float> &xc, float *tweights, float *weights);
-
-template<typename F, const int T, const int K>
-int elx_trans_weights(elx_conv_t<F> &xc, F *tweights, F *weights)
+template<typename F>
+elx_conv_t<F>::elx_conv_t (eld_conv_t<F> &dc)
 {
-    xc.trans_weights(xc);
+    this->n  = dc.dims.input.n;
+    this->ic = dc.dims.input.c;
+    this->oc = dc.dims.output.c;
+    this->ih = dc.dims.input.h;
+    this->iw = dc.dims.input.w;
+    this->oh = dc.dims.output.h;
+    this->ow = dc.dims.output.w;
+    this->kh = dc.dims.weights.h;
+    this->kw = dc.dims.weights.w;
+    this->lp = dc.pads.l;
+    this->rp = dc.pads.r;
+    this->tp = dc.pads.t;
+    this->bp = dc.pads.b;
+    this->hs = dc.strides.h;
+    this->ws = dc.strides.w;
+    this->hd = dc.dilations.h;
+    this->wd = dc.dilations.w;
 
-#pragma omp parallel for collapse(2)
-    for (int _oc2 = 0; _oc2 < xc.oc2; ++_oc2) {
-        for (int _ic2 = 0; _ic2 < xc.ic2; ++_ic2) {
-            int d = 16 * 16 * (_ic2 + _oc2 * xc.ic2);
-            MD(F, aweights,  [K][K][16][16], weights + K * K * d);
-            MD(F, atweights, [T][T][16][16], tweights + T * T * d);
+    this->with_relu = dc.with_relu;
+    this->with_bias = dc.with_bias;
 
-            elk_trans_weights<F, T, K>(atweights, aweights);
-        }
-    }
-    return 0;
+    this->tweights = nullptr;
 }
 
-template<typename F, const int T, const int K>
-int elx_conv_winograd(elx_conv_t<F> &xc, F *input, F *weights, F *output, F *bias)
+template<typename F, const int T, const int K, const int V, const int I>
+elx_conv_impl_t<F, T, K, V, I>::elx_conv_impl_t (eld_conv_t<F> &dc)
+: elx_conv_t<F>(dc) 
+{
+    this->V = V;
+
+    this->ic2 = this->ic / V;
+    this->oc2 = this->oc / V;
+
+    this->T   = T;
+    this->OT  = T - 2;
+    this->ih2 = this->ih / T; // TODO, padding, tail
+    this->iw2 = this->iw / T; // TODO
+    this->oh2 = this->oh / T;
+    this->ow2 = this->ow / T;
+
+    int size = sizeof(F) * T * T * this->ic * this->oc;
+    this->tweights = (float *)malloc(size);
+}
+
+template<typename F, const int T, const int K, const int V, const int I>
+elx_conv_impl_t<F, T, K, V, I>::~elx_conv_impl_t ()
+{
+    if (this->tweights != nullptr) {
+        free(this->tweights);
+        this->tweights = nullptr;
+    }
+}
+
+template<typename F, const int T, const int K, const int V, const int I> void
+elx_conv_impl_t<F, T, K, V, I>::trans_weights(F *tweights, F *weights)
+{
+#pragma omp parallel for collapse(2)
+    for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
+        for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
+            int d = 16 * 16 * (_ic2 + _oc2 * this->ic2);
+            MD(F, aweights,  [K][K][V][V], weights + K * K * d);
+            MD(F, atweights, [T][T][V][V], tweights + T * T * d);
+
+            elk_trans_weights<F, T, K, V, I>(atweights, aweights);
+        }
+    }
+}
+
+template<typename F, const int T, const int K, const int V, const int I> void
+elx_conv_impl_t<F, T, K, V, I>::winograd(F *input, F *weights, F *output, F *bias)
 {
     // Notation
     // ========
@@ -78,21 +128,20 @@ int elx_conv_winograd(elx_conv_t<F> &xc, F *input, F *weights, F *output, F *bia
     // desc.info.twei
 
     // weights -> tweights
-    elx_trans_weights<F, T, K>(xc, xc.tweights, weights);
-    MD(F, ainput, [xc.n][xc.ic2][xc.ih][xc.iw][16], input);
-    int V = xc.V;
+    trans_weights(this->tweights, weights);
+    MD(F, ainput, [this->n][this->ic2][this->ih][this->iw][V], input);
 
 #pragma omp parallel for collapse(4)
-    for (int _n = 0; _n < xc.n; ++_n)     {
-    for (int _oh2 = 0; _oh2 < xc.oh2; ++_oh2) {
-    for (int _ow2 = 0; _ow2 < xc.ow2; ++_ow2) {
-    for (int _oc2 = 0; _oc2 < xc.oc2; ++_oc2) {
+    for (int _n = 0; _n < this->n; ++_n)     {
+    for (int _oh2 = 0; _oh2 < this->oh2; ++_oh2) {
+    for (int _ow2 = 0; _ow2 < this->ow2; ++_ow2) {
+    for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
         F atoutput[T][T][V];
-        for (int _ic2 = 0; _ic2 < xc.ic2; ++_ic2) {
+        for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
             // input -> tinput
             F atinput[T][T][V];
-            elk_trans_input<F, T, K>(xc, atinput, (F *)ainput[_n][_ic2],
-                                     _oh2, _ow2);
+            elk_trans_input<F, T, K, V, I>(*this,
+                           atinput, (F *)ainput[_n][_ic2], _oh2, _ow2);
             // gemm
             //elk_gemm(xc, atoutput, atinput, tweights[oc][:]);
         }
@@ -104,7 +153,6 @@ int elx_conv_winograd(elx_conv_t<F> &xc, F *input, F *weights, F *output, F *bia
         printf("%f\n", x.tweights[i]);
     }
 #endif
-    return 0;
 }
 
 template<typename F>
@@ -126,11 +174,7 @@ int elx_conv(eld_conv_t<F> &desc, F *input, F *weights, F *output, F *bias)
     } else {
         assert(desc.algorithm == CONV_WINOGRAD);
         __tstart(twei);
-        switch(xc.T) {
-        case 5:
-            elx_conv_winograd<F, 5, 3>(xc, input, weights, output, bias);
-            break;
-        }
+        xc.winograd(input, weights, output, bias);
         __tend(twei);
 
     }
@@ -139,7 +183,5 @@ int elx_conv(eld_conv_t<F> &desc, F *input, F *weights, F *output, F *bias)
 
 template int elx_conv<float>
 (eld_conv_t<float> &desc, float *input, float *weights, float *output, float *bias);
-template int elx_conv_winograd<float, 5, 3>
-(elx_conv_t<float> &xc, float *input, float *weights, float *output, float *bias);
 
 }

@@ -21,11 +21,8 @@ eld_conv_t<F>::eld_conv_t() {
 
 template<typename F>
 eld_conv_t<F>::~eld_conv_t() {
-    if (xc->tweights != nullptr) {
-        delete xc->tweights;
-    }
     if (xc != nullptr) {
-        free(xc);
+        delete xc;
     }
 }
 
@@ -53,27 +50,8 @@ eld_conv_t<F>::setup()
     byte_sizes.output  = sizeof(F) * sizes.output;
     byte_sizes.bias    = sizeof(F) * sizes.bias;
 
-    //xc = (elx_conv_t *)malloc(sizeof(elx_conv_t));
-    xc = (new elk_conv_t<F, 5, 3>()); // TODO
-
-    xc->n  = dims.input.n;
-    xc->ic = dims.input.c;
-    xc->oc = dims.output.c;
-    xc->ih = dims.input.h;
-    xc->iw = dims.input.w;
-    xc->oh = dims.output.h;
-    xc->ow = dims.output.w;
-    xc->kh = dims.weights.h;
-    xc->kw = dims.weights.w;
-    // TODO:Check CPUID
-    xc->V = 16; // avx512
-
-    xc->ic2 = xc->ic / xc->V;
-    xc->oc2 = xc->oc / xc->V;
-    // TODO:Check output dimensions
-
-    // Formats
-    // TODO:Check formats
+    // TODO: Check output dimensions
+    // TODO: Check formats
     if (formats.input != nChw16c ||
         formats.output != nChw16c ||
         formats.weights != OIhw16i16o) {
@@ -81,14 +59,16 @@ eld_conv_t<F>::setup()
         return ELD_UNIMPLEMENTED;
     }
 
+    // TODO: Check CPUID
+    xc = nullptr;
+
     // Direct
     if (algorithm == CONV_DIRECT) {
         eld_error("Unimplemented");
+        // TODO: Direct
         return ELD_UNIMPLEMENTED;
-    }
-
-    // Winograd
-    if (algorithm == CONV_WINOGRAD) {
+    } else if (algorithm == CONV_WINOGRAD) {
+        // Winograd
         if (dilations.h > 1 ||
             dilations.w > 1 ||
             tile_size != 5 ||
@@ -99,27 +79,18 @@ eld_conv_t<F>::setup()
             eld_error("Unimplemented");
             return ELD_UNIMPLEMENTED;
         }
-        xc->T = tile_size;
-        xc->OT = tile_size - 2;
-        xc->ih2 = xc->ih / xc->OT; // TODO, padding, tail
-        xc->iw2 = xc->iw / xc->OT; // TODO
-        xc->oh2 = xc->oh / xc->OT;
-        xc->ow2 = xc->ow / xc->OT;
 
-        int size = sizeof(F) * tile_size * tile_size * xc->ic * xc->oc;
-        xc->tweights = (float *)malloc(size);
-
-        //trans_weights = template<> elk_trans_weights<float, xc->T, xc->kw>
-        //    (elx_conv_t&, float [5][5][16][16], float [3][3][16][16]);
+        switch(tile_size) {
+        case 5:
+            xc = new elx_conv_impl_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);
+            break;
+        default:
+            xc = new elx_conv_impl_t<F, 5, 3, 16, ISA_GENERIC>(*this);
+            break;
+        }
     }
 
-    // Winograd
     return ELD_OK;
-
 }
-
-template eld_conv_t<float>::eld_conv_t();
-template eld_conv_t<float>::~eld_conv_t();
-template int eld_conv_t<float>::setup();
 
 }

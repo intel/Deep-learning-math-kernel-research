@@ -9,8 +9,8 @@ TLDFLAGS   = -Llib -L$(LIB_DIR) -liomp5 -lel -Wl,-rpath=$(LIB_DIR)
 BUILD_DIR := build
 DEBUG     ?= 0
 ifeq ($(DEBUG), 1)
-CXXFLAGS  += -DDEBUG -g -O0 -qopt-report=5
-TCXXFLAGS += -DDEBUG -g -O0
+CXXFLAGS  += -DDEBUG -g -O0
+TCXXFLAGS += -DDEBUG -g -O0 -qopt-report=5
 OBJ_DIR   := $(BUILD_DIR)/debug
 else
 CXXFLAGS  += -O2 -DNDEBUG

@@ -6,15 +6,83 @@
 
 namespace euler {
 
-extern template class elx_conv_t<float>;
-template<typename F, const int T, const int K> void
-elk_trans_weights(F atweights[T][T][16][16],
-                  F aweights[K][K][16][16]) { }
-
 #define IMM_BCAST16(x) x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x
-template<> void
-elk_trans_weights<float, 5, 3>(float atweights[5][5][16][16],
-                               float aweights[3][3][16][16])
+
+template<typename F, const int T, const int K, const int V, const int I> void
+elk_trans_weights(F atweights[T][T][V][V], F aweights[K][K][V][V]) { }
+
+template<typename F, const int T, const int K, const int V, const int I> void
+elk_trans_input(elx_conv_t<F> &xc, F atinput[T][T][V], F *input, int _oh2, int _ow2)
+{ }
+
+template<> void elk_trans_weights<float, 5, 3, 16, ISA_GENERIC>
+(float atweights[5][5][16][16], float aweights[3][3][16][16])
+{
+    const float r12 = 1.0f / 12.0f;
+    const float r6  = 1.0f / 6.0f;
+    const float r3  = 1.0f / 3.0f;
+    const float r4  = 1.0f / 4.0f;
+    const float r2  = 1.0f / 2.0f;
+    const float r2_3 = 2.0f / 3.0f;
+
+    float C10[16], C11[16], C12[16],
+          C20[16], C21[16], C22[16],
+          C30[16], C31[16], C32[16];
+#undef F
+#undef T
+#define F(h,w) aweights[h][w][_IV][_OV]
+#define T(h,w) atweights[h][w][_IV][_OV]
+#define C(c,n) C##c##n[_OV]
+    for (int _IV = 0; _IV < 16; ++_IV) {
+#pragma omp simd
+        for (int _OV = 0; _OV < 16; ++_OV) {
+            T(0,0) = r4 * F(0,0);
+            T(1,0) = -r12 * (F(0,0) - F(1,0) + F(2,0));
+            T(2,0) = -r4 * (F(0,0) + F(1,0) + F(2,0));
+            T(3,0) = r12 * F(0,0) + r6 * F(1,0) + r3 * F(2,0);
+            T(4,0) = r2 * F(2,0);
+
+            C(1,0) = -r6 * (F(0,0) - F(0,1) + F(0,2));
+            C(1,1) = -r6 * (F(1,0) - F(1,1) + F(1,2));
+            C(1,2) = -r6 * (F(2,0) - F(2,1) + F(2,2));
+
+            T(0,1) = r2 * C(1,0);
+            T(1,1) = -r6 * (C(1,0) - C(1,1) + C(1,2));
+            T(2,1) = -r2 * (C(1,0) + C(1,1) + C(1,2));
+            T(3,1) = r6 * C(1,0) + r3 * C(1,1) + r2_3 * C(1,2);
+            T(4,1) = C(1,2);
+
+            C(2,0) = -r2 * (F(0,0) + F(0,1) + F(0,2));
+            C(2,1) = -r2 * (F(1,0) + F(1,1) + F(1,2));
+            C(2,2) = -r2 * (F(2,0) + F(2,1) + F(2,2));
+
+            T(0,2) = r2 * C(2,0);
+            T(1,2) = -r6 * (C(2,0) - C(2,1) + C(2,2));
+            T(2,2) = -r2 * (C(2,0) + C(2,1) + C(2,2));
+            T(3,2) = r6 * C(2,0) + r3 * C(2,1) + r2_3 * C(2,2);
+            T(4,2) = C(2,2);
+
+            C(3,0) = r6 * F(0,0) + r3 * F(0,1) + r2_3 * F(0,2);
+            C(3,1) = r6 * F(1,0) + r3 * F(1,1) + r2_3 * F(1,2);
+            C(3,2) = r6 * F(2,0) + r3 * F(2,1) + r2_3 * F(2,2);
+
+            T(0,3) = r2 * C(3,0);
+            T(1,3) = -r6 * (C(3,0) - C(3,1) + C(3,2));
+            T(2,3) = -r2 * (C(3,0) + C(3,1) + C(3,2));
+            T(3,3) = r6 * C(3,0) + r3 * C(3,1) + r2_3 * C(3,2);
+            T(4,3) = C(3,2);
+
+            T(0,4) = r2 * F(0,2);
+            T(1,4) = -r6 * (F(0,2) - F(1,2) + F(2,2));
+            T(2,4) = -r2 * (F(0,2) + F(1,2) + F(2,2));
+            T(3,4) = r6 * F(0,2) + r3 * F(1,2) + r2_3 * F(2,2);
+            T(4,4) = F(2,2);
+        }
+    }
+}
+
+template<> void elk_trans_weights<float, 5, 3, 16, ISA_SKX_AVX512>
+(float atweights[5][5][16][16], float aweights[3][3][16][16])
 {
     _allow_cpu_features(_FEATURE_AVX512F);
 
@@ -161,83 +229,10 @@ elk_trans_weights<float, 5, 3>(float atweights[5][5][16][16],
     }
 }
 
-//__declspec(cpu_specific(generic))
-void elk_trans_weights_c(float to[5][5][16][16], float from[3][3][16][16])
-{
-    const float r12 = 1.0f / 12.0f;
-    const float r6  = 1.0f / 6.0f;
-    const float r3  = 1.0f / 3.0f;
-    const float r4  = 1.0f / 4.0f;
-    const float r2  = 1.0f / 2.0f;
-    const float r2_3 = 2.0f / 3.0f;
-
-    float C10[16], C11[16], C12[16],
-          C20[16], C21[16], C22[16],
-          C30[16], C31[16], C32[16];
-#undef F
-#undef T
-#define F(h,w) from[h][w][_IV][_OV]
-#define T(h,w) to[h][w][_IV][_OV]
-#define C(c,n) C##c##n[_OV]
-    for (int _IV = 0; _IV < 16; ++_IV) {
-#pragma omp simd
-        for (int _OV = 0; _OV < 16; ++_OV) {
-            T(0,0) = r4 * F(0,0);
-            T(1,0) = -r12 * (F(0,0) - F(1,0) + F(2,0));
-            T(2,0) = -r4 * (F(0,0) + F(1,0) + F(2,0));
-            T(3,0) = r12 * F(0,0) + r6 * F(1,0) + r3 * F(2,0);
-            T(4,0) = r2 * F(2,0);
-
-            C(1,0) = -r6 * (F(0,0) - F(0,1) + F(0,2));
-            C(1,1) = -r6 * (F(1,0) - F(1,1) + F(1,2));
-            C(1,2) = -r6 * (F(2,0) - F(2,1) + F(2,2));
-
-            T(0,1) = r2 * C(1,0);
-            T(1,1) = -r6 * (C(1,0) - C(1,1) + C(1,2));
-            T(2,1) = -r2 * (C(1,0) + C(1,1) + C(1,2));
-            T(3,1) = r6 * C(1,0) + r3 * C(1,1) + r2_3 * C(1,2);
-            T(4,1) = C(1,2);
-
-            C(2,0) = -r2 * (F(0,0) + F(0,1) + F(0,2));
-            C(2,1) = -r2 * (F(1,0) + F(1,1) + F(1,2));
-            C(2,2) = -r2 * (F(2,0) + F(2,1) + F(2,2));
-
-            T(0,2) = r2 * C(2,0);
-            T(1,2) = -r6 * (C(2,0) - C(2,1) + C(2,2));
-            T(2,2) = -r2 * (C(2,0) + C(2,1) + C(2,2));
-            T(3,2) = r6 * C(2,0) + r3 * C(2,1) + r2_3 * C(2,2);
-            T(4,2) = C(2,2);
-
-            C(3,0) = r6 * F(0,0) + r3 * F(0,1) + r2_3 * F(0,2);
-            C(3,1) = r6 * F(1,0) + r3 * F(1,1) + r2_3 * F(1,2);
-            C(3,2) = r6 * F(2,0) + r3 * F(2,1) + r2_3 * F(2,2);
-
-            T(0,3) = r2 * C(3,0);
-            T(1,3) = -r6 * (C(3,0) - C(3,1) + C(3,2));
-            T(2,3) = -r2 * (C(3,0) + C(3,1) + C(3,2));
-            T(3,3) = r6 * C(3,0) + r3 * C(3,1) + r2_3 * C(3,2);
-            T(4,3) = C(3,2);
-
-            T(0,4) = r2 * F(0,2);
-            T(1,4) = -r6 * (F(0,2) - F(1,2) + F(2,2));
-            T(2,4) = -r2 * (F(0,2) + F(1,2) + F(2,2));
-            T(3,4) = r6 * F(0,2) + r3 * F(1,2) + r2_3 * F(2,2);
-            T(4,4) = F(2,2);
-        }
-    }
-}
-
-
-template<typename F, const int T, const int K> void
-elk_trans_input(elx_conv_t<F> &xc, F atinput[T][T][16], F *input, int _oh2, int _ow2)
-{ }
-
-#if 1
-// F(3x3, 3x3): T=5, OT=3, K=3
 template<> void
-elk_trans_input<float, 5, 3>(elx_conv_t<float> &xc, float atinput[5][5][16], float *input, int _oh2, int _ow2)
+elk_trans_input<float, 5, 3, 16, ISA_GENERIC>
+(elx_conv_t<float> &xc, float atinput[5][5][16], float *input, int _oh2, int _ow2)
 {
-    _allow_cpu_features(_FEATURE_AVX512F);
     const float z2  = 2.0f;
     const float z3  = 3.0f;
     const float z4  = 4.0f;
@@ -245,8 +240,8 @@ elk_trans_input<float, 5, 3>(elx_conv_t<float> &xc, float atinput[5][5][16], flo
 
     //MD(float, ainput, [xc.ih][xc.iw][16], input);
     auto f = [&](int _hT, int _wT, int _V) {
-        int _ih = _oh2 * 3 - xc.lpad + _hT;
-        int _iw = _ow2 * 3 - xc.tpad + _wT;
+        int _ih = _oh2 * 3 - xc.lp + _hT;
+        int _iw = _ow2 * 3 - xc.tp + _wT;
         int _i = _ih * 16 * xc.iw + _iw * 16 + _V;
         if (_ih < 0 || _iw < 0 || _ih >= xc.ih || _iw >= xc.iw)
             return 0.0f;
@@ -259,7 +254,7 @@ elk_trans_input<float, 5, 3>(elx_conv_t<float> &xc, float atinput[5][5][16], flo
 #undef C
 #undef T
 #define F(_hT, _wT) f(_hT, _wT, _V)
-//#define F(_hT, _wT) ainput[_oh2 * 3 - xc.lpad + _hT][_ow2 * 3 - xc.tpad + _wT][_V]
+//#define F(_hT, _wT) ainput[_oh2 * 3 - xc.lp + _hT][_ow2 * 3 - xc.tp + _wT][_V]
 #define C(n) C##n[_V]
 #define T(_hT, _wT) atinput[_hT][_wT][_V]
 
@@ -312,13 +307,11 @@ elk_trans_input<float, 5, 3>(elx_conv_t<float> &xc, float atinput[5][5][16], flo
         T(4,4) = z2 * F(4,1) - F(4,2) - z2 * F(4,3) + F(4,4) - z2 * C(1) + C(2) + z2 * C(3);
     }
 }
-#endif
 
-#if 0
-template<>
-__declspec(cpu_specific(skylake_avx512))
-void elk_trans_input<float, 5, 3>(elx_conv_t &xc, float atinput[5][5][16], float *input, int _oh2, int _ow2)
+template<> void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>
+(elx_conv_t<float> &xc, float atinput[5][5][16], float *input, int _oh2, int _ow2)
 {
+    _allow_cpu_features(_FEATURE_AVX512F);
     // Inputs
     __m512 f00, f01, f02, f03, f04,
            f10, f11, f12, f13, f14,
@@ -335,11 +328,6 @@ void elk_trans_input<float, 5, 3>(elx_conv_t &xc, float atinput[5][5][16], float
     // Cache
     // Outputs
 }
-#endif
-
-//template void
-//elk_trans_input<float, 5, 3>(elx_conv_t &xc, float atinput[5][5][16], float *input, int _oh2, int _ow2);
 
 
 }
-

@@ -28,9 +28,9 @@ int main() {
 
     // 2. allocate memory
     float *input, *weights, *output, *bias;
-    input = (float *)malloc(desc.byte_sizes.input);
+    input   = (float *)malloc(desc.byte_sizes.input);
     weights = (float *)malloc(desc.byte_sizes.weights);
-    output = (float *)malloc(desc.byte_sizes.output);
+    output  = (float *)malloc(desc.byte_sizes.output);
 
     for (int i = 0; i < desc.sizes.input; i++) {
         input[i] = i % 18;
@@ -40,7 +40,7 @@ int main() {
     }
 
     // 3. execute convolution
-    for (int n = 0; n < 1; ++n) {
+    for (int n = 0; n < 1000; ++n) {
         if (ELX_OK != elx_conv<float>(desc, input, weights, output, bias)) {
             // error
             printf("Error\n");

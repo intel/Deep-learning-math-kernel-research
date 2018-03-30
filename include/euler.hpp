@@ -1,4 +1,5 @@
 #ifndef __EULER_HPP__
+#define __EULER_HPP__
 
 namespace euler {
 
@@ -60,13 +61,15 @@ struct eld_conv_t {
     ~eld_conv_t();
     int setup();
 
-    // Auto computed
+    // Auto computed by setup()
     struct { int input, weights, output, bias; } byte_sizes;
     struct { int input, weights, output, bias; } sizes;
 
     // Internal data used by elx
     elx_conv_t<F> *xc;
 };
+
+template class eld_conv_t<float>;
 
 // Convolution execution
 template<typename T>

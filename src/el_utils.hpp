@@ -4,6 +4,7 @@
 #include <omp.h>
 
 #ifndef __EL_UTILS_HPP__
+#define __EL_UTILS_HPP__
 
 #define _T(x) x
 typedef std::chrono::high_resolution_clock Time;
@@ -19,6 +20,11 @@ typedef std::chrono::duration<float, std::milli> Duration;
     type (&array)dims = *reinterpret_cast<type (*)dims>(ptr)
 
 namespace euler {
+
+enum {
+    ISA_GENERIC     = 0,
+    ISA_SKX_AVX512  = 512,
+};
 
 template <typename T, typename P>
 inline bool one_of(T val, P item) { return val == item; }
