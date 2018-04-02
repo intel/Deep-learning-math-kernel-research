@@ -10,10 +10,10 @@ BUILD_DIR := build
 DEBUG     ?= 0
 ifeq ($(DEBUG), 1)
 CXXFLAGS  += -DDEBUG -g -O0
-TCXXFLAGS += -DDEBUG -g -O0 -qopt-report=5
+TCXXFLAGS += -DDEBUG -g -O0
 OBJ_DIR   := $(BUILD_DIR)/debug
 else
-CXXFLAGS  += -O2 -DNDEBUG
+CXXFLAGS  += -O2 -DNDEBUG -qopt-report=5
 TCXXFLAGS += -O2 -DNDEBUG
 OBJ_DIR   := $(BUILD_DIR)/release
 endif
