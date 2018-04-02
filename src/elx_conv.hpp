@@ -1,6 +1,5 @@
-#include <stdio.h>
-#include <omp.h>
 #include "euler.hpp"
+#include "el_def.hpp"
 #include "el_utils.hpp"
 
 #ifndef __ELX_CONV_HPP__

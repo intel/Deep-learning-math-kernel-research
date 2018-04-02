@@ -1,8 +1,8 @@
-#include <stdio.h>
 #include <assert.h>
 #include <x86intrin.h>
-#include "elx_conv.hpp"
+#include "el_def.hpp"
 #include "el_utils.hpp"
+#include "elx_conv.hpp"
 
 namespace euler {
 

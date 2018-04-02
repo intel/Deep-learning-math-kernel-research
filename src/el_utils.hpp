@@ -1,7 +1,5 @@
-#include <stdio.h>
 #include <cxxabi.h>
 #include <chrono>
-#include <omp.h>
 
 #ifndef __EL_UTILS_HPP__
 #define __EL_UTILS_HPP__
@@ -21,11 +19,6 @@ typedef std::chrono::duration<float, std::milli> Duration;
 
 namespace euler {
 
-enum {
-    ISA_GENERIC     = 0,
-    ISA_SKX_AVX512  = 512,
-};
-
 template <typename T, typename P>
 inline bool one_of(T val, P item) { return val == item; }
 template <typename T, typename P, typename... Args>
@@ -39,15 +32,6 @@ inline bool any_null(Args... ptrs) { return one_of(nullptr, ptrs...); }
 template<typename T> inline T accumulate(T tn) {return tn; }
 template<typename T, typename... Args>
 inline T accumulate(T a, Args... args) { return a * accumulate(args...); }
-
-
-inline void eld_error(const char *msg) {
-    printf("Euler:d: %s\n", msg);
-}
-
-inline void elx_error(const char *msg) {
-    printf("Euler:x: %s\n", msg);
-}
 
 }
 

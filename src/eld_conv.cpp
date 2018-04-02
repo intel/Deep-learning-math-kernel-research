@@ -1,7 +1,7 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #include "euler.hpp"
+#include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
 

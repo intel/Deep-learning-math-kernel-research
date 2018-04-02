@@ -1,5 +1,4 @@
-#include <stdio.h>
-#include <omp.h>
+#include "el_def.hpp"
 
 #ifndef __ELK_CONV_HPP__
 #define __ELK_CONV_HPP__
