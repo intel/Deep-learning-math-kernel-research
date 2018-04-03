@@ -40,6 +40,8 @@ public:
     int output_strides[8];
 
     F *tweights;
+    F *tinput;
+    F *toutput;
 
     elx_conv_t(eld_conv_t<F> &dc);
     virtual ~elx_conv_t() {}
@@ -61,6 +63,8 @@ public:
 
 private:
     void trans_weights(F *tweights, F *weights);
+    void trans_input(F *tinput, F *input);
+    void gemm(F *toutput, F *tinput, F *tweights);
 
 };
 

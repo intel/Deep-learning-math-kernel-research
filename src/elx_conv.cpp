@@ -34,7 +34,9 @@ elx_conv_t<F>::elx_conv_t (eld_conv_t<F> &dc)
     this->with_relu   = dc.with_relu;
     this->with_bias   = dc.with_bias;
 
+    this->tinput   = nullptr;
     this->tweights = nullptr;
+    this->toutput  = nullptr;
 }
 
 template<typename F, const int T, const int K, const int V, const int I>
@@ -53,8 +55,14 @@ elx_conv_impl_t<F, T, K, V, I>::elx_conv_impl_t (eld_conv_t<F> &dc)
     this->oh2 = this->oh / T;
     this->ow2 = this->ow / T;
 
-    int size = sizeof(F) * T * T * this->ic * this->oc;
-    this->tweights = (float *)malloc(size);
+    int tweights_size = sizeof(F) * T * T * this->ic * this->oc;
+    int tinput_size   = sizeof(F) * T * T * this->oh2 * this->ow2
+                                  * this->ic * this->n;
+    int toutput_size  = sizeof(F) * T * T * this->oh2 * this->ow2
+                                  * this->oc * this->n;
+    this->tweights = (F *)malloc(tweights_size);
+    this->tinput   = (F *)malloc(tinput_size);
+    this->toutput  = (F *)malloc(toutput_size);
 
     if (this->input_fmt == nChw16c) {
         this->input_strides[0] = 1;
@@ -93,6 +101,14 @@ elx_conv_impl_t<F, T, K, V, I>::~elx_conv_impl_t ()
         free(this->tweights);
         this->tweights = nullptr;
     }
+    if (this->tinput != nullptr) {
+        free(this->tinput);
+        this->tinput = nullptr;
+    }
+    if (this->toutput != nullptr) {
+        free(this->toutput);
+        this->toutput = nullptr;
+    }
 }
 
 template<typename F, const int T, const int K, const int V, const int I> void
@@ -108,6 +124,43 @@ elx_conv_impl_t<F, T, K, V, I>::trans_weights(F *tweights, F *weights)
             elk_trans_weights<F, T, K, V, I>(atweights, aweights);
         }
     }
+}
+
+template<typename F, const int T, const int K, const int V, const int I> void
+elx_conv_impl_t<F, T, K, V, I>::trans_input(F *tinput, F *input)
+{
+    MD(F, atinput, [this->n][this->ic2][this->oh2][this->ow2][T][T][V], tinput);
+    MD(F, ainput,  [this->n][this->ic2][this->ih][this->iw][V], input);
+
+#pragma omp parallel for collapse(4)
+    for (int _n = 0; _n < this->n; ++_n) {
+    for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
+    for (int _oh2 = 0; _oh2 < this->oh2; ++_oh2) {
+    for (int _ow2 = 0; _ow2 < this->ow2; ++_ow2) {
+        elk_trans_input<F, T, K, V, I>(*this, atinput[_n][_ic2][_oh2][_ow2],
+                                       (F *)ainput[_n][_ic2], _oh2, _ow2);
+    }}}}
+}
+
+template<typename F, const int T, const int K, const int V, const int I> void
+elx_conv_impl_t<F, T, K, V, I>::gemm(F *toutput, F *tinput, F *tweights)
+{
+    MD(F, atweights, [this->oc2][this->ic2][T][T][V][V], tweights);
+    MD(F, atinput,   [this->n][this->ic2][this->oh2][this->ow2][T][T][V], tinput);
+    MD(F, atoutput,  [this->n][this->oc2][this->oh2][this->ow2][T][T][V], toutput);
+
+#pragma omp parallel for collapse(4)
+    for (int _n = 0; _n < this->n; ++_n) {
+    for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
+    for (int _oh2 = 0; _oh2 < this->oh2; ++_oh2) {
+    for (int _ow2 = 0; _ow2 < this->ow2; ++_ow2) {
+        for  (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
+            elk_gemm<F, T, K, V, I>(*this,
+                                    atoutput [_n][_oc2][_oh2][_ow2],
+                                    atinput  [_n][_ic2][_oh2][_ow2],
+                                    atweights[_oc2][_ic2]);
+        }
+    }}}}
 }
 
 template<typename F, const int T, const int K, const int V, const int I> void
@@ -159,8 +212,11 @@ elx_conv_impl_t<F, T, K, V, I>::winograd(F *input, F *weights, F *output, F *bia
     // hwio -> Oitt16o
     // desc.info.twei
 
-    // weights -> tweights
     trans_weights(this->tweights, weights);
+    trans_input(this->tinput, input);
+    gemm(this->toutput, this->tinput, this->tweights);
+    return;
+
     MD(F, ainput, [this->n][this->ic2][this->ih][this->iw][V], input);
 
 #pragma omp parallel for collapse(4)
@@ -172,8 +228,9 @@ elx_conv_impl_t<F, T, K, V, I>::winograd(F *input, F *weights, F *output, F *bia
         for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
             // input -> tinput
             F atinput[T][T][V];
-            elk_trans_input<F, T, K, V, I>(*this,
-                           atinput, (F *)ainput[_n][_ic2], _oh2, _ow2);
+            elk_trans_input<F, T, K, V, I>(*this, atinput, (F *)ainput[_n][_ic2], _oh2, _ow2);
+            //int d = _n * this->input_strides[4] + _ic2 * this->input_strides[3];
+            //elk_trans_input<F, T, K, V, I>(*this, atinput, input + d, _oh2, _ow2);
             // gemm
             //elk_gemm(xc, atoutput, atinput, tweights[oc][:]);
         }

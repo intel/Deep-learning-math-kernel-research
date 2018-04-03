@@ -15,6 +15,10 @@ template<typename F, const int T, const int K, const int V, const int I> void
 elk_trans_input(elx_conv_t<F> &xc, F atinput[T][T][V], F *input, int _oh2, int _ow2)
 { }
 
+template<typename F, const int T, const int K, const int V, const int I> void
+elk_gemm(elx_conv_t<F> &xc, F atoutput[T][T][V], F atinput[T][T][V], F atweights[T][T][V][V])
+{ }
+
 template<> void elk_trans_weights<float, 5, 3, 16, ISA_GENERIC>
 (float atweights[5][5][16][16], float aweights[3][3][16][16])
 {
@@ -561,6 +565,17 @@ template<> void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>
 
 }
 
+template<> void elk_gemm<float, 5, 3, 16, ISA_GENERIC>
+(elx_conv_t<float> &xc, float atoutput[5][5][16], float atinput[5][5][16], float atweights[5][5][16][16])
+{
+
+}
+
+template<> void elk_gemm<float, 5, 3, 16, ISA_SKX_AVX512>
+(elx_conv_t<float> &xc, float atoutput[5][5][16], float atinput[5][5][16], float atweights[5][5][16][16])
+{
+
+}
 
 
 
