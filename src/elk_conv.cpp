@@ -565,16 +565,59 @@ template<> void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>
 
 }
 
-template<> void elk_gemm<float, 5, 3, 16, ISA_GENERIC>
-(elx_conv_t<float> &xc, float atoutput[5][5][16], float atinput[5][5][16], float atweights[5][5][16][16])
-{
-
-}
-
 template<> void elk_gemm<float, 5, 3, 16, ISA_SKX_AVX512>
 (elx_conv_t<float> &xc, float atoutput[5][5][16], float atinput[5][5][16], float atweights[5][5][16][16])
 {
+#undef T
+#undef F
+#undef W
+#define T(h,w) atoutput[h][w][_OV]
+#define F(h,w) atinput[h][w][_IV]
+#define W(h,w) atweights[h][w][_IV][_OV]
 
+    for (int _IV = 0; _IV < 16; ++_IV) {
+#pragma omp simd
+        for (int _OV = 0; _OV < 16; ++_OV) {
+            T(0,0) += W(0,0) * F(0,0);
+            T(0,1) += W(0,1) * F(0,1);
+            T(0,2) += W(0,2) * F(0,2);
+            T(0,3) += W(0,3) * F(0,3);
+            T(0,4) += W(0,4) * F(0,4);
+            T(1,0) += W(1,0) * F(1,0);
+            T(1,1) += W(1,1) * F(1,1);
+            T(1,2) += W(1,2) * F(1,2);
+            T(1,3) += W(1,3) * F(1,3);
+            T(1,4) += W(1,4) * F(1,4);
+            T(2,0) += W(2,0) * F(2,0);
+            T(2,1) += W(2,1) * F(2,1);
+            T(2,2) += W(2,2) * F(2,2);
+            T(2,3) += W(2,3) * F(2,3);
+            T(2,4) += W(2,4) * F(2,4);
+            T(3,0) += W(3,0) * F(3,0);
+            T(3,1) += W(3,1) * F(3,1);
+            T(3,2) += W(3,2) * F(3,2);
+            T(3,3) += W(3,3) * F(3,3);
+            T(3,4) += W(3,4) * F(3,4);
+            T(4,0) += W(4,0) * F(4,0);
+            T(4,1) += W(4,1) * F(4,1);
+            T(4,2) += W(4,2) * F(4,2);
+            T(4,3) += W(4,3) * F(4,3);
+            T(4,4) += W(4,4) * F(4,4);
+        }
+    } 
+}
+
+template<> void elk_gemm<float, 5, 3, 16, ISA_GENERIC>
+(elx_conv_t<float> &xc, float atoutput[5][5][16], float atinput[5][5][16], float atweights[5][5][16][16])
+{
+    __m512 t00, t10, t20, t30, t40,
+           t01, t11, t21, t31, t41,
+           t02, t12, t22, t32, t42,
+           t03, t13, t23, t33, t43,
+           t04, t14, t24, t34, t44;
+
+    for (int _V = 0; _V < 16; ++_V) {
+    }
 }
 
 
