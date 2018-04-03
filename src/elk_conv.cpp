@@ -238,23 +238,20 @@ elk_trans_input<float, 5, 3, 16, ISA_GENERIC>
     const float z4  = 4.0f;
     const float z6  = 6.0f;
 
-    //MD(float, ainput, [xc.ih][xc.iw][16], input);
     auto f = [&](int _hT, int _wT, int _V) {
         int _ih = _oh2 * 3 - xc.lp + _hT;
         int _iw = _ow2 * 3 - xc.tp + _wT;
-        int _i = _ih * 16 * xc.iw + _iw * 16 + _V;
+        int _i = _ih * xc.input_strides[2] + _iw * 16 + _V;
         if (_ih < 0 || _iw < 0 || _ih >= xc.ih || _iw >= xc.iw)
             return 0.0f;
         else
             return *(input + _i);
-            //return ainput[_ih][_iw][_V];
     };
 
 #undef F
 #undef C
 #undef T
 #define F(_hT, _wT) f(_hT, _wT, _V)
-//#define F(_hT, _wT) ainput[_oh2 * 3 - xc.lp + _hT][_ow2 * 3 - xc.tp + _wT][_V]
 #define C(n) C##n[_V]
 #define T(_hT, _wT) atinput[_hT][_wT][_V]
 
@@ -336,7 +333,7 @@ template<> void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>
     auto f0 = [&](int _hT, int _wT) {
         int _ih = _oh2 * 3 - 1 + _hT;
         int _iw = _ow2 * 3 - 1 + _wT;
-        int _i = _ih * 16 * xc.iw + _iw * 16;
+        int _i = _ih * xc.input_strides[2] + _iw * 16;
         if (_ih < 0 || _iw < 0 || _ih >= xc.ih || _iw >= xc.iw)
             return z0;
         else
@@ -345,7 +342,7 @@ template<> void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>
     auto f1 = [&](int _hT, int _wT) {
         int _ih = _oh2 * 3 - 1 + _hT;
         int _iw = _ow2 * 3 - 1 + _wT;
-        int _i = _ih * 16 * xc.iw + _iw * 16;
+        int _i = _ih * xc.input_strides[2] + _iw * 16;
         return _mm512_load_ps(input + _i);
     };
 

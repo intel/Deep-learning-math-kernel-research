@@ -28,8 +28,11 @@ elx_conv_t<F>::elx_conv_t (eld_conv_t<F> &dc)
     this->hd = dc.dilations.h;
     this->wd = dc.dilations.w;
 
-    this->with_relu = dc.with_relu;
-    this->with_bias = dc.with_bias;
+    this->input_fmt   = dc.formats.input;
+    this->weights_fmt = dc.formats.weights;
+    this->output_fmt  = dc.formats.output;
+    this->with_relu   = dc.with_relu;
+    this->with_bias   = dc.with_bias;
 
     this->tweights = nullptr;
 }
@@ -52,6 +55,35 @@ elx_conv_impl_t<F, T, K, V, I>::elx_conv_impl_t (eld_conv_t<F> &dc)
 
     int size = sizeof(F) * T * T * this->ic * this->oc;
     this->tweights = (float *)malloc(size);
+
+    if (this->input_fmt == nChw16c) {
+        this->input_strides[0] = 1;
+        this->input_strides[1] = V;
+        this->input_strides[2] = V * this->iw;
+        this->input_strides[3] = V * this->iw * this->ih;
+        this->input_strides[4] = V * this->iw * this->ih * this->ic2;
+    } else {
+        // TODO
+    }
+    if (this->weights_fmt == OIhw16i16o) {
+        this->weights_strides[0] = 1;
+        this->weights_strides[1] = V;
+        this->weights_strides[2] = V * V;
+        this->weights_strides[3] = V * V * this->kw;
+        this->weights_strides[4] = V * V * this->kw * this->kh;
+        this->weights_strides[5] = V * V * this->kw * this->kh * this->ic2;
+    } else {
+        // TODO
+    }
+    if (this->output_fmt == nChw16c) {
+        this->output_strides[0] = 1;
+        this->output_strides[1] = V;
+        this->output_strides[2] = V * this->ow;
+        this->output_strides[3] = V * this->ow * this->oh;
+        this->output_strides[4] = V * this->ow * this->oh * this->oc2;
+    } else {
+        // TODO
+    }
 }
 
 template<typename F, const int T, const int K, const int V, const int I>
