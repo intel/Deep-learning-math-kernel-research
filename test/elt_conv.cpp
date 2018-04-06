@@ -41,12 +41,13 @@ int main() {
     }
 
     // 3. execute convolution
+    int iterations = 2000;
     time_start(conv);
-    for (int n = 0; n < 1000; ++n) {
+    for (int n = 0; n < iterations; ++n) {
         if (ELX_OK != elx_conv<float>(desc, input, weights, output, bias)) {
             // error
             printf("Error\n");
         }
     }
-    time_end(conv, 1000);
+    time_end(conv, iterations);
 }
