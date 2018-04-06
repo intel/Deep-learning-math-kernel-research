@@ -62,7 +62,7 @@ elx_conv_impl_t<F, T, K, V, I>::elx_conv_impl_t (eld_conv_t<F> &dc)
                                   * this->oc * this->n;
     this->tweights = (F *)malloc(tweights_size);
     this->tinput   = (F *)malloc(tinput_size);
-    this->toutput  = (F *)malloc(toutput_size);
+    //this->toutput  = (F *)malloc(toutput_size);
 
     if (this->input_fmt == nChw16c) {
         this->input_strides[0] = 1;
@@ -147,7 +147,6 @@ elx_conv_impl_t<F, T, K, V, I>::product_trans_output(F *tinput, F *tweights, F *
 {
     MD(F, atweights, [this->oc2][this->ic2][T][T][V][V], tweights);
     MD(F, atinput,   [this->n][this->ic2][this->oh2][this->ow2][T][T][V], tinput);
-    //MD(F, atoutput,  [this->n][this->oc2][this->oh2][this->ow2][T][T][V], toutput);
     MD(F, aoutput,   [this->n][this->oc2][this->oh][this->ow][V], output);
 
 #pragma omp parallel for collapse(4)
@@ -216,32 +215,6 @@ elx_conv_impl_t<F, T, K, V, I>::winograd(F *input, F *weights, F *output, F *bia
     trans_input(this->tinput, input);
     product_trans_output(this->tinput, this->tweights, output);
     return;
-
-    MD(F, ainput, [this->n][this->ic2][this->ih][this->iw][V], input);
-
-#pragma omp parallel for collapse(4)
-    for (int _n = 0; _n < this->n; ++_n)     {
-    for (int _oh2 = 0; _oh2 < this->oh2; ++_oh2) {
-    for (int _ow2 = 0; _ow2 < this->ow2; ++_ow2) {
-    for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
-        F atoutput[T][T][V];
-        for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
-            // input -> tinput
-            F atinput[T][T][V];
-            elk_trans_input<F, T, K, V, I>(*this, atinput, (F *)ainput[_n][_ic2], _oh2, _ow2);
-            //int d = _n * this->input_strides[4] + _ic2 * this->input_strides[3];
-            //elk_trans_input<F, T, K, V, I>(*this, atinput, input + d, _oh2, _ow2);
-            // gemm
-            //elk_gemm(xc, atoutput, atinput, tweights[oc][:]);
-        }
-        // toutput -> output
-        //elk_trans_output(xc, output, atoutput);
-    }}}}
-#if 0
-    for (int i = 0; i < x.ic * x.oc * 25; ++i) {
-        printf("%f\n", x.tweights[i]);
-    }
-#endif
 }
 
 template<typename F>
