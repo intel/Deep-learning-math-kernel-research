@@ -44,16 +44,15 @@ elx_conv_impl_t<F, T, K, V, I>::elx_conv_impl_t (eld_conv_t<F> &dc)
 : elx_conv_t<F>(dc) 
 {
     this->V = V;
-
     this->ic2 = this->ic / V;
     this->oc2 = this->oc / V;
 
     this->T   = T;
     this->OT  = T - 2;
-    this->ih2 = this->ih / T; // TODO, padding, tail
-    this->iw2 = this->iw / T; // TODO
     this->oh2 = this->oh / T;
     this->ow2 = this->ow / T;
+    this->ih2 = this->oh2;
+    this->iw2 = this->ow2;
 
     int tweights_size = sizeof(F) * T * T * this->ic * this->oc;
     int tinput_size   = sizeof(F) * T * T * this->oh2 * this->ow2
@@ -134,12 +133,14 @@ elx_conv_impl_t<F, T, K, V, I>::trans_input(F *tinput, F *input)
 
 #pragma omp parallel for collapse(4)
     for (int _n = 0; _n < this->n; ++_n) {
-    for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
-    for (int _oh2 = 0; _oh2 < this->oh2; ++_oh2) {
-    for (int _ow2 = 0; _ow2 < this->ow2; ++_ow2) {
-        elk_trans_input<F, T, K, V, I>(*this, atinput[_n][_ic2][_oh2][_ow2],
-                                       (F *)ainput[_n][_ic2], _oh2, _ow2);
-    }}}}
+        for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
+            for (int _oh2 = 0; _oh2 < this->oh2; ++_oh2) {
+                for (int _ow2 = 0; _ow2 < this->ow2; ++_ow2) {
+                    elk_trans_input<F, T, K, V, I>
+                        (*this, atinput[_n][_ic2][_oh2][_ow2],
+                         (F *)ainput[_n][_ic2],
+                         _oh2, _ow2);
+                }}}}
 }
 
 template<typename F, const int T, const int K, const int V, const int I> void
@@ -151,70 +152,24 @@ elx_conv_impl_t<F, T, K, V, I>::product_trans_output(F *tinput, F *tweights, F *
 
 #pragma omp parallel for collapse(4)
     for (int _n = 0; _n < this->n; ++_n) {
-    for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
-    for (int _oh2 = 0; _oh2 < this->oh2; ++_oh2) {
-    for (int _ow2 = 0; _ow2 < this->ow2; ++_ow2) {
-        elk_product_trans_output<F, T, K, V, I>(*this,
-                                    (F *)atinput[_n],
-                                    (F *)atweights[_oc2],
-                                    (F *)aoutput[_n][_oc2],
-                                    _oh2, _ow2);
-    }}}}
+        for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
+            for (int _oh2 = 0; _oh2 < this->oh2; ++_oh2) {
+                for (int _ow2 = 0; _ow2 < this->ow2; ++_ow2) {
+                    elk_product_trans_output<F, T, K, V, I>
+                        (*this,
+                         (F *)atinput[_n],
+                         (F *)atweights[_oc2],
+                         (F *)aoutput[_n][_oc2],
+                         _oh2, _ow2);
+                }}}}
 }
 
 template<typename F, const int T, const int K, const int V, const int I> void
 elx_conv_impl_t<F, T, K, V, I>::winograd(F *input, F *weights, F *output, F *bias)
 {
-    // Notation
-    // ========
-    //
-    // Block:
-    // v := vector-size (avx512:16)
-    // T := tile-size
-    //
-    // Data:
-    // i := input
-    // o := output
-    // k := kernel
-    //
-    // Dims:
-    // n := batch-size
-    // h := height
-    // w := width
-    // c := channel
-    //
-    // Combinations:
-    // ih, iw, oh, ow, kh, kw, ic, oc
-    // to, ti=T, vi=vo=v
-    // I := ic/v
-    // O := oc/v
-    // H := h/T
-    // W := w/T
-
-    // Tasks breakdown: n.H.W.O
-    // n * oh/to * ow/to * oc/v
-    // i.e. each-task to compute a to*to*v (v of tile)
-
-    // Algorithm:
-    // 1. Trans-weights
-    //    kh.kw.ic.oc => O.I.t.t.vi.vo
-    // 2. Trans-input (per-task)
-    //    t.t.vi => t.t.vi
-    // 3. FMA (per-task)
-    //    Loop over I. for each vi:
-    //    t.t.vi * vi.t.t.vo => t.t.vo
-    // 4. Trans-output (per-task)
-    //    t.t.vo => oh.ow.vo
-
-    // Trans-weights
-    // Tasks breakdown: O.i
-    // hwio -> Oitt16o
-    // desc.info.twei
-
     trans_weights(this->tweights, weights);
     trans_input(this->tinput, input);
     product_trans_output(this->tinput, this->tweights, output);
-    return;
 }
 
 template<typename F>
