@@ -9,9 +9,9 @@ int main() {
     // 1, create convolution desc
     eld_conv_t<float> desc;
     desc.dims = {
-        .input   = { 4, 224, 224, 1024 },
-        .weights = { 3, 3, 1024, 512 },
-        .output  = { 4, 224, 224, 512 }
+        .input   = { 1, 28, 28, 512 },
+        .weights = { 3, 3, 512, 512 },
+        .output  = { 1, 28, 28, 512 }
     };
     desc.formats = {
         .input   = nChw16c,

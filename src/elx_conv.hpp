@@ -64,7 +64,7 @@ public:
 private:
     void trans_weights(F *tweights, F *weights);
     void trans_input(F *tinput, F *input);
-    void gemm(F *toutput, F *tinput, F *tweights);
+    void gemm(F *toutput, F *tinput, F *tweights, F *output);
 
 };
 

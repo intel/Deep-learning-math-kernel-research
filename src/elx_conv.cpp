@@ -143,22 +143,24 @@ elx_conv_impl_t<F, T, K, V, I>::trans_input(F *tinput, F *input)
 }
 
 template<typename F, const int T, const int K, const int V, const int I> void
-elx_conv_impl_t<F, T, K, V, I>::gemm(F *toutput, F *tinput, F *tweights)
+elx_conv_impl_t<F, T, K, V, I>::gemm(F *toutput, F *tinput, F *tweights, F *output)
 {
     MD(F, atweights, [this->oc2][this->ic2][T][T][V][V], tweights);
     MD(F, atinput,   [this->n][this->ic2][this->oh2][this->ow2][T][T][V], tinput);
     MD(F, atoutput,  [this->n][this->oc2][this->oh2][this->ow2][T][T][V], toutput);
+    MD(F, aoutput,   [this->n][this->oc2][this->oh][this->ow][V], output);
 
 #pragma omp parallel for collapse(4)
     for (int _n = 0; _n < this->n; ++_n) {
     for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
     for (int _oh2 = 0; _oh2 < this->oh2; ++_oh2) {
     for (int _ow2 = 0; _ow2 < this->ow2; ++_ow2) {
-        for  (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
+        for  (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) { // TODO: move it to gemm
             elk_gemm<F, T, K, V, I>(*this,
                                     atoutput [_n][_oc2][_oh2][_ow2],
                                     atinput  [_n][_ic2][_oh2][_ow2],
-                                    atweights[_oc2][_ic2]);
+                                    atweights[_oc2][_ic2],
+                                    (F *)aoutput[_n][_oc2]);
         }
     }}}}
 }
@@ -214,7 +216,7 @@ elx_conv_impl_t<F, T, K, V, I>::winograd(F *input, F *weights, F *output, F *bia
 
     trans_weights(this->tweights, weights);
     trans_input(this->tinput, input);
-    gemm(this->toutput, this->tinput, this->tweights);
+    gemm(this->toutput, this->tinput, this->tweights, output);
     return;
 
     MD(F, ainput, [this->n][this->ic2][this->ih][this->iw][V], input);
