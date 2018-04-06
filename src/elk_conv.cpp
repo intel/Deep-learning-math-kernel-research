@@ -16,7 +16,8 @@ elk_trans_input(elx_conv_t<F> &xc, F atinput[T][T][V], F *input, int _oh2, int _
 { }
 
 template<typename F, const int T, const int K, const int V, const int I> void
-elk_gemm(elx_conv_t<F> &xc, F atoutput[T][T][V], F atinput[T][T][V], F atweights[T][T][V][V], F *output)
+elk_product_trans_output(elx_conv_t<F> &xc, F *tinput, F *tweights, F *output,
+                         int _ih2, int _iw2)
 { }
 
 template<> void elk_trans_weights<float, 5, 3, 16, ISA_GENERIC>
@@ -565,54 +566,93 @@ template<> void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>
 
 }
 
-template<> void elk_gemm<float, 5, 3, 16, ISA_GENERIC>
-(elx_conv_t<float> &xc, float atoutput[5][5][16], float atinput[5][5][16], float atweights[5][5][16][16], float *output)
+template<> void elk_product_trans_output<float, 5, 3, 16, ISA_GENERIC>
+(elx_conv_t<float> &xc, float *tinput, float *tweights, float *output,
+ int _ih2, int _iw2)
 {
 #undef T
 #undef F
 #undef W
-#define T(h,w) atoutput[h][w][_OV]
-#define F(h,w) atinput[h][w][_IV]
-#define W(h,w) atweights[h][w][_IV][_OV]
+#define T(h,w) t##h##w[_OV]
+#define F(h,w) atinput[_ic2][_ih2][_iw2][h][w][_IV]
+#define W(h,w) atweights[_ic2][h][w][_IV][_OV]
 
-    //for (_ic2 = 0; _ic2 < xc.ic2; ++_ic2)
+    float t00[16], t01[16], t02[16], t03[16], t04[16],
+          t10[16], t11[16], t12[16], t13[16], t14[16],
+          t20[16], t21[16], t22[16], t23[16], t24[16],
+          t30[16], t31[16], t32[16], t33[16], t34[16],
+          t40[16], t41[16], t42[16], t43[16], t44[16];
 
-    for (int _IV = 0; _IV < 16; ++_IV) {
+    MD(float, atinput,   [xc.ic2][xc.oh2][xc.ow2][5][5][16], tinput);
+    MD(float, atweights, [xc.ic2][5][5][16][16], tweights);
+    MD(float, aoutput,   [xc.oh][xc.ow][16], output);
+
 #pragma omp simd
-        for (int _OV = 0; _OV < 16; ++_OV) {
-            T(0,0) += W(0,0) * F(0,0);
-            T(0,1) += W(0,1) * F(0,1);
-            T(0,2) += W(0,2) * F(0,2);
-            T(0,3) += W(0,3) * F(0,3);
-            T(0,4) += W(0,4) * F(0,4);
-            T(1,0) += W(1,0) * F(1,0);
-            T(1,1) += W(1,1) * F(1,1);
-            T(1,2) += W(1,2) * F(1,2);
-            T(1,3) += W(1,3) * F(1,3);
-            T(1,4) += W(1,4) * F(1,4);
-            T(2,0) += W(2,0) * F(2,0);
-            T(2,1) += W(2,1) * F(2,1);
-            T(2,2) += W(2,2) * F(2,2);
-            T(2,3) += W(2,3) * F(2,3);
-            T(2,4) += W(2,4) * F(2,4);
-            T(3,0) += W(3,0) * F(3,0);
-            T(3,1) += W(3,1) * F(3,1);
-            T(3,2) += W(3,2) * F(3,2);
-            T(3,3) += W(3,3) * F(3,3);
-            T(3,4) += W(3,4) * F(3,4);
-            T(4,0) += W(4,0) * F(4,0);
-            T(4,1) += W(4,1) * F(4,1);
-            T(4,2) += W(4,2) * F(4,2);
-            T(4,3) += W(4,3) * F(4,3);
-            T(4,4) += W(4,4) * F(4,4);
-        }
-    } 
+    for (int _OV = 0; _OV < 16; ++_OV) {
+        T(0,0) = 0.0f;
+        T(0,1) = 0.0f;
+        T(0,2) = 0.0f;
+        T(0,3) = 0.0f;
+        T(0,4) = 0.0f;
+        T(1,0) = 0.0f;
+        T(1,1) = 0.0f;
+        T(1,2) = 0.0f;
+        T(1,3) = 0.0f;
+        T(1,4) = 0.0f;
+        T(2,0) = 0.0f;
+        T(2,1) = 0.0f;
+        T(2,2) = 0.0f;
+        T(2,3) = 0.0f;
+        T(2,4) = 0.0f;
+        T(3,0) = 0.0f;
+        T(3,1) = 0.0f;
+        T(3,2) = 0.0f;
+        T(3,3) = 0.0f;
+        T(3,4) = 0.0f;
+        T(4,0) = 0.0f;
+        T(4,1) = 0.0f;
+        T(4,2) = 0.0f;
+        T(4,3) = 0.0f;
+        T(4,4) = 0.0f;
+
+    }
+    for (int _ic2 = 0; _ic2 < xc.ic2; ++_ic2) {
+        for (int _IV = 0; _IV < 16; ++_IV) {
+#pragma omp simd
+            for (int _OV = 0; _OV < 16; ++_OV) {
+                T(0,0) += W(0,0) * F(0,0);
+                T(0,1) += W(0,1) * F(0,1);
+                T(0,2) += W(0,2) * F(0,2);
+                T(0,3) += W(0,3) * F(0,3);
+                T(0,4) += W(0,4) * F(0,4);
+                T(1,0) += W(1,0) * F(1,0);
+                T(1,1) += W(1,1) * F(1,1);
+                T(1,2) += W(1,2) * F(1,2);
+                T(1,3) += W(1,3) * F(1,3);
+                T(1,4) += W(1,4) * F(1,4);
+                T(2,0) += W(2,0) * F(2,0);
+                T(2,1) += W(2,1) * F(2,1);
+                T(2,2) += W(2,2) * F(2,2);
+                T(2,3) += W(2,3) * F(2,3);
+                T(2,4) += W(2,4) * F(2,4);
+                T(3,0) += W(3,0) * F(3,0);
+                T(3,1) += W(3,1) * F(3,1);
+                T(3,2) += W(3,2) * F(3,2);
+                T(3,3) += W(3,3) * F(3,3);
+                T(3,4) += W(3,4) * F(3,4);
+                T(4,0) += W(4,0) * F(4,0);
+                T(4,1) += W(4,1) * F(4,1);
+                T(4,2) += W(4,2) * F(4,2);
+                T(4,3) += W(4,3) * F(4,3);
+                T(4,4) += W(4,4) * F(4,4);
+            }
+        } 
+    }
 
 #undef C
 #define C(n) c##n[_OV]
 #define P(_hT, _wT) aoutput[xc.oh2 * 3 + _hT][xc.ow2 * 3 + _wT][_OV] // TODO: overflow
     float c0[16], c1[16], c2[16], c3[16], c4[16];
-    MD(float, aoutput, [xc.oh][xc.ow][16], output);
 
 #pragma omp simd
     for (int _OV = 0; _OV < 16; ++_OV) {
@@ -645,8 +685,9 @@ template<> void elk_gemm<float, 5, 3, 16, ISA_GENERIC>
     }
 }
 
-template<> void elk_gemm<float, 5, 3, 16, ISA_SKX_AVX512>
-(elx_conv_t<float> &xc, float atoutput[5][5][16], float atinput[5][5][16], float atweights[5][5][16][16], float *output)
+template<> void elk_product_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>
+(elx_conv_t<float> &xc, float *tinput, float *tweights, float *output,
+ int _ih2, int _iw2)
 {
     _allow_cpu_features(_FEATURE_AVX512F);
 
@@ -656,86 +697,87 @@ template<> void elk_gemm<float, 5, 3, 16, ISA_SKX_AVX512>
            t03, t13, t23, t33, t43,
            t04, t14, t24, t34, t44;
 
+    MD(float, atinput,   [xc.ic2][xc.oh2][xc.ow2][5][5][16], tinput);
+    MD(float, atweights, [xc.ic2][5][5][16][16], tweights);
+    MD(float, aoutput,   [xc.oh][xc.ow][16], output);
+
 #undef T
 #undef F
 #undef W
-#define T(_h,_w) atoutput[_h][_w]
-#define F(_h,_w) atinput[_h][_w][_V]
-#define W(_h,_w) atweights[_h][_w][_V]
+#define T(_h,_w) t##_h##_w
+#define F(_h,_w) atinput[_ic2][_ih2][_iw2][_h][_w][_V]
+#define W(_h,_w) atweights[_ic2][_h][_w][_V]
 
 #define FMA(_h,_w) do { \
     __m512 f##_h##_w = _mm512_set1_ps(F(_h,_w)); \
     __m512 w##_h##_w = _mm512_load_ps(W(_h,_w)); \
     t##_h##_w = _mm512_fmadd_ps(w##_h##_w, f##_h##_w, t##_h##_w); \
 } while(0)
-#define LOAD(_h,_w) do { \
-    t##_h##_w = _mm512_load_ps(T(_h,_w)); \
-} while(0)
 #define STORE(_h,_w) do { \
     _mm512_store_ps(T(_h,_w), t##_h##_w); \
 } while(0)
 
-    LOAD(0,0);
-    LOAD(0,1);
-    LOAD(0,2);
-    LOAD(0,3);
-    LOAD(0,4);
-    LOAD(1,0);
-    LOAD(1,1);
-    LOAD(1,2);
-    LOAD(1,3);
-    LOAD(1,4);
-    LOAD(2,0);
-    LOAD(2,1);
-    LOAD(2,2);
-    LOAD(2,3);
-    LOAD(2,4);
-    LOAD(3,0);
-    LOAD(3,1);
-    LOAD(3,2);
-    LOAD(3,3);
-    LOAD(3,4);
-    LOAD(4,0);
-    LOAD(4,1);
-    LOAD(4,2);
-    LOAD(4,3);
-    LOAD(4,4);
+    t00 = _mm512_setzero_ps();
+    t01 = _mm512_setzero_ps();
+    t02 = _mm512_setzero_ps();
+    t03 = _mm512_setzero_ps();
+    t04 = _mm512_setzero_ps();
+    t10 = _mm512_setzero_ps();
+    t11 = _mm512_setzero_ps();
+    t12 = _mm512_setzero_ps();
+    t13 = _mm512_setzero_ps();
+    t14 = _mm512_setzero_ps();
+    t20 = _mm512_setzero_ps();
+    t21 = _mm512_setzero_ps();
+    t22 = _mm512_setzero_ps();
+    t23 = _mm512_setzero_ps();
+    t24 = _mm512_setzero_ps();
+    t30 = _mm512_setzero_ps();
+    t31 = _mm512_setzero_ps();
+    t32 = _mm512_setzero_ps();
+    t33 = _mm512_setzero_ps();
+    t34 = _mm512_setzero_ps();
+    t40 = _mm512_setzero_ps();
+    t41 = _mm512_setzero_ps();
+    t42 = _mm512_setzero_ps();
+    t43 = _mm512_setzero_ps();
+    t44 = _mm512_setzero_ps();
 
-    for (int _V = 0; _V < 16; ++_V) {
-        //__m512 w00 = _mm512_load_ps(W(0,0));
-        //__m512 f00 = _mm512_set1_ps(F(0,0));
-        //t00 = _mm512_fmadd_ps(w00, f00, t00);
-        FMA(0,0);
-        FMA(0,1);
-        FMA(0,2);
-        FMA(0,3);
-        FMA(0,4);
-        FMA(1,0);
-        FMA(1,1);
-        FMA(1,2);
-        FMA(1,3);
-        FMA(1,4);
-        FMA(2,0);
-        FMA(2,1);
-        FMA(2,2);
-        FMA(2,3);
-        FMA(2,4);
-        FMA(3,0);
-        FMA(3,1);
-        FMA(3,2);
-        FMA(3,3);
-        FMA(3,4);
-        FMA(4,0);
-        FMA(4,1);
-        FMA(4,2);
-        FMA(4,3);
-        FMA(4,4);
-
+    for (int _ic2 = 0; _ic2 < xc.ic2; ++_ic2) {
+        for (int _V = 0; _V < 16; ++_V) {
+            //__m512 w00 = _mm512_load_ps(W(0,0));
+            //__m512 f00 = _mm512_set1_ps(F(0,0));
+            //t00 = _mm512_fmadd_ps(w00, f00, t00);
+            FMA(0,0);
+            FMA(0,1);
+            FMA(0,2);
+            FMA(0,3);
+            FMA(0,4);
+            FMA(1,0);
+            FMA(1,1);
+            FMA(1,2);
+            FMA(1,3);
+            FMA(1,4);
+            FMA(2,0);
+            FMA(2,1);
+            FMA(2,2);
+            FMA(2,3);
+            FMA(2,4);
+            FMA(3,0);
+            FMA(3,1);
+            FMA(3,2);
+            FMA(3,3);
+            FMA(3,4);
+            FMA(4,0);
+            FMA(4,1);
+            FMA(4,2);
+            FMA(4,3);
+            FMA(4,4);
+        }
     }
 
 #undef P
 #define P(_hT, _wT) (aoutput[xc.oh2 * 3 + _hT][xc.ow2 * 3 + _wT]) // TODO: overflow
-    MD(float, aoutput, [xc.oh][xc.ow][16], output);
     __m512 c0, c1, c2, c3, c4;
     __m512 p00, p01, p02, p10, p11, p12, p20, p21, p22;
     __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
@@ -817,33 +859,6 @@ template<> void elk_gemm<float, 5, 3, 16, ISA_SKX_AVX512>
     p22 = _mm512_add_ps(p22, c4);
     p22 = _mm512_fmadd_ps(z4, c3, p22);
     _mm512_store_ps(P(2,2), p22); //
-
-    //STORE(0,0);
-    //STORE(0,1);
-    //STORE(0,2);
-    //STORE(0,3);
-    //STORE(0,4);
-    //STORE(1,0);
-    //STORE(1,1);
-    //STORE(1,2);
-    //STORE(1,3);
-    //STORE(1,4);
-    //STORE(2,0);
-    //STORE(2,1);
-    //STORE(2,2);
-    //STORE(2,3);
-    //STORE(2,4);
-    //STORE(3,0);
-    //STORE(3,1);
-    //STORE(3,2);
-    //STORE(3,3);
-    //STORE(3,4);
-    //STORE(4,0);
-    //STORE(4,1);
-    //STORE(4,2);
-    //STORE(4,3);
-    //STORE(4,4);
-
 }
 
 
