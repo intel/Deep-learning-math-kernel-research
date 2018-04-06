@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "euler.hpp"
+#include "elt_utils.hpp"
 
 using namespace euler;
 
@@ -40,10 +41,12 @@ int main() {
     }
 
     // 3. execute convolution
+    time_start(conv);
     for (int n = 0; n < 1000; ++n) {
         if (ELX_OK != elx_conv<float>(desc, input, weights, output, bias)) {
             // error
             printf("Error\n");
         }
     }
+    time_end(conv, 1000);
 }

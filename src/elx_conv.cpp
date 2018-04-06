@@ -235,10 +235,7 @@ int elx_conv(eld_conv_t<F> &desc, F *input, F *weights, F *output, F *bias)
 
     } else {
         assert(desc.algorithm == CONV_WINOGRAD);
-        __tstart(twei);
         xc.winograd(input, weights, output, bias);
-        __tend(twei);
-
     }
     return ELX_OK;
 }
