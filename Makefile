@@ -6,7 +6,8 @@ TCXX      := icc
 TCXXFLAGS := -std=c++11 -fopenmp -pie -fPIE -Iinclude/
 TLDFLAGS   = -Llib -L$(LIB_DIR) -liomp5 -lel -Wl,-rpath=$(LIB_DIR)
 
-BUILD_DIR := build
+ROOT_DIR   = $(shell pwd)
+BUILD_DIR := $(ROOT_DIR)/build
 DEBUG     ?= 0
 ifeq ($(DEBUG), 1)
 CXXFLAGS  += -DDEBUG -g -O0
@@ -18,8 +19,8 @@ TCXXFLAGS += -O2 -DNDEBUG
 OBJ_DIR   := $(BUILD_DIR)/release
 endif
 
-SRC_DIR   = src
-TEST_DIR  = test
+SRC_DIR   = $(ROOT_DIR)/src
+TEST_DIR  = $(ROOT_DIR)/test
 BIN_DIR   = $(OBJ_DIR)/bin
 LIB_DIR   = $(OBJ_DIR)/lib
 
