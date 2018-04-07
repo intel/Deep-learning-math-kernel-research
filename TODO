@@ -1,3 +1,5 @@
-1. OMP script to test performance
-2. Correctness
+1. Generated code optrpt
+2. Shape specialization
+3. Correctness
+4. Tile-size: 6
 
