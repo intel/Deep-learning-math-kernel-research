@@ -19,8 +19,8 @@ TCXXFLAGS += -O2 -DNDEBUG
 OBJ_DIR   := $(BUILD_DIR)/release
 endif
 
-SRC_DIR   = $(ROOT_DIR)/src
-TEST_DIR  = $(ROOT_DIR)/test
+SRC_DIR   = src
+TEST_DIR  = test
 BIN_DIR   = $(OBJ_DIR)/bin
 LIB_DIR   = $(OBJ_DIR)/lib
 
