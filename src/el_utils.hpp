@@ -14,9 +14,6 @@ typedef std::chrono::duration<float, std::milli> Duration;
     _T(printf("time: %s, th=%d, %.2f ms\n", #n, \
         omp_get_thread_num(), Duration(__e##n - __s##n).count()));
 
-#define MD(type, array, dims, ptr) \
-    type (&array)dims = *reinterpret_cast<type (*)dims>(ptr)
-
 namespace euler {
 
 template <typename T, typename P>
@@ -32,6 +29,33 @@ inline bool any_null(Args... ptrs) { return one_of(nullptr, ptrs...); }
 template<typename T> inline T accumulate(T tn) {return tn; }
 template<typename T, typename... Args>
 inline T accumulate(T a, Args... args) { return a * accumulate(args...); }
+
+#define MD(type, array, dims, ptr) \
+    type (&array)dims = *reinterpret_cast<type (*)dims>(ptr)
+
+template<typename F, int N>
+class mdarray {
+public:
+    template <typename... Args>
+    mdarray(F *p, Args... dims): _p(p), _dims { dims... } {}
+    template <typename... Args>
+    inline F &operator()(Args... dims) {
+        return *(_p + offset(1, dims...));
+    }
+
+private:
+    template <typename... Args>
+    inline size_t offset(size_t index, size_t off, size_t dim, Args... dims) {
+        off = _dims[index] * off + dim;
+        return offset(index + 1, off, dims...);
+    }
+    inline size_t offset(size_t index, size_t off, size_t dim) {
+        return _dims[index] * off + dim;
+    }
+
+    F *_p;
+    const int _dims[N];
+};
 
 }
 
