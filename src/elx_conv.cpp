@@ -49,8 +49,8 @@ elx_conv_impl_t<F, T, K, V, I>::elx_conv_impl_t (eld_conv_t<F> &dc)
 
     this->T   = T;
     this->OT  = T - 2;
-    this->oh2 = this->oh / T;
-    this->ow2 = this->ow / T;
+    this->oh2 = (this->oh + T - 3) / this->OT;
+    this->ow2 = (this->ow + T - 3) / this->OT;
     this->ih2 = this->oh2;
     this->iw2 = this->ow2;
 
