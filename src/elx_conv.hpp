@@ -7,19 +7,17 @@
 
 namespace euler {
 
-template<typename F>
+template<typename Type>
 class elx_conv_t {
 public:
     // dims
     int ic,  oc,  ih,  iw,  oh,  ow, n, t, kh, kw;
     // dims by block
-    int ic2, oc2, ih2, iw2, oh2, ow2;
+    int ic2, oc2, ih2, iw2, oh2, ow2, t2;
     // dims by double block
-    int ic3, oc3, ih3, iw3, oh3, ow3;
-    // blocking unit. {vector, tile, out-tile}-size
-    int V, T, OT;
-    // blocking unit. 2nd level
-    int I2, O2, T2;
+    int ic3, oc3, ih3, iw3, oh3, ow3, t3;
+    // blocking unit: vector-size, tile-size, tile-blocking-size
+    int V, A, T;
     // padding
     int lp, rp, tp, bp;
     // stride
@@ -39,32 +37,33 @@ public:
     int weights_strides[8];
     int output_strides[8];
 
-    F *tweights;
-    F *tinput;
-    F *toutput;
+    Type *tweights;
+    Type *tinput;
+    Type *toutput;
 
-    elx_conv_t(eld_conv_t<F> &dc);
+    elx_conv_t(eld_conv_t<Type> &dc);
     virtual ~elx_conv_t() {}
 
-    virtual void direct(F *input, F *weights, F *output, F *bias) = 0;
-    virtual void winograd(F *input, F *weights, F *output, F *bias) = 0;
+    virtual void direct(Type *input, Type *weights, Type *output, Type *bias) = 0;
+    virtual void winograd(Type *input, Type *weights, Type *output, Type *bias) = 0;
 };
 
 template class elx_conv_t<float>;
 
-template<typename F, const int T, const int K, const int V, const int I>
-class elx_conv_impl_t : public elx_conv_t<F> {
+// TODO: rename to elx_conv_wino_prod_t
+template<typename T, const int A, const int K, const int V, const int I>
+class elx_conv_impl_t : public elx_conv_t<T> {
 public:
-    elx_conv_impl_t(eld_conv_t<F> &dc);
+    elx_conv_impl_t(eld_conv_t<T> &dc);
     virtual ~elx_conv_impl_t();
 
-    virtual void direct(F *input, F *weights, F *output, F *bias) {}
-    virtual void winograd(F *input, F *weights, F *output, F *bias);
+    virtual void direct(T *input, T *weights, T *output, T *bias) {}
+    virtual void winograd(T *input, T *weights, T *output, T *bias);
 
 private:
-    void trans_weights(F *tweights, F *weights);
-    void trans_input(F *tinput, F *input);
-    void product_trans_output(F *tinput, F *tweights, F *output);
+    void trans_weights(T *tweights, T *weights);
+    void trans_input(T *tinput, T *input);
+    void product_trans_output(T *tinput, T *tweights, T *output);
 
 };
 
@@ -72,5 +71,6 @@ template class elx_conv_impl_t<float, 5, 3, 16, ISA_GENERIC>;
 template class elx_conv_impl_t<float, 5, 3, 16, ISA_SKX_AVX512>;
 
 
+// TODO: elx_conv_wino_gemm_t
 }
 #endif // __ELX_CONV_HPP__

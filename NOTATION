@@ -9,15 +9,13 @@ Files, functions, classes:
 
 Numbering:
     Cardinal number
-        // dimension
+        // dimension (plain)
         n, ic, oc, ih, iw, oh, ow, kh, kw, t
         // blocked dimension
         ic2, oc2, ih2, iw2, oh2, ow2, t2 // blocked
         ic3, oc3, t3, ...                // 2nd level blocked
-        // blocking unit, normally IV = OV = I = O, IT = T
-        V, T, OT
-        // 2nd level blocking unit
-        I2, O2, T2
+        // blocking unit, normally IV = OV = I = O
+        V, T
     Ordinal number
         // dimension
         _n, _ic, _oc, _ih, _iw, _oh, _ow, _kh, _kw, ...
@@ -25,8 +23,12 @@ Numbering:
         _ic2, _oc2, _ih2, _iw2, _oh2, _ow2, _t2 // blocked
         _ic3, _oc3, _t3, ...                    // 2nd level blocked
         // blocking unit
-        _V, _T, _IV, _OV, _IT, _OT, _hT, _wT
-        _I2, _O2, _T2, ...
+        _V, _T, _IV, _OV, _hA, _wA
+    template:
+        T: typename
+        V: vector-size
+        A: tile-size
+        K: kernel-size
 
 Tensor:
     // pointer type

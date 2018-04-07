@@ -8,15 +8,15 @@ namespace euler {
 
 #define IMM_BCAST16(x) x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x
 
-template<typename F, const int T, const int K, const int V, const int I> void
-elk_trans_weights(F atweights[T][T][V][V], F aweights[K][K][V][V]) { }
+template<typename T, const int A, const int K, const int V, const int I> void
+elk_trans_weights(T atweights[A][A][V][V], T aweights[K][K][V][V]) { }
 
-template<typename F, const int T, const int K, const int V, const int I> void
-elk_trans_input(elx_conv_t<F> &xc, F atinput[T][T][V], F *input, int _oh2, int _ow2)
+template<typename T, const int A, const int K, const int V, const int I> void
+elk_trans_input(elx_conv_t<T> &xc, T atinput[A][A][V], T *input, int _oh2, int _ow2)
 { }
 
-template<typename F, const int T, const int K, const int V, const int I> void
-elk_product_trans_output(elx_conv_t<F> &xc, F *tinput, F *tweights, F *output,
+template<typename T, const int A, const int K, const int V, const int I> void
+elk_product_trans_output(elx_conv_t<T> &xc, T *tinput, T *tweights, T *output,
                          int _ih2, int _iw2)
 { }
 
@@ -862,5 +862,12 @@ template<> void elk_product_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>
 }
 
 
+/*
+template<> void elk_gemm<float, 16, ISA_SKX_AVX512>
+(elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweight)
+{
+    mdarray<float, 3> atinput(tinput, xc.ic2, xc.tile, 16)
+}
+*/
 
 }

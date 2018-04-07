@@ -30,10 +30,10 @@ enum {
     OIhw16i16o
 };
 
-template<typename F> struct elx_conv_t;
+template<typename T> struct elx_conv_t;
 
 // Convolution desc
-template<typename F>
+template<typename T>
 struct eld_conv_t {
     // Conv parameters
     struct {
@@ -66,7 +66,7 @@ struct eld_conv_t {
     struct { int input, weights, output, bias; } sizes;
 
     // Internal data used by elx
-    elx_conv_t<F> *xc;
+    elx_conv_t<T> *xc;
 };
 
 template class eld_conv_t<float>;

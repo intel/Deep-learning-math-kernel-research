@@ -1,5 +1,5 @@
-1. Generated code optrpt
-2. Shape specialization
-3. Correctness
-4. Tile-size: 6
+- Shape specialization
+- Correctness
+- Tile-size: 6
+- mdarray performance impact
 

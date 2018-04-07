@@ -7,8 +7,8 @@
 
 namespace euler {
 
-template<typename F>
-elx_conv_t<F>::elx_conv_t (eld_conv_t<F> &dc)
+template<typename Type>
+elx_conv_t<Type>::elx_conv_t (eld_conv_t<Type> &dc)
 {
     this->n  = dc.dims.input.n;
     this->ic = dc.dims.input.c;
@@ -39,29 +39,28 @@ elx_conv_t<F>::elx_conv_t (eld_conv_t<F> &dc)
     this->toutput  = nullptr;
 }
 
-template<typename F, const int T, const int K, const int V, const int I>
-elx_conv_impl_t<F, T, K, V, I>::elx_conv_impl_t (eld_conv_t<F> &dc)
-: elx_conv_t<F>(dc) 
+template<typename Type, const int A, const int K, const int V, const int I>
+elx_conv_impl_t<Type, A, K, V, I>::elx_conv_impl_t (eld_conv_t<Type> &dc)
+: elx_conv_t<Type>(dc) 
 {
     this->V = V;
     this->ic2 = this->ic / V;
     this->oc2 = this->oc / V;
 
-    this->T   = T;
-    this->OT  = T - 2;
-    this->oh2 = (this->oh + T - 3) / this->OT;
-    this->ow2 = (this->ow + T - 3) / this->OT;
+    this->A   = A;
+    this->oh2 = (this->oh + A - 3) / (A - 2);
+    this->ow2 = (this->ow + A - 3) / (A - 2);
     this->ih2 = this->oh2;
     this->iw2 = this->ow2;
 
-    int tweights_size = sizeof(F) * T * T * this->ic * this->oc;
-    int tinput_size   = sizeof(F) * T * T * this->oh2 * this->ow2
-                                  * this->ic * this->n;
-    int toutput_size  = sizeof(F) * T * T * this->oh2 * this->ow2
-                                  * this->oc * this->n;
-    this->tweights = (F *)malloc(tweights_size);
-    this->tinput   = (F *)malloc(tinput_size);
-    //this->toutput  = (F *)malloc(toutput_size);
+    int tweights_size = sizeof(Type) * A * A * this->ic * this->oc;
+    int tinput_size   = sizeof(Type) * A * A * this->oh2 * this->ow2
+                                             * this->ic * this->n;
+    int toutput_size  = sizeof(Type) * A * A * this->oh2 * this->ow2
+                                             * this->oc * this->n;
+    this->tweights = (Type *)malloc(tweights_size);
+    this->tinput   = (Type *)malloc(tinput_size);
+    //this->toutput  = (T *)malloc(toutput_size);
 
     if (this->input_fmt == nChw16c) {
         this->input_strides[0] = 1;
@@ -93,8 +92,8 @@ elx_conv_impl_t<F, T, K, V, I>::elx_conv_impl_t (eld_conv_t<F> &dc)
     }
 }
 
-template<typename F, const int T, const int K, const int V, const int I>
-elx_conv_impl_t<F, T, K, V, I>::~elx_conv_impl_t ()
+template<typename T, const int A, const int K, const int V, const int I>
+elx_conv_impl_t<T, A, K, V, I>::~elx_conv_impl_t ()
 {
     if (this->tweights != nullptr) {
         free(this->tweights);
@@ -110,72 +109,72 @@ elx_conv_impl_t<F, T, K, V, I>::~elx_conv_impl_t ()
     }
 }
 
-template<typename F, const int T, const int K, const int V, const int I> void
-elx_conv_impl_t<F, T, K, V, I>::trans_weights(F *tweights, F *weights)
+template<typename T, const int A, const int K, const int V, const int I> void
+elx_conv_impl_t<T, A, K, V, I>::trans_weights(T *tweights, T *weights)
 {
 #pragma omp parallel for collapse(2)
     for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
         for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
             int d = 16 * 16 * (_ic2 + _oc2 * this->ic2);
-            MD(F, aweights,  [K][K][V][V], weights + K * K * d);
-            MD(F, atweights, [T][T][V][V], tweights + T * T * d);
+            MD(T, aweights,  [K][K][V][V], weights + K * K * d);
+            MD(T, atweights, [A][A][V][V], tweights + A * A * d);
 
-            elk_trans_weights<F, T, K, V, I>(atweights, aweights);
+            elk_trans_weights<T, A, K, V, I>(atweights, aweights);
         }
     }
 }
 
-template<typename F, const int T, const int K, const int V, const int I> void
-elx_conv_impl_t<F, T, K, V, I>::trans_input(F *tinput, F *input)
+template<typename T, const int A, const int K, const int V, const int I> void
+elx_conv_impl_t<T, A, K, V, I>::trans_input(T *tinput, T *input)
 {
-    MD(F, atinput, [this->n][this->ic2][this->oh2][this->ow2][T][T][V], tinput);
-    MD(F, ainput,  [this->n][this->ic2][this->ih][this->iw][V], input);
+    MD(T, atinput, [this->n][this->ic2][this->oh2][this->ow2][A][A][V], tinput);
+    MD(T, ainput,  [this->n][this->ic2][this->ih][this->iw][V], input);
 
 #pragma omp parallel for collapse(4)
     for (int _n = 0; _n < this->n; ++_n) {
         for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
             for (int _oh2 = 0; _oh2 < this->oh2; ++_oh2) {
                 for (int _ow2 = 0; _ow2 < this->ow2; ++_ow2) {
-                    elk_trans_input<F, T, K, V, I>
+                    elk_trans_input<T, A, K, V, I>
                         (*this, atinput[_n][_ic2][_oh2][_ow2],
-                         (F *)ainput[_n][_ic2],
+                         (T *)ainput[_n][_ic2],
                          _oh2, _ow2);
                 }}}}
 }
 
-template<typename F, const int T, const int K, const int V, const int I> void
-elx_conv_impl_t<F, T, K, V, I>::product_trans_output(F *tinput, F *tweights, F *output)
+template<typename T, const int A, const int K, const int V, const int I> void
+elx_conv_impl_t<T, A, K, V, I>::product_trans_output(T *tinput, T *tweights, T *output)
 {
-    MD(F, atweights, [this->oc2][this->ic2][T][T][V][V], tweights);
-    MD(F, atinput,   [this->n][this->ic2][this->oh2][this->ow2][T][T][V], tinput);
-    MD(F, aoutput,   [this->n][this->oc2][this->oh][this->ow][V], output);
+    MD(T, atweights, [this->oc2][this->ic2][A][A][V][V], tweights);
+    MD(T, atinput,   [this->n][this->ic2][this->oh2][this->ow2][A][A][V], tinput);
+    MD(T, aoutput,   [this->n][this->oc2][this->oh][this->ow][V], output);
 
 #pragma omp parallel for collapse(4)
     for (int _n = 0; _n < this->n; ++_n) {
         for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
             for (int _oh2 = 0; _oh2 < this->oh2; ++_oh2) {
                 for (int _ow2 = 0; _ow2 < this->ow2; ++_ow2) {
-                    elk_product_trans_output<F, T, K, V, I>
+                    elk_product_trans_output<T, A, K, V, I>
                         (*this,
-                         (F *)atinput[_n],
-                         (F *)atweights[_oc2],
-                         (F *)aoutput[_n][_oc2],
+                         (T *)atinput[_n],
+                         (T *)atweights[_oc2],
+                         (T *)aoutput[_n][_oc2],
                          _oh2, _ow2);
                 }}}}
 }
 
-template<typename F, const int T, const int K, const int V, const int I> void
-elx_conv_impl_t<F, T, K, V, I>::winograd(F *input, F *weights, F *output, F *bias)
+template<typename T, const int A, const int K, const int V, const int I> void
+elx_conv_impl_t<T, A, K, V, I>::winograd(T *input, T *weights, T *output, T *bias)
 {
     trans_weights(this->tweights, weights);
     trans_input(this->tinput, input);
     product_trans_output(this->tinput, this->tweights, output);
 }
 
-template<typename F>
-int elx_conv(eld_conv_t<F> &desc, F *input, F *weights, F *output, F *bias)
+template<typename T>
+int elx_conv(eld_conv_t<T> &desc, T *input, T *weights, T *output, T *bias)
 {
-    elx_conv_t<F> &xc = *desc.xc;
+    elx_conv_t<T> &xc = *desc.xc;
 
     // Sanity check
     if (any_null(input, weights, output)

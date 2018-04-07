@@ -33,13 +33,13 @@ inline T accumulate(T a, Args... args) { return a * accumulate(args...); }
 #define MD(type, array, dims, ptr) \
     type (&array)dims = *reinterpret_cast<type (*)dims>(ptr)
 
-template<typename F, int N>
+template<typename T, int N>
 class mdarray {
 public:
     template <typename... Args>
-    mdarray(F *p, Args... dims): _p(p), _dims { dims... } {}
+    mdarray(T *p, Args... dims): _p(p), _dims { dims... } {}
     template <typename... Args>
-    inline F &operator()(Args... dims) {
+    inline T &operator()(Args... dims) {
         return *(_p + offset(1, dims...));
     }
 
@@ -53,7 +53,7 @@ private:
         return _dims[index] * off + dim;
     }
 
-    F *_p;
+    T *_p;
     const int _dims[N];
 };
 
