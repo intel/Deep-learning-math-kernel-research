@@ -15,7 +15,7 @@ Numbering:
         ic2, oc2, ih2, iw2, oh2, ow2, t2 // blocked
         ic3, oc3, t3, ...                // 2nd level blocked
         // blocking unit, normally IV = OV = I = O
-        V, T
+        V, A, T
     Ordinal number
         // dimension
         _n, _ic, _oc, _ih, _iw, _oh, _ow, _kh, _kw, ...

@@ -243,9 +243,9 @@ elk_trans_input<float, 5, 3, 16, ISA_GENERIC>
     const float z4  = 4.0f;
     const float z6  = 6.0f;
 
-    auto f = [&](int _hT, int _wT, int _V) {
-        int _ih = _oh2 * 3 - xc.lp + _hT;
-        int _iw = _ow2 * 3 - xc.tp + _wT;
+    auto f = [&](int _h, int _w, int _V) {
+        int _ih = _oh2 * 3 - xc.lp + _h;
+        int _iw = _ow2 * 3 - xc.tp + _w;
         int _i = _ih * xc.input_strides[2] + _iw * 16 + _V;
         if (_ih < 0 || _iw < 0 || _ih >= xc.ih || _iw >= xc.iw)
             return 0.0f;
@@ -256,9 +256,9 @@ elk_trans_input<float, 5, 3, 16, ISA_GENERIC>
 #undef F
 #undef C
 #undef T
-#define F(_hT, _wT) f(_hT, _wT, _V)
+#define F(_h, _w) f(_h, _w, _V)
 #define C(n) C##n[_V]
-#define T(_hT, _wT) atinput[_hT][_wT][_V]
+#define T(_h, _w) atinput[_h][_w][_V]
 
     float C1[16], C2[16], C3[16];
 #pragma omp simd
@@ -335,18 +335,18 @@ template<> void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>
     __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
     __m512 z6 = _mm512_set_ps(IMM_BCAST16(6.0f));
 
-    auto f0 = [&](int _hT, int _wT) {
-        int _ih = _oh2 * 3 - 1 + _hT;
-        int _iw = _ow2 * 3 - 1 + _wT;
+    auto f0 = [&](int _h, int _w) {
+        int _ih = _oh2 * 3 - 1 + _h;
+        int _iw = _ow2 * 3 - 1 + _w;
         int _i = _ih * xc.input_strides[2] + _iw * 16;
         if (_ih < 0 || _iw < 0 || _ih >= xc.ih || _iw >= xc.iw)
             return z0;
         else
             return _mm512_load_ps(input + _i);
     };
-    auto f1 = [&](int _hT, int _wT) {
-        int _ih = _oh2 * 3 - 1 + _hT;
-        int _iw = _ow2 * 3 - 1 + _wT;
+    auto f1 = [&](int _h, int _w) {
+        int _ih = _oh2 * 3 - 1 + _h;
+        int _iw = _ow2 * 3 - 1 + _w;
         int _i = _ih * xc.input_strides[2] + _iw * 16;
         return _mm512_load_ps(input + _i);
     };
@@ -354,8 +354,8 @@ template<> void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>
 #undef F
 #undef C
 #undef T
-#define F0(_hT, _wT) f0(_hT, _wT)
-#define F1(_hT, _wT) f1(_hT, _wT)
+#define F0(_h, _w) f0(_h, _w)
+#define F1(_h, _w) f1(_h, _w)
 #define T(h,w) atinput[h][w]
 
     if (_oh2 == 0 || _ow2 == 0 || _oh2 == xc.oh2 - 1 || _ow2 == xc.ow2 - 1) {
@@ -651,7 +651,7 @@ template<> void elk_product_trans_output<float, 5, 3, 16, ISA_GENERIC>
 
 #undef C
 #define C(n) c##n[_OV]
-#define P(_hT, _wT) aoutput[xc.oh2 * 3 + _hT][xc.ow2 * 3 + _wT][_OV] // TODO: overflow
+#define P(_h, _w) aoutput[xc.oh2 * 3 + _h][xc.ow2 * 3 + _w][_OV] // TODO: overflow
     float c0[16], c1[16], c2[16], c3[16], c4[16];
 
 #pragma omp simd
@@ -777,7 +777,7 @@ template<> void elk_product_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>
     }
 
 #undef P
-#define P(_hT, _wT) (aoutput[xc.oh2 * 3 + _hT][xc.ow2 * 3 + _wT]) // TODO: overflow
+#define P(_h, _w) (aoutput[xc.oh2 * 3 + _h][xc.ow2 * 3 + _w]) // TODO: overflow
     __m512 c0, c1, c2, c3, c4;
     __m512 p00, p01, p02, p10, p11, p12, p20, p21, p22;
     __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
@@ -862,12 +862,132 @@ template<> void elk_product_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>
 }
 
 
-/*
-template<> void elk_gemm<float, 16, ISA_SKX_AVX512>
-(elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweight)
+template<typename Type, int T, int V, int I> void elk_gemm
+(elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights)
+{}
+
+template<> void elk_gemm<float, 25, 16, ISA_SKX_AVX512>
+(elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights)
 {
-    mdarray<float, 3> atinput(tinput, xc.ic2, xc.tile, 16)
+    _allow_cpu_features(_FEATURE_AVX512F);
+
+    mdarray<float, 4> atweights(tweights, xc.oc2, xc.ic2, 16, 16);
+    mdarray<float, 3> atinput(tinput, xc.ic2, xc.T, 16);
+    mdarray<float, 3> atoutput(toutput, xc.oc2, xc.T, 16);
+
+    for (int _oc2 = 0; _oc2 < xc.oc2; ++_oc2) {
+        __m512 t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12,
+               t13, t14, t15, t16, t17, t18, t19, t20, t21, t22, t23, t24;
+
+        t0  = _mm512_load_ps(&atoutput(_oc2, 0, 0));
+        t1  = _mm512_load_ps(&atoutput(_oc2, 1, 0));
+        t2  = _mm512_load_ps(&atoutput(_oc2, 2, 0));
+        t3  = _mm512_load_ps(&atoutput(_oc2, 3, 0));
+        t4  = _mm512_load_ps(&atoutput(_oc2, 4, 0));
+        t5  = _mm512_load_ps(&atoutput(_oc2, 5, 0));
+        t6  = _mm512_load_ps(&atoutput(_oc2, 6, 0));
+        t7  = _mm512_load_ps(&atoutput(_oc2, 7, 0));
+        t8  = _mm512_load_ps(&atoutput(_oc2, 8, 0));
+        t9  = _mm512_load_ps(&atoutput(_oc2, 9, 0));
+        t10 = _mm512_load_ps(&atoutput(_oc2, 10, 0));
+        t11 = _mm512_load_ps(&atoutput(_oc2, 11, 0));
+        t12 = _mm512_load_ps(&atoutput(_oc2, 12, 0));
+        t13 = _mm512_load_ps(&atoutput(_oc2, 13, 0));
+        t14 = _mm512_load_ps(&atoutput(_oc2, 14, 0));
+        t15 = _mm512_load_ps(&atoutput(_oc2, 15, 0));
+        t16 = _mm512_load_ps(&atoutput(_oc2, 16, 0));
+        t17 = _mm512_load_ps(&atoutput(_oc2, 17, 0));
+        t18 = _mm512_load_ps(&atoutput(_oc2, 18, 0));
+        t19 = _mm512_load_ps(&atoutput(_oc2, 19, 0));
+        t20 = _mm512_load_ps(&atoutput(_oc2, 20, 0));
+        t21 = _mm512_load_ps(&atoutput(_oc2, 21, 0));
+        t22 = _mm512_load_ps(&atoutput(_oc2, 22, 0));
+        t23 = _mm512_load_ps(&atoutput(_oc2, 23, 0));
+        t24 = _mm512_load_ps(&atoutput(_oc2, 24, 0));
+
+        for (int _ic2 = 0; _ic2 < xc.ic2; ++_ic2) {
+            for (int _V = 0; _V < 16; ++_V) {
+                __m512 x;
+                __m512 w = _mm512_load_ps(&atweights(_oc2, _ic2, _V, 0));
+                float *x_ptr = &atinput(_ic2, 0, _V);
+                x = _mm512_set1_ps(*(x_ptr + 0 * 16));
+                t0  = _mm512_fmadd_ps(w, x, t0);
+                x = _mm512_set1_ps(*(x_ptr + 1 * 16));
+                t1  = _mm512_fmadd_ps(w, x, t1);
+                x = _mm512_set1_ps(*(x_ptr + 2 * 16));
+                t2  = _mm512_fmadd_ps(w, x, t2);
+                x = _mm512_set1_ps(*(x_ptr + 3 * 16));
+                t3  = _mm512_fmadd_ps(w, x, t3);
+                x = _mm512_set1_ps(*(x_ptr + 4 * 16));
+                t4  = _mm512_fmadd_ps(w, x, t4);
+                x = _mm512_set1_ps(*(x_ptr + 5 * 16));
+                t5  = _mm512_fmadd_ps(w, x, t5);
+                x = _mm512_set1_ps(*(x_ptr + 6 * 16));
+                t6  = _mm512_fmadd_ps(w, x, t6);
+                x = _mm512_set1_ps(*(x_ptr + 7 * 16));
+                t7  = _mm512_fmadd_ps(w, x, t7);
+                x = _mm512_set1_ps(*(x_ptr + 8 * 16));
+                t8  = _mm512_fmadd_ps(w, x, t8);
+                x = _mm512_set1_ps(*(x_ptr + 9 * 16));
+                t9  = _mm512_fmadd_ps(w, x, t9);
+                x = _mm512_set1_ps(*(x_ptr + 10 * 16));
+                t10 = _mm512_fmadd_ps(w, x, t10);
+                x = _mm512_set1_ps(*(x_ptr + 11 * 16));
+                t11 = _mm512_fmadd_ps(w, x, t11);
+                x = _mm512_set1_ps(*(x_ptr + 12 * 16));
+                t12 = _mm512_fmadd_ps(w, x, t12);
+                x = _mm512_set1_ps(*(x_ptr + 13 * 16));
+                t13 = _mm512_fmadd_ps(w, x, t13);
+                x = _mm512_set1_ps(*(x_ptr + 14 * 16));
+                t14 = _mm512_fmadd_ps(w, x, t14);
+                x = _mm512_set1_ps(*(x_ptr + 15 * 16));
+                t15 = _mm512_fmadd_ps(w, x, t15);
+                x = _mm512_set1_ps(*(x_ptr + 16 * 16));
+                t16 = _mm512_fmadd_ps(w, x, t16);
+                x = _mm512_set1_ps(*(x_ptr + 17 * 16));
+                t17 = _mm512_fmadd_ps(w, x, t17);
+                x = _mm512_set1_ps(*(x_ptr + 18 * 16));
+                t18 = _mm512_fmadd_ps(w, x, t18);
+                x = _mm512_set1_ps(*(x_ptr + 19 * 16));
+                t19 = _mm512_fmadd_ps(w, x, t19);
+                x = _mm512_set1_ps(*(x_ptr + 20 * 16));
+                t20 = _mm512_fmadd_ps(w, x, t20);
+                x = _mm512_set1_ps(*(x_ptr + 21 * 16));
+                t21 = _mm512_fmadd_ps(w, x, t21);
+                x = _mm512_set1_ps(*(x_ptr + 22 * 16));
+                t22 = _mm512_fmadd_ps(w, x, t22);
+                x = _mm512_set1_ps(*(x_ptr + 23 * 16));
+                t23 = _mm512_fmadd_ps(w, x, t23);
+                x = _mm512_set1_ps(*(x_ptr + 24 * 16));
+                t24 = _mm512_fmadd_ps(w, x, t24);
+            }
+        }
+        _mm512_store_ps(&atoutput(_oc2, 0, 0), t0);
+        _mm512_store_ps(&atoutput(_oc2, 1, 0), t1);
+        _mm512_store_ps(&atoutput(_oc2, 2, 0), t2);
+        _mm512_store_ps(&atoutput(_oc2, 3, 0), t3);
+        _mm512_store_ps(&atoutput(_oc2, 4, 0), t4);
+        _mm512_store_ps(&atoutput(_oc2, 5, 0), t5);
+        _mm512_store_ps(&atoutput(_oc2, 6, 0), t6);
+        _mm512_store_ps(&atoutput(_oc2, 7, 0), t7);
+        _mm512_store_ps(&atoutput(_oc2, 8, 0), t8);
+        _mm512_store_ps(&atoutput(_oc2, 9, 0), t9);
+        _mm512_store_ps(&atoutput(_oc2, 10, 0), t10);
+        _mm512_store_ps(&atoutput(_oc2, 11, 0), t11);
+        _mm512_store_ps(&atoutput(_oc2, 12, 0), t12);
+        _mm512_store_ps(&atoutput(_oc2, 13, 0), t13);
+        _mm512_store_ps(&atoutput(_oc2, 14, 0), t14);
+        _mm512_store_ps(&atoutput(_oc2, 15, 0), t15);
+        _mm512_store_ps(&atoutput(_oc2, 16, 0), t16);
+        _mm512_store_ps(&atoutput(_oc2, 17, 0), t17);
+        _mm512_store_ps(&atoutput(_oc2, 18, 0), t18);
+        _mm512_store_ps(&atoutput(_oc2, 19, 0), t19);
+        _mm512_store_ps(&atoutput(_oc2, 20, 0), t20);
+        _mm512_store_ps(&atoutput(_oc2, 21, 0), t21);
+        _mm512_store_ps(&atoutput(_oc2, 22, 0), t22);
+        _mm512_store_ps(&atoutput(_oc2, 23, 0), t23);
+        _mm512_store_ps(&atoutput(_oc2, 24, 0), t24);
+    }
 }
-*/
 
 }
