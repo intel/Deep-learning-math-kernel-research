@@ -3,6 +3,7 @@
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
+#include "elk_conv.hpp"
 
 namespace euler {
 
@@ -876,117 +877,27 @@ template<> void elk_gemm<float, 25, 16, ISA_SKX_AVX512>
     mdarray<float, 3> atoutput(toutput, xc.oc2, 25, 16);
 
     for (int _oc2 = 0; _oc2 < xc.oc2; ++_oc2) {
-        __m512 t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12,
-               t13, t14, t15, t16, t17, t18, t19, t20, t21, t22, t23, t24;
-
-        t0  = _mm512_load_ps(&atoutput(_oc2, 0, 0));
-        t1  = _mm512_load_ps(&atoutput(_oc2, 1, 0));
-        t2  = _mm512_load_ps(&atoutput(_oc2, 2, 0));
-        t3  = _mm512_load_ps(&atoutput(_oc2, 3, 0));
-        t4  = _mm512_load_ps(&atoutput(_oc2, 4, 0));
-        t5  = _mm512_load_ps(&atoutput(_oc2, 5, 0));
-        t6  = _mm512_load_ps(&atoutput(_oc2, 6, 0));
-        t7  = _mm512_load_ps(&atoutput(_oc2, 7, 0));
-        t8  = _mm512_load_ps(&atoutput(_oc2, 8, 0));
-        t9  = _mm512_load_ps(&atoutput(_oc2, 9, 0));
-        t10 = _mm512_load_ps(&atoutput(_oc2, 10, 0));
-        t11 = _mm512_load_ps(&atoutput(_oc2, 11, 0));
-        t12 = _mm512_load_ps(&atoutput(_oc2, 12, 0));
-        t13 = _mm512_load_ps(&atoutput(_oc2, 13, 0));
-        t14 = _mm512_load_ps(&atoutput(_oc2, 14, 0));
-        t15 = _mm512_load_ps(&atoutput(_oc2, 15, 0));
-        t16 = _mm512_load_ps(&atoutput(_oc2, 16, 0));
-        t17 = _mm512_load_ps(&atoutput(_oc2, 17, 0));
-        t18 = _mm512_load_ps(&atoutput(_oc2, 18, 0));
-        t19 = _mm512_load_ps(&atoutput(_oc2, 19, 0));
-        t20 = _mm512_load_ps(&atoutput(_oc2, 20, 0));
-        t21 = _mm512_load_ps(&atoutput(_oc2, 21, 0));
-        t22 = _mm512_load_ps(&atoutput(_oc2, 22, 0));
-        t23 = _mm512_load_ps(&atoutput(_oc2, 23, 0));
-        t24 = _mm512_load_ps(&atoutput(_oc2, 24, 0));
+#undef OP
+#define OP(x) \
+        __m512 t##x  = _mm512_load_ps(&atoutput(_oc2, x, 0))
+        OP_0_to_24();
 
         for (int _ic2 = 0; _ic2 < xc.ic2; ++_ic2) {
             for (int _V = 0; _V < 16; ++_V) {
                 __m512 x;
                 __m512 w = _mm512_load_ps(&atweights(_oc2, _ic2, _V, 0));
                 float *x_ptr = &atinput(_ic2, 0, _V);
-                x = _mm512_set1_ps(*(x_ptr + 0 * 16));
-                t0  = _mm512_fmadd_ps(w, x, t0);
-                x = _mm512_set1_ps(*(x_ptr + 1 * 16));
-                t1  = _mm512_fmadd_ps(w, x, t1);
-                x = _mm512_set1_ps(*(x_ptr + 2 * 16));
-                t2  = _mm512_fmadd_ps(w, x, t2);
-                x = _mm512_set1_ps(*(x_ptr + 3 * 16));
-                t3  = _mm512_fmadd_ps(w, x, t3);
-                x = _mm512_set1_ps(*(x_ptr + 4 * 16));
-                t4  = _mm512_fmadd_ps(w, x, t4);
-                x = _mm512_set1_ps(*(x_ptr + 5 * 16));
-                t5  = _mm512_fmadd_ps(w, x, t5);
-                x = _mm512_set1_ps(*(x_ptr + 6 * 16));
-                t6  = _mm512_fmadd_ps(w, x, t6);
-                x = _mm512_set1_ps(*(x_ptr + 7 * 16));
-                t7  = _mm512_fmadd_ps(w, x, t7);
-                x = _mm512_set1_ps(*(x_ptr + 8 * 16));
-                t8  = _mm512_fmadd_ps(w, x, t8);
-                x = _mm512_set1_ps(*(x_ptr + 9 * 16));
-                t9  = _mm512_fmadd_ps(w, x, t9);
-                x = _mm512_set1_ps(*(x_ptr + 10 * 16));
-                t10 = _mm512_fmadd_ps(w, x, t10);
-                x = _mm512_set1_ps(*(x_ptr + 11 * 16));
-                t11 = _mm512_fmadd_ps(w, x, t11);
-                x = _mm512_set1_ps(*(x_ptr + 12 * 16));
-                t12 = _mm512_fmadd_ps(w, x, t12);
-                x = _mm512_set1_ps(*(x_ptr + 13 * 16));
-                t13 = _mm512_fmadd_ps(w, x, t13);
-                x = _mm512_set1_ps(*(x_ptr + 14 * 16));
-                t14 = _mm512_fmadd_ps(w, x, t14);
-                x = _mm512_set1_ps(*(x_ptr + 15 * 16));
-                t15 = _mm512_fmadd_ps(w, x, t15);
-                x = _mm512_set1_ps(*(x_ptr + 16 * 16));
-                t16 = _mm512_fmadd_ps(w, x, t16);
-                x = _mm512_set1_ps(*(x_ptr + 17 * 16));
-                t17 = _mm512_fmadd_ps(w, x, t17);
-                x = _mm512_set1_ps(*(x_ptr + 18 * 16));
-                t18 = _mm512_fmadd_ps(w, x, t18);
-                x = _mm512_set1_ps(*(x_ptr + 19 * 16));
-                t19 = _mm512_fmadd_ps(w, x, t19);
-                x = _mm512_set1_ps(*(x_ptr + 20 * 16));
-                t20 = _mm512_fmadd_ps(w, x, t20);
-                x = _mm512_set1_ps(*(x_ptr + 21 * 16));
-                t21 = _mm512_fmadd_ps(w, x, t21);
-                x = _mm512_set1_ps(*(x_ptr + 22 * 16));
-                t22 = _mm512_fmadd_ps(w, x, t22);
-                x = _mm512_set1_ps(*(x_ptr + 23 * 16));
-                t23 = _mm512_fmadd_ps(w, x, t23);
-                x = _mm512_set1_ps(*(x_ptr + 24 * 16));
-                t24 = _mm512_fmadd_ps(w, x, t24);
+#undef OP
+#define OP(n) \
+                x = _mm512_set1_ps(*(x_ptr + n * 16)); \
+                t##n = _mm512_fmadd_ps(w, x, t##n)
+                OP_0_to_24();
             }
         }
-        _mm512_store_ps(&atoutput(_oc2, 0, 0), t0);
-        _mm512_store_ps(&atoutput(_oc2, 1, 0), t1);
-        _mm512_store_ps(&atoutput(_oc2, 2, 0), t2);
-        _mm512_store_ps(&atoutput(_oc2, 3, 0), t3);
-        _mm512_store_ps(&atoutput(_oc2, 4, 0), t4);
-        _mm512_store_ps(&atoutput(_oc2, 5, 0), t5);
-        _mm512_store_ps(&atoutput(_oc2, 6, 0), t6);
-        _mm512_store_ps(&atoutput(_oc2, 7, 0), t7);
-        _mm512_store_ps(&atoutput(_oc2, 8, 0), t8);
-        _mm512_store_ps(&atoutput(_oc2, 9, 0), t9);
-        _mm512_store_ps(&atoutput(_oc2, 10, 0), t10);
-        _mm512_store_ps(&atoutput(_oc2, 11, 0), t11);
-        _mm512_store_ps(&atoutput(_oc2, 12, 0), t12);
-        _mm512_store_ps(&atoutput(_oc2, 13, 0), t13);
-        _mm512_store_ps(&atoutput(_oc2, 14, 0), t14);
-        _mm512_store_ps(&atoutput(_oc2, 15, 0), t15);
-        _mm512_store_ps(&atoutput(_oc2, 16, 0), t16);
-        _mm512_store_ps(&atoutput(_oc2, 17, 0), t17);
-        _mm512_store_ps(&atoutput(_oc2, 18, 0), t18);
-        _mm512_store_ps(&atoutput(_oc2, 19, 0), t19);
-        _mm512_store_ps(&atoutput(_oc2, 20, 0), t20);
-        _mm512_store_ps(&atoutput(_oc2, 21, 0), t21);
-        _mm512_store_ps(&atoutput(_oc2, 22, 0), t22);
-        _mm512_store_ps(&atoutput(_oc2, 23, 0), t23);
-        _mm512_store_ps(&atoutput(_oc2, 24, 0), t24);
+#undef OP
+#define OP(n) \
+        _mm512_store_ps(&atoutput(_oc2, n, 0), t##n)
+        OP_0_to_24();
     }
 }
 
