@@ -14,9 +14,10 @@ int ref_gemm_ker(T *mxp, T *mxn, T *nxp, int m, int n, int p);
 template<typename F>
 int ref_gemm(elx_conv_t<F> &xc, F *output, F *input, F *weights);
 
+int iterations = 1000;
 
 template<typename Type>
-int test_gemm(int iterations, bool perf = false) {
+int test_gemm(bool perf, bool show_diff) {
     eld_conv_t<Type> desc;
     elx_conv_impl_t<Type, 5, 3, 16, ISA_SKX_AVX512> xc(desc);
     xc.oc2 = 4;
@@ -42,22 +43,29 @@ int test_gemm(int iterations, bool perf = false) {
         tweights[i] = i % 32;
     }
 
+    if (!perf) iterations = 1;
+
     time_start(conv);
     for (int n = 0; n < iterations; ++n) {
         elk_gemm<Type, 25, 16, ISA_SKX_AVX512>(xc, toutput, tinput, tweights);
     }
     time_end(conv, iterations);
 
+    int error = 0;
     if (!perf) {
         Type *ref_toutput = (Type *)malloc(toutput_sz);
         ref_gemm(xc, ref_toutput, tinput, tweights);
         for (int i = 0; i < toutput_sz / sizeof(Type); i++) {
             if (ref_toutput[i] != toutput[i]) {
-                printf("Not equal!: [%d]: %f != %f (ref)\n",
-                       i, toutput[i], ref_toutput[i]);
+                error++;
+                if (show_diff) {
+                    printf("Not equal!: [%d]: %f != %f (ref)\n",
+                           i, toutput[i], ref_toutput[i]);
+                }
             }
         }
     }
+    return error;
 }
 
 template<typename T>
@@ -95,5 +103,5 @@ int ref_gemm(elx_conv_t<F> &xc, F *output, F *input, F *weights) {
     return 0;
 }
 
-template int test_gemm<float>(int iterations, bool perf);
+template int test_gemm<float>(bool perf, bool show_diff);
 

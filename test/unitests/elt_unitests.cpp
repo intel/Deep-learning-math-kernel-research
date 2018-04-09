@@ -10,8 +10,12 @@
 using namespace euler;
 
 int main() {
-    int iterations = 1;
     bool test_perf = false;
+    bool show_diff = true;
 
-    test_gemm<float>(iterations, test_perf);
+    printf("test-gemm: ");
+    if (test_gemm<float>(test_perf, show_diff) == 0)
+        printf("OK\n");
+    else
+        printf("FAIL!\n");
 }

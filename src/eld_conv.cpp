@@ -17,6 +17,7 @@ eld_conv_t<F>::eld_conv_t() {
     tile_size = 0;
     with_relu = false;
     with_bias = false;
+    xc        = nullptr;
 }
 
 template<typename F>
