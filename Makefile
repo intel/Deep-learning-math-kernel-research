@@ -21,27 +21,40 @@ endif
 
 SRC_DIR   = src
 TEST_DIR  = test
+UTEST_DIR = test/unitests
 BIN_DIR   = $(OBJ_DIR)/bin
 LIB_DIR   = $(OBJ_DIR)/lib
 
 SOURCES   = $(shell ls $(SRC_DIR)/*.cpp)
 TESTS     = $(shell ls $(TEST_DIR)/*.cpp)
+UTESTS    = $(shell ls $(UTEST_DIR)/*.cpp)
 OBJECTS   = $(SOURCES:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/$(SRC_DIR)/%.o)
 TESTOBJS  = $(TESTS:$(TEST_DIR)/%.cpp=$(OBJ_DIR)/$(TEST_DIR)/%.o)
+UTESTOBJS = $(UTESTS:$(UTEST_DIR)/%.cpp=$(OBJ_DIR)/$(UTEST_DIR)/%.o)
 
 LIB       = $(LIB_DIR)/libel.so
-TEST      = $(BIN_DIR)/el_conv
+TEST      = $(BIN_DIR)/elt_conv
+UTEST     = $(BIN_DIR)/elt_unitests
 
 .PHONY: lib test debug release distclean print_results
-all  : lib test print_results
+all  : lib test utest print_results
 lib  : $(LIB)
 test : $(TEST)
+utest: $(UTEST)
 
 $(TEST): $(TESTOBJS) $(LIB)
 	@mkdir -p $(dir $@)
 	$(TCXX) $(TCXXFLAGS) $(TLDFLAGS) -o $@ $(TESTOBJS)
 
+$(UTEST): $(UTESTOBJS) $(LIB)
+	@mkdir -p $(dir $@)
+	$(TCXX) $(TCXXFLAGS) $(TLDFLAGS) -o $@ $(UTESTOBJS)
+
 $(TESTOBJS): $(OBJ_DIR)/$(TEST_DIR)/%.o : $(TEST_DIR)/%.cpp
+	@mkdir -p $(dir $@)
+	$(TCXX) $(TCXXFLAGS) -o $@ -c $<
+
+$(UTESTOBJS): $(OBJ_DIR)/$(UTEST_DIR)/%.o : $(UTEST_DIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(TCXX) $(TCXXFLAGS) -o $@ -c $<
 
@@ -59,11 +72,14 @@ clean:
 
 distclean:
 	@find $(BUILD_DIR) \( -name "*.o" -o -name "*.optrpt" \) -exec rm -f {} \;
-	@find $(BUILD_DIR) \( -name "$(shell basename $(LIB))" -o -name "$(shell basename $(TEST))" \) -prune -exec rm -rf {} \;
+	@find $(BUILD_DIR) \( -name "$(shell basename $(LIB))" -o \
+                          -name "$(shell basename $(TEST))" -o \
+                          -name "$(shell basename $(UTEST))" \) -prune -exec rm -rf {} \;
 
-print_results: lib test
+print_results: lib test utest
 	@echo
 	@echo Build done:
 	@echo "    " $(LIB)
 	@echo "    " $(TEST)
+	@echo "    " $(UTEST)
 	@echo

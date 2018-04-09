@@ -15,6 +15,13 @@ template<typename T, const int A, const int K, const int V, const int I> void
 elk_product_trans_output(elx_conv_t<T> &xc, T *tinput, T *tweights, T *output,
                          int _ih2, int _iw2);
 
+// Type: data type;
+// T: tile blocking unit;
+// V: vector size
+// I: ISA
+template<typename Type, int T, int V, int I> void elk_gemm
+(elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights);
+
 }
 
 #endif // __ELK_CONV_HPP__

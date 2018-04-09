@@ -872,8 +872,8 @@ template<> void elk_gemm<float, 25, 16, ISA_SKX_AVX512>
     _allow_cpu_features(_FEATURE_AVX512F);
 
     mdarray<float, 4> atweights(tweights, xc.oc2, xc.ic2, 16, 16);
-    mdarray<float, 3> atinput(tinput, xc.ic2, xc.T, 16);
-    mdarray<float, 3> atoutput(toutput, xc.oc2, xc.T, 16);
+    mdarray<float, 3> atinput(tinput, xc.ic2, 25, 16);
+    mdarray<float, 3> atoutput(toutput, xc.oc2, 25, 16);
 
     for (int _oc2 = 0; _oc2 < xc.oc2; ++_oc2) {
         __m512 t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12,
@@ -989,5 +989,6 @@ template<> void elk_gemm<float, 25, 16, ISA_SKX_AVX512>
         _mm512_store_ps(&atoutput(_oc2, 24, 0), t24);
     }
 }
+
 
 }
