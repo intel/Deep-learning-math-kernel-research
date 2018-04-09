@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <string.h> 
 #include "euler.hpp"
+#include "lest.hpp"
 #include "../elt_utils.hpp"
 #include "../../src/elx_conv.hpp"
 #include "../../src/elk_conv.hpp"
@@ -14,14 +15,16 @@ int ref_gemm_ker(T *mxp, T *mxn, T *nxp, int m, int n, int p);
 template<typename F>
 int ref_gemm(elx_conv_t<F> &xc, F *output, F *input, F *weights);
 
-int iterations = 1000;
+int iterations = 10;
 
 template<typename Type>
 int test_gemm(bool perf, bool show_diff) {
+    int error = 0;
+
     eld_conv_t<Type> desc;
     elx_conv_impl_t<Type, 5, 3, 16, ISA_SKX_AVX512> xc(desc);
-    xc.oc2 = 4;
-    xc.ic2 = 2;
+    xc.oc2 = 18;
+    xc.ic2 = 32;
     xc.T = 25;
     xc.V = 16;
 
@@ -43,25 +46,21 @@ int test_gemm(bool perf, bool show_diff) {
         tweights[i] = i % 32;
     }
 
-    if (!perf) iterations = 1;
+    memset(toutput, 0, xc.oc2 * xc.T * xc.V * sizeof(Type));
+    TT(gemm, iterations, perf,
+       (elk_gemm<Type, 25, 16, ISA_SKX_AVX512>(xc, toutput, tinput, tweights)));
 
-    time_start(conv);
-    for (int n = 0; n < iterations; ++n) {
-        elk_gemm<Type, 25, 16, ISA_SKX_AVX512>(xc, toutput, tinput, tweights);
-    }
-    time_end(conv, iterations);
+    Type *ref_toutput = (Type *)malloc(toutput_sz);
+    memset(ref_toutput, 0, xc.oc2 * xc.T * xc.V * sizeof(Type));
+    TT(ref_gemm, iterations, perf,
+       (ref_gemm(xc, ref_toutput, tinput, tweights)));
 
-    int error = 0;
-    if (!perf) {
-        Type *ref_toutput = (Type *)malloc(toutput_sz);
-        ref_gemm(xc, ref_toutput, tinput, tweights);
-        for (int i = 0; i < toutput_sz / sizeof(Type); i++) {
-            if (ref_toutput[i] != toutput[i]) {
-                error++;
-                if (show_diff) {
-                    printf("Not equal!: [%d]: %f != %f (ref)\n",
-                           i, toutput[i], ref_toutput[i]);
-                }
+    for (int i = 0; i < toutput_sz / sizeof(Type); i++) {
+        if (ref_toutput[i] != lest::approx(toutput[i])) {
+            error++;
+            if (show_diff) {
+                printf("Not equal!: [%d]: %f != %f (ref)\n",
+                       i, toutput[i], ref_toutput[i]);
             }
         }
     }
@@ -91,7 +90,7 @@ int ref_gemm(elx_conv_t<F> &xc, F *output, F *input, F *weights) {
     MD(F, ainput,   [xc.ic2][xc.T][xc.V], input);
     MD(F, aweights, [xc.oc2][xc.ic2][xc.V][xc.V], weights);
 
-    memset(output, 0, xc.oc2 * xc.T * xc.V * sizeof(F));
+#pragma omp parallel for collapse(1)
     for (int _oc2 = 0; _oc2 < xc.oc2; ++_oc2) {
         for (int _ic2 = 0; _ic2 < xc.ic2; ++_ic2) {
             ref_gemm_ker<F>((F *)aoutput[_oc2],

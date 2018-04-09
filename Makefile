@@ -3,7 +3,7 @@ CXXFLAGS  := -Wall -Werror -Wextra -std=c++11 -fopenmp -fPIC -Iinclude/ -Isrc/
 LDFLAGS   := -Llib/
 LDLIBS    := -liomp5
 TCXX      := icc
-TCXXFLAGS := -std=c++11 -fopenmp -pie -fPIE -Iinclude/
+TCXXFLAGS := -std=c++11 -fopenmp -pie -fPIE -Iinclude/ -Dlest_FEATURE_AUTO_REGISTER=1
 TLDFLAGS   = -Llib -L$(LIB_DIR) -liomp5 -lel -Wl,-rpath=$(LIB_DIR)
 
 ROOT_DIR   = $(shell pwd)
