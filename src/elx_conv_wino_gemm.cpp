@@ -82,6 +82,7 @@ elx_conv_wino_gemm_t<Type, A, K, T, V, I>::~elx_conv_wino_gemm_t ()
 template<typename Type, const int A, const int K, const int T, const int V, const int I> void
 elx_conv_wino_gemm_t<Type, A, K, T, V, I>::trans_weights(Type *tweights, Type *weights)
 {
+    // oc2, ic2, kh, kw, V, V => oc3, ic3, A * A, O2, I2, V, V
 #pragma omp parallel for collapse(2)
     for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
         for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {

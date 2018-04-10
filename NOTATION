@@ -16,6 +16,8 @@ Numbering:
         ic3, oc3, t3, ...                // 2nd level blocked
         // blocking unit, normally IV = OV = I = O
         V, A, T
+        // 2nd/3rd level blocking unit
+        I2, O2, I3, O3
     Ordinal number
         // dimension
         _n, _ic, _oc, _ih, _iw, _oh, _ow, _kh, _kw, ...
@@ -24,6 +26,8 @@ Numbering:
         _ic3, _oc3, _t3, ...                    // 2nd level blocked
         // blocking unit
         _V, _T, _IV, _OV, _hA, _wA
+        // 2nd/3rd level blocking unit
+        _I2, _O2, _I3, _O3
     template:
         T: typename
         V: vector-size

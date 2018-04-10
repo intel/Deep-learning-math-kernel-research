@@ -873,21 +873,21 @@ template<> void elk_gemm<float, 25, 16, ISA_SKX_AVX512>
 {
     ENABLE_AVX512F();
 
-    mdarray<float, 4> atweights(tweights, xc.oc2, xc.ic2, 16, 16);
-    mdarray<float, 3> atinput(tinput, xc.ic2, 25, 16);
-    mdarray<float, 3> atoutput(toutput, xc.oc2, 25, 16);
+    mdarray<float, 4> atweights(tweights, xc.O2, xc.I2, 16, 16);
+    mdarray<float, 3> atinput(tinput, xc.I2, 25, 16);
+    mdarray<float, 3> atoutput(toutput, xc.O2, 25, 16);
 
-    for (int _oc2 = 0; _oc2 < xc.oc2; ++_oc2) {
+    for (int _O2 = 0; _O2 < xc.O2; ++_O2) {
 #undef OP
 #define OP(x) \
-        __m512 t##x  = _mm512_load_ps(&atoutput(_oc2, x, 0));
+        __m512 t##x  = _mm512_load_ps(&atoutput(_O2, x, 0));
         OP_0_to_24();
 
-        for (int _ic2 = 0; _ic2 < xc.ic2; ++_ic2) {
+        for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
             for (int _V = 0; _V < 16; ++_V) {
                 __m512 x;
-                __m512 w = _mm512_load_ps(&atweights(_oc2, _ic2, _V, 0));
-                float *x_ptr = &atinput(_ic2, 0, _V);
+                __m512 w = _mm512_load_ps(&atweights(_O2, _I2, _V, 0));
+                float *x_ptr = &atinput(_I2, 0, _V);
 #undef OP
 #define OP(n) \
                 x = _mm512_set1_ps(*(x_ptr + n * 16)); \
@@ -897,14 +897,14 @@ template<> void elk_gemm<float, 25, 16, ISA_SKX_AVX512>
         }
 #undef OP
 #define OP(n) \
-        _mm512_store_ps(&atoutput(_oc2, n, 0), t##n);
+        _mm512_store_ps(&atoutput(_O2, n, 0), t##n);
         OP_0_to_24();
     }
 }
 
 
 // elk_trans_weights
-// oc3, ic3, A * A, oc2, ic2, V, V
-// t2, ic3, ic2, T, V
-// t2, oc3, oc2, T, V
+// oc3, ic3, A * A, O2, I2, V, V
+// t2, A*A, ic3, I2, T, V
+// t2, A*A, oc3, O2, T, V
 }
