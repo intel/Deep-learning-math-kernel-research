@@ -13,7 +13,9 @@ public:
     elx_conv_wino_gemm_t(eld_conv_t<T> &dc);
     virtual ~elx_conv_wino_gemm_t();
 
-    virtual void direct(T *input, T *weights, T *output, T *bias) {}
+    virtual void direct(T *input, T *weights, T *output, T *bias) {
+        elx_error("Unimplemented");
+    }
     virtual void winograd(T *input, T *weights, T *output, T *bias);
 
 private:

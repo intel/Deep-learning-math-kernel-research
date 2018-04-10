@@ -15,8 +15,7 @@ public:
     virtual ~elx_conv_wino_prod_t();
 
     virtual void direct(T *input, T *weights, T *output, T *bias) {
-        if (any_null(input, weights, output, bias))
-            return;
+        elx_error("Unimplemented");
     }
     virtual void winograd(T *input, T *weights, T *output, T *bias);
 
