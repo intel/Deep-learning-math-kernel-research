@@ -5,6 +5,7 @@
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
 #include "elx_conv_wino_prod.hpp"
+#include "elx_conv_wino_gemm.hpp"
 
 namespace euler {
 
@@ -84,7 +85,7 @@ eld_conv_t<F>::setup()
 
         switch(tile_size) {
         case 5:
-            xc = new elx_conv_wino_prod_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);
+            xc = new elx_conv_wino_gemm_t<F, 5, 3, 25, 16, ISA_SKX_AVX512>(*this);
             break;
         default:
             xc = new elx_conv_wino_prod_t<F, 5, 3, 16, ISA_GENERIC>(*this);

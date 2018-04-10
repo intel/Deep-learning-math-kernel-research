@@ -7,26 +7,27 @@
 
 namespace euler {
 
-template<typename T, const int A, const int K, const int V, const int I>
-class elx_conv_wino_gemm_t : public elx_conv_t<T> {
+template<typename Type, const int A, const int K, const int T, const int V, const int I>
+class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
 public:
-    elx_conv_wino_gemm_t(eld_conv_t<T> &dc);
+    elx_conv_wino_gemm_t(eld_conv_t<Type> &dc);
     virtual ~elx_conv_wino_gemm_t();
 
-    virtual void direct(T *input, T *weights, T *output, T *bias) {
+    virtual void direct(Type *input, Type *weights, Type *output, Type *bias) {
         elx_error("Unimplemented");
     }
-    virtual void winograd(T *input, T *weights, T *output, T *bias);
+    virtual void winograd(Type *input, Type *weights, Type *output, Type *bias);
 
 private:
-    void trans_weights(T *tweights, T *weights);
-    void trans_input(T *tinput, T *input);
-    void product_trans_output(T *tinput, T *tweights, T *output);
+    void trans_weights(Type *tweights, Type *weights);
+    void trans_input  (Type *tinput,   Type *input);
+    void trans_output (Type *output,   Type *toutput);
+    void gemm         (Type *toutput,  Type *tinput, Type *tweights);
 
 };
 
-template class elx_conv_wino_gemm_t<float, 5, 3, 16, ISA_GENERIC>;
-template class elx_conv_wino_gemm_t<float, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_gemm_t<float, 5, 3, 25, 16, ISA_GENERIC>;
+template class elx_conv_wino_gemm_t<float, 5, 3, 25, 16, ISA_SKX_AVX512>;
 
 }
 #endif // __ELX_CONV_WINO_GEMM_HPP__

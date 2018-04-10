@@ -7,7 +7,7 @@
 #include "../elt_utils.hpp"
 #include "../../src/elk_conv.hpp"
 #include "../../src/elx_conv.hpp"
-#include "../../src/elx_conv_wino_prod.hpp"
+#include "../../src/elx_conv_wino_gemm.hpp"
 
 using namespace euler;
 
@@ -23,7 +23,7 @@ int test_gemm(bool perf, bool show_diff) {
     int error = 0;
 
     eld_conv_t<Type> desc;
-    elx_conv_wino_prod_t<Type, 5, 3, 16, ISA_SKX_AVX512> xc(desc);
+    elx_conv_wino_gemm_t<Type, 5, 3, 25, 16, ISA_SKX_AVX512> xc(desc);
     xc.oc2 = 18;
     xc.ic2 = 32;
     xc.T = 25;
