@@ -3,6 +3,12 @@
 #ifndef __ELK_CONV_HPP__
 #define __ELK_CONV_HPP__
 
+#ifdef __INTEL_COMPILER
+#define ENABLE_AVX512F() _allow_cpu_features(_FEATURE_AVX512F)
+#else
+#define ENABLE_AVX512F() // -mavx512f
+#endif
+
 #define __E()
 #define __DEFER(x) x __E()
 #define __EXPAND(...) __VA_ARGS__

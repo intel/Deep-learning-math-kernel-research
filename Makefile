@@ -9,12 +9,19 @@ TLDFLAGS   = -Llib -L$(LIB_DIR) -liomp5 -lel -Wl,-rpath=$(LIB_DIR)
 ROOT_DIR   = $(shell pwd)
 BUILD_DIR := $(ROOT_DIR)/build
 DEBUG     ?= 0
+
+ifeq ($(CXX), icc)
+CCSP_FLAGS = -qopt-report=5
+else
+CCSP_FLAGS = -mavx512f
+endif
+
 ifeq ($(DEBUG), 1)
 CXXFLAGS  += -DDEBUG -g -O0
 TCXXFLAGS += -DDEBUG -g -O0
 OBJ_DIR   := $(BUILD_DIR)/debug
 else
-CXXFLAGS  += -O2 -DNDEBUG -qopt-report=5
+CXXFLAGS  += -O2 -DNDEBUG $(CCSP_FLAGS)
 TCXXFLAGS += -O2 -DNDEBUG
 OBJ_DIR   := $(BUILD_DIR)/release
 endif

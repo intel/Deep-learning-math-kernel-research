@@ -5,8 +5,9 @@
 #include "euler.hpp"
 #include "lest.hpp"
 #include "../elt_utils.hpp"
-#include "../../src/elx_conv.hpp"
 #include "../../src/elk_conv.hpp"
+#include "../../src/elx_conv.hpp"
+#include "../../src/elx_conv_wino_prod.hpp"
 
 using namespace euler;
 

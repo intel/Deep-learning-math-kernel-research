@@ -90,7 +90,7 @@ template<> void elk_trans_weights<float, 5, 3, 16, ISA_GENERIC>
 template<> void elk_trans_weights<float, 5, 3, 16, ISA_SKX_AVX512>
 (float atweights[5][5][16][16], float aweights[3][3][16][16])
 {
-    _allow_cpu_features(_FEATURE_AVX512F);
+    ENABLE_AVX512F();
 
     // Constants
     __m512 r12  = _mm512_set_ps(IMM_BCAST16(1.0f  / 12.0f));
@@ -314,7 +314,8 @@ elk_trans_input<float, 5, 3, 16, ISA_GENERIC>
 template<> void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>
 (elx_conv_t<float> &xc, float atinput[5][5][16], float *input, int _oh2, int _ow2)
 {
-    _allow_cpu_features(_FEATURE_AVX512F);
+    ENABLE_AVX512F();
+
     // Inputs
     __m512 f00, f01, f02, f03, f04,
            f10, f11, f12, f13, f14,
@@ -690,7 +691,7 @@ template<> void elk_product_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>
 (elx_conv_t<float> &xc, float *tinput, float *tweights, float *output,
  int _ih2, int _iw2)
 {
-    _allow_cpu_features(_FEATURE_AVX512F);
+    ENABLE_AVX512F();
 
     __m512 t00, t10, t20, t30, t40,
            t01, t11, t21, t31, t41,
@@ -870,7 +871,7 @@ template<typename Type, int T, int V, int I> void elk_gemm
 template<> void elk_gemm<float, 25, 16, ISA_SKX_AVX512>
 (elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights)
 {
-    _allow_cpu_features(_FEATURE_AVX512F);
+    ENABLE_AVX512F();
 
     mdarray<float, 4> atweights(tweights, xc.oc2, xc.ic2, 16, 16);
     mdarray<float, 3> atinput(tinput, xc.ic2, 25, 16);

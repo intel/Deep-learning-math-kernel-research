@@ -4,6 +4,7 @@
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
+#include "elx_conv_wino_prod.hpp"
 
 namespace euler {
 
