@@ -17,8 +17,8 @@ bool show_diff = true;
 #define CASE(name) lest_CASE(specification, name)
 static lest::tests specification;
 
-CASE("test_gemm") {
-    EXPECT(0 == test_gemm<float>(test_perf, show_diff));
+CASE("test_elk_gemm") {
+    EXPECT(0 == test_elk_gemm<float>(test_perf, show_diff));
 }
 
 
