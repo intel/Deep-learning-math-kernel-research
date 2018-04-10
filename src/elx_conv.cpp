@@ -40,7 +40,7 @@ elx_conv_t<Type>::elx_conv_t (eld_conv_t<Type> &dc)
 }
 
 template<typename Type, const int A, const int K, const int V, const int I>
-elx_conv_impl_t<Type, A, K, V, I>::elx_conv_impl_t (eld_conv_t<Type> &dc)
+elx_conv_wino_prod_t<Type, A, K, V, I>::elx_conv_wino_prod_t (eld_conv_t<Type> &dc)
 : elx_conv_t<Type>(dc) 
 {
     this->V = V;
@@ -93,7 +93,7 @@ elx_conv_impl_t<Type, A, K, V, I>::elx_conv_impl_t (eld_conv_t<Type> &dc)
 }
 
 template<typename T, const int A, const int K, const int V, const int I>
-elx_conv_impl_t<T, A, K, V, I>::~elx_conv_impl_t ()
+elx_conv_wino_prod_t<T, A, K, V, I>::~elx_conv_wino_prod_t ()
 {
     if (this->tweights != nullptr) {
         free(this->tweights);
@@ -110,7 +110,7 @@ elx_conv_impl_t<T, A, K, V, I>::~elx_conv_impl_t ()
 }
 
 template<typename T, const int A, const int K, const int V, const int I> void
-elx_conv_impl_t<T, A, K, V, I>::trans_weights(T *tweights, T *weights)
+elx_conv_wino_prod_t<T, A, K, V, I>::trans_weights(T *tweights, T *weights)
 {
 #pragma omp parallel for collapse(2)
     for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
@@ -125,7 +125,7 @@ elx_conv_impl_t<T, A, K, V, I>::trans_weights(T *tweights, T *weights)
 }
 
 template<typename T, const int A, const int K, const int V, const int I> void
-elx_conv_impl_t<T, A, K, V, I>::trans_input(T *tinput, T *input)
+elx_conv_wino_prod_t<T, A, K, V, I>::trans_input(T *tinput, T *input)
 {
     MD(T, atinput, [this->n][this->ic2][this->oh2][this->ow2][A][A][V], tinput);
     MD(T, ainput,  [this->n][this->ic2][this->ih][this->iw][V], input);
@@ -143,7 +143,7 @@ elx_conv_impl_t<T, A, K, V, I>::trans_input(T *tinput, T *input)
 }
 
 template<typename T, const int A, const int K, const int V, const int I> void
-elx_conv_impl_t<T, A, K, V, I>::product_trans_output(T *tinput, T *tweights, T *output)
+elx_conv_wino_prod_t<T, A, K, V, I>::product_trans_output(T *tinput, T *tweights, T *output)
 {
     MD(T, atweights, [this->oc2][this->ic2][A][A][V][V], tweights);
     MD(T, atinput,   [this->n][this->ic2][this->oh2][this->ow2][A][A][V], tinput);
@@ -164,7 +164,7 @@ elx_conv_impl_t<T, A, K, V, I>::product_trans_output(T *tinput, T *tweights, T *
 }
 
 template<typename T, const int A, const int K, const int V, const int I> void
-elx_conv_impl_t<T, A, K, V, I>::winograd(T *input, T *weights, T *output, T *bias)
+elx_conv_wino_prod_t<T, A, K, V, I>::winograd(T *input, T *weights, T *output, T *bias)
 {
     trans_weights(this->tweights, weights);
     trans_input(this->tinput, input);

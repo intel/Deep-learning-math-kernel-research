@@ -83,10 +83,10 @@ eld_conv_t<F>::setup()
 
         switch(tile_size) {
         case 5:
-            xc = new elx_conv_impl_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);
+            xc = new elx_conv_wino_prod_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);
             break;
         default:
-            xc = new elx_conv_impl_t<F, 5, 3, 16, ISA_GENERIC>(*this);
+            xc = new elx_conv_wino_prod_t<F, 5, 3, 16, ISA_GENERIC>(*this);
             break;
         }
     }

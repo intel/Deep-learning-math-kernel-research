@@ -879,7 +879,7 @@ template<> void elk_gemm<float, 25, 16, ISA_SKX_AVX512>
     for (int _oc2 = 0; _oc2 < xc.oc2; ++_oc2) {
 #undef OP
 #define OP(x) \
-        __m512 t##x  = _mm512_load_ps(&atoutput(_oc2, x, 0))
+        __m512 t##x  = _mm512_load_ps(&atoutput(_oc2, x, 0));
         OP_0_to_24();
 
         for (int _ic2 = 0; _ic2 < xc.ic2; ++_ic2) {
@@ -890,16 +890,20 @@ template<> void elk_gemm<float, 25, 16, ISA_SKX_AVX512>
 #undef OP
 #define OP(n) \
                 x = _mm512_set1_ps(*(x_ptr + n * 16)); \
-                t##n = _mm512_fmadd_ps(w, x, t##n)
+                t##n = _mm512_fmadd_ps(w, x, t##n);
                 OP_0_to_24();
             }
         }
 #undef OP
 #define OP(n) \
-        _mm512_store_ps(&atoutput(_oc2, n, 0), t##n)
+        _mm512_store_ps(&atoutput(_oc2, n, 0), t##n);
         OP_0_to_24();
     }
 }
 
 
+// elk_trans_weights
+// oc3, ic3, A * A, oc2, ic2, V, V
+// t2, ic3, ic2, T, V
+// t2, oc3, oc2, T, V
 }

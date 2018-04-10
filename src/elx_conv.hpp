@@ -50,12 +50,11 @@ public:
 
 template class elx_conv_t<float>;
 
-// TODO: rename to elx_conv_wino_prod_t
 template<typename T, const int A, const int K, const int V, const int I>
-class elx_conv_impl_t : public elx_conv_t<T> {
+class elx_conv_wino_prod_t : public elx_conv_t<T> {
 public:
-    elx_conv_impl_t(eld_conv_t<T> &dc);
-    virtual ~elx_conv_impl_t();
+    elx_conv_wino_prod_t(eld_conv_t<T> &dc);
+    virtual ~elx_conv_wino_prod_t();
 
     virtual void direct(T *input, T *weights, T *output, T *bias) {}
     virtual void winograd(T *input, T *weights, T *output, T *bias);
@@ -67,8 +66,8 @@ private:
 
 };
 
-template class elx_conv_impl_t<float, 5, 3, 16, ISA_GENERIC>;
-template class elx_conv_impl_t<float, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_prod_t<float, 5, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_prod_t<float, 5, 3, 16, ISA_SKX_AVX512>;
 
 
 // TODO: elx_conv_wino_gemm_t
