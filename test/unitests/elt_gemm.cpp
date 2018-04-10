@@ -24,17 +24,17 @@ int test_gemm(bool perf, bool show_diff) {
 
     eld_conv_t<Type> desc;
     elx_conv_wino_gemm_t<Type, 5, 3, 25, 16, ISA_SKX_AVX512> xc(desc);
-    xc.oc2 = 18;
-    xc.ic2 = 32;
+    xc.O2 = 18;
+    xc.I2 = 32;
     xc.T = 25;
     xc.V = 16;
 
     Type *tinput, *tweights, *toutput;
     int tinput_sz, tweights_sz, toutput_sz;
 
-    tinput_sz   = xc.ic2 * xc.T * xc.V * sizeof(Type);
-    tweights_sz = xc.oc2 * xc.ic2 * xc.V * xc.V * sizeof(Type);
-    toutput_sz  = xc.oc2 * xc.T * xc.V * sizeof(Type);
+    tinput_sz   = xc.I2 * xc.T * xc.V * sizeof(Type);
+    tweights_sz = xc.O2 * xc.I2 * xc.V * xc.V * sizeof(Type);
+    toutput_sz  = xc.O2 * xc.T * xc.V * sizeof(Type);
 
     tinput   = (Type *)malloc(tinput_sz);
     tweights = (Type *)malloc(tweights_sz);
@@ -47,12 +47,12 @@ int test_gemm(bool perf, bool show_diff) {
         tweights[i] = i % 32;
     }
 
-    memset(toutput, 0, xc.oc2 * xc.T * xc.V * sizeof(Type));
+    memset(toutput, 0, xc.O2 * xc.T * xc.V * sizeof(Type));
     TT(gemm, iterations, perf,
        (elk_gemm<Type, 25, 16, ISA_SKX_AVX512>(xc, toutput, tinput, tweights)));
 
     Type *ref_toutput = (Type *)malloc(toutput_sz);
-    memset(ref_toutput, 0, xc.oc2 * xc.T * xc.V * sizeof(Type));
+    memset(ref_toutput, 0, xc.O2 * xc.T * xc.V * sizeof(Type));
     TT(ref_gemm, iterations, perf,
        (ref_gemm(xc, ref_toutput, tinput, tweights)));
 
@@ -87,16 +87,16 @@ int ref_gemm_ker(T *mxp, T *mxn, T *nxp, int m, int n, int p) {
 
 template<typename F>
 int ref_gemm(elx_conv_t<F> &xc, F *output, F *input, F *weights) {
-    MD(F, aoutput,  [xc.oc2][xc.T][xc.V], output);
-    MD(F, ainput,   [xc.ic2][xc.T][xc.V], input);
-    MD(F, aweights, [xc.oc2][xc.ic2][xc.V][xc.V], weights);
+    MD(F, aoutput,  [xc.O2][xc.T][xc.V], output);
+    MD(F, ainput,   [xc.I2][xc.T][xc.V], input);
+    MD(F, aweights, [xc.O2][xc.I2][xc.V][xc.V], weights);
 
 #pragma omp parallel for collapse(1)
-    for (int _oc2 = 0; _oc2 < xc.oc2; ++_oc2) {
-        for (int _ic2 = 0; _ic2 < xc.ic2; ++_ic2) {
-            ref_gemm_ker<F>((F *)aoutput[_oc2],
-                            (F *)ainput[_ic2],
-                            (F *)aweights[_oc2][_ic2],
+    for (int _O2 = 0; _O2 < xc.O2; ++_O2) {
+        for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+            ref_gemm_ker<F>((F *)aoutput[_O2],
+                            (F *)ainput[_I2],
+                            (F *)aweights[_O2][_I2],
                             xc.T, xc.V, xc.V);
         }
     }

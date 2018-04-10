@@ -17,6 +17,10 @@ elx_conv_wino_gemm_t<Type, A, K, T, V, I>::elx_conv_wino_gemm_t (eld_conv_t<Type
     this->ic2 = this->ic / V;
     this->oc2 = this->oc / V;
 
+    this->T = T;
+    this->O2 = 4; // TODO: O2 selection
+    this->I2 = 2; // TODO: I2 selection
+
     this->A   = A;
     this->oh2 = (this->oh + A - 3) / (A - 2);
     this->ow2 = (this->ow + A - 3) / (A - 2);
@@ -82,15 +86,34 @@ elx_conv_wino_gemm_t<Type, A, K, T, V, I>::~elx_conv_wino_gemm_t ()
 template<typename Type, const int A, const int K, const int T, const int V, const int I> void
 elx_conv_wino_gemm_t<Type, A, K, T, V, I>::trans_weights(Type *tweights, Type *weights)
 {
-    // oc2, ic2, kh, kw, V, V => oc3, ic3, A * A, O2, I2, V, V
-#pragma omp parallel for collapse(2)
-    for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
-        for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
-            int d = 16 * 16 * (_ic2 + _oc2 * this->ic2);
-            MD(Type, aweights,  [K][K][V][V], weights + K * K * d);
-            MD(Type, atweights, [A][A][V][V], tweights + A * A * d);
+    // oc2, ic2, K, K, V, V => oc3, ic3, A, A, O2, I2, V, V
+    mdarray<Type, 6> aweights(weights, this->oc2, this->ic2, K, K, V, V);
+    mdarray<Type, 8> atweights(tweights, this->oc3, this->ic3, A, A, this->O2, this->I2, V, V);
 
-            elk_trans_weights<Type, A, K, V, I>(atweights, aweights);
+#pragma omp parallel for collapse(4)
+    for (int _oc3 = 0; _oc3 < this->oc3; ++_oc3) {
+        for (int _ic3 = 0; _ic3 < this->ic3; ++_ic3) {
+            for (int _O2 = 0; _O2 < this->O2; ++_O2) {
+                for (int _I2 =  0; _I2 < this->I2; ++_I2) {
+
+                    Type aout[A][A][V][V];
+                    Type in = aweights(_oc3 * this->O2, _ic3 * this->I2, 0, 0, 0, 0);
+                    MD(Type, ain, [K][K][V][V], &in);
+                    elk_trans_weights<Type, A, K, V, I>(aout, ain);
+
+                    for (int _hA = 0; _hA < A; ++_hA) {
+                        for (int _wA = 0; _wA < A; ++_wA) {
+                            for (int _iV = 0; _iV < V; ++_iV) {
+#pragma omp simd
+                                for (int _oV = 0; _oV < V; ++_oV) {
+                                    atweights(_oc3, _ic3, _hA, _wA, _O2, _I2, _iV, _oV) =
+                                        aout[_hA][_wA][_iV][_oV];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
