@@ -1,4 +1,4 @@
-CXX       := g++
+CXX       := icc
 CXXFLAGS  := -Wall -Werror -Wextra -Wno-unused-parameter -std=c++11 -fopenmp -fPIC -Iinclude/ -Isrc/
 LDFLAGS   := -Llib/
 LDLIBS    := -liomp5
