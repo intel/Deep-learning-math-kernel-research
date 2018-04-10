@@ -13,12 +13,17 @@ using namespace euler;
 
 bool test_perf = false;
 bool show_diff = true;
+int iterations = 10;
 
 #define CASE(name) lest_CASE(specification, name)
 static lest::tests specification;
 
 CASE("test_elk_gemm") {
-    EXPECT(0 == test_elk_gemm<float>(test_perf, show_diff));
+    EXPECT((0 == test_elk_gemm<float, 25, 16, ISA_SKX_AVX512>(test_perf, show_diff)));
+}
+
+CASE("test_elk_trans_weights") {
+    EXPECT((0 == test_elk_trans_weights<float, 5, 3, 16, ISA_SKX_AVX512>(test_perf, show_diff)));
 }
 
 

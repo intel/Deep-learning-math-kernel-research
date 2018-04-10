@@ -4,6 +4,7 @@
 #include <string.h> 
 #include "euler.hpp"
 #include "lest.hpp"
+#include "elt_unitests.hpp"
 #include "../elt_utils.hpp"
 #include "../../src/elk_conv.hpp"
 #include "../../src/elx_conv.hpp"
@@ -16,18 +17,16 @@ int ref_elk_gemm_ker(T *mxp, T *mxn, T *nxp, int m, int n, int p);
 template<typename F>
 int ref_elk_gemm(elx_conv_t<F> &xc, F *output, F *input, F *weights);
 
-int iterations = 10;
-
-template<typename Type>
+template<typename Type, const int T, const int V, const int I>
 int test_elk_gemm(bool perf, bool show_diff) {
     int error = 0;
 
     eld_conv_t<Type> desc;
-    elx_conv_wino_gemm_t<Type, 5, 3, 25, 16, ISA_SKX_AVX512> xc(desc);
+    elx_conv_wino_gemm_t<Type, 5, 3, T, V, I> xc(desc);
     xc.O2 = 18;
     xc.I2 = 32;
-    xc.T = 25;
-    xc.V = 16;
+    xc.T = T;
+    xc.V = V;
 
     Type *tinput, *tweights, *toutput;
     int tinput_sz, tweights_sz, toutput_sz;
@@ -49,7 +48,7 @@ int test_elk_gemm(bool perf, bool show_diff) {
 
     memset(toutput, 0, xc.O2 * xc.T * xc.V * sizeof(Type));
     TT(elk_gemm, iterations, perf,
-       (elk_gemm<Type, 25, 16, ISA_SKX_AVX512>(xc, toutput, tinput, tweights)));
+       (elk_gemm<Type, T, V, I>(xc, toutput, tinput, tweights)));
 
     Type *ref_toutput = (Type *)malloc(toutput_sz);
     memset(ref_toutput, 0, xc.O2 * xc.T * xc.V * sizeof(Type));
@@ -103,5 +102,5 @@ int ref_elk_gemm(elx_conv_t<F> &xc, F *output, F *input, F *weights) {
     return 0;
 }
 
-template int test_elk_gemm<float>(bool perf, bool show_diff);
+template int test_elk_gemm<float, 25, 16, ISA_SKX_AVX512>(bool perf, bool show_diff);
 
