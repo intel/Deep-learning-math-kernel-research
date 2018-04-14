@@ -19,11 +19,13 @@ int iterations = 10;
 static lest::tests specification;
 
 CASE("test_elk_gemm") {
-    EXPECT((0 == test_elk_gemm<float, 25, 16, ISA_SKX_AVX512>(test_perf, show_diff)));
+    EXPECT((0 == test_elk_gemm
+            <float, 25, 16, ISA_SKX_AVX512>(test_perf, show_diff)));
 }
 
 CASE("test_elk_trans_weights") {
-    EXPECT((0 == test_elk_trans_weights<float, 5, 3, 16, ISA_SKX_AVX512>(test_perf, show_diff)));
+    EXPECT((0 == test_elk_trans_weights
+            <float, 5, 3, 16, ISA_SKX_AVX512>(test_perf, show_diff)));
 }
 
 

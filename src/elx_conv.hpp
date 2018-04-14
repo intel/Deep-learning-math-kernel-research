@@ -23,6 +23,8 @@ public:
     int ic2, oc2, ih2, iw2, oh2, ow2, t2;
     // dims by double block
     int ic3, oc3, ih3, iw3, oh3, ow3, t3;
+    // dims by tiles: tiles per (image, line, column)
+    int nt, ht, wt;
     // blocking unit: vector-size, tile-size, tile-blocking-size
     int V, A, T;
     // 2nd/r3d level blocking unit: ic, oc

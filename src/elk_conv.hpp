@@ -3,12 +3,6 @@
 #ifndef __ELK_CONV_HPP__
 #define __ELK_CONV_HPP__
 
-#ifdef __INTEL_COMPILER
-#define ENABLE_AVX512F() _allow_cpu_features(_FEATURE_AVX512F)
-#else
-#define ENABLE_AVX512F() // -mavx512f
-#endif
-
 #define __E()
 #define __DEFER(x) x __E()
 #define __EXPAND(...) __VA_ARGS__
@@ -54,7 +48,7 @@ template<typename T, const int A, const int K, const int V, const int I> void
 elk_trans_weights(T atweights[A][A][V][V], T aweights[K][K][V][V]);
 
 template<typename T, const int A, const int K, const int V, const int I> void
-elk_trans_input(elx_conv_t<T> &xc, T atinput[A][A][V], T *input, int _oh2, int _ow2);
+elk_trans_input(elx_conv_t<T> &xc, T atinput[A][A][V], T *input, bool margin);
 
 template<typename T, const int A, const int K, const int V, const int I> void
 elk_product_trans_output(elx_conv_t<T> &xc, T *tinput, T *tweights, T *output,

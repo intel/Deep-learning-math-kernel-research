@@ -13,7 +13,7 @@ template<typename T, const int A, const int K, const int V, const int I> void
 elk_trans_weights(T atweights[A][A][V][V], T aweights[K][K][V][V]) { }
 
 template<typename T, const int A, const int K, const int V, const int I> void
-elk_trans_input(elx_conv_t<T> &xc, T atinput[A][A][V], T *input, int _oh2, int _ow2)
+elk_trans_input(elx_conv_t<T> &xc, T atinput[A][A][V], T *input, bool margin)
 { }
 
 template<typename T, const int A, const int K, const int V, const int I> void
@@ -237,7 +237,7 @@ template<> void elk_trans_weights<float, 5, 3, 16, ISA_SKX_AVX512>
 
 template<> void
 elk_trans_input<float, 5, 3, 16, ISA_GENERIC>
-(elx_conv_t<float> &xc, float atinput[5][5][16], float *input, int _oh2, int _ow2)
+(elx_conv_t<float> &xc, float atinput[5][5][16], float *input, bool margin)
 {
     const float z2  = 2.0f;
     const float z3  = 3.0f;
@@ -245,10 +245,8 @@ elk_trans_input<float, 5, 3, 16, ISA_GENERIC>
     const float z6  = 6.0f;
 
     auto f = [&](int _h, int _w, int _V) {
-        int _ih = _oh2 * 3 - xc.lp + _h;
-        int _iw = _ow2 * 3 - xc.tp + _w;
-        int _i = _ih * xc.input_strides[2] + _iw * 16 + _V;
-        if (_ih < 0 || _iw < 0 || _ih >= xc.ih || _iw >= xc.iw)
+        int _i = _h * xc.input_strides[2] + _w * 16 + _V;
+        if (_h < 0 || _w < 0 || _h >= xc.ih || _w >= xc.iw)
             return 0.0f;
         else
             return *(input + _i);
@@ -312,7 +310,7 @@ elk_trans_input<float, 5, 3, 16, ISA_GENERIC>
 }
 
 template<> void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>
-(elx_conv_t<float> &xc, float atinput[5][5][16], float *input, int _oh2, int _ow2)
+(elx_conv_t<float> &xc, float atinput[5][5][16], float *input, bool margin)
 {
     ENABLE_AVX512F();
 
@@ -338,18 +336,14 @@ template<> void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>
     __m512 z6 = _mm512_set_ps(IMM_BCAST16(6.0f));
 
     auto f0 = [&](int _h, int _w) {
-        int _ih = _oh2 * 3 - 1 + _h;
-        int _iw = _ow2 * 3 - 1 + _w;
-        int _i = _ih * xc.input_strides[2] + _iw * 16;
-        if (_ih < 0 || _iw < 0 || _ih >= xc.ih || _iw >= xc.iw)
+        int _i = _h * xc.input_strides[2] + _w * 16;
+        if (_h < 0 || _w < 0 || _h >= xc.ih || _w >= xc.iw)
             return z0;
         else
             return _mm512_load_ps(input + _i);
     };
     auto f1 = [&](int _h, int _w) {
-        int _ih = _oh2 * 3 - 1 + _h;
-        int _iw = _ow2 * 3 - 1 + _w;
-        int _i = _ih * xc.input_strides[2] + _iw * 16;
+        int _i = _h * xc.input_strides[2] + _w * 16;
         return _mm512_load_ps(input + _i);
     };
 
@@ -360,7 +354,7 @@ template<> void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>
 #define F1(_h, _w) f1(_h, _w)
 #define T(h,w) atinput[h][w]
 
-    if (_oh2 == 0 || _ow2 == 0 || _oh2 == xc.oh2 - 1 || _ow2 == xc.ow2 - 1) {
+    if (margin) {
         f00 = F0(0,0);
         f01 = F0(0,1);
         f02 = F0(0,2);
@@ -519,7 +513,7 @@ template<> void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>
     t43 = _mm512_add_ps(t43, c2);
     _mm512_store_ps(T(4,3), t43);
     
-    if (_oh2 == 0 || _ow2 == 0 || _oh2 == xc.oh2 - 1 || _ow2 == xc.ow2 - 1) {
+    if (margin) {
         f04 = F0(0,4);
         f14 = F0(1,4);
         f24 = F0(2,4);
@@ -585,7 +579,7 @@ template<> void elk_product_trans_output<float, 5, 3, 16, ISA_GENERIC>
           t30[16], t31[16], t32[16], t33[16], t34[16],
           t40[16], t41[16], t42[16], t43[16], t44[16];
 
-    MD(float, atinput,   [xc.ic2][xc.oh2][xc.ow2][5][5][16], tinput);
+    MD(float, atinput,   [xc.ic2][xc.ht][xc.wt][5][5][16], tinput);
     MD(float, atweights, [xc.ic2][5][5][16][16], tweights);
     MD(float, aoutput,   [xc.oh][xc.ow][16], output);
 
@@ -653,7 +647,7 @@ template<> void elk_product_trans_output<float, 5, 3, 16, ISA_GENERIC>
 
 #undef C
 #define C(n) c##n[_OV]
-#define P(_h, _w) aoutput[xc.oh2 * 3 + _h][xc.ow2 * 3 + _w][_OV] // TODO: overflow
+#define P(_h, _w) aoutput[xc.ht * 3 + _h][xc.wt * 3 + _w][_OV] // TODO: overflow
     float c0[16], c1[16], c2[16], c3[16], c4[16];
 
 #pragma omp simd
@@ -699,7 +693,7 @@ template<> void elk_product_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>
            t03, t13, t23, t33, t43,
            t04, t14, t24, t34, t44;
 
-    MD(float, atinput,   [xc.ic2][xc.oh2][xc.ow2][5][5][16], tinput);
+    MD(float, atinput,   [xc.ic2][xc.ht][xc.wt][5][5][16], tinput);
     MD(float, atweights, [xc.ic2][5][5][16][16], tweights);
     MD(float, aoutput,   [xc.oh][xc.ow][16], output);
 
@@ -779,7 +773,7 @@ template<> void elk_product_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>
     }
 
 #undef P
-#define P(_h, _w) (aoutput[xc.oh2 * 3 + _h][xc.ow2 * 3 + _w]) // TODO: overflow
+#define P(_h, _w) (aoutput[xc.ht * 3 + _h][xc.wt * 3 + _w]) // TODO: overflow
     __m512 c0, c1, c2, c3, c4;
     __m512 p00, p01, p02, p10, p11, p12, p20, p21, p22;
     __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
@@ -867,6 +861,12 @@ template<> void elk_product_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>
 template<typename Type, int T, int V, int I> void elk_gemm
 (elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights)
 {}
+
+template<> void elk_gemm<float, 25, 16, ISA_GENERIC>
+(elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights)
+{
+    // TODO: elk_gemm generic
+}
 
 template<> void elk_gemm<float, 25, 16, ISA_SKX_AVX512>
 (elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights)

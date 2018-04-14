@@ -18,15 +18,13 @@ elx_conv_wino_prod_t<Type, A, K, V, I>::elx_conv_wino_prod_t (eld_conv_t<Type> &
     this->oc2 = this->oc / V;
 
     this->A   = A;
-    this->oh2 = (this->oh + A - 3) / (A - 2);
-    this->ow2 = (this->ow + A - 3) / (A - 2);
-    this->ih2 = this->oh2;
-    this->iw2 = this->ow2;
+    this->ht = (this->oh + A - 3) / (A - K + 1);
+    this->wt = (this->ow + A - 3) / (A - K + 1);
 
     int tweights_size = sizeof(Type) * A * A * this->ic * this->oc;
-    int tinput_size   = sizeof(Type) * A * A * this->oh2 * this->ow2
+    int tinput_size   = sizeof(Type) * A * A * this->ht * this->wt
                                              * this->ic * this->n;
-    //int toutput_size  = sizeof(Type) * A * A * this->oh2 * this->ow2
+    //int toutput_size  = sizeof(Type) * A * A * this->ht * this->wt
     //                                         * this->oc * this->n;
     this->tweights = (Type *)malloc(tweights_size);
     this->tinput   = (Type *)malloc(tinput_size);
@@ -97,18 +95,21 @@ elx_conv_wino_prod_t<T, A, K, V, I>::trans_weights(T *tweights, T *weights)
 template<typename T, const int A, const int K, const int V, const int I> void
 elx_conv_wino_prod_t<T, A, K, V, I>::trans_input(T *tinput, T *input)
 {
-    MD(T, atinput, [this->n][this->ic2][this->oh2][this->ow2][A][A][V], tinput);
+    MD(T, atinput, [this->n][this->ic2][this->ht][this->wt][A][A][V], tinput);
     MD(T, ainput,  [this->n][this->ic2][this->ih][this->iw][V], input);
 
 #pragma omp parallel for collapse(4)
     for (int _n = 0; _n < this->n; ++_n) {
         for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
-            for (int _oh2 = 0; _oh2 < this->oh2; ++_oh2) {
-                for (int _ow2 = 0; _ow2 < this->ow2; ++_ow2) {
+            for (int _ht = 0; _ht < this->ht; ++_ht) {
+                for (int _wt = 0; _wt < this->wt; ++_wt) {
+                    int _ih = _ht * (A - K + 1) - this->lp;
+                    int _iw = _wt * (A - K + 1) - this->tp;
+                    bool margin = (_ht == 0 || _ht == this->ht - 1 ||
+                                   _wt == 0 || _wt == this->wt - 1);
                     elk_trans_input<T, A, K, V, I>
-                        (*this, atinput[_n][_ic2][_oh2][_ow2],
-                         (T *)ainput[_n][_ic2],
-                         _oh2, _ow2);
+                        (*this, atinput[_n][_ic2][_ht][_wt],
+                         (T *)ainput[_n][_ic2][_ih][_iw], margin);
                 }
             }
         }
@@ -119,20 +120,20 @@ template<typename T, const int A, const int K, const int V, const int I> void
 elx_conv_wino_prod_t<T, A, K, V, I>::product_trans_output(T *tinput, T *tweights, T *output)
 {
     MD(T, atweights, [this->oc2][this->ic2][A][A][V][V], tweights);
-    MD(T, atinput,   [this->n][this->ic2][this->oh2][this->ow2][A][A][V], tinput);
+    MD(T, atinput,   [this->n][this->ic2][this->ht][this->wt][A][A][V], tinput);
     MD(T, aoutput,   [this->n][this->oc2][this->oh][this->ow][V], output);
 
 #pragma omp parallel for collapse(4)
     for (int _n = 0; _n < this->n; ++_n) {
         for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
-            for (int _oh2 = 0; _oh2 < this->oh2; ++_oh2) {
-                for (int _ow2 = 0; _ow2 < this->ow2; ++_ow2) {
+            for (int _ht = 0; _ht < this->ht; ++_ht) {
+                for (int _wt = 0; _wt < this->wt; ++_wt) {
                     elk_product_trans_output<T, A, K, V, I>
                         (*this,
                          (T *)atinput[_n],
                          (T *)atweights[_oc2],
                          (T *)aoutput[_n][_oc2],
-                         _oh2, _ow2);
+                         _ht, _wt);
                 }
             }
         }

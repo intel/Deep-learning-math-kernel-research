@@ -20,7 +20,7 @@ public:
 
 private:
     void trans_weights(Type *tweights, Type *weights);
-    void trans_input  (Type *tinput,   Type *input);
+    void trans_input  (Type *tinput,   Type *input, int _t2);
     void trans_output (Type *output,   Type *toutput);
     void gemm         (Type *toutput,  Type *tinput, Type *tweights);
 

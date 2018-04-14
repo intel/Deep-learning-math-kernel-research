@@ -22,15 +22,13 @@ elx_conv_wino_gemm_t<Type, A, K, T, V, I>::elx_conv_wino_gemm_t (eld_conv_t<Type
     this->I2 = 2; // TODO: I2 selection
 
     this->A   = A;
-    this->oh2 = (this->oh + A - 3) / (A - 2);
-    this->ow2 = (this->ow + A - 3) / (A - 2);
-    this->ih2 = this->oh2;
-    this->iw2 = this->ow2;
+    this->ht = (this->oh + A - 3) / (A - K + 1);
+    this->wt = (this->ow + A - 3) / (A - K + 1);
 
     int tweights_size = sizeof(Type) * A * A * this->ic * this->oc;
-    int tinput_size   = sizeof(Type) * A * A * this->oh2 * this->ow2
+    int tinput_size   = sizeof(Type) * A * A * this->ht * this->wt
                                              * this->ic * this->n;
-    //int toutput_size  = sizeof(Type) * A * A * this->oh2 * this->ow2
+    //int toutput_size  = sizeof(Type) * A * A * this->ht * this->wt
     //                                         * this->oc * this->n;
     this->tweights = (Type *)malloc(tweights_size);
     this->tinput   = (Type *)malloc(tinput_size);
@@ -83,33 +81,69 @@ elx_conv_wino_gemm_t<Type, A, K, T, V, I>::~elx_conv_wino_gemm_t ()
     }
 }
 
-template<typename Type, const int A, const int K, const int T, const int V, const int I> void
-elx_conv_wino_gemm_t<Type, A, K, T, V, I>::trans_weights(Type *tweights, Type *weights)
+#pragma optimization_parameter target_arch=CORE-AVX512
+template<typename Type, const int A, const int K, const int T, const int V, const int I>
+void elx_conv_wino_gemm_t<Type, A, K, T, V, I>::
+trans_weights(Type *tweights, Type *weights)
 {
     // oc2, ic2, K, K, V, V => oc3, ic3, A, A, O2, I2, V, V
     mdarray<Type, 6> aweights(weights, this->oc2, this->ic2, K, K, V, V);
-    mdarray<Type, 8> atweights(tweights, this->oc3, this->ic3, A, A, this->O2, this->I2, V, V);
-
+    mdarray<Type, 8> atweights(tweights, this->oc3, this->ic3, A, A, this->O2,
+                               this->I2, V, V);
 #pragma omp parallel for collapse(4)
     for (int _oc3 = 0; _oc3 < this->oc3; ++_oc3) {
-        for (int _ic3 = 0; _ic3 < this->ic3; ++_ic3) {
-            for (int _O2 = 0; _O2 < this->O2; ++_O2) {
-                for (int _I2 =  0; _I2 < this->I2; ++_I2) {
+    for (int _ic3 = 0; _ic3 < this->ic3; ++_ic3) {
+    for (int _O2 = 0; _O2 < this->O2; ++_O2) {
+    for (int _I2 =  0; _I2 < this->I2; ++_I2) {
+        Type aout[A][A][V][V];
+        Type in = aweights(_oc3 * this->O2 + _O2, _ic3 * this->I2 + _I2,
+                           0, 0, 0, 0);
+        MD(Type, ain, [K][K][V][V], &in);
+        elk_trans_weights<Type, A, K, V, I>(aout, ain);
 
-                    Type aout[A][A][V][V];
-                    Type in = aweights(_oc3 * this->O2, _ic3 * this->I2, 0, 0, 0, 0);
-                    MD(Type, ain, [K][K][V][V], &in);
-                    elk_trans_weights<Type, A, K, V, I>(aout, ain);
-
-                    for (int _hA = 0; _hA < A; ++_hA) {
-                        for (int _wA = 0; _wA < A; ++_wA) {
-                            for (int _iV = 0; _iV < V; ++_iV) {
+        for (int _hA = 0; _hA < A; ++_hA) {
+        for (int _wA = 0; _wA < A; ++_wA) {
+        for (int _iV = 0; _iV < V; ++_iV) {
 #pragma omp simd
-                                for (int _oV = 0; _oV < V; ++_oV) {
-                                    atweights(_oc3, _ic3, _hA, _wA, _O2, _I2, _iV, _oV) =
-                                        aout[_hA][_wA][_iV][_oV];
-                                }
-                            }
+            for (int _oV = 0; _oV < V; ++_oV) {
+                atweights(_oc3, _ic3, _hA, _wA, _O2, _I2, _iV, _oV) =
+                    aout[_hA][_wA][_iV][_oV];
+            }
+        }}}
+    }}}}
+}
+
+#pragma optimization_parameter target_arch=CORE-AVX512
+template<typename Type, const int A, const int K, const int T, const int V, const int I>
+void elx_conv_wino_gemm_t<Type, A, K, T, V, I>::
+trans_input(Type *tinput, Type *input, int _t2)
+{
+    // n, ic2, ih, iw, V => t2=1, A, A, ic3, I2, T, V
+    mdarray<Type, 5> ainput(input, this->n, this->ic2, this->ih, this->iw, V);
+    mdarray<Type, 7> atinput(tinput, this->t2, A, A, this->ic3, this->I2, T, V);
+
+    Type aout[A][A][V];
+    for (int _ic3 = 0; _ic3 < this->ic3; ++_ic3) {
+        for (int _I2 = 0; _I2 < this->I2; ++_I2) {
+            for (int _T = 0; _T < this->T; ++_T) {
+                int _t = _t2 * this->T + _T;
+                int _nt = _t % this->nt;
+                int _ht = _nt / this->wt;
+                int _wt = _nt % this->wt;
+                Type in = ainput(_t / this->nt,
+                                 _ic3 * this->I2 + _I2,
+                                 _ht * (A - K + 1) - this->lp,
+                                 _wt % (A - K + 1) - this->tp, 0);
+                bool margin = (_ht == 0 || _ht == this->ht - 1 ||
+                               _wt == 0 || _wt == this->wt - 1);
+                elk_trans_input<Type, A, K, V, I>(*this, aout, &in, margin);
+
+                for (int _hA = 0; _hA < A; ++_hA) {
+                    for (int _wA = 0; _wA < A; ++_wA) {
+#pragma omp simd
+                        for (int _V = 0; _V < V; ++_V) {
+                            atinput(_t2, _hA, _wA, _ic3, _I2, _T, _V) =
+                                aout[_hA][_wA][_V];
                         }
                     }
                 }
@@ -119,49 +153,29 @@ elx_conv_wino_gemm_t<Type, A, K, T, V, I>::trans_weights(Type *tweights, Type *w
 }
 
 template<typename Type, const int A, const int K, const int T, const int V, const int I> void
-elx_conv_wino_gemm_t<Type, A, K, T, V, I>::trans_input(Type *tinput, Type *input)
+elx_conv_wino_gemm_t<Type, A, K, T, V, I>::
+gemm(Type *tinput, Type *tweights, Type *toutput)
 {
-    MD(Type, atinput, [this->n][this->ic2][this->oh2][this->ow2][A][A][V], tinput);
-    MD(Type, ainput,  [this->n][this->ic2][this->ih][this->iw][V], input);
+    mdarray<Type, 8> atweights(tweights, this->oc3, this->ic3,
+                                         A, A, this->O2,  this->I2, V, V);
+    mdarray<Type, 6> atinput  (tinput,   A, A, this->ic3, this->I2, T, V);
+    mdarray<Type, 6> atoutput (toutput,  A, A, this->oc3, this->O2, T, V);
 
-#pragma omp parallel for collapse(4)
-    for (int _n = 0; _n < this->n; ++_n) {
-        for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
-            for (int _oh2 = 0; _oh2 < this->oh2; ++_oh2) {
-                for (int _ow2 = 0; _ow2 < this->ow2; ++_ow2) {
-                    elk_trans_input<Type, A, K, V, I>
-                        (*this, atinput[_n][_ic2][_oh2][_ow2],
-                         (Type *)ainput[_n][_ic2],
-                         _oh2, _ow2);
-                }
-            }
-        }
-    }
+    for (int _hA = 0; _hA < A; ++_hA) {
+    for (int _wA = 0; _wA < A; ++_wA) {
+    for (int _oc3 = 0; _oc3 < this->oc3; ++_oc3) {
+    for (int _ic3 = 0; _ic3 < this->ic3; ++_ic3) {
+        // TODO: _ic3 == 0, zeros
+        elk_gemm<Type, T, V, I>(*this,
+                                &atoutput (_hA, _wA, _oc3, 0, 0, 0),
+                                &atinput  (_hA, _wA, _ic3, 0, 0, 0),
+                                &atweights(_oc3, _ic3, _hA, _wA, 0, 0, 0, 0));
+    }}}}
 }
 
-template<typename Type, const int A, const int K, const int T, const int V, const int I> void
-elx_conv_wino_gemm_t<Type, A, K, T, V, I>::gemm(Type *tinput, Type *tweights, Type *output)
-{
-    MD(Type, atweights, [this->oc2][this->ic2][A][A][V][V], tweights);
-    MD(Type, atinput,   [this->n][this->ic2][this->oh2][this->ow2][A][A][V], tinput);
-    MD(Type, aoutput,   [this->n][this->oc2][this->oh][this->ow][V], output);
-
-#pragma omp parallel for collapse(4)
-    for (int _n = 0; _n < this->n; ++_n) {
-        for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
-            for (int _oh2 = 0; _oh2 < this->oh2; ++_oh2) {
-                for (int _ow2 = 0; _ow2 < this->ow2; ++_ow2) {
-                    elk_product_trans_output<Type, A, K, V, I>
-                        (*this,
-                         (Type *)atinput[_n],
-                         (Type *)atweights[_oc2],
-                         (Type *)aoutput[_n][_oc2],
-                         _oh2, _ow2);
-                }
-            }
-        }
-    }
-}
+// tinputs: t2, A, A, ic3, I2, T, V
+// tweights: oc3, ic3, A, A, O2, I2, V, V
+// toutput: t2, A, A, oc3, O2, T, V
 
 template<typename Type, const int A, const int K, const int T, const int V, const int I> void
 elx_conv_wino_gemm_t<Type, A, K, T, V, I>::winograd(Type *input, Type *weights, Type *output, Type *bias)
@@ -170,8 +184,12 @@ elx_conv_wino_gemm_t<Type, A, K, T, V, I>::winograd(Type *input, Type *weights, 
     if (bias != nullptr)
         return;
     trans_weights(this->tweights, weights);
-    trans_input(this->tinput, input);
-    gemm(this->tinput, this->tweights, output);
+
+#pragma omp parallel for
+    for (int _t2 = 0; _t2 < this->t2; ++_t2) {
+        trans_input(this->tinput, input, _t2);
+        gemm(this->tinput, this->tweights, this->toutput);
+    }
 }
 
 }
