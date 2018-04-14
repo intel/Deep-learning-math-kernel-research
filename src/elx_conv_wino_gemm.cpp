@@ -91,25 +91,24 @@ trans_weights(Type *tweights, Type *weights)
     mdarray<Type, 8> atweights(tweights, this->oc3, this->ic3, A, A, this->O2,
                                this->I2, V, V);
 #pragma omp parallel for collapse(4)
-    for (int _oc3 = 0; _oc3 < this->oc3; ++_oc3) {
-    for (int _ic3 = 0; _ic3 < this->ic3; ++_ic3) {
-    for (int _O2 = 0; _O2 < this->O2; ++_O2) {
-    for (int _I2 =  0; _I2 < this->I2; ++_I2) {
+    for_each(_oc3, this->oc3) {
+    for_each(_ic3, this->ic3) {
+    for_each(_O2,  this->O2)  {
+    for_each(_I2,  this->I2)  {
         Type aout[A][A][V][V];
         Type in = aweights(_oc3 * this->O2 + _O2, _ic3 * this->I2 + _I2,
                            0, 0, 0, 0);
         MD(Type, ain, [K][K][V][V], &in);
         elk_trans_weights<Type, A, K, V, I>(aout, ain);
 
-        for (int _hA = 0; _hA < A; ++_hA) {
-        for (int _wA = 0; _wA < A; ++_wA) {
-        for (int _iV = 0; _iV < V; ++_iV) {
+        for_each(_hA, A) {
+        for_each(_wA, A) {
+        for_each(_iV, V) {
 #pragma omp simd
-            for (int _oV = 0; _oV < V; ++_oV) {
-                atweights(_oc3, _ic3, _hA, _wA, _O2, _I2, _iV, _oV) =
-                    aout[_hA][_wA][_iV][_oV];
-            }
-        }}}
+        for_each(_oV, V) {
+            atweights(_oc3, _ic3, _hA, _wA, _O2, _I2, _iV, _oV) =
+                aout[_hA][_wA][_iV][_oV];
+        }}}}
     }}}}
 }
 
@@ -123,33 +122,30 @@ trans_input(Type *tinput, Type *input, int _t2)
     mdarray<Type, 7> atinput(tinput, this->t2, A, A, this->ic3, this->I2, T, V);
 
     Type aout[A][A][V];
-    for (int _ic3 = 0; _ic3 < this->ic3; ++_ic3) {
-        for (int _I2 = 0; _I2 < this->I2; ++_I2) {
-            for (int _T = 0; _T < this->T; ++_T) {
-                int _t = _t2 * this->T + _T;
-                int _nt = _t % this->nt;
-                int _ht = _nt / this->wt;
-                int _wt = _nt % this->wt;
-                Type in = ainput(_t / this->nt,
-                                 _ic3 * this->I2 + _I2,
-                                 _ht * (A - K + 1) - this->lp,
-                                 _wt % (A - K + 1) - this->tp, 0);
-                bool margin = (_ht == 0 || _ht == this->ht - 1 ||
-                               _wt == 0 || _wt == this->wt - 1);
-                elk_trans_input<Type, A, K, V, I>(*this, aout, &in, margin);
 
-                for (int _hA = 0; _hA < A; ++_hA) {
-                    for (int _wA = 0; _wA < A; ++_wA) {
+    for_each(_ic3, this->ic3) {
+    for_each(_I2,  this->I2)  {
+    for_each(_T,   T)         {
+        int _t = _t2 * this->T + _T;
+        int _nt = _t % this->nt;
+        int _ht = _nt / this->wt;
+        int _wt = _nt % this->wt;
+        Type in = ainput(_t / this->nt,
+                         _ic3 * this->I2 + _I2,
+                         _ht * (A - K + 1) - this->lp,
+                         _wt % (A - K + 1) - this->tp, 0);
+        bool margin = (_ht == 0 || _ht == this->ht - 1 ||
+                       _wt == 0 || _wt == this->wt - 1);
+        elk_trans_input<Type, A, K, V, I>(*this, aout, &in, margin);
+
+        for_each(_hA, A) {
+        for_each(_wA, A) {
 #pragma omp simd
-                        for (int _V = 0; _V < V; ++_V) {
-                            atinput(_t2, _hA, _wA, _ic3, _I2, _T, _V) =
-                                aout[_hA][_wA][_V];
-                        }
-                    }
-                }
-            }
-        }
-    }
+        for_each(_V,  V) {
+            atinput(_t2, _hA, _wA, _ic3, _I2, _T, _V) =
+                aout[_hA][_wA][_V];
+        }}}
+    }}}
 }
 
 template<typename Type, const int A, const int K, const int T, const int V, const int I> void
@@ -161,10 +157,10 @@ gemm(Type *tinput, Type *tweights, Type *toutput)
     mdarray<Type, 6> atinput  (tinput,   A, A, this->ic3, this->I2, T, V);
     mdarray<Type, 6> atoutput (toutput,  A, A, this->oc3, this->O2, T, V);
 
-    for (int _hA = 0; _hA < A; ++_hA) {
-    for (int _wA = 0; _wA < A; ++_wA) {
-    for (int _oc3 = 0; _oc3 < this->oc3; ++_oc3) {
-    for (int _ic3 = 0; _ic3 < this->ic3; ++_ic3) {
+    for_each(_hA, A) {
+    for_each(_wA, A) {
+    for_each(_oc3, this->oc3) {
+    for_each(_ic3, this->ic3) {
         // TODO: _ic3 == 0, zeros
         elk_gemm<Type, T, V, I>(*this,
                                 &atoutput (_hA, _wA, _oc3, 0, 0, 0),
@@ -173,12 +169,31 @@ gemm(Type *tinput, Type *tweights, Type *toutput)
     }}}}
 }
 
-// tinputs: t2, A, A, ic3, I2, T, V
-// tweights: oc3, ic3, A, A, O2, I2, V, V
-// toutput: t2, A, A, oc3, O2, T, V
-
 template<typename Type, const int A, const int K, const int T, const int V, const int I> void
-elx_conv_wino_gemm_t<Type, A, K, T, V, I>::winograd(Type *input, Type *weights, Type *output, Type *bias)
+elx_conv_wino_gemm_t<Type, A, K, T, V, I>::
+trans_output(Type *output, Type *toutput, int _t2)
+{
+    mdarray<Type, 6> atoutput(toutput, A, A, this->oc3, this->O2, T, V);
+
+    // A, A, oc3, O2, T, V -> n, oc2, oh, ow, V
+    for_each(_oc3, this->oc3) {
+    for_each(_O2,  this->O2)  {
+    for_each(_T,   T) {
+#if 0
+        elk_trans_output<Type, A, V, I>(*this,
+                                        aoutput,
+                                        &toutput(0, 0, _oc3, _O2, _T, 0));
+#endif
+    }}}
+
+}
+
+// tweights: oc3, ic3, A, A, O2, I2, V, V
+// tinputs:  t2, A, A, ic3, I2, T, V
+// toutput:  t2, A, A, oc3, O2, T, V
+template<typename Type, const int A, const int K, const int T, const int V, const int I> void
+elx_conv_wino_gemm_t<Type, A, K, T, V, I>::
+winograd(Type *input, Type *weights, Type *output, Type *bias)
 {
     // TODO: support bias
     if (bias != nullptr)
@@ -186,9 +201,10 @@ elx_conv_wino_gemm_t<Type, A, K, T, V, I>::winograd(Type *input, Type *weights, 
     trans_weights(this->tweights, weights);
 
 #pragma omp parallel for
-    for (int _t2 = 0; _t2 < this->t2; ++_t2) {
+    for_each(_t2, this->t2) {
         trans_input(this->tinput, input, _t2);
         gemm(this->tinput, this->tweights, this->toutput);
+        trans_output(output, this->toutput, _t2);
     }
 }
 
