@@ -130,13 +130,13 @@ trans_input(Type *tinput, Type *input, int _t2)
         int _nt = _t % this->nt;
         int _ht = _nt / this->wt;
         int _wt = _nt % this->wt;
-        Type in = ainput(_t / this->nt,
-                         _ic3 * this->I2 + _I2,
-                         _ht * (A - K + 1) - this->lp,
-                         _wt % (A - K + 1) - this->tp, 0);
+        Type *in = &ainput(_t / this->nt,
+                           _ic3 * this->I2 + _I2,
+                           _ht * (A - K + 1) - this->lp,
+                           _wt % (A - K + 1) - this->tp, 0);
         bool margin = (_ht == 0 || _ht == this->ht - 1 ||
                        _wt == 0 || _wt == this->wt - 1);
-        elk_trans_input<Type, A, K, V, I>(*this, aout, &in, margin);
+        elk_trans_input<Type, A, K, V, I>(*this, aout, in, margin);
 
         for_each(_hA, A) {
         for_each(_wA, A) {
@@ -173,19 +173,33 @@ template<typename Type, const int A, const int K, const int T, const int V, cons
 elx_conv_wino_gemm_t<Type, A, K, T, V, I>::
 trans_output(Type *output, Type *toutput, int _t2)
 {
-    mdarray<Type, 6> atoutput(toutput, A, A, this->oc3, this->O2, T, V);
-
     // A, A, oc3, O2, T, V -> n, oc2, oh, ow, V
+    mdarray<Type, 6> atoutput(toutput, A, A, this->oc3, this->O2, T, V);
+    mdarray<Type, 5> aoutput(output, this->n, this->oc2, this->oh, this->ow, V);
+
+    Type ain[A][A][V];
+
     for_each(_oc3, this->oc3) {
     for_each(_O2,  this->O2)  {
     for_each(_T,   T) {
-#if 0
-        elk_trans_output<Type, A, V, I>(*this,
-                                        aoutput,
-                                        &toutput(0, 0, _oc3, _O2, _T, 0));
-#endif
-    }}}
+        for_each(_hA, A) {
+        for_each(_wA, A) {
+#pragma omp simd
+        for_each(_V,  V) {
+            ain[_hA][_wA][_V] = atoutput(_hA, _wA, _oc3, _O2, _T, _V);
+        }}}
 
+        int _t = _t2 * this->T + _T;
+        int _nt = _t % this->nt;
+        int _ht = _nt / this->wt;
+        int _wt = _nt % this->wt;
+        Type *out = &aoutput(_t / this->nt,
+                             _oc3 * this->O2 + _O2,
+                             _ht * (A - K + 1),
+                             _wt % (A - K + 1), 0);
+        bool margin = (_ht == this->ht - 1 || _wt == this->wt - 1);
+        elk_trans_output<Type, A, K, V, I>(*this, out, ain, margin);
+    }}}
 }
 
 // tweights: oc3, ic3, A, A, O2, I2, V, V
