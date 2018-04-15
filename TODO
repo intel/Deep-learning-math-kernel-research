@@ -1,5 +1,7 @@
+- zero copy
+- zero first output
+- unit tests: input/output/gemm
+- macro for 2-dims ops
 - Shape specialization
 - Correctness
 - Tile-size: 6
-- mdarray performance impact
-

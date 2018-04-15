@@ -65,7 +65,7 @@ elk_product_trans_output(elx_conv_t<T> &xc, T *tinput, T *tweights, T *output,
 
 
 template<typename Type, int T, int V, int I> void elk_gemm
-(elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights);
+(elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights, bool zero_out);
 
 }
 

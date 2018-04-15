@@ -1065,17 +1065,17 @@ template<> void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>
 }
 
 template<typename Type, int T, int V, int I> void elk_gemm
-(elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights)
+(elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights, bool zero_out)
 {}
 
 template<> void elk_gemm<float, 25, 16, ISA_GENERIC>
-(elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights)
+(elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights, bool zero_out)
 {
     // TODO: elk_gemm generic
 }
 
 template<> void elk_gemm<float, 25, 16, ISA_SKX_AVX512>
-(elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights)
+(elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights, bool zero_out)
 {
     ENABLE_AVX512F();
 
@@ -1085,9 +1085,20 @@ template<> void elk_gemm<float, 25, 16, ISA_SKX_AVX512>
 
     for (int _O2 = 0; _O2 < xc.O2; ++_O2) {
 #undef OP
-#define OP(x) \
-        __m512 t##x  = _mm512_load_ps(&atoutput(_O2, x, 0));
+#define OP(x) __m512 t##x
         OP_0_to_24();
+
+        if (zero_out) {
+#undef OP
+#define OP(x) \
+            t##x  = _mm512_setzero_ps();
+            OP_0_to_24();
+        } else {
+#undef OP
+#define OP(x) \
+            t##x  = _mm512_load_ps(&atoutput(_O2, x, 0));
+            OP_0_to_24();
+        }
 
         for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
             for (int _V = 0; _V < 16; ++_V) {

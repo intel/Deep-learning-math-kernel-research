@@ -161,11 +161,11 @@ gemm(Type *tinput, Type *tweights, Type *toutput)
     for_each(_wA, A) {
     for_each(_oc3, this->oc3) {
     for_each(_ic3, this->ic3) {
-        // TODO: _ic3 == 0, zeros
         elk_gemm<Type, T, V, I>(*this,
                                 &atoutput (_hA, _wA, _oc3, 0, 0, 0),
                                 &atinput  (_hA, _wA, _ic3, 0, 0, 0),
-                                &atweights(_oc3, _ic3, _hA, _wA, 0, 0, 0, 0));
+                                &atweights(_oc3, _ic3, _hA, _wA, 0, 0, 0, 0),
+                                _ic3 == 0);
     }}}}
 }
 
