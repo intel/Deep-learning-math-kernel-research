@@ -53,7 +53,7 @@ int test_elk_gemm(bool perf, bool show_diff) {
     Type *ref_toutput = (Type *)malloc(toutput_sz);
     memset(ref_toutput, 0, xc.O2 * xc.T * xc.V * sizeof(Type));
     TT(ref_elk_gemm, iterations, perf,
-       (ref_elk_gemm(xc, ref_toutput, tinput, tweights, true)));
+       (elk_gemm<Type, T, V, ISA_GENERIC>(xc, ref_toutput, tinput, tweights, true)));
 
     for (int i = 0; i < toutput_sz / sizeof(Type); i++) {
         if (ref_toutput[i] != lest::approx(toutput[i])) {
@@ -65,45 +65,6 @@ int test_elk_gemm(bool perf, bool show_diff) {
         }
     }
     return error;
-}
-
-template<typename T>
-int ref_elk_gemm_ker(T *mxp, T *mxn, T *nxp, int m, int n, int p, bool zero_out) {
-    MD(T, amxn, [m][n], mxn);
-    MD(T, anxp, [n][p], nxp);
-    MD(T, amxp, [m][p], mxp);
-
-    for (int _m = 0; _m < m; ++_m) {
-        for (int _p = 0; _p < p; ++_p) {
-            if (zero_out) {
-                amxp[_m][_p] = 0.0f;
-            }
-            for (int _n = 0; _n < n; ++_n) {
-                amxp[_m][_p] += amxn[_m][_n] * anxp[_n][_p];
-            }
-        }
-    }
-
-    return 0;
-}
-
-template<typename F>
-int ref_elk_gemm(elx_conv_t<F> &xc, F *output, F *input, F *weights, bool zero_out) {
-    MD(F, aoutput,  [xc.O2][xc.T][xc.V], output);
-    MD(F, ainput,   [xc.I2][xc.T][xc.V], input);
-    MD(F, aweights, [xc.O2][xc.I2][xc.V][xc.V], weights);
-
-#pragma omp parallel for collapse(1)
-    for (int _O2 = 0; _O2 < xc.O2; ++_O2) {
-        for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-            ref_elk_gemm_ker<F>((F *)aoutput[_O2],
-                            (F *)ainput[_I2],
-                            (F *)aweights[_O2][_I2],
-                            xc.T, xc.V, xc.V,
-                            zero_out && _I2 == 0);
-        }
-    }
-    return 0;
 }
 
 template int test_elk_gemm<float, 25, 16, ISA_SKX_AVX512>(bool perf, bool show_diff);

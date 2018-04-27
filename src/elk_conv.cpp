@@ -1064,14 +1064,45 @@ template<> void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>
     }
 }
 
-template<typename Type, int T, int V, int I> void elk_gemm
+template<typename Type>
+void elk_gemm_ker(Type *mxp, Type *mxn, Type *nxp,
+                 int m, int n, int p, bool zero_out) {
+    mdarray<Type, 2> amxn(mxn, m, n);
+    mdarray<Type, 2> anxp(nxp, n, p);
+    mdarray<Type, 2> amxp(mxp, m, p);
+
+    for_each (_m, m) {
+        for_each (_p, p) {
+            if (zero_out) amxp(_m, _p) = 0.0f;
+            for_each (_n, n) {
+                amxp(_m, _p) += amxn(_m, _n) * anxp(_n, _p);
+            }
+        }
+    }
+}
+
+template<typename Type, const int T, const int V> void elk_gemm
 (elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights, bool zero_out)
-{}
+{
+    mdarray<Type, 3> atoutput(toutput, xc.O2, T, V);
+    mdarray<Type, 3> atinput(tinput, xc.I2, T, V);
+    mdarray<Type, 4> atweights(tweights, xc.O2, xc.I2, V, V);
+
+#pragma omp parallel for collapse(1)
+    for_each(_O2, xc.O2) {
+        for_each(_I2, xc.I2) {
+            elk_gemm_ker<Type>(&atoutput (_O2, 0, 0),
+                               &atinput  (_I2, 0, 0),
+                               &atweights(_O2, _I2, 0, 0),
+                               T, V, V, zero_out && _I2 == 0);
+        }
+    }
+}
 
 template<> void elk_gemm<float, 25, 16, ISA_GENERIC>
 (elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights, bool zero_out)
 {
-    // TODO: elk_gemm generic
+    elk_gemm<float, 25, 16>(xc, toutput, tinput, tweights, zero_out);
 }
 
 template<> void elk_gemm<float, 25, 16, ISA_SKX_AVX512>

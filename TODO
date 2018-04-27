@@ -1,7 +1,7 @@
 - zero copy
-- zero first output
 - unit tests: input/output/gemm
 - macro for 2-dims ops
+- gemm C impl
 - Shape specialization
 - Correctness
 - Tile-size: 6
