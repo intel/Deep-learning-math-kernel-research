@@ -81,7 +81,7 @@ elx_conv_wino_gemm_t<Type, A, K, T, V, I>::~elx_conv_wino_gemm_t ()
     }
 }
 
-#pragma optimization_parameter target_arch=CORE-AVX512
+pragma_opt_core_avx512
 template<typename Type, const int A, const int K, const int T, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, T, V, I>::
 trans_weights(Type *tweights, Type *weights)
@@ -112,7 +112,7 @@ trans_weights(Type *tweights, Type *weights)
     }}}}
 }
 
-#pragma optimization_parameter target_arch=CORE-AVX512
+pragma_opt_core_avx512
 template<typename Type, const int A, const int K, const int T, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, T, V, I>::
 trans_input(Type *tinput, Type *input, int _t2)
@@ -157,16 +157,18 @@ gemm(Type *tinput, Type *tweights, Type *toutput)
     mdarray<Type, 6> atinput  (tinput,   A, A, this->ic3, this->I2, T, V);
     mdarray<Type, 6> atoutput (toutput,  A, A, this->oc3, this->O2, T, V);
 
-    for_each(_hA, A) {
-    for_each(_wA, A) {
-    for_each(_oc3, this->oc3) {
-    for_each(_ic3, this->ic3) {
-        elk_gemm<Type, T, V, I>(*this,
-                                &atoutput (_hA, _wA, _oc3, 0, 0, 0),
-                                &atinput  (_hA, _wA, _ic3, 0, 0, 0),
-                                &atweights(_oc3, _ic3, _hA, _wA, 0, 0, 0, 0),
-                                _ic3 == 0);
-    }}}}
+    for_each (_hA, A) {
+      for_each (_wA, A) {
+        for_each (_oc3, this->oc3) {
+          for_each (_ic3, this->ic3) {
+            elk_gemm<Type, T, V, I>(
+                *this, &atoutput(_hA, _wA, _oc3, 0, 0, 0),
+                &atinput(_hA, _wA, _ic3, 0, 0, 0),
+                &atweights(_oc3, _ic3, _hA, _wA, 0, 0, 0, 0), _ic3 == 0);
+          }
+        }
+      }
+    }
 }
 
 template<typename Type, const int A, const int K, const int T, const int V, const int I> void

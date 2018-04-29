@@ -32,6 +32,7 @@ int main() {
     input   = (float *)malloc(desc.byte_sizes.input);
     weights = (float *)malloc(desc.byte_sizes.weights);
     output  = (float *)malloc(desc.byte_sizes.output);
+    bias    = (float *)malloc(desc.byte_sizes.bias);
 
     for (int i = 0; i < desc.sizes.input; i++) {
         input[i] = i % 18;

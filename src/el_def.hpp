@@ -13,8 +13,10 @@ enum {
 
 #ifdef __INTEL_COMPILER
 #define ENABLE_AVX512F() _allow_cpu_features(_FEATURE_AVX512F)
+#define pragma_opt_core_avx512 _Pragma("optimization_parameter target_arch=CORE-AVX512")
 #else
 #define ENABLE_AVX512F() // -mavx512f
+#define pragma_opt_core_avx512
 #endif
 
 inline void eld_error(const char *msg) {
