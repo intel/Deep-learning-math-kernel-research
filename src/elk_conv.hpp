@@ -51,12 +51,15 @@ void elk_trans_input(elx_conv_t<T> &xc, T atinput[A][A][V], T *input);
 
 template <typename T, const int A, const int K, const int V, const int I>
 void elk_trans_input(elx_conv_t<T> &xc, T atinput[A][A][V], T *input,
-                     int _hT_start, int _hT_end, int _wT_start, int _wT_end);
-
+                     int _hA_start, int _hA_end, int _wA_start, int _wA_end);
 
 template <typename Type, int A, const int K, int V, int I>
 void elk_trans_output(elx_conv_t<Type> &xc, Type *output,
-                      Type atoutput[A][A][V], bool margin);
+                      Type atoutput[A][A][V]);
+
+template <typename Type, int A, const int K, int V, int I>
+void elk_trans_output(elx_conv_t<Type> &xc, Type *output,
+                      Type atoutput[A][A][V], int _hOA_end, int _wOA_end);
 
 template <typename T, const int A, const int K, const int V, const int I>
 void elk_product_trans_output(elx_conv_t<T> &xc, T *tinput, T *tweights,
