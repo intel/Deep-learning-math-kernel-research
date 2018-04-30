@@ -12,4 +12,8 @@ int test_elk_trans_weights(bool perf, bool show_diff);
 template <typename Type, const int A, const int K, const int V, const int I>
 int test_elk_trans_input(bool perf, bool show_diff);
 
+
+template <typename Type, const int A, const int K, const int V, const int I>
+int test_elk_trans_output(bool perf, bool show_diff);
+
 #endif
