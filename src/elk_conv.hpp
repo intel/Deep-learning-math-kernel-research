@@ -1,7 +1,7 @@
-#include "el_def.hpp"
-
 #ifndef __ELK_CONV_HPP__
 #define __ELK_CONV_HPP__
+
+#include "el_def.hpp"
 
 #define __E()
 #define __DEFER(x) x __E()
@@ -41,32 +41,32 @@
 #define OP_0_to_31() OP_0_to_30(); __OP(31)
 #define OP_0_to_32() OP_0_to_31(); __OP(32)
 
-
 namespace euler {
 
-template<typename T, const int A, const int K, const int V, const int I> void
-elk_trans_weights(T atweights[A][A][V][V], T aweights[K][K][V][V]);
+template <typename T, const int A, const int K, const int V, const int I>
+void elk_trans_weights(T atweights[A][A][V][V], T aweights[K][K][V][V]);
 
-template<typename T, const int A, const int K, const int V, const int I> void
-elk_trans_input(elx_conv_t<T> &xc, T atinput[A][A][V], T *input, bool margin);
+template <typename T, const int A, const int K, const int V, const int I>
+void elk_trans_input(elx_conv_t<T> &xc, T atinput[A][A][V], T *input,
+                     bool margin);
 
-template<typename Type, int A, const int K, int V, int I> void
-elk_trans_output(elx_conv_t<Type> &xc, Type *output, Type atoutput[A][A][V],
-                 bool margin);
+template <typename Type, int A, const int K, int V, int I>
+void elk_trans_output(elx_conv_t<Type> &xc, Type *output,
+                      Type atoutput[A][A][V], bool margin);
 
-template<typename T, const int A, const int K, const int V, const int I> void
-elk_product_trans_output(elx_conv_t<T> &xc, T *tinput, T *tweights, T *output,
-                         int _ih2, int _iw2);
+template <typename T, const int A, const int K, const int V, const int I>
+void elk_product_trans_output(elx_conv_t<T> &xc, T *tinput, T *tweights,
+                              T *output, int _ih2, int _iw2);
 
 // Type: data type;
 // T: tile blocking unit;
 // V: vector size
 // I: ISA
 
+template <typename Type, int T, int V, int I>
+void elk_gemm(elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights,
+              bool zero_out);
 
-template<typename Type, int T, int V, int I> void elk_gemm
-(elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights, bool zero_out);
-
-}
+}  // namespace euler
 
 #endif // __ELK_CONV_HPP__

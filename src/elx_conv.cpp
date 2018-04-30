@@ -8,62 +8,59 @@
 
 namespace euler {
 
-template<typename Type>
-elx_conv_t<Type>::elx_conv_t (eld_conv_t<Type> &dc)
-{
-    this->n  = dc.dims.input.n;
-    this->ic = dc.dims.input.c;
-    this->oc = dc.dims.output.c;
-    this->ih = dc.dims.input.h;
-    this->iw = dc.dims.input.w;
-    this->oh = dc.dims.output.h;
-    this->ow = dc.dims.output.w;
-    this->kh = dc.dims.weights.h;
-    this->kw = dc.dims.weights.w;
-    this->lp = dc.pads.l;
-    this->rp = dc.pads.r;
-    this->tp = dc.pads.t;
-    this->bp = dc.pads.b;
-    this->hs = dc.strides.h;
-    this->ws = dc.strides.w;
-    this->hd = dc.dilations.h;
-    this->wd = dc.dilations.w;
+template <typename Type>
+elx_conv_t<Type>::elx_conv_t(eld_conv_t<Type> &dc) {
+  this->n = dc.dims.input.n;
+  this->ic = dc.dims.input.c;
+  this->oc = dc.dims.output.c;
+  this->ih = dc.dims.input.h;
+  this->iw = dc.dims.input.w;
+  this->oh = dc.dims.output.h;
+  this->ow = dc.dims.output.w;
+  this->kh = dc.dims.weights.h;
+  this->kw = dc.dims.weights.w;
+  this->lp = dc.pads.l;
+  this->rp = dc.pads.r;
+  this->tp = dc.pads.t;
+  this->bp = dc.pads.b;
+  this->hs = dc.strides.h;
+  this->ws = dc.strides.w;
+  this->hd = dc.dilations.h;
+  this->wd = dc.dilations.w;
 
-    this->input_fmt   = dc.formats.input;
-    this->weights_fmt = dc.formats.weights;
-    this->output_fmt  = dc.formats.output;
-    this->with_relu   = dc.with_relu;
-    this->with_bias   = dc.with_bias;
+  this->input_fmt = dc.formats.input;
+  this->weights_fmt = dc.formats.weights;
+  this->output_fmt = dc.formats.output;
+  this->with_relu = dc.with_relu;
+  this->with_bias = dc.with_bias;
 
-    this->tinput   = nullptr;
-    this->tweights = nullptr;
-    this->toutput  = nullptr;
+  this->tinput = nullptr;
+  this->tweights = nullptr;
+  this->toutput = nullptr;
 }
 
-template<typename T>
-int elx_conv(eld_conv_t<T> &desc, T *input, T *weights, T *output, T *bias)
-{
-    elx_conv_t<T> &xc = *desc.xc;
+template <typename T>
+int elx_conv(eld_conv_t<T> &desc, T *input, T *weights, T *output, T *bias) {
+  elx_conv_t<T> &xc = *desc.xc;
 
-    // Sanity check
-    if (any_null(input, weights, output)
-        || (desc.with_bias && bias == nullptr)) {
-        elx_error("Parameter error");
-        return ELX_GENERAL_ERROR;
-    }
+  // Sanity check
+  if (any_null(input, weights, output) || (desc.with_bias && bias == nullptr)) {
+    elx_error("Parameter error");
+    return ELX_GENERAL_ERROR;
+  }
 
-    if (desc.algorithm == CONV_DIRECT) {
-        elx_error("Unimplemented");
-        return ELX_UNIMPLEMENTED;
+  if (desc.algorithm == CONV_DIRECT) {
+    elx_error("Unimplemented");
+    return ELX_UNIMPLEMENTED;
 
-    } else {
-        assert(desc.algorithm == CONV_WINOGRAD);
-        xc.winograd(input, weights, output, bias);
-    }
-    return ELX_OK;
+  } else {
+    assert(desc.algorithm == CONV_WINOGRAD);
+    xc.winograd(input, weights, output, bias);
+  }
+  return ELX_OK;
 }
 
-template int elx_conv<float>
-(eld_conv_t<float> &desc, float *input, float *weights, float *output, float *bias);
+template int elx_conv<float>(eld_conv_t<float> &desc, float *input,
+                             float *weights, float *output, float *bias);
 
-}
+}  // namespace euler
