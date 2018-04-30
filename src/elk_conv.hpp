@@ -47,8 +47,12 @@ template <typename T, const int A, const int K, const int V, const int I>
 void elk_trans_weights(T atweights[A][A][V][V], T aweights[K][K][V][V]);
 
 template <typename T, const int A, const int K, const int V, const int I>
+void elk_trans_input(elx_conv_t<T> &xc, T atinput[A][A][V], T *input);
+
+template <typename T, const int A, const int K, const int V, const int I>
 void elk_trans_input(elx_conv_t<T> &xc, T atinput[A][A][V], T *input,
-                     bool margin);
+                     int _hT_start, int _hT_end, int _wT_start, int _wT_end);
+
 
 template <typename Type, int A, const int K, int V, int I>
 void elk_trans_output(elx_conv_t<Type> &xc, Type *output,

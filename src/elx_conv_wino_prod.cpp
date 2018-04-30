@@ -103,11 +103,29 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::trans_input(T *tinput, T *input) {
         for (int _wt = 0; _wt < this->wt; ++_wt) {
           int _ih = _ht * (A - K + 1) - this->lp;
           int _iw = _wt * (A - K + 1) - this->tp;
-          bool margin = (_ht == 0 || _ht == this->ht - 1 || _wt == 0 ||
-                         _wt == this->wt - 1);
-          elk_trans_input<T, A, K, V, I>(*this, atinput[_n][_ic2][_ht][_wt],
-                                         (T *)ainput[_n][_ic2][_ih][_iw],
-                                         margin);
+          int _wT_start = 0;
+          int _hT_start = 0;
+          int _wT_end = this->iw - _iw - 1;
+          int _hT_end = this->ih - _ih - 1;
+          if (_ih < 0) {
+            _hT_start = -_ih;
+            _ih = 0;
+          }
+          if (_iw < 0) {
+            _wT_start = -_iw;
+            _iw = 0;
+          }
+
+          if (_hT_start == 0 && _wT_start == 0 && _hT_end == A - 1 &&
+              _wT_end == A - 1) {
+            elk_trans_input<T, A, K, V, I>(*this, atinput[_n][_ic2][_ht][_wt],
+                                           (T *)ainput[_n][_ic2][_ih][_iw]);
+          } else {
+            elk_trans_input<T, A, K, V, I>(*this, atinput[_n][_ic2][_ht][_wt],
+                                           (T *)ainput[_n][_ic2][_ih][_iw],
+                                           _hT_start, _hT_end, _wT_start,
+                                           _wT_end);
+          }
         }
       }
     }

@@ -134,12 +134,28 @@ void elx_conv_wino_gemm_t<Type, A, K, T, V, I>::trans_input(Type *tinput,
         int _nt = _t % this->nt;
         int _ht = _nt / this->wt;
         int _wt = _nt % this->wt;
-        Type *in = &ainput(_t / this->nt, _ic3 * this->I2 + _I2,
-                           _ht * (A - K + 1) - this->lp,
-                           _wt % (A - K + 1) - this->tp, 0);
-        bool margin = (_ht == 0 || _ht == this->ht - 1 || _wt == 0 ||
-                       _wt == this->wt - 1);
-        elk_trans_input<Type, A, K, V, I>(*this, aout, in, margin);
+        int _ih = _ht * (A - K + 1) - this->lp;
+        int _iw = _wt % (A - K + 1) - this->tp;
+
+        int _wT_start = 0;
+        int _hT_start = 0;
+        int _wT_end = this->iw - _iw - 1;
+        int _hT_end = this->ih - _ih - 1;
+        if (_ih < 0) {
+          _hT_start = -_ih;
+          _ih = 0;
+        }
+        if (_iw < 0) {
+          _wT_start = -_iw;
+          _iw = 0;
+        }
+        Type *in = &ainput(_t / this->nt, _ic3 * this->I2 + _I2, _ih, _iw, 0);
+        if (_hT_start == 0 && _wT_start == 0 && _hT_end == A - 1 &&
+            _wT_end == A - 1) {
+          elk_trans_input<Type, A, K, V, I>(*this, aout, in);
+        } else
+          elk_trans_input<Type, A, K, V, I>(*this, aout, in, _hT_start, _hT_end,
+                                            _wT_start, _wT_end);
 
         for_each(_hA, A) {
           for_each(_wA, A) {
