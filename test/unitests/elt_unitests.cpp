@@ -28,6 +28,11 @@ CASE("test_elk_trans_weights") {
                    test_perf, show_diff)));
 }
 
+CASE("test_elk_trans_input") {
+  EXPECT((0 == test_elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>(
+                   test_perf, show_diff)));
+}
+
 int main(int argc, char **argv) {
   return lest::run(specification, argc, argv, std::cout);
 }

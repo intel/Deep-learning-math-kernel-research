@@ -1,0 +1,66 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <assert.h>
+#include <string.h>
+#include "euler.hpp"
+#include "lest.hpp"
+#include "elt_unitests.hpp"
+#include "../elt_utils.hpp"
+#include "../../src/elk_conv.hpp"
+#include "../../src/elx_conv.hpp"
+#include "../../src/elx_conv_wino_gemm.hpp"
+
+using namespace euler;
+
+template <typename Type, const int A, const int K, const int V, const int I>
+int test_elk_trans_input(bool perf, bool show_diff) {
+  int error = 0;
+
+  eld_conv_t<Type> desc;
+  elx_conv_wino_gemm_t<Type, A, K, 25, V, I> xc(desc);
+  xc.O2 = 18;
+  xc.I2 = 32;
+  xc.T = 25;
+  xc.V = V;
+  xc.ih = 28;
+  xc.iw = 28;
+
+  Type atinput[A][A][V];
+  Type ainput[xc.ih][xc.iw][V];
+  Type ref_atinput[A][A][V];
+
+  for (int _ih = 0; _ih < xc.ih; ++_ih) {
+    for (int _iw = 0; _iw < xc.iw; ++_iw) {
+      for (int _V = 0; _V < V; ++_V) {
+        ainput[_ih][_iw][_V] = _ih * _iw * _V % 32;
+      }
+    }
+  }
+
+  TT(elk_trans_input, iterations, perf,
+     (elk_trans_input<Type, A, K, V, I>(xc, atinput, (Type *)&ainput)));
+
+  TT(elk_trans_input, iterations, perf,
+     (elk_trans_input<Type, A, K, V, ISA_GENERIC>(xc, ref_atinput,
+                                                  (Type *)&ainput)));
+
+  for (int _hA = 0; _hA < A; ++_hA) {
+    for (int _wA = 0; _wA < A; ++_wA) {
+      for (int _iV = 0; _iV < V; ++_iV) {
+        if (ref_atinput[_hA][_wA][_iV] !=
+            lest::approx(atinput[_hA][_wA][_iV])) {
+          error++;
+          if (show_diff) {
+            printf("Not equal!: [%d][%d][%d]: %f != %f (ref)\n", _hA, _wA, _iV,
+                   atinput[_hA][_wA][_iV], ref_atinput[_hA][_wA][_iV]);
+          }
+        }
+      }
+    }
+  }
+
+  return error;
+}
+
+template int test_elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>(
+    bool perf, bool show_diff);
