@@ -1,3 +1,4 @@
+#include "el_utils.hpp"
 #include "elx_conv_wino_gemm.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
@@ -23,6 +24,26 @@ elx_conv_wino_gemm_t<Type, A, K, T, V, I>::elx_conv_wino_gemm_t(
   this->A = A;
   this->ht = (this->oh + A - 3) / (A - K + 1);
   this->wt = (this->ow + A - 3) / (A - K + 1);
+  this->nt = this->ht * this->wt;
+  this->t = this->nt * this->n;
+
+  // trans-buffer blocking
+  // ic: ic3, I2, V
+  // oc: oc3, O2, V
+  // t : t2,  T
+  this->t2 = this->t / T;
+  // I2, O2
+  //tweights + pt-tinputs + pt-toutput ~ L2
+  //tweights:gemm + tinputs:gemm + toutput:gemm ~ L1
+
+  // Tailing
+  this->Ir = this->ic % V;
+  this->Or = this->oc % V;
+  this->Tr = this->t % T;
+  // TODO: support tailing
+  assert(this->Ir == 0);
+  assert(this->Or == 0);
+  assert(this->Tr == 0);
 
   int tweights_size = sizeof(Type) * A * A * this->ic * this->oc;
   int tinput_size =
@@ -249,7 +270,7 @@ void elx_conv_wino_gemm_t<Type, A, K, T, V, I>::winograd(Type *input,
                                                          Type *output,
                                                          Type *bias) {
   // TODO: support bias
-  if (bias != nullptr) return;
+  if (bias == nullptr) return;
   trans_weights(this->tweights, weights);
 
 #pragma omp parallel for

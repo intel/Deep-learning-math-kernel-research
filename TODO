@@ -1,7 +1,12 @@
 - zero copy
-- unit tests: input/output/gemm
 - macro for 2-dims ops
-- gemm C impl
 - Shape specialization
 - Correctness
 - Tile-size: 6
+
+- unit tests: input/output/gemm
+- blocking
+  performance with similar blocking
+- tail dim handling
+- per-thread trans-buffer
+

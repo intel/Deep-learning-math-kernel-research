@@ -9,9 +9,9 @@ using namespace euler;
 int main() {
   // 1, create convolution desc
   eld_conv_t<float> desc;
-  desc.dims      = {.input   = {1, 28, 28, 512},
-                    .weights = {3, 3, 512, 512},
-                    .output  = {1, 28, 28, 512}};
+  desc.dims      = {.input   = {64, 224, 224, 64},
+                    .weights = {3, 3, 64, 64},
+                    .output  = {64, 224, 224, 64}};
   desc.formats   = {.input   = nChw16c,
                     .weights = OIhw16i16o,
                     .output  = nChw16c};
@@ -38,7 +38,7 @@ int main() {
   }
 
   // 3. execute convolution
-  int iterations = 2000;
+  int iterations = 10000;
   time_start(conv);
   for (int n = 0; n < iterations; ++n) {
     if (ELX_OK != elx_conv<float>(desc, input, weights, output, bias)) {

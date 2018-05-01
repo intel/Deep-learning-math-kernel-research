@@ -41,6 +41,8 @@
 #define OP_0_to_31() OP_0_to_30(); __OP(31)
 #define OP_0_to_32() OP_0_to_31(); __OP(32)
 
+#define IMM_BCAST16(x) x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x
+
 namespace euler {
 
 template <typename T, const int A, const int K, const int V, const int I>
