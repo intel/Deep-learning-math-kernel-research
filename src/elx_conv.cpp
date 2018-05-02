@@ -33,10 +33,6 @@ elx_conv_t<Type>::elx_conv_t(eld_conv_t<Type> &dc) {
   this->output_fmt = dc.formats.output;
   this->with_relu = dc.with_relu;
   this->with_bias = dc.with_bias;
-
-  this->tinput = nullptr;
-  this->tweights = nullptr;
-  this->toutput = nullptr;
 }
 
 template <typename T>

@@ -23,6 +23,10 @@ class elx_conv_wino_prod_t : public elx_conv_t<T> {
   void trans_weights(T *tweights, T *weights);
   void trans_input(T *tinput, T *input);
   void product_trans_output(T *tinput, T *tweights, T *output);
+
+  T *tinput_;
+  T *toutput_;
+  T *tweights_;
 };
 
 template class elx_conv_wino_prod_t<float, 5, 3, 16, ISA_GENERIC>;

@@ -26,9 +26,9 @@ elx_conv_wino_prod_t<Type, A, K, V, I>::elx_conv_wino_prod_t(
       sizeof(Type) * A * A * this->ht * this->wt * this->ic * this->n;
   // int toutput_size  = sizeof(Type) * A * A * this->ht * this->wt
   //                                         * this->oc * this->n;
-  this->tweights = (Type *)malloc(tweights_size);
-  this->tinput = (Type *)malloc(tinput_size);
-  // this->toutput  = (T *)malloc(toutput_size);
+  tweights_ = (Type *)malloc(tweights_size);
+  tinput_ = (Type *)malloc(tinput_size);
+  toutput_  = nullptr;
 
   if (this->input_fmt == nChw16c) {
     this->input_strides[0] = 1;
@@ -62,17 +62,17 @@ elx_conv_wino_prod_t<Type, A, K, V, I>::elx_conv_wino_prod_t(
 
 template <typename T, const int A, const int K, const int V, const int I>
 elx_conv_wino_prod_t<T, A, K, V, I>::~elx_conv_wino_prod_t() {
-  if (this->tweights != nullptr) {
-    free(this->tweights);
-    this->tweights = nullptr;
+  if (tweights_ != nullptr) {
+    free(tweights_);
+    tweights_ = nullptr;
   }
-  if (this->tinput != nullptr) {
-    free(this->tinput);
-    this->tinput = nullptr;
+  if (tinput_ != nullptr) {
+    free(tinput_);
+    tinput_ = nullptr;
   }
-  if (this->toutput != nullptr) {
-    free(this->toutput);
-    this->toutput = nullptr;
+  if (toutput_ != nullptr) {
+    free(toutput_);
+    toutput_ = nullptr;
   }
 }
 
@@ -159,9 +159,9 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::winograd(T *input, T *weights,
                                                    T *output, T *bias) {
   // TODO: support bias
   if (bias != nullptr) return;
-  trans_weights(this->tweights, weights);
-  trans_input(this->tinput, input);
-  product_trans_output(this->tinput, this->tweights, output);
+  trans_weights(tweights_, weights);
+  trans_input(tinput_, input);
+  product_trans_output(tinput_, tweights_, output);
 }
 
 }  // namespace euler

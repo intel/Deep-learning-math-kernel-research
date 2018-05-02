@@ -25,6 +25,11 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   void trans_output(Type *output, Type *toutput, int _t2);
   void gemm(Type *toutput, Type *tinput, Type *tweights);
 
+  size_t mthr_;
+  Type *tweights_;
+  Type *tinput_;
+  Type *toutput_;
+
   using func_gemm_t = void(elx_conv_t<Type> &xc, Type *toutput, Type *tinput,
                            Type *tweights, bool zero_out);
   using func_trans_input_t = void(elx_conv_t<Type> &xc, Type atinput[A][A][V],

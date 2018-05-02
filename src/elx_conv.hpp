@@ -50,10 +50,6 @@ class elx_conv_t {
   int weights_strides[8];
   int output_strides[8];
 
-  Type *tweights;
-  Type *tinput;
-  Type *toutput;
-
   elx_conv_t(eld_conv_t<Type> &dc);
   virtual ~elx_conv_t() {}
 

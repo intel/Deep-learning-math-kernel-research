@@ -30,7 +30,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   // tweights + pt-tinputs + pt-toutput ~ L2
   // tweights:gemm + tinputs:gemm + toutput:gemm ~ L1
   this->T  = 25;  // TODO: T selection
-  this->O2 = 2;   // TODO: O2 selection
+  this->O2 = 1;   // TODO: O2 selection
   this->I2 = 4;   // TODO: I2 selection
 
   this->oc3 = this->oc / (this->O2 * V);
@@ -46,13 +46,14 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   assert(this->Or == 0);
   assert(this->Tr == 0);
 
+  mthr_ = omp_get_max_threads();
   size_t tweights_size = sizeof(Type) * A * A * this->ic * this->oc;
-  size_t tinput_size   = sizeof(Type) * A * A * this->t * this->ic;
-  size_t toutput_size  = sizeof(Type) * A * A * this->t * this->oc;
+  size_t tinput_size   = sizeof(Type) * A * A * this->T * this->ic * mthr_;
+  size_t toutput_size  = sizeof(Type) * A * A * this->T * this->oc * mthr_;
 
-  this->tweights = (Type *)malloc(tweights_size);
-  this->tinput   = (Type *)malloc(tinput_size);
-  this->toutput  = (Type *)malloc(toutput_size);
+  tweights_ = (Type *)malloc(tweights_size);
+  tinput_   = (Type *)malloc(tinput_size);
+  toutput_  = (Type *)malloc(toutput_size);
 
   if (this->input_fmt == nChw16c) {
     this->input_strides[0] = 1;
@@ -102,17 +103,17 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 elx_conv_wino_gemm_t<Type, A, K, V, I>::~elx_conv_wino_gemm_t() {
-  if (this->tweights != nullptr) {
-    free(this->tweights);
-    this->tweights = nullptr;
+  if (tweights_ != nullptr) {
+    free(tweights_);
+    tweights_ = nullptr;
   }
-  if (this->tinput != nullptr) {
-    free(this->tinput);
-    this->tinput = nullptr;
+  if (tinput_ != nullptr) {
+    free(tinput_);
+    tinput_ = nullptr;
   }
-  if (this->toutput != nullptr) {
-    free(this->toutput);
-    this->toutput = nullptr;
+  if (toutput_ != nullptr) {
+    free(toutput_);
+    toutput_ = nullptr;
   }
 }
 
@@ -158,8 +159,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(Type *tinput,
                                                          Type *input, int _t2) {
   // n, ic2, ih, iw, V => t2=1, A, A, ic3, I2, T, V
   mdarray<Type, 5> ainput(input, this->n, this->ic2, this->ih, this->iw, V);
-  mdarray<Type, 7> atinput(tinput, this->t2, A, A, this->ic3, this->I2, this->T,
-                           V);
+  mdarray<Type, 6> atinput(tinput, A, A, this->ic3, this->I2, this->T, V);
 
   Type aout[A][A][V];
   int _hA_start = this->lp; // first
@@ -194,7 +194,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(Type *tinput,
           for_each(_wA, A) {
 #pragma omp simd
             for_each(_V, V) {
-              atinput(_t2, _hA, _wA, _ic3, _I2, _T, _V) = aout[_hA][_wA][_V];
+              atinput(_hA, _wA, _ic3, _I2, _T, _V) = aout[_hA][_wA][_V];
             }
           }
         }
@@ -278,15 +278,19 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::winograd(Type *input,
                                                       Type *weights,
                                                       Type *output,
                                                       Type *bias) {
+  mdarray<Type, 2> atinput(tinput_, mthr_, A * A * this->T * this->ic);
+  mdarray<Type, 2> atoutput(toutput_, mthr_, A * A * this->T * this->oc);
+
   // TODO: support bias
   if (bias == nullptr) return;
-  trans_weights(this->tweights, weights);
+  trans_weights(tweights_, weights);
 
 #pragma omp parallel for
   for_each(_t2, this->t2) {
-    trans_input(this->tinput, input, _t2);
-    gemm(this->tinput, this->tweights, this->toutput);
-    trans_output(output, this->toutput, _t2);
+    size_t ithr = omp_get_thread_num();
+    trans_input(&atinput(ithr, 0), input, _t2);
+    gemm(&atinput(ithr, 0), tweights_, &atoutput(ithr, 0));
+    trans_output(output, &atoutput(ithr, 0), _t2);
   }
 }
 
