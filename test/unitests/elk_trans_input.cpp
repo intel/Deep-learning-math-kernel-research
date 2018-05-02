@@ -17,13 +17,16 @@ int test_elk_trans_input(bool perf, bool show_diff) {
   int error = 0;
 
   eld_conv_t<Type> desc;
+
+  desc.dims = {{64, 224, 224, 64}, {3, 3, 64, 64}, {64, 224, 224, 64}};
+  desc.formats = {nChw16c, OIhw16i16o, nChw16c};
+  desc.pads = {1, 1, 1, 1};
+  desc.with_bias = false;
+  desc.algorithm = CONV_WINOGRAD;
+  desc.tile_size = 5;
+  desc.with_relu = false;
+
   elx_conv_wino_gemm_t<Type, A, K, 25, V, I> xc(desc);
-  xc.O2 = 18;
-  xc.I2 = 32;
-  xc.T = 25;
-  xc.V = V;
-  xc.ih = 28;
-  xc.iw = 28;
 
   Type atinput[A][A][V];
   Type ainput[xc.ih][xc.iw][V];
