@@ -26,7 +26,7 @@ int test_elk_trans_input(bool perf, bool show_diff) {
   desc.tile_size = 5;
   desc.with_relu = false;
 
-  elx_conv_wino_gemm_t<Type, A, K, 25, V, I> xc(desc);
+  elx_conv_wino_gemm_t<Type, A, K, V, I> xc(desc);
 
   Type atinput[A][A][V];
   Type ainput[xc.ih][xc.iw][V];

@@ -31,7 +31,7 @@ int test_elk_gemm(bool perf, bool show_diff) {
   desc.algorithm = CONV_WINOGRAD;
   desc.tile_size = 5;
   desc.with_relu = false;
-  elx_conv_wino_gemm_t<Type, 5, 3, T, V, I> xc(desc);
+  elx_conv_wino_gemm_t<Type, 5, 3, V, I> xc(desc);
 
   Type *tinput, *tweights, *toutput;
   int tinput_sz, tweights_sz, toutput_sz;
@@ -65,7 +65,7 @@ int test_elk_gemm(bool perf, bool show_diff) {
     if (ref_toutput[i] != lest::approx(toutput[i])) {
       error++;
       if (show_diff) {
-        printf("Not equal!: [%d]: %f != %f (ref)\n", i, toutput[i],
+        printf("Not equal!: [%ld]: %f != %f (ref)\n", i, toutput[i],
                ref_toutput[i]);
       }
     }

@@ -2,6 +2,8 @@
 #include <assert.h>
 #include <cxxabi.h>
 #include <chrono>
+#include <boost/preprocessor/repetition/repeat.hpp>
+#include <boost/preprocessor/repetition/repeat_from_to.hpp>
 
 #ifndef __EL_UTILS_HPP__
 #define __EL_UTILS_HPP__

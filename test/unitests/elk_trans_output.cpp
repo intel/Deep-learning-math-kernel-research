@@ -24,7 +24,7 @@ int test_elk_trans_output(bool perf, bool show_diff) {
   desc.algorithm = CONV_WINOGRAD;
   desc.tile_size = 5;
   desc.with_relu = false;
-  elx_conv_wino_gemm_t<Type, A, K, 25, V, I> xc(desc);
+  elx_conv_wino_gemm_t<Type, A, K, V, I> xc(desc);
 
   Type atoutput[A][A][V];
   Type aoutput[xc.oh][xc.ow][V];
