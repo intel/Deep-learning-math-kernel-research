@@ -345,8 +345,8 @@ void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>(elx_conv_t<float> &xc,
   __m512 z6 = _mm512_set_ps(IMM_BCAST16(6.0f));
 
   auto f = [&](int _h, int _w) {
-    int _i = _h * xc.input_strides[2] + _w * 16;
-    return _mm512_load_ps(input + _i);
+    mdarray<float, 3> ainput(input, xc.ih, xc.iw, 16);
+    return _mm512_load_ps(&ainput(_h, _w, 0));
   };
 
 #undef F
@@ -1223,15 +1223,15 @@ void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(
   p22 = _mm512_add_ps(p22, c4);
   p22 = _mm512_fmadd_ps(z4, c3, p22);
 
-  _mm512_store_ps(P(0, 0), p00);
-  _mm512_store_ps(P(0, 1), p01);
-  _mm512_store_ps(P(0, 2), p02);
-  _mm512_store_ps(P(1, 0), p10);
-  _mm512_store_ps(P(1, 1), p11);
-  _mm512_store_ps(P(1, 2), p12);
-  _mm512_store_ps(P(2, 0), p20);
-  _mm512_store_ps(P(2, 1), p21);
-  _mm512_store_ps(P(2, 2), p22);
+  _mm512_stream_ps(P(0, 0), p00);
+  _mm512_stream_ps(P(0, 1), p01);
+  _mm512_stream_ps(P(0, 2), p02);
+  _mm512_stream_ps(P(1, 0), p10);
+  _mm512_stream_ps(P(1, 1), p11);
+  _mm512_stream_ps(P(1, 2), p12);
+  _mm512_stream_ps(P(2, 0), p20);
+  _mm512_stream_ps(P(2, 1), p21);
+  _mm512_stream_ps(P(2, 2), p22);
 }
 
 template <>
@@ -1242,7 +1242,7 @@ void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(elx_conv_t<float> &xc,
                                                        int _wOA_end) {
   ENABLE_AVX512F();
 
-  float dummy[16];
+  alignas(64) float dummy[16];
   auto p = [&](int _h, int _w) {
     int _i = _h * xc.output_strides[2] + _w * 16;
     if (_h > _hOA_end || _w > _wOA_end)
@@ -1357,15 +1357,15 @@ void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(elx_conv_t<float> &xc,
   p22 = _mm512_add_ps(p22, c4);
   p22 = _mm512_fmadd_ps(z4, c3, p22);
 
-  _mm512_store_ps(P(0, 0), p00);
-  _mm512_store_ps(P(0, 1), p01);
-  _mm512_store_ps(P(0, 2), p02);
-  _mm512_store_ps(P(1, 0), p10);
-  _mm512_store_ps(P(1, 1), p11);
-  _mm512_store_ps(P(1, 2), p12);
-  _mm512_store_ps(P(2, 0), p20);
-  _mm512_store_ps(P(2, 1), p21);
-  _mm512_store_ps(P(2, 2), p22);
+  _mm512_stream_ps(P(0, 0), p00);
+  _mm512_stream_ps(P(0, 1), p01);
+  _mm512_stream_ps(P(0, 2), p02);
+  _mm512_stream_ps(P(1, 0), p10);
+  _mm512_stream_ps(P(1, 1), p11);
+  _mm512_stream_ps(P(1, 2), p12);
+  _mm512_stream_ps(P(2, 0), p20);
+  _mm512_stream_ps(P(2, 1), p21);
+  _mm512_stream_ps(P(2, 2), p22);
 }
 
 }  // namespace euler

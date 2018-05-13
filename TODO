@@ -8,5 +8,5 @@
 - blocking
   performance with similar blocking
 - tail dim handling
-- per-thread trans-buffer
 
+- arch-specific compiling option

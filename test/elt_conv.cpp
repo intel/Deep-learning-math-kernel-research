@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include "elt_utils.hpp"
 #include "euler.hpp"
 
@@ -25,20 +26,22 @@ int main() {
 
   // 2. allocate memory
   float *input, *weights, *output, *bias;
-  input   = (float *)malloc(desc.byte_sizes.input);
-  weights = (float *)malloc(desc.byte_sizes.weights);
-  output  = (float *)malloc(desc.byte_sizes.output);
-  bias    = (float *)malloc(desc.byte_sizes.bias);
+  input   = (float *)memalign(64, desc.byte_sizes.input);
+  weights = (float *)memalign(64, desc.byte_sizes.weights);
+  output  = (float *)memalign(64, desc.byte_sizes.output);
+  bias    = (float *)memalign(64, desc.byte_sizes.bias);
 
+#pragma omp parallel for
   for (int i = 0; i < desc.sizes.input; i++) {
     input[i] = i % 18;
   }
+#pragma omp parallel for
   for (int i = 0; i < desc.sizes.weights; i++) {
     weights[i] = i % 32;
   }
 
   // 3. execute convolution
-  int iterations = 10000;
+  int iterations = 100;
   time_start(conv);
   for (int n = 0; n < iterations; ++n) {
     if (ELX_OK != elx_conv<float>(desc, input, weights, output, bias)) {

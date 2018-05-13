@@ -1,5 +1,5 @@
 CXX       := icc
-CXXFLAGS  := -Wall -Werror -Wextra -Wno-unused-parameter -std=c++11 -fopenmp -fPIC -Iinclude/ -Isrc/
+CXXFLAGS  := -Wall -Werror -Wextra -Wno-unused-parameter -xCore-AVX512 -qopt-zmm-usage=high -std=c++11 -fopenmp -fPIC -Iinclude/ -Isrc/
 LDFLAGS   := -Llib/
 LDLIBS    := -liomp5
 TCXX      := icc

@@ -1,3 +1,4 @@
+#include <x86intrin.h>
 #include "el_utils.hpp"
 #include "elx_conv_wino_gemm.hpp"
 #include "el_def.hpp"
@@ -51,9 +52,9 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   size_t tinput_size   = sizeof(Type) * A * A * this->T * this->ic * mthr_;
   size_t toutput_size  = sizeof(Type) * A * A * this->T * this->oc * mthr_;
 
-  tweights_ = (Type *)malloc(tweights_size);
-  tinput_   = (Type *)malloc(tinput_size);
-  toutput_  = (Type *)malloc(toutput_size);
+  tweights_ = (Type *)memalign(64, tweights_size);
+  tinput_   = (Type *)memalign(64, tinput_size);
+  toutput_  = (Type *)memalign(64, toutput_size);
 
   if (this->input_fmt == nChw16c) {
     this->input_strides[0] = 1;
@@ -117,7 +118,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::~elx_conv_wino_gemm_t() {
   }
 }
 
-pragma_opt_core_avx512 template <typename Type, const int A, const int K,
+template <typename Type, const int A, const int K,
                                  const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights(Type *tweights,
                                                            Type *weights) {
@@ -131,10 +132,10 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights(Type *tweights,
       for_each(_O2, this->O2) {
         for_each(_I2, this->I2) {
           Type aout[A][A][V][V];
-          Type in = aweights(_oc3 * this->O2 + _O2, _ic3 * this->I2 + _I2, 0, 0,
+          Type *in = &aweights(_oc3 * this->O2 + _O2, _ic3 * this->I2 + _I2, 0, 0,
                              0, 0);
-          MD(Type, ain, [K][K][V][V], &in);
-          ker_trans_weights_(aout, ain);
+          using Array = Type [K][K][V][V];
+          ker_trans_weights_(aout, *(Array*)in);
 
           for_each(_hA, A) {
             for_each(_wA, A) {
@@ -153,7 +154,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights(Type *tweights,
   }
 }
 
-pragma_opt_core_avx512 template <typename Type, const int A, const int K,
+template <typename Type, const int A, const int K,
                                  const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(Type *tinput,
                                                          Type *input, int _t2) {
@@ -161,11 +162,14 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(Type *tinput,
   mdarray<Type, 5> ainput(input, this->n, this->ic2, this->ih, this->iw, V);
   mdarray<Type, 6> atinput(tinput, A, A, this->ic3, this->I2, this->T, V);
 
-  Type aout[A][A][V];
+  alignas(64) Type aout[A][A][V];
   int _hA_start = this->lp; // first
   int _wA_start = this->tp;
   int _hA_end = (this->ih + this->lp) % (A - K + 1) - 1; // last
   int _wA_end = (this->iw + this->tp) % (A - K + 1) - 1;
+
+  if (_hA_end == -1) _hA_end = A - K;
+  if (_wA_end == -1) _wA_end = A - K;
 
   for_each(_ic3, this->ic3) {
     for_each(_I2, this->I2) {
@@ -175,8 +179,10 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(Type *tinput,
         int _ht = _nt / this->wt;
         int _wt = _nt % this->wt;
         int _ih = _ht * (A - K + 1) - this->lp;
-        int _iw = _wt % (A - K + 1) - this->tp;
+        int _iw = _wt * (A - K + 1) - this->tp;
 
+        if (_ih < 0) _ih = 0;
+        if (_iw < 0) _iw = 0;
         if (_ht > 0) _hA_start = 0;
         if (_wt > 0) _wA_start = 0;
         if (_ht < this->ht - 1) _hA_end = A - 1;
