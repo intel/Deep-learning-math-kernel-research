@@ -54,7 +54,7 @@ int test_elk_trans_output(bool perf, bool show_diff) {
         if (ref_aoutput[_oh][_ow][_oV] !=
             lest::approx(aoutput[_oh][_ow][_oV])) {
           error++;
-          if (show_diff) {
+          if (show_diff && error <= 10) {
             printf("Not equal!: [%d][%d][%d]: %f != %f (ref)\n", _oh, _ow, _oV,
                    aoutput[_oh][_ow][_oV], ref_aoutput[_oh][_ow][_oV]);
           }

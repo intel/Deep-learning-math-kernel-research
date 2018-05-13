@@ -53,7 +53,7 @@ int test_elk_trans_input(bool perf, bool show_diff) {
         if (ref_atinput[_hA][_wA][_iV] !=
             lest::approx(atinput[_hA][_wA][_iV])) {
           error++;
-          if (show_diff) {
+          if (show_diff && error <= 10) {
             printf("Not equal!: [%d][%d][%d]: %f != %f (ref)\n", _hA, _wA, _iV,
                    atinput[_hA][_wA][_iV], ref_atinput[_hA][_wA][_iV]);
           }
