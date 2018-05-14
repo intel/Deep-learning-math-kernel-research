@@ -5,6 +5,15 @@
 #include "elx_conv.hpp"
 #include "elk_conv.hpp"
 
+#undef ADD
+#undef SUB
+#undef FMADD
+#undef FMSUB
+#define ADD _mm512_add_ps
+#define SUB _mm512_sub_ps
+#define FMADD _mm512_fmadd_ps
+#define FMSUB _mm512_fmsub_ps
+
 namespace euler {
 
 template <typename T, const int A, const int K, const int V, const int I>
@@ -369,36 +378,43 @@ void elk_trans_output<float, 5, 3, 16, ISA_GENERIC>(elx_conv_t<float> &xc,
   }
 }
 
-#define AVX512_LOAD0(z, n, nil) t0##n = _mm512_load_ps(T(0, n));
-#define AVX512_LOAD1(z, n, nil) t1##n = _mm512_load_ps(T(1, n));
-#define AVX512_LOAD2(z, n, nil) t2##n = _mm512_load_ps(T(2, n));
-#define AVX512_LOAD3(z, n, nil) t3##n = _mm512_load_ps(T(3, n));
-#define AVX512_LOAD4(z, n, nil) t4##n = _mm512_load_ps(T(4, n));
-#define LOAD_ZMMS()                        \
-  do {                                     \
-    BOOST_PP_REPEAT(5, AVX512_LOAD0, nil); \
-    BOOST_PP_REPEAT(5, AVX512_LOAD1, nil); \
-    BOOST_PP_REPEAT(5, AVX512_LOAD2, nil); \
-    BOOST_PP_REPEAT(5, AVX512_LOAD3, nil); \
-    BOOST_PP_REPEAT(5, AVX512_LOAD4, nil); \
-  } while (0)
-
-#define AVX512_STORE0(z, n, nil) _mm512_stream_ps(P(0, n), p0##n);
-#define AVX512_STORE1(z, n, nil) _mm512_stream_ps(P(1, n), p1##n);
-#define AVX512_STORE2(z, n, nil) _mm512_stream_ps(P(2, n), p2##n);
-#define STORE_ZMMS()                        \
-  do {                                      \
-    BOOST_PP_REPEAT(3, AVX512_STORE0, nil); \
-    BOOST_PP_REPEAT(3, AVX512_STORE1, nil); \
-    BOOST_PP_REPEAT(3, AVX512_STORE2, nil); \
-  } while (0)
-
 template <>
 void elk_trans_output<float, 5, 3, 16, ISA_GENERIC>(elx_conv_t<float> &xc,
                                                     float *output,
                                                     float atoutput[5][5][16]) {
   elk_trans_output<float, 5, 3, 16, ISA_GENERIC>(xc, output, atoutput, 2, 2);
 }
+
+#define AVX512_LOAD0(z, n, nil) __m512 t0##n = _mm512_load_ps(T(0, n));
+#define AVX512_LOAD1(z, n, nil) __m512 t1##n = _mm512_load_ps(T(1, n));
+#define AVX512_LOAD2(z, n, nil) __m512 t2##n = _mm512_load_ps(T(2, n));
+#define AVX512_LOAD3(z, n, nil) __m512 t3##n = _mm512_load_ps(T(3, n));
+#define AVX512_LOAD4(z, n, nil) __m512 t4##n = _mm512_load_ps(T(4, n));
+#define LOAD_ZMMS()                        \
+    BOOST_PP_REPEAT(5, AVX512_LOAD0, nil); \
+    BOOST_PP_REPEAT(5, AVX512_LOAD1, nil); \
+    BOOST_PP_REPEAT(5, AVX512_LOAD2, nil); \
+    BOOST_PP_REPEAT(5, AVX512_LOAD3, nil); \
+    BOOST_PP_REPEAT(5, AVX512_LOAD4, nil); \
+
+#define AVX512_STORE0(z, n, nil) _mm512_stream_ps(P(0, n), p0##n);
+#define AVX512_STORE1(z, n, nil) _mm512_stream_ps(P(1, n), p1##n);
+#define AVX512_STORE2(z, n, nil) _mm512_stream_ps(P(2, n), p2##n);
+#define STORE_ZMMS()                        \
+    BOOST_PP_REPEAT(3, AVX512_STORE0, nil); \
+    BOOST_PP_REPEAT(3, AVX512_STORE1, nil); \
+    BOOST_PP_REPEAT(3, AVX512_STORE2, nil); \
+
+#define AVX512_CALCULATE_C_0(z, n, nil) \
+  c##n = ADD(ADD(ADD(t##n##0, t##n##1), t##n##2), t##n##3);
+#define AVX512_CALCULATE_C_1(z, n, nil) \
+  c##n = FMADD(z2, t##n##3, SUB(t##n##2, t##n##1));
+#define AVX512_CALCULATE_C_2(z, n, nil) \
+  c##n = FMADD(z4, t##n##3, ADD(ADD(t##n##1, t##n##2), t##n##4));
+#define AVX512_CALCULATE_P(n)                   \
+  __m512 p0##n = ADD(ADD(ADD(c0, c1), c2), c3); \
+  __m512 p1##n = FMADD(z2, c3, SUB(c2, c1));    \
+  __m512 p2##n = FMADD(z4, c3, ADD(ADD(c1, c2), c4));
 
 template <>
 void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(
@@ -417,81 +433,19 @@ void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(
 #define P(_h, _w) p(_h, _w)
 
   __m512 c0, c1, c2, c3, c4;
-  __m512 t00, t01, t02, t03, t04, t10, t11, t12, t13, t14, t20, t21, t22, t23,
-      t24, t30, t31, t32, t33, t34, t40, t41, t42, t43, t44;
-  __m512 p00, p01, p02, p10, p11, p12, p20, p21, p22;
   __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
   __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
 
   LOAD_ZMMS();
 
-  c0 = _mm512_add_ps(t00, t01);
-  c0 = _mm512_add_ps(c0, t02);
-  c0 = _mm512_add_ps(c0, t03);
-  c1 = _mm512_add_ps(t10, t11);
-  c1 = _mm512_add_ps(c1, t12);
-  c1 = _mm512_add_ps(c1, t13);
-  c2 = _mm512_add_ps(t20, t21);
-  c2 = _mm512_add_ps(c2, t22);
-  c2 = _mm512_add_ps(c2, t23);
-  c3 = _mm512_add_ps(t30, t31);
-  c3 = _mm512_add_ps(c3, t32);
-  c3 = _mm512_add_ps(c3, t33);
-  c4 = _mm512_add_ps(t40, t41);
-  c4 = _mm512_add_ps(c4, t42);
-  c4 = _mm512_add_ps(c4, t43);
+  BOOST_PP_REPEAT(5, AVX512_CALCULATE_C_0, nil);
+  AVX512_CALCULATE_P(0);
 
-  p00 = _mm512_add_ps(c0, c1);
-  p00 = _mm512_add_ps(p00, c2);
-  p00 = _mm512_add_ps(p00, c3);
-  p10 = _mm512_sub_ps(c2, c1);
-  p10 = _mm512_fmadd_ps(z2, c3, p10);
-  p20 = _mm512_add_ps(c2, c1);
-  p20 = _mm512_add_ps(p20, c4);
-  p20 = _mm512_fmadd_ps(z4, c3, p20);
+  BOOST_PP_REPEAT(5, AVX512_CALCULATE_C_1, nil);
+  AVX512_CALCULATE_P(1);
 
-  c0 = _mm512_sub_ps(t02, t01);
-  c0 = _mm512_fmadd_ps(z2, t03, c0);
-  c1 = _mm512_sub_ps(t12, t11);
-  c1 = _mm512_fmadd_ps(z2, t13, c1);
-  c2 = _mm512_sub_ps(t22, t21);
-  c2 = _mm512_fmadd_ps(z2, t23, c2);
-  c3 = _mm512_sub_ps(t32, t31);
-  c3 = _mm512_fmadd_ps(z2, t33, c3);
-  c4 = _mm512_sub_ps(t42, t41);
-  c4 = _mm512_fmadd_ps(z2, t43, c4);
-  p01 = _mm512_add_ps(c0, c1);
-  p01 = _mm512_add_ps(p01, c2);
-  p01 = _mm512_add_ps(p01, c3);
-  p11 = _mm512_sub_ps(c2, c1);
-  p11 = _mm512_fmadd_ps(z2, c3, p11);
-  p21 = _mm512_add_ps(c1, c2);
-  p21 = _mm512_add_ps(p21, c4);
-  p21 = _mm512_fmadd_ps(z4, c3, p21);
-
-  c0 = _mm512_add_ps(t01, t02);
-  c0 = _mm512_add_ps(c0, t04);
-  c0 = _mm512_fmadd_ps(z4, t03, c0);
-  c1 = _mm512_add_ps(t11, t12);
-  c1 = _mm512_add_ps(c1, t14);
-  c1 = _mm512_fmadd_ps(z4, t13, c1);
-  c2 = _mm512_add_ps(t21, t22);
-  c2 = _mm512_add_ps(c2, t24);
-  c2 = _mm512_fmadd_ps(z4, t23, c2);
-  c3 = _mm512_add_ps(t31, t32);
-  c3 = _mm512_add_ps(c3, t34);
-  c3 = _mm512_fmadd_ps(z4, t33, c3);
-  c4 = _mm512_add_ps(t41, t42);
-  c4 = _mm512_add_ps(c4, t44);
-  c4 = _mm512_fmadd_ps(z4, t43, c4);
-  p02 = _mm512_add_ps(c0, c1);
-  p02 = _mm512_add_ps(p02, c2);
-  p02 = _mm512_add_ps(p02, c3);
-  p12 = _mm512_sub_ps(c2, c1);
-  p12 = _mm512_fmadd_ps(z2, c3, p12);
-  p22 = _mm512_add_ps(c1, c2);
-  p22 = _mm512_add_ps(p22, c4);
-  p22 = _mm512_fmadd_ps(z4, c3, p22);
+  BOOST_PP_REPEAT(5, AVX512_CALCULATE_C_2, nil);
+  AVX512_CALCULATE_P(2);
 
   STORE_ZMMS();
 }
@@ -519,81 +473,19 @@ void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(elx_conv_t<float> &xc,
 #define P(_h, _w) p(_h, _w)
 
   __m512 c0, c1, c2, c3, c4;
-  __m512 t00, t01, t02, t03, t04, t10, t11, t12, t13, t14, t20, t21, t22, t23,
-      t24, t30, t31, t32, t33, t34, t40, t41, t42, t43, t44;
-  __m512 p00, p01, p02, p10, p11, p12, p20, p21, p22;
   __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
   __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
 
   LOAD_ZMMS();
 
-  c0 = _mm512_add_ps(t00, t01);
-  c0 = _mm512_add_ps(c0, t02);
-  c0 = _mm512_add_ps(c0, t03);
-  c1 = _mm512_add_ps(t10, t11);
-  c1 = _mm512_add_ps(c1, t12);
-  c1 = _mm512_add_ps(c1, t13);
-  c2 = _mm512_add_ps(t20, t21);
-  c2 = _mm512_add_ps(c2, t22);
-  c2 = _mm512_add_ps(c2, t23);
-  c3 = _mm512_add_ps(t30, t31);
-  c3 = _mm512_add_ps(c3, t32);
-  c3 = _mm512_add_ps(c3, t33);
-  c4 = _mm512_add_ps(t40, t41);
-  c4 = _mm512_add_ps(c4, t42);
-  c4 = _mm512_add_ps(c4, t43);
+  BOOST_PP_REPEAT(5, AVX512_CALCULATE_C_0, nil);
+  AVX512_CALCULATE_P(0);
 
-  p00 = _mm512_add_ps(c0, c1);
-  p00 = _mm512_add_ps(p00, c2);
-  p00 = _mm512_add_ps(p00, c3);
-  p10 = _mm512_sub_ps(c2, c1);
-  p10 = _mm512_fmadd_ps(z2, c3, p10);
-  p20 = _mm512_add_ps(c2, c1);
-  p20 = _mm512_add_ps(p20, c4);
-  p20 = _mm512_fmadd_ps(z4, c3, p20);
+  BOOST_PP_REPEAT(5, AVX512_CALCULATE_C_1, nil);
+  AVX512_CALCULATE_P(1);
 
-  c0 = _mm512_sub_ps(t02, t01);
-  c0 = _mm512_fmadd_ps(z2, t03, c0);
-  c1 = _mm512_sub_ps(t12, t11);
-  c1 = _mm512_fmadd_ps(z2, t13, c1);
-  c2 = _mm512_sub_ps(t22, t21);
-  c2 = _mm512_fmadd_ps(z2, t23, c2);
-  c3 = _mm512_sub_ps(t32, t31);
-  c3 = _mm512_fmadd_ps(z2, t33, c3);
-  c4 = _mm512_sub_ps(t42, t41);
-  c4 = _mm512_fmadd_ps(z2, t43, c4);
-  p01 = _mm512_add_ps(c0, c1);
-  p01 = _mm512_add_ps(p01, c2);
-  p01 = _mm512_add_ps(p01, c3);
-  p11 = _mm512_sub_ps(c2, c1);
-  p11 = _mm512_fmadd_ps(z2, c3, p11);
-  p21 = _mm512_add_ps(c1, c2);
-  p21 = _mm512_add_ps(p21, c4);
-  p21 = _mm512_fmadd_ps(z4, c3, p21);
-
-  c0 = _mm512_add_ps(t01, t02);
-  c0 = _mm512_add_ps(c0, t04);
-  c0 = _mm512_fmadd_ps(z4, t03, c0);
-  c1 = _mm512_add_ps(t11, t12);
-  c1 = _mm512_add_ps(c1, t14);
-  c1 = _mm512_fmadd_ps(z4, t13, c1);
-  c2 = _mm512_add_ps(t21, t22);
-  c2 = _mm512_add_ps(c2, t24);
-  c2 = _mm512_fmadd_ps(z4, t23, c2);
-  c3 = _mm512_add_ps(t31, t32);
-  c3 = _mm512_add_ps(c3, t34);
-  c3 = _mm512_fmadd_ps(z4, t33, c3);
-  c4 = _mm512_add_ps(t41, t42);
-  c4 = _mm512_add_ps(c4, t44);
-  c4 = _mm512_fmadd_ps(z4, t43, c4);
-  p02 = _mm512_add_ps(c0, c1);
-  p02 = _mm512_add_ps(p02, c2);
-  p02 = _mm512_add_ps(p02, c3);
-  p12 = _mm512_sub_ps(c2, c1);
-  p12 = _mm512_fmadd_ps(z2, c3, p12);
-  p22 = _mm512_add_ps(c1, c2);
-  p22 = _mm512_add_ps(p22, c4);
-  p22 = _mm512_fmadd_ps(z4, c3, p22);
+  BOOST_PP_REPEAT(5, AVX512_CALCULATE_C_2, nil);
+  AVX512_CALCULATE_P(2);
 
   STORE_ZMMS();
 }
