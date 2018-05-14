@@ -369,6 +369,30 @@ void elk_trans_output<float, 5, 3, 16, ISA_GENERIC>(elx_conv_t<float> &xc,
   }
 }
 
+#define AVX512_LOAD0(z, n, nil) t0##n = _mm512_load_ps(T(0, n));
+#define AVX512_LOAD1(z, n, nil) t1##n = _mm512_load_ps(T(1, n));
+#define AVX512_LOAD2(z, n, nil) t2##n = _mm512_load_ps(T(2, n));
+#define AVX512_LOAD3(z, n, nil) t3##n = _mm512_load_ps(T(3, n));
+#define AVX512_LOAD4(z, n, nil) t4##n = _mm512_load_ps(T(4, n));
+#define LOAD_ZMMS()                        \
+  do {                                     \
+    BOOST_PP_REPEAT(5, AVX512_LOAD0, nil); \
+    BOOST_PP_REPEAT(5, AVX512_LOAD1, nil); \
+    BOOST_PP_REPEAT(5, AVX512_LOAD2, nil); \
+    BOOST_PP_REPEAT(5, AVX512_LOAD3, nil); \
+    BOOST_PP_REPEAT(5, AVX512_LOAD4, nil); \
+  } while (0)
+
+#define AVX512_STORE0(z, n, nil) _mm512_stream_ps(P(0, n), p0##n);
+#define AVX512_STORE1(z, n, nil) _mm512_stream_ps(P(1, n), p1##n);
+#define AVX512_STORE2(z, n, nil) _mm512_stream_ps(P(2, n), p2##n);
+#define STORE_ZMMS()                        \
+  do {                                      \
+    BOOST_PP_REPEAT(3, AVX512_STORE0, nil); \
+    BOOST_PP_REPEAT(3, AVX512_STORE1, nil); \
+    BOOST_PP_REPEAT(3, AVX512_STORE2, nil); \
+  } while (0)
+
 template <>
 void elk_trans_output<float, 5, 3, 16, ISA_GENERIC>(elx_conv_t<float> &xc,
                                                     float *output,
@@ -399,31 +423,7 @@ void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(
   __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
   __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
 
-  t00 = _mm512_load_ps(T(0, 0));
-  t01 = _mm512_load_ps(T(0, 1));
-  t02 = _mm512_load_ps(T(0, 2));
-  t03 = _mm512_load_ps(T(0, 3));
-  t04 = _mm512_load_ps(T(0, 4));
-  t10 = _mm512_load_ps(T(1, 0));
-  t11 = _mm512_load_ps(T(1, 1));
-  t12 = _mm512_load_ps(T(1, 2));
-  t13 = _mm512_load_ps(T(1, 3));
-  t14 = _mm512_load_ps(T(1, 4));
-  t20 = _mm512_load_ps(T(2, 0));
-  t21 = _mm512_load_ps(T(2, 1));
-  t22 = _mm512_load_ps(T(2, 2));
-  t23 = _mm512_load_ps(T(2, 3));
-  t24 = _mm512_load_ps(T(2, 4));
-  t30 = _mm512_load_ps(T(3, 0));
-  t31 = _mm512_load_ps(T(3, 1));
-  t32 = _mm512_load_ps(T(3, 2));
-  t33 = _mm512_load_ps(T(3, 3));
-  t34 = _mm512_load_ps(T(3, 4));
-  t40 = _mm512_load_ps(T(4, 0));
-  t41 = _mm512_load_ps(T(4, 1));
-  t42 = _mm512_load_ps(T(4, 2));
-  t43 = _mm512_load_ps(T(4, 3));
-  t44 = _mm512_load_ps(T(4, 4));
+  LOAD_ZMMS();
 
   c0 = _mm512_add_ps(t00, t01);
   c0 = _mm512_add_ps(c0, t02);
@@ -493,15 +493,7 @@ void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(
   p22 = _mm512_add_ps(p22, c4);
   p22 = _mm512_fmadd_ps(z4, c3, p22);
 
-  _mm512_stream_ps(P(0, 0), p00);
-  _mm512_stream_ps(P(0, 1), p01);
-  _mm512_stream_ps(P(0, 2), p02);
-  _mm512_stream_ps(P(1, 0), p10);
-  _mm512_stream_ps(P(1, 1), p11);
-  _mm512_stream_ps(P(1, 2), p12);
-  _mm512_stream_ps(P(2, 0), p20);
-  _mm512_stream_ps(P(2, 1), p21);
-  _mm512_stream_ps(P(2, 2), p22);
+  STORE_ZMMS();
 }
 
 template <>
@@ -533,31 +525,7 @@ void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(elx_conv_t<float> &xc,
   __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
   __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
 
-  t00 = _mm512_load_ps(T(0, 0));
-  t01 = _mm512_load_ps(T(0, 1));
-  t02 = _mm512_load_ps(T(0, 2));
-  t03 = _mm512_load_ps(T(0, 3));
-  t04 = _mm512_load_ps(T(0, 4));
-  t10 = _mm512_load_ps(T(1, 0));
-  t11 = _mm512_load_ps(T(1, 1));
-  t12 = _mm512_load_ps(T(1, 2));
-  t13 = _mm512_load_ps(T(1, 3));
-  t14 = _mm512_load_ps(T(1, 4));
-  t20 = _mm512_load_ps(T(2, 0));
-  t21 = _mm512_load_ps(T(2, 1));
-  t22 = _mm512_load_ps(T(2, 2));
-  t23 = _mm512_load_ps(T(2, 3));
-  t24 = _mm512_load_ps(T(2, 4));
-  t30 = _mm512_load_ps(T(3, 0));
-  t31 = _mm512_load_ps(T(3, 1));
-  t32 = _mm512_load_ps(T(3, 2));
-  t33 = _mm512_load_ps(T(3, 3));
-  t34 = _mm512_load_ps(T(3, 4));
-  t40 = _mm512_load_ps(T(4, 0));
-  t41 = _mm512_load_ps(T(4, 1));
-  t42 = _mm512_load_ps(T(4, 2));
-  t43 = _mm512_load_ps(T(4, 3));
-  t44 = _mm512_load_ps(T(4, 4));
+  LOAD_ZMMS();
 
   c0 = _mm512_add_ps(t00, t01);
   c0 = _mm512_add_ps(c0, t02);
@@ -627,15 +595,7 @@ void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(elx_conv_t<float> &xc,
   p22 = _mm512_add_ps(p22, c4);
   p22 = _mm512_fmadd_ps(z4, c3, p22);
 
-  _mm512_stream_ps(P(0, 0), p00);
-  _mm512_stream_ps(P(0, 1), p01);
-  _mm512_stream_ps(P(0, 2), p02);
-  _mm512_stream_ps(P(1, 0), p10);
-  _mm512_stream_ps(P(1, 1), p11);
-  _mm512_stream_ps(P(1, 2), p12);
-  _mm512_stream_ps(P(2, 0), p20);
-  _mm512_stream_ps(P(2, 1), p21);
-  _mm512_stream_ps(P(2, 2), p22);
+  STORE_ZMMS();
 }
 
 }  // namespace euler
