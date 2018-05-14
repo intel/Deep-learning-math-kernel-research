@@ -222,7 +222,8 @@ void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>(elx_conv_t<float> &xc,
   c2 =  ADD(f22, FMSUB(z2, SUB(f23, f21), f24));
   c3 =  ADD(f32, FMSUB(z2, SUB(f33, f31), f34));
 
-  t04 = ADD(FMADD(z4, SUB(f01, f03), c1), FMSUB(z2, ADD(SUB(f04, f02), c2), c3));
+  t04 = ADD(FMADD(z4, SUB(f01, f03), c1),
+            FMSUB(z2, ADD(SUB(f04, f02), c2), c3));
   _mm512_store_ps(T(0, 4), t04);
   t14 = FMSUB(z3, c2, FMADD(z2, c1, c3));
   _mm512_store_ps(T(1, 4), t14);
@@ -243,13 +244,19 @@ void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>(
   ENABLE_AVX512F();
 
   // Inputs
-  __m512 f00, f01, f02, f03, f04, f10, f11, f12, f13, f14, f20, f21, f22, f23,
-      f24, f30, f31, f32, f33, f34, f40, f41, f42, f43, f44;
+  __m512 f00, f01, f02, f03, f04,
+         f10, f11, f12, f13, f14,
+         f20, f21, f22, f23, f24,
+         f30, f31, f32, f33, f34,
+         f40, f41, f42, f43, f44;
   // Cache
   __m512 c1, c2, c3;
   // Outputs
-  __m512 t00, t01, t02, t03, t04, t10, t11, t12, t13, t14, t20, t21, t22, t23,
-      t24, t30, t31, t32, t33, t34, t40, t41, t42, t43, t44;
+  __m512 t00, t01, t02, t03, t04,
+         t10, t11, t12, t13, t14,
+         t20, t21, t22, t23, t24,
+         t30, t31, t32, t33, t34,
+         t40, t41, t42, t43, t44;
 
   __m512 z0 = _mm512_setzero_ps();
   __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
@@ -340,7 +347,8 @@ void elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>(
   c2 =  ADD(f22, FMSUB(z2, SUB(f23, f21), f24));
   c3 =  ADD(f32, FMSUB(z2, SUB(f33, f31), f34));
 
-  t04 = ADD(FMADD(z4, SUB(f01, f03), c1), FMSUB(z2, ADD(SUB(f04, f02), c2), c3));
+  t04 = ADD(FMADD(z4, SUB(f01, f03), c1),
+            FMSUB(z2, ADD(SUB(f04, f02), c2), c3));
   _mm512_store_ps(T(0, 4), t04);
   t14 = FMSUB(z3, c2, FMADD(z2, c1, c3));
   _mm512_store_ps(T(1, 4), t14);
