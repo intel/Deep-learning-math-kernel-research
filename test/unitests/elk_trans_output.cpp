@@ -26,9 +26,9 @@ int test_elk_trans_output(bool perf, bool show_diff) {
   desc.with_relu = false;
   elx_conv_wino_gemm_t<Type, A, K, V, I> xc(desc);
 
-  Type atoutput[A][A][V];
-  Type aoutput[xc.oh][xc.ow][V];
-  Type ref_aoutput[xc.oh][xc.ow][V];
+  alignas(64) Type atoutput[A][A][V];
+  alignas(64) Type aoutput[xc.oh][xc.ow][V];
+  alignas(64) Type ref_aoutput[xc.oh][xc.ow][V];
 
   for (int _hA = 0; _hA < A; ++_hA) {
     for (int _wA = 0; _wA < A; ++_wA) {
