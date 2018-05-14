@@ -29,35 +29,6 @@ elx_conv_wino_prod_t<Type, A, K, V, I>::elx_conv_wino_prod_t(
   tweights_ = (Type *)malloc(tweights_size);
   tinput_ = (Type *)malloc(tinput_size);
   toutput_  = nullptr;
-
-  if (this->input_fmt == nChw16c) {
-    this->input_strides[0] = 1;
-    this->input_strides[1] = V;
-    this->input_strides[2] = V * this->iw;
-    this->input_strides[3] = V * this->iw * this->ih;
-    this->input_strides[4] = V * this->iw * this->ih * this->ic2;
-  } else {
-    // TODO
-  }
-  if (this->weights_fmt == OIhw16i16o) {
-    this->weights_strides[0] = 1;
-    this->weights_strides[1] = V;
-    this->weights_strides[2] = V * V;
-    this->weights_strides[3] = V * V * this->kw;
-    this->weights_strides[4] = V * V * this->kw * this->kh;
-    this->weights_strides[5] = V * V * this->kw * this->kh * this->ic2;
-  } else {
-    // TODO
-  }
-  if (this->output_fmt == nChw16c) {
-    this->output_strides[0] = 1;
-    this->output_strides[1] = V;
-    this->output_strides[2] = V * this->ow;
-    this->output_strides[3] = V * this->ow * this->oh;
-    this->output_strides[4] = V * this->ow * this->oh * this->oc2;
-  } else {
-    // TODO
-  }
 }
 
 template <typename T, const int A, const int K, const int V, const int I>

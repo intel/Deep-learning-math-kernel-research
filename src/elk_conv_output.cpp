@@ -333,11 +333,11 @@ void elk_trans_output<float, 5, 3, 16, ISA_GENERIC>(elx_conv_t<float> &xc,
                                                     int _wOA_end) {
   float dummy[16];
   auto p = [&](int _h, int _w, int _V) {
-    int _i = _h * xc.output_strides[2] + _w * 16 + _V;
+    mdarray<float, 3> aoutput(output, xc.oh, xc.ow, 16);
     if (_h > _hOA_end || _w > _wOA_end)
       return &dummy[_V];
     else
-      return output + _i;
+      return &aoutput(_h, _w, _V);
   };
 
 #undef T
@@ -423,8 +423,8 @@ void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(
   ENABLE_AVX512F();
 
   auto p = [&](int _h, int _w) {
-    int _i = _h * xc.output_strides[2] + _w * 16;
-    return output + _i;
+    mdarray<float, 3> aoutput(output, xc.oh, xc.ow, 16);
+    return &aoutput(_h, _w, 0);
   };
 
 #undef P
@@ -460,11 +460,11 @@ void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(elx_conv_t<float> &xc,
 
   alignas(64) float dummy[16];
   auto p = [&](int _h, int _w) {
-    int _i = _h * xc.output_strides[2] + _w * 16;
+    mdarray<float, 3> aoutput(output, xc.oh, xc.ow, 16);
     if (_h > _hOA_end || _w > _wOA_end)
       return dummy;
     else
-      return output + _i;
+      return &aoutput(_h, _w, 0);
   };
 
 #undef P

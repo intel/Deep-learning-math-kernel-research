@@ -45,10 +45,6 @@ class elx_conv_t {
 
   // relu, bias
   bool with_relu, with_bias;
-  // tensor strides
-  int input_strides[8];
-  int weights_strides[8];
-  int output_strides[8];
 
   elx_conv_t(eld_conv_t<Type> &dc);
   virtual ~elx_conv_t() {}
