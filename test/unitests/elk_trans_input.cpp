@@ -40,9 +40,11 @@ int test_elk_trans_input(bool perf, bool show_diff) {
     }
   }
 
+  memset(atinput, 0, sizeof(atinput));
   TT(elk_trans_input, iterations, perf,
      (elk_trans_input<Type, A, K, V, I>(xc, atinput, (Type *)&ainput)));
 
+  memset(ref_atinput, 0, sizeof(ref_atinput));
   TT(elk_trans_input, iterations, perf,
      (elk_trans_input<Type, A, K, V, ISA_GENERIC>(xc, ref_atinput,
                                                   (Type *)&ainput)));
@@ -53,7 +55,7 @@ int test_elk_trans_input(bool perf, bool show_diff) {
         if (ref_atinput[_hA][_wA][_iV] !=
             lest::approx(atinput[_hA][_wA][_iV])) {
           error++;
-          if (show_diff && error <= 10) {
+          if (show_diff && error <= 32) {
             printf("Not equal!: [%d][%d][%d]: %f != %f (ref)\n", _hA, _wA, _iV,
                    atinput[_hA][_wA][_iV], ref_atinput[_hA][_wA][_iV]);
           }
