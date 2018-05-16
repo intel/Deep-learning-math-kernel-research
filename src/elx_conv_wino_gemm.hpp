@@ -5,6 +5,7 @@
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
 #include "euler.hpp"
+#include "elk_conv.hpp"
 
 namespace euler {
 
@@ -22,7 +23,7 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
  private:
   void trans_weights(Type *tweights, Type *weights);
   void trans_input(Type *tinput, Type *input, int _t2);
-  void trans_output(Type *output, Type *toutput, int _t2);
+  void trans_output(Type *output, Type *toutput, Type *bias, int _t2);
   void gemm(Type *toutput, Type *tinput, Type *tweights);
 
   size_t mthr_;
@@ -30,27 +31,25 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   Type *tinput_;
   Type *toutput_;
 
-  using func_gemm_t = void(elx_conv_t<Type> &xc, Type *toutput, Type *tinput,
-                           Type *tweights, bool zero_out);
-  using func_trans_input_t = void(elx_conv_t<Type> &xc, Type atinput[A][A][V],
-                                  Type *input);
-  using func_trans_inputX_t = void(elx_conv_t<Type> &xc, Type atinput[A][A][V],
-                                   Type *input, int _hA_start, int _hA_end,
-                                   int _wA_start, int _wA_end);
-  using func_trans_weights_t = void(Type atweights[A][A][V][V],
-                                    Type aweights[K][K][V][V]);
-  using func_trans_output_t = void(elx_conv_t<Type> &xc, Type *output,
-                                   Type atoutput[A][A][V]);
-  using func_trans_outputX_t = void(elx_conv_t<Type> &xc, Type *output,
-                                    Type atoutput[A][A][V], int _hOA_end,
-                                    int _wOA_end);
+  using func_gemm_t          = decltype(
+      convolution_winograd_kernel<Type, 1, 0, 0, V, I, false>::gemm);
+  using func_trans_input_t   = decltype(
+      convolution_winograd_kernel<Type, 0, A, K, V, I, false>::trans_input);
+  using func_trans_input0_t  = decltype(
+      convolution_winograd_kernel<Type, 0, A, K, V, I, false>::trans_input0);
+  using func_trans_weights_t = decltype(
+      convolution_winograd_kernel<Type, 0, A, K, V, I, false>::trans_weights);
+  using func_trans_output_t  = decltype(
+      convolution_winograd_kernel<Type, 0, A, K, V, I, true>::trans_output);
+  using func_trans_output0_t = decltype(
+      convolution_winograd_kernel<Type, 0, A, K, V, I, true>::trans_output0);
 
   func_gemm_t *ker_gemm_;
   func_trans_input_t *ker_trans_input_;
-  func_trans_inputX_t *ker_trans_inputX_;
+  func_trans_input0_t *ker_trans_input0_;
   func_trans_weights_t *ker_trans_weights_;
   func_trans_output_t *ker_trans_output_;
-  func_trans_outputX_t *ker_trans_outputX_;
+  func_trans_output0_t *ker_trans_output0_;
 };
 
 template class elx_conv_wino_gemm_t<float, 5, 3, 16, ISA_GENERIC>;

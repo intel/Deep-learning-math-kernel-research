@@ -53,13 +53,14 @@ int test_elk_gemm(bool perf, bool show_diff) {
 
   memset(toutput, 0, xc.O2 * xc.T * xc.V * sizeof(Type));
   TT(elk_gemm, iterations, perf,
-     (elk_gemm<Type, T, V, I>(xc, toutput, tinput, tweights, true)));
+      (convolution_winograd_kernel<Type, T, 0, 0, V, I, false>::gemm(
+          xc, toutput, tinput, tweights, true)));
 
-  Type *ref_toutput = (Type *)malloc(toutput_sz);
+  Type* ref_toutput = (Type*)malloc(toutput_sz);
   memset(ref_toutput, 0, xc.O2 * xc.T * xc.V * sizeof(Type));
   TT(ref_elk_gemm, iterations, perf,
-     (elk_gemm<Type, T, V, ISA_GENERIC>(xc, ref_toutput, tinput, tweights,
-                                        true)));
+      (convolution_winograd_kernel<Type, T, 0, 0, V, ISA_GENERIC, false>::gemm(
+          xc, ref_toutput, tinput, tweights, true)));
 
   for (size_t i = 0; i < toutput_sz / sizeof(Type); i++) {
     if (ref_toutput[i] != lest::approx(toutput[i])) {

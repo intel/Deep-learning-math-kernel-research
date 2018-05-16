@@ -10,3 +10,7 @@
 - tail dim handling
 
 - arch-specific compiling option
+
+- bias
+- relu
+- sum

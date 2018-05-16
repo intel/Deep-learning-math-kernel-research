@@ -2,6 +2,8 @@
 #define __ELK_CONV_HPP__
 
 #include "el_def.hpp"
+#include "el_utils.hpp"
+#include "elx_conv.hpp"
 
 #define __E()
 #define __DEFER(x) x __E()
@@ -46,36 +48,155 @@
 namespace euler {
 
 template <typename T, const int A, const int K, const int V, const int I>
-void elk_trans_weights(T atweights[A][A][V][V], T aweights[K][K][V][V]);
+void elk_product_trans_output(
+    elx_conv_t<T>& xc, T* tinput, T* tweights, T* output, int _ih2, int _iw2);
 
-template <typename T, const int A, const int K, const int V, const int I>
-void elk_trans_input(elx_conv_t<T> &xc, T atinput[A][A][V], T *input);
-
-template <typename T, const int A, const int K, const int V, const int I>
-void elk_trans_input(elx_conv_t<T> &xc, T atinput[A][A][V], T *input,
-                     int _hA_start, int _hA_end, int _wA_start, int _wA_end);
-
-template <typename Type, int A, const int K, int V, int I>
-void elk_trans_output(elx_conv_t<Type> &xc, Type *output,
-                      Type atoutput[A][A][V]);
-
-template <typename Type, int A, const int K, int V, int I>
-void elk_trans_output(elx_conv_t<Type> &xc, Type *output,
-                      Type atoutput[A][A][V], int _hOA_end, int _wOA_end);
-
-template <typename T, const int A, const int K, const int V, const int I>
-void elk_product_trans_output(elx_conv_t<T> &xc, T *tinput, T *tweights,
-                              T *output, int _ih2, int _iw2);
-
-// Type: data type;
-// T: tile blocking unit;
+// Type: data type
+// T: tile blocking unit
+// A: tile size
+// K: kernel size
 // V: vector size
 // I: ISA
+// with_bias: has bias
+template <typename Type, const int T, const int A, const int K, const int V,
+    const int I, const bool with_bias>
+struct winograd_template_parameter_t {
+};
 
-template <typename Type, int T, int V, int I>
-void elk_gemm(elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights,
-              bool zero_out);
+template <typename Type, const int T, const int A, const int K, const int V,
+    const int I, const bool with_bias>
+struct convolution_winograd_kernel {
+  static void trans_input(
+      elx_conv_t<Type>& xc, Type atinput[A][A][V], Type* input);
 
-}  // namespace euler
+  static void trans_input0(elx_conv_t<Type>& xc, Type atinput[A][A][V],
+      Type* input, int _hA_start, int _hA_end, int _wA_start, int _wA_end);
+
+  static void trans_output(
+      elx_conv_t<Type>& xc, Type* output, Type atoutput[A][A][V], Type* bias);
+
+  static void trans_output0(elx_conv_t<Type>& xc, Type* output,
+      Type atoutput[A][A][V], Type* bias, int _hOA_end, int _wOA_end);
+
+  static void trans_weights(
+      Type atweights[A][A][V][V], Type aweights[K][K][V][V]);
+
+  static void gemm(elx_conv_t<Type>& xc, Type* toutput, Type* tinput,
+      Type* tweights, bool zero_out);
+
+  // C
+  static inline void __trans_input(
+      winograd_template_parameter_t<float, 0, 5, 3, 16, ISA_GENERIC, false>,
+      elx_conv_t<float>& xc, float atinput[5][5][16], float* input);
+
+  static inline void __trans_input0(
+      winograd_template_parameter_t<float, 0, 5, 3, 16, ISA_GENERIC, false>,
+      elx_conv_t<float>& xc, float atinput[5][5][16], float* input,
+      int _hT_start, int _hT_end, int _wT_start, int _wT_end);
+
+  template <const bool with_bias_>
+  static inline void __trans_output(winograd_template_parameter_t<float, 0, 5,
+                                        3, 16, ISA_GENERIC, with_bias_>,
+      elx_conv_t<float>& xc, float* output, float atoutput[A][A][V],
+      float* bias);
+
+  template <const bool with_bias_>
+  static inline void __trans_output0(winograd_template_parameter_t<float, 0, 5,
+                                         3, 16, ISA_GENERIC, with_bias_>,
+      elx_conv_t<float>& xc, float* output, float atoutput[A][A][V],
+      float* bias, int _hOA_end, int _wOA_end);
+
+  static inline void __trans_weights(
+      winograd_template_parameter_t<float, 0, 5, 3, 16, ISA_GENERIC, false>,
+      Type atweights[A][A][V][V], Type aweights[K][K][V][V]);
+
+  template <const int T_>
+  static inline void __gemm(
+      winograd_template_parameter_t<float, T_, 0, 0, 16, ISA_GENERIC, false>,
+      elx_conv_t<float>& xc, float* toutput, float* tinput, float* tweights,
+      bool zero_out);
+
+  // AVX512
+  static inline void __trans_input(
+      winograd_template_parameter_t<float, 0, 5, 3, 16, ISA_SKX_AVX512, false>,
+      elx_conv_t<float>& xc, float atinput[5][5][16], float* input);
+
+  static inline void __trans_input0(
+      winograd_template_parameter_t<float, 0, 5, 3, 16, ISA_SKX_AVX512, false>,
+      elx_conv_t<float>& xc, float atinput[5][5][16], float* input,
+      int _hT_start, int _hT_end, int _wT_start, int _wT_end);
+
+  template <const bool with_bias_>
+  static inline void __trans_output(winograd_template_parameter_t<float, 0, 5,
+                                        3, 16, ISA_SKX_AVX512, with_bias_>,
+      elx_conv_t<float>& xc, float* output, float atoutput[A][A][V],
+      float* bias);
+
+  template <const bool with_bias_>
+  static inline void __trans_output0(winograd_template_parameter_t<float, 0, 5,
+                                         3, 16, ISA_SKX_AVX512, with_bias_>,
+      elx_conv_t<float>& xc, float* output, float atoutput[A][A][V],
+      float* bias, int _hOA_end, int _wOA_end);
+
+  static inline void __trans_weights(
+      winograd_template_parameter_t<float, 0, 5, 3, 16, ISA_SKX_AVX512, false>,
+      Type atweights[A][A][V][V], Type aweights[K][K][V][V]);
+
+#define DEF_gemm(z, n, nil)                                                    \
+  static inline void __gemm(winograd_template_parameter_t<float, n, 0, 0, 16,  \
+                                ISA_SKX_AVX512, false>,                        \
+      elx_conv_t<float>& xc, float* toutput, float* tinput, float* tweights,   \
+      bool zero_out);
+  BOOST_PP_REPEAT_FROM_TO(1, 29, DEF_gemm, nil);
+
+  // Generic
+  template <typename Type_, const int T_, const int A_, const int K_,
+      const int V_, const int I_, const bool with_bias_>
+  static inline void __trans_input(
+      winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, with_bias_>,
+      elx_conv_t<Type_>&, Type_[A_][A_][V_], Type_*)
+  {
+  }
+
+  template <typename Type_, const int T_, const int A_, const int K_,
+      const int V_, const int I_, const bool with_bias_>
+  static inline void __trans_input0(
+      winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, with_bias_>,
+      elx_conv_t<Type_>&, Type_[A_][A_][V_], Type_*, int, int, int, int)
+  {
+  }
+
+  template <typename Type_, const int T_, const int A_, const int K_,
+      const int V_, const int I_, const bool with_bias_>
+  static inline void __trans_output(
+      winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, with_bias_>,
+      elx_conv_t<Type_>&, Type_*, Type_[A_][A_][V_], Type_*)
+  {
+  }
+
+  template <typename Type_, const int T_, const int A_, const int K_,
+      const int V_, const int I_, const bool with_bias_>
+  static inline void __trans_output0(
+      winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, with_bias_>,
+      elx_conv_t<Type_>&, Type_*, Type_[A_][A_][V_], Type_*, int, int)
+  {
+  }
+
+  template <typename Type_, const int T_, const int A_, const int K_,
+      const int V_, const int I_, const bool with_bias_>
+  static inline void __trans_weights(
+      winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, with_bias_>,
+      Type[A_][A_][V_][V_], Type[K_][K_][V_][V_]);
+
+  template <typename Type_, const int T_, const int A_, const int K_,
+      const int V_, const int I_, const bool with_bias_>
+  static inline void __gemm(
+      winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, with_bias_>,
+      elx_conv_t<Type>&, Type*, Type*, Type*, bool)
+  {
+  }
+};
+
+} // namespace euler
 
 #endif // __ELK_CONV_HPP__

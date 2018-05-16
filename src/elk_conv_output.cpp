@@ -20,9 +20,6 @@ template <typename T, const int A, const int K, const int V, const int I>
 void elk_product_trans_output(elx_conv_t<T> &xc, T *tinput, T *tweights,
                               T *output, int _ih2, int _iw2) {}
 
-
-
-
 template <>
 void elk_product_trans_output<float, 5, 3, 16, ISA_GENERIC>(
     elx_conv_t<float> &xc, float *tinput, float *tweights, float *output,
@@ -316,21 +313,36 @@ void elk_product_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(
   _mm512_store_ps(P(2, 2), p22);  //
 }
 
-template <typename Type, int A, const int K, int V, int I>
-void elk_trans_output(elx_conv_t<Type> &xc, Type *output,
-                      Type atoutput[A][A][V]) {}
+template <typename Type, const int T, const int A, const int K, const int V,
+    const int I, const bool with_bias>
+void convolution_winograd_kernel<Type, T, A, K, V, I, with_bias>::trans_output(
+    elx_conv_t<Type>& xc, Type* output, Type atoutput[A][A][V], Type* bias)
+{
+  __trans_output(
+      winograd_template_parameter_t<Type, T, A, K, V, I, with_bias>(), xc,
+      output, atoutput, bias);
+}
 
-template <typename Type, int A, const int K, int V, int I>
-void elk_trans_output(elx_conv_t<Type> &xc, Type *output,
-                      Type atoutput[A][A][V],
-                      int _hOA_end, int _wOA_end) {}
+template <typename Type, const int T, const int A, const int K, const int V,
+    const int I, const bool with_bias>
+void convolution_winograd_kernel<Type, T, A, K, V, I, with_bias>::trans_output0(
+    elx_conv_t<Type>& xc, Type* output, Type atoutput[A][A][V], Type* bias,
+    int _hOA_end, int _wOA_end)
+{
+  __trans_output0(
+      winograd_template_parameter_t<Type, T, A, K, V, I, with_bias>(), xc,
+      output, atoutput, bias, _hOA_end, _wOA_end);
+}
 
-template <>
-void elk_trans_output<float, 5, 3, 16, ISA_GENERIC>(elx_conv_t<float> &xc,
-                                                    float *output,
-                                                    float atoutput[5][5][16],
-                                                    int _hOA_end,
-                                                    int _wOA_end) {
+template <typename Type, const int T, const int A, const int K, const int V,
+    const int I, const bool with_bias>
+template <const bool with_bias_>
+void convolution_winograd_kernel<Type, T, A, K, V, I,
+    with_bias>::__trans_output0(winograd_template_parameter_t<float, 0, 5, 3,
+                                    16, ISA_GENERIC, with_bias_>,
+    elx_conv_t<float>& xc, float* output, float atoutput[A][A][V], float* bias,
+    int _hOA_end, int _wOA_end)
+{
   float dummy[16];
   auto p = [&](int _h, int _w, int _V) {
     mdarray<float, 3> aoutput(output, xc.oh, xc.ow, 16);
@@ -378,11 +390,18 @@ void elk_trans_output<float, 5, 3, 16, ISA_GENERIC>(elx_conv_t<float> &xc,
   }
 }
 
-template <>
-void elk_trans_output<float, 5, 3, 16, ISA_GENERIC>(elx_conv_t<float> &xc,
-                                                    float *output,
-                                                    float atoutput[5][5][16]) {
-  elk_trans_output<float, 5, 3, 16, ISA_GENERIC>(xc, output, atoutput, 2, 2);
+template <typename Type, const int T, const int A, const int K, const int V,
+    const int I, const bool with_bias>
+template <const bool with_bias_>
+void convolution_winograd_kernel<Type, T, A, K, V, I,
+    with_bias>::__trans_output(winograd_template_parameter_t<float, 0, 5, 3, 16,
+                                   ISA_GENERIC, with_bias_>,
+    elx_conv_t<float>& xc, float* output, float atoutput[A][A][V], float* bias)
+{
+  convolution_winograd_kernel<Type, T, A, K, V, I, with_bias>::__trans_output0(
+      winograd_template_parameter_t<float, 0, 5, 3, 16, ISA_GENERIC,
+          with_bias_>(),
+      xc, output, atoutput, bias, 2, 2);
 }
 
 #define AVX512_LOAD0(z, n, nil) __m512 t0##n = _mm512_load_ps(T(0, n));
@@ -390,36 +409,40 @@ void elk_trans_output<float, 5, 3, 16, ISA_GENERIC>(elx_conv_t<float> &xc,
 #define AVX512_LOAD2(z, n, nil) __m512 t2##n = _mm512_load_ps(T(2, n));
 #define AVX512_LOAD3(z, n, nil) __m512 t3##n = _mm512_load_ps(T(3, n));
 #define AVX512_LOAD4(z, n, nil) __m512 t4##n = _mm512_load_ps(T(4, n));
-#define LOAD_ZMMS()                        \
-    BOOST_PP_REPEAT(5, AVX512_LOAD0, nil); \
-    BOOST_PP_REPEAT(5, AVX512_LOAD1, nil); \
-    BOOST_PP_REPEAT(5, AVX512_LOAD2, nil); \
-    BOOST_PP_REPEAT(5, AVX512_LOAD3, nil); \
-    BOOST_PP_REPEAT(5, AVX512_LOAD4, nil); \
+#define LOAD_ZMMS()                                                            \
+  BOOST_PP_REPEAT(5, AVX512_LOAD0, nil);                                       \
+  BOOST_PP_REPEAT(5, AVX512_LOAD1, nil);                                       \
+  BOOST_PP_REPEAT(5, AVX512_LOAD2, nil);                                       \
+  BOOST_PP_REPEAT(5, AVX512_LOAD3, nil);                                       \
+  BOOST_PP_REPEAT(5, AVX512_LOAD4, nil);
 
 #define AVX512_STORE0(z, n, nil) _mm512_stream_ps(P(0, n), p0##n);
 #define AVX512_STORE1(z, n, nil) _mm512_stream_ps(P(1, n), p1##n);
 #define AVX512_STORE2(z, n, nil) _mm512_stream_ps(P(2, n), p2##n);
-#define STORE_ZMMS()                        \
-    BOOST_PP_REPEAT(3, AVX512_STORE0, nil); \
-    BOOST_PP_REPEAT(3, AVX512_STORE1, nil); \
-    BOOST_PP_REPEAT(3, AVX512_STORE2, nil); \
+#define STORE_ZMMS()                                                           \
+  BOOST_PP_REPEAT(3, AVX512_STORE0, nil);                                      \
+  BOOST_PP_REPEAT(3, AVX512_STORE1, nil);                                      \
+  BOOST_PP_REPEAT(3, AVX512_STORE2, nil);
 
-#define AVX512_CALCULATE_C_0(z, n, nil) \
+#define AVX512_CALCULATE_C_0(z, n, nil)                                        \
   c##n = ADD(ADD(ADD(t##n##0, t##n##1), t##n##2), t##n##3);
-#define AVX512_CALCULATE_C_1(z, n, nil) \
+#define AVX512_CALCULATE_C_1(z, n, nil)                                        \
   c##n = FMADD(z2, t##n##3, SUB(t##n##2, t##n##1));
-#define AVX512_CALCULATE_C_2(z, n, nil) \
+#define AVX512_CALCULATE_C_2(z, n, nil)                                        \
   c##n = FMADD(z4, t##n##3, ADD(ADD(t##n##1, t##n##2), t##n##4));
-#define AVX512_CALCULATE_P(n)                   \
-  __m512 p0##n = ADD(ADD(ADD(c0, c1), c2), c3); \
-  __m512 p1##n = FMADD(z2, c3, SUB(c2, c1));    \
+#define AVX512_CALCULATE_P(n)                                                  \
+  __m512 p0##n = ADD(ADD(ADD(c0, c1), c2), c3);                                \
+  __m512 p1##n = FMADD(z2, c3, SUB(c2, c1));                                   \
   __m512 p2##n = FMADD(z4, c3, ADD(ADD(c1, c2), c4));
 
-template <>
-void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(
-    elx_conv_t<float> &xc, float *output, float atoutput[5][5][16]) {
-
+template <typename Type, const int T, const int A, const int K, const int V,
+    const int I, const bool with_bias>
+template <const bool with_bias_>
+void convolution_winograd_kernel<Type, T, A, K, V, I,
+    with_bias>::__trans_output(winograd_template_parameter_t<float, 0, 5, 3, 16,
+                                   ISA_SKX_AVX512, with_bias_>,
+    elx_conv_t<float>& xc, float* output, float atoutput[A][A][V], float* bias)
+{
   ENABLE_AVX512F();
 
   auto p = [&](int _h, int _w) {
@@ -450,12 +473,15 @@ void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(
   STORE_ZMMS();
 }
 
-template <>
-void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(elx_conv_t<float> &xc,
-                                                       float *output,
-                                                       float atoutput[5][5][16],
-                                                       int _hOA_end,
-                                                       int _wOA_end) {
+template <typename Type, const int T, const int A, const int K, const int V,
+    const int I, const bool with_bias>
+template <const bool with_bias_>
+void convolution_winograd_kernel<Type, T, A, K, V, I,
+    with_bias>::__trans_output0(winograd_template_parameter_t<float, 0, 5, 3,
+                                    16, ISA_SKX_AVX512, with_bias_>,
+    elx_conv_t<float>& xc, float* output, float atoutput[A][A][V], float* bias,
+    int _hOA_end, int _wOA_end)
+{
   ENABLE_AVX512F();
 
   alignas(64) float dummy[16];
@@ -490,4 +516,27 @@ void elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(elx_conv_t<float> &xc,
   STORE_ZMMS();
 }
 
-}  // namespace euler
+template void convolution_winograd_kernel<float, 0, 5, 3, 16, ISA_GENERIC,
+    true>::trans_output(elx_conv_t<float>&, float*, float[5][5][16], float*);
+template void convolution_winograd_kernel<float, 0, 5, 3, 16, ISA_GENERIC,
+    true>::trans_output0(elx_conv_t<float>&, float*, float[5][5][16], float*,
+    int, int);
+
+template void convolution_winograd_kernel<float, 0, 5, 3, 16, ISA_GENERIC,
+    false>::trans_output(elx_conv_t<float>&, float*, float[5][5][16], float*);
+template void convolution_winograd_kernel<float, 0, 5, 3, 16, ISA_GENERIC,
+    false>::trans_output0(elx_conv_t<float>&, float*, float[5][5][16], float*,
+    int, int);
+template void convolution_winograd_kernel<float, 0, 5, 3, 16, ISA_SKX_AVX512,
+    true>::trans_output(elx_conv_t<float>&, float*, float[5][5][16], float*);
+template void convolution_winograd_kernel<float, 0, 5, 3, 16, ISA_SKX_AVX512,
+    true>::trans_output0(elx_conv_t<float>&, float*, float[5][5][16], float*,
+    int, int);
+
+template void convolution_winograd_kernel<float, 0, 5, 3, 16, ISA_SKX_AVX512,
+    false>::trans_output(elx_conv_t<float>&, float*, float[5][5][16], float*);
+template void convolution_winograd_kernel<float, 0, 5, 3, 16, ISA_SKX_AVX512,
+    false>::trans_output0(elx_conv_t<float>&, float*, float[5][5][16], float*,
+    int, int);
+
+} // namespace euler

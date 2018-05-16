@@ -27,6 +27,7 @@ int test_elk_trans_output(bool perf, bool show_diff) {
   elx_conv_wino_gemm_t<Type, A, K, V, I> xc(desc);
 
   alignas(64) Type atoutput[A][A][V];
+  alignas(64) Type abias[V];
   alignas(64) Type aoutput[xc.oh][xc.ow][V];
   alignas(64) Type ref_aoutput[xc.oh][xc.ow][V];
 
@@ -37,16 +38,20 @@ int test_elk_trans_output(bool perf, bool show_diff) {
       }
     }
   }
+  for (int _V = 0; _V < V; _V++) {
+    abias[_V] = _V * 1.0f;
+  }
 
   memset((void *)aoutput, 0, sizeof(aoutput));
   memset((void *)ref_aoutput, 0, sizeof(ref_aoutput));
 
   TT(elk_trans_output, iterations, perf,
-     (elk_trans_output<Type, A, K, V, I>(xc, (float *)&aoutput, atoutput)));
+      (convolution_winograd_kernel<Type, 0, A, K, V, I, true>::trans_output(
+          xc, (float*)&aoutput, atoutput, abias)));
 
   TT(elk_trans_input, iterations, perf,
-     (elk_trans_output<Type, A, K, V, ISA_GENERIC>(xc, (float *)ref_aoutput,
-                                                   atoutput)));
+      (convolution_winograd_kernel<Type, 0, A, K, V, ISA_GENERIC,
+          true>::trans_output(xc, (float*)ref_aoutput, atoutput, abias)));
 
   for (int _oh = 0; _oh < xc.oh; ++_oh) {
     for (int _ow = 0; _ow < xc.ow; ++_ow) {
