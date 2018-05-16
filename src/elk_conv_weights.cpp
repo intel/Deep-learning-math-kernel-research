@@ -5,6 +5,17 @@
 #include "elx_conv.hpp"
 #include "elk_conv.hpp"
 
+#undef ADD
+#undef SUB
+#undef FMADD
+#undef FMSUB
+#undef MUL
+#define ADD _mm512_add_ps
+#define SUB _mm512_sub_ps
+#define MUL _mm512_mul_ps
+#define FMADD _mm512_fmadd_ps
+#define FMSUB _mm512_fmsub_ps
+
 namespace euler {
 
 template <typename Type, const int T, const int A, const int K, const int V,
@@ -97,9 +108,7 @@ void convolution_winograd_kernel<Type, T, A, K, V, I,
 
   // Constants
   __m512 r12 = _mm512_set_ps(IMM_BCAST16(1.0f / 12.0f));
-  __m512 r_12 = _mm512_set_ps(IMM_BCAST16(-1.0f / 12.0f));
   __m512 r6 = _mm512_set_ps(IMM_BCAST16(1.0f / 6.0f));
-  __m512 r_6 = _mm512_set_ps(IMM_BCAST16(-1.0f / 6.0f));
   __m512 r4 = _mm512_set_ps(IMM_BCAST16(1.0f / 4.0f));
   __m512 r_4 = _mm512_set_ps(IMM_BCAST16(-1.0f / 4.0f));
   __m512 r3 = _mm512_set_ps(IMM_BCAST16(1.0f / 3.0f));
@@ -130,107 +139,65 @@ void convolution_winograd_kernel<Type, T, A, K, V, I,
     f21 = _mm512_load_ps(F(2, 1));
     f22 = _mm512_load_ps(F(2, 2));
 
-    c10 = _mm512_add_ps(f00, f02);
-    c20 = _mm512_add_ps(c10, f01);
-    c20 = _mm512_mul_ps(r_2, c20);
-    c10 = _mm512_sub_ps(c10, f01);
-    c10 = _mm512_mul_ps(r_6, c10);
+    c10 = MUL(r6, SUB(f01, ADD(f00, f02)));
+    c11 = MUL(r6, SUB(f11, ADD(f10, f12)));
+    c12 = MUL(r6, SUB(f21, ADD(f20, f22)));
+    c20 = MUL(r_2, ADD(ADD(f00, f01), f02));
+    c21 = MUL(r_2, ADD(ADD(f10, f11), f12));
+    c22 = MUL(r_2, ADD(ADD(f20, f21), f22));
 
-    c11 = _mm512_add_ps(f10, f12);
-    c21 = _mm512_add_ps(c11, f11);
-    c21 = _mm512_mul_ps(r_2, c21);
-    c11 = _mm512_sub_ps(c11, f11);
-    c11 = _mm512_mul_ps(r_6, c11);
-
-    c12 = _mm512_add_ps(f20, f22);
-    c22 = _mm512_add_ps(c12, f21);
-    c22 = _mm512_mul_ps(r_2, c22);
-    c12 = _mm512_sub_ps(c12, f21);
-    c12 = _mm512_mul_ps(r_6, c12);
-
-    t00 = _mm512_mul_ps(r4, f00);
+    t00 = MUL(r4, f00);
     _mm512_store_ps(T(0, 0), t00);
-    t10 = _mm512_add_ps(f00, f20);
-    t20 = _mm512_add_ps(t10, f10);
-    t10 = _mm512_sub_ps(t10, f10);
-    t10 = _mm512_mul_ps(r_12, t10);
+    t10 = MUL(r12, SUB(f10, ADD(f00, f20)));
     _mm512_store_ps(T(1, 0), t10);
-    t20 = _mm512_mul_ps(r_4, t20);
+    t20 = MUL(r_4, ADD(f10, ADD(f00, f20)));
     _mm512_store_ps(T(2, 0), t20);
-    t30 = _mm512_mul_ps(r12, f00);
-    t30 = _mm512_fmadd_ps(r6, f10, t30);
-    t30 = _mm512_fmadd_ps(r3, f20, t30);
+    t30 = FMADD(r12, f00, FMADD(r6, f10, MUL(r3, f20)));
     _mm512_store_ps(T(3, 0), t30);
-    t40 = _mm512_mul_ps(r2, f20);
+    t40 = MUL(r2, f20);
     _mm512_store_ps(T(4, 0), t40);
 
-    t01 = _mm512_mul_ps(r2, c10);
+    t01 = MUL(r2, c10);
     _mm512_store_ps(T(0, 1), t01);
-    t11 = _mm512_add_ps(c10, c12);
-    t21 = _mm512_add_ps(t11, c11);
-    t11 = _mm512_sub_ps(t11, c11);
-    t11 = _mm512_mul_ps(r_6, t11);
+    t11 = MUL(r6, SUB(c11, ADD(c10, c12)));
     _mm512_store_ps(T(1, 1), t11);
-    t21 = _mm512_mul_ps(r_2, t21);
+    t21 = MUL(r_2, ADD(c11, ADD(c10, c12)));
     _mm512_store_ps(T(2, 1), t21);
-    t31 = _mm512_mul_ps(r6, c10);
-    t31 = _mm512_fmadd_ps(r3, c11, t31);
-    t31 = _mm512_fmadd_ps(r2_3, c12, t31);
+    t31 = FMADD(r6, c10, FMADD(r3, c11, MUL(r2_3, c12)));
     _mm512_store_ps(T(3, 1), t31);
     _mm512_store_ps(T(4, 1), c12);
 
-    t02 = _mm512_mul_ps(r2, c20);
+    t02 = MUL(r2, c20);
     _mm512_store_ps(T(0, 2), t02);
-    t12 = _mm512_add_ps(c20, c22);
-    t22 = _mm512_add_ps(t12, c21);
-    t12 = _mm512_sub_ps(t12, c21);
-    t12 = _mm512_mul_ps(r_6, t12);
+    t12 = MUL(r6, SUB(c21, ADD(c20, c22)));
     _mm512_store_ps(T(1, 2), t12);
-    t22 = _mm512_mul_ps(r_2, t22);
+    t22 = MUL(r_2, ADD(c21, ADD(c20, c22)));
     _mm512_store_ps(T(2, 2), t22);
-    t32 = _mm512_mul_ps(r6, c20);
-    t32 = _mm512_fmadd_ps(r3, c21, t32);
-    t32 = _mm512_fmadd_ps(r2_3, c22, t32);
+    t32 = FMADD(r6, c20, FMADD(r3, c21, MUL(r2_3, c22)));
     _mm512_store_ps(T(3, 2), t32);
     _mm512_store_ps(T(4, 2), c22);
 
-    c30 = _mm512_mul_ps(r6, f00);
-    c30 = _mm512_fmadd_ps(r3, f01, c30);
-    c30 = _mm512_fmadd_ps(r2_3, f02, c30);
-    c31 = _mm512_mul_ps(r6, f10);
-    c31 = _mm512_fmadd_ps(r3, f11, c31);
-    c31 = _mm512_fmadd_ps(r2_3, f12, c31);
-    c32 = _mm512_mul_ps(r6, f20);
-    c32 = _mm512_fmadd_ps(r3, f21, c32);
-    c32 = _mm512_fmadd_ps(r2_3, f22, c32);
+    c30 = FMADD(r6, f00, FMADD(r3, f01, MUL(r2_3, f02)));
+    c31 = FMADD(r6, f10, FMADD(r3, f11, MUL(r2_3, f12)));
+    c32 = FMADD(r6, f20, FMADD(r3, f21, MUL(r2_3, f22)));
 
-    t03 = _mm512_mul_ps(r2, c30);
+    t03 = MUL(r2, c30);
     _mm512_store_ps(T(0, 3), t03);
-    t13 = _mm512_add_ps(c30, c32);
-    t23 = _mm512_add_ps(t13, c31);
-    t13 = _mm512_sub_ps(t13, c31);
-    t13 = _mm512_mul_ps(r_6, t13);
+    t13 = MUL(r6, SUB(c31, ADD(c30, c32)));
     _mm512_store_ps(T(1, 3), t13);
-    t23 = _mm512_mul_ps(r_2, t23);
+    t23 = MUL(r_2, ADD(c31, ADD(c30, c32)));
     _mm512_store_ps(T(2, 3), t23);
-    t33 = _mm512_mul_ps(r6, c30);
-    t33 = _mm512_fmadd_ps(r3, c31, t33);
-    t33 = _mm512_fmadd_ps(r2_3, c32, t33);
+    t33 = FMADD(r6, c30, FMADD(r3, c31, MUL(r2_3, c32)));
     _mm512_store_ps(T(3, 3), t33);
     _mm512_store_ps(T(4, 3), c32);
 
-    t04 = _mm512_mul_ps(r2, f02);
+    t04 = MUL(r2, f02);
     _mm512_store_ps(T(0, 4), t04);
-    t14 = _mm512_add_ps(f02, f22);
-    t24 = _mm512_add_ps(t14, f12);
-    t14 = _mm512_sub_ps(t14, f12);
-    t14 = _mm512_mul_ps(r_6, t14);
+    t14 = MUL(r6, SUB(f12, ADD(f02, f22)));
     _mm512_store_ps(T(1, 4), t14);
-    t24 = _mm512_mul_ps(r_2, t24);
+    t24 = MUL(r_2, ADD(f12, ADD(f02, f22)));
     _mm512_store_ps(T(2, 4), t24);
-    t34 = _mm512_mul_ps(r6, f02);
-    t34 = _mm512_fmadd_ps(r3, f12, t34);
-    t34 = _mm512_fmadd_ps(r2_3, f22, t34);
+    t34 = FMADD(r6, f02, FMADD(r3, f12, MUL(r2_3, f22)));
     _mm512_store_ps(T(3, 4), t34);
     _mm512_store_ps(T(4, 4), f22);
   }

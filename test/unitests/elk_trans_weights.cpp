@@ -30,10 +30,12 @@ int test_elk_trans_weights(bool perf, bool show_diff) {
     }
   }
 
+  memset(atweights, 0, sizeof(atweights));
   TT(elk_trans_weights, iterations, perf,
       (convolution_winograd_kernel<Type, 0, A, K, V, I, false>::trans_weights(
           atweights, aweights)));
 
+  memset(ref_atweights, 0, sizeof(ref_atweights));
   TT(ref_elk_trans_weights, iterations, perf,
       (convolution_winograd_kernel<Type, 0, A, K, V, ISA_GENERIC,
           false>::trans_weights(ref_atweights, aweights)));
@@ -45,7 +47,7 @@ int test_elk_trans_weights(bool perf, bool show_diff) {
           if (ref_atweights[_hK][_wK][_iV][_oV] !=
               lest::approx(atweights[_hK][_wK][_iV][_oV])) {
             error++;
-            if (show_diff) {
+            if (show_diff && error <= 10) {
               printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref)\n", _hK, _wK,
                      _iV, _oV, atweights[_hK][_wK][_iV][_oV],
                      ref_atweights[_hK][_wK][_iV][_oV]);
