@@ -59,7 +59,7 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::trans_weights(T* tweights, T* weights)
       MD(T, aweights, [K][K][V][V], weights + K * K * d);
       MD(T, atweights, [A][A][V][V], tweights + A * A * d);
 
-      convolution_winograd_kernel<T, 0, A, K, V, I, false>::trans_weights(
+      convolution_winograd_kernel<S_WEIGHTS(T, A, K, V, I)>::trans_weights(
           atweights, aweights);
     }
   }
@@ -93,11 +93,11 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::trans_input(T* tinput, T* input)
 
           if (_hT_start == 0 && _wT_start == 0 && _hT_end == A - 1
               && _wT_end == A - 1) {
-            convolution_winograd_kernel<T, 0, A, K, V, I, false>::trans_input(
+            convolution_winograd_kernel<S_INPUT(T, A, K, V, I)>::trans_input(
                 *this, atinput[_n][_ic2][_ht][_wt],
                 (T*)ainput[_n][_ic2][_ih][_iw]);
           } else {
-            convolution_winograd_kernel<T, 0, A, K, V, I, false>::trans_input0(
+            convolution_winograd_kernel<S_INPUT(T, A, K, V, I)>::trans_input0(
                 *this, atinput[_n][_ic2][_ht][_wt],
                 (T*)ainput[_n][_ic2][_ih][_iw], _hT_start, _hT_end, _wT_start,
                 _wT_end);

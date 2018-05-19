@@ -18,22 +18,21 @@
 
 namespace euler {
 
-template <typename Type, const int T, const int A, const int K, const int V,
-    const int I, const bool with_bias>
-void convolution_winograd_kernel<Type, T, A, K, V, I, with_bias>::trans_weights(
+template <D_WEIGHTS(
+    typename Type, const int A, const int K, const int V, const int I)>
+void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::trans_weights(
     Type atweights[A][A][V][V], Type aweights[K][K][V][V])
 {
-  __trans_weights(
-      winograd_template_parameter_t<Type, T, A, K, V, I, with_bias>(),
+  __trans_weights(winograd_template_parameter_t<R_WEIGHTS(Type, A, K, V, I)>(),
       atweights, aweights);
 }
 
-template <typename Type, const int T, const int A, const int K, const int V,
-    const int I, const bool with_bias>
-void convolution_winograd_kernel<Type, T, A, K, V, I,
-    with_bias>::__trans_weights(winograd_template_parameter_t<float, 0, 5, 3,
-                                    16, ISA_GENERIC, false>,
-    Type atweights[A][A][V][V], Type aweights[K][K][V][V])
+template <D_WEIGHTS(
+    typename Type, const int A, const int K, const int V, const int I)>
+void convolution_winograd_kernel<Type, T, A, K, V, I, with_bias>::
+    __trans_weights(
+        winograd_template_parameter_t<S_WEIGHTS(float, 5, 3, 16, ISA_GENERIC)>,
+        Type atweights[A][A][V][V], Type aweights[K][K][V][V])
 {
   const float r12 = 1.0f / 12.0f;
   const float r6 = 1.0f / 6.0f;
@@ -97,11 +96,10 @@ void convolution_winograd_kernel<Type, T, A, K, V, I,
   }
 }
 
-template <typename Type, const int T, const int A, const int K, const int V,
-    const int I, const bool with_bias>
-void convolution_winograd_kernel<Type, T, A, K, V, I,
-    with_bias>::__trans_weights(winograd_template_parameter_t<float, 0, 5, 3,
-                                    16, ISA_SKX_AVX512, false>,
+template <D_WEIGHTS(
+    typename Type, const int A, const int K, const int V, const int I)>
+void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::__trans_weights(
+    winograd_template_parameter_t<S_WEIGHTS(float, 5, 3, 16, ISA_SKX_AVX512)>,
     Type atweights[A][A][V][V], Type aweights[K][K][V][V])
 {
   ENABLE_AVX512F();
@@ -203,10 +201,10 @@ void convolution_winograd_kernel<Type, T, A, K, V, I,
   }
 }
 
-template void convolution_winograd_kernel<float, 0, 5, 3, 16, ISA_GENERIC,
-    false>::trans_weights(float[5][5][16][16], float[3][3][16][16]);
+template void convolution_winograd_kernel<S_WEIGHTS(float, 5, 3, 16,
+    ISA_GENERIC)>::trans_weights(float[5][5][16][16], float[3][3][16][16]);
 
-template void convolution_winograd_kernel<float, 0, 5, 3, 16, ISA_SKX_AVX512,
-    false>::trans_weights(float[5][5][16][16], float[3][3][16][16]);
+template void convolution_winograd_kernel<S_WEIGHTS(float, 5, 3, 16,
+    ISA_SKX_AVX512)>::trans_weights(float[5][5][16][16], float[3][3][16][16]);
 
 } // namespace euler

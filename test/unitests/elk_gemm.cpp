@@ -20,11 +20,12 @@ int ref_elk_gemm(elx_conv_t<F> &xc, F *output, F *input, F *weights,
                  bool zero_out);
 
 template <typename Type, const int T, const int V, const int I>
-int test_elk_gemm(bool perf, bool show_diff) {
+int test_elk_gemm(bool perf, bool show_diff)
+{
   int error = 0;
 
   eld_conv_t<Type> desc;
-  desc.dims = {{64, 224, 224, 64}, {3, 3, 64, 64}, {64, 224, 224, 64}};
+  desc.dims = {{64, 224, 224, 64}, {3, 3, 64, 64}, {64, 224, 224, 64}, {64}};
   desc.formats = {nChw16c, OIhw16i16o, nChw16c};
   desc.pads = {1, 1, 1, 1};
   desc.with_bias = false;
@@ -53,13 +54,13 @@ int test_elk_gemm(bool perf, bool show_diff) {
 
   memset(toutput, 0, xc.O2 * xc.T * xc.V * sizeof(Type));
   TT(elk_gemm, iterations, perf,
-      (convolution_winograd_kernel<Type, T, 0, 0, V, I, false>::gemm(
+      (convolution_winograd_kernel<S_GEMM(Type, T, V, I)>::gemm(
           xc, toutput, tinput, tweights, true)));
 
-  Type* ref_toutput = (Type*)malloc(toutput_sz);
+  Type *ref_toutput = (Type *)malloc(toutput_sz);
   memset(ref_toutput, 0, xc.O2 * xc.T * xc.V * sizeof(Type));
   TT(ref_elk_gemm, iterations, perf,
-      (convolution_winograd_kernel<Type, T, 0, 0, V, ISA_GENERIC, false>::gemm(
+      (convolution_winograd_kernel<S_GEMM(Type, T, V, ISA_GENERIC)>::gemm(
           xc, ref_toutput, tinput, tweights, true)));
 
   for (size_t i = 0; i < toutput_sz / sizeof(Type); i++) {
@@ -74,5 +75,5 @@ int test_elk_gemm(bool perf, bool show_diff) {
   return error;
 }
 
-template int test_elk_gemm<float, 25, 16, ISA_SKX_AVX512>(bool perf,
-                                                          bool show_diff);
+template int test_elk_gemm<float, 25, 16, ISA_SKX_AVX512>(
+    bool perf, bool show_diff);

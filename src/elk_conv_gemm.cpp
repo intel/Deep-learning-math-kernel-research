@@ -31,22 +31,20 @@ void elk_gemm_ker(
   }
 }
 
-template <typename Type, const int T, const int A, const int K, const int V,
-    const int I, const bool with_bias>
-void convolution_winograd_kernel<Type, T, A, K, V, I, with_bias>::gemm(
+template <D_GEMM(typename Type, const int T, const int V, const int I)>
+void convolution_winograd_kernel<R_GEMM(Type, T, V, I)>::gemm(
     elx_conv_t<Type>& xc, Type* toutput, Type* tinput, Type* tweights,
     bool zero_out)
 {
-  __gemm(winograd_template_parameter_t<Type, T, A, K, V, I, with_bias>(), xc,
+  __gemm(winograd_template_parameter_t<R_GEMM(Type, T, V, I)>(), xc,
       toutput, tinput, tweights, zero_out);
 }
 
-template <typename Type, const int T, const int A, const int K, const int V,
-    const int I, const bool with_bias>
+template <D_GEMM(typename Type, const int T, const int V, const int I)>
 template <const int T_>
-void convolution_winograd_kernel<Type, T, A, K, V, I, with_bias>::__gemm(
-    winograd_template_parameter_t<float, T_, 0, 0, 16, ISA_GENERIC, false>,
-    elx_conv_t<float>& xc, float* toutput, float* tinput, float* tweights,
+void convolution_winograd_kernel<R_GEMM(Type, T, V, I)>::__gemm(
+    winograd_template_parameter_t<S_GEMM(float, T_, 16, ISA_GENERIC)>,
+    elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights,
     bool zero_out)
 {
   mdarray<Type, 3> atoutput(toutput, xc.O2, T_, V);
@@ -71,12 +69,10 @@ void convolution_winograd_kernel<Type, T, A, K, V, I, with_bias>::__gemm(
   t##n = _mm512_fmadd_ps(w, x, t##n);
 
 #define DEF_function_gemm(z, n, nil)                                           \
-  template <typename Type, const int T, const int A, const int K, const int V, \
-      const int I, const bool with_bias>                                       \
-  void convolution_winograd_kernel<Type, T, A, K, V, I, with_bias>::__gemm(    \
-      winograd_template_parameter_t<float, n, 0, 0, 16, ISA_SKX_AVX512,        \
-          false>,                                                              \
-      elx_conv_t<float>& xc, float* toutput, float* tinput, float* tweights,   \
+  template <D_GEMM(typename Type, const int T, const int V, const int I)>      \
+  void convolution_winograd_kernel<R_GEMM(Type, T, V, I)>::__gemm(             \
+      winograd_template_parameter_t<S_GEMM(float, n, 16, ISA_SKX_AVX512)>,     \
+      elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights,   \
       bool zero_out)                                                           \
   {                                                                            \
     ENABLE_AVX512F();                                                          \
@@ -98,7 +94,7 @@ void convolution_winograd_kernel<Type, T, A, K, V, I, with_bias>::__gemm(
         for (int _V = 0; _V < 16; ++_V) {                                      \
           __m512 x;                                                            \
           __m512 w = _mm512_load_ps(&atweights(_O2, _I2, _V, 0));              \
-          float* x_ptr = &atinput(_I2, 0, _V);                                 \
+          float *x_ptr = &atinput(_I2, 0, _V);                                 \
           BOOST_PP_REPEAT(n, AVX512_FMA, nil);                                 \
         }                                                                      \
       }                                                                        \
@@ -109,15 +105,16 @@ void convolution_winograd_kernel<Type, T, A, K, V, I, with_bias>::__gemm(
 BOOST_PP_REPEAT_FROM_TO(1, 29, DEF_function_gemm, nil);
 
 #define INST_C_gemm(z, n, data)                                                \
-  template void convolution_winograd_kernel<float, n, 0, 0, 16, ISA_GENERIC,   \
-      false>::gemm(elx_conv_t<float>&, float*, float*, float*, bool zero_out);
+  template void                                                                \
+  convolution_winograd_kernel<S_GEMM(float, n, 16, ISA_GENERIC)>::gemm(        \
+      elx_conv_t<float> &, float *, float *, float *, bool zero_out);
 
 BOOST_PP_REPEAT_FROM_TO(1, 29, INST_C_gemm, nil);
 
 #define INST_V_gemm(z, n, nil)                                                 \
-  template void convolution_winograd_kernel<float, n, 0, 0, 16,                \
-      ISA_SKX_AVX512, false>::gemm(elx_conv_t<float>&, float*, float*, float*, \
-      bool zero_out);
+  template void                                                                \
+  convolution_winograd_kernel<S_GEMM(float, n, 16, ISA_SKX_AVX512)>::gemm(     \
+      elx_conv_t<float> &, float *, float *, float *, bool zero_out);
 
 BOOST_PP_REPEAT_FROM_TO(1, 29, INST_V_gemm, nil);
 

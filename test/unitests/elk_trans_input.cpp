@@ -13,12 +13,13 @@
 using namespace euler;
 
 template <typename Type, const int A, const int K, const int V, const int I>
-int test_elk_trans_input(bool perf, bool show_diff) {
+int test_elk_trans_input(bool perf, bool show_diff)
+{
   int error = 0;
 
   eld_conv_t<Type> desc;
 
-  desc.dims = {{64, 224, 224, 64}, {3, 3, 64, 64}, {64, 224, 224, 64}};
+  desc.dims = {{64, 224, 224, 64}, {3, 3, 64, 64}, {64, 224, 224, 64}, {64}};
   desc.formats = {nChw16c, OIhw16i16o, nChw16c};
   desc.pads = {1, 1, 1, 1};
   desc.with_bias = false;
@@ -42,13 +43,13 @@ int test_elk_trans_input(bool perf, bool show_diff) {
 
   memset(atinput, 0, sizeof(atinput));
   TT(elk_trans_input, iterations, perf,
-      (convolution_winograd_kernel<Type, 0, A, K, V, I, false>::trans_input(
-          xc, atinput, (Type*)&ainput)));
+      (convolution_winograd_kernel<S_INPUT(Type, A, K, V, I)>::trans_input(
+          xc, atinput, (Type *)&ainput)));
 
   memset(ref_atinput, 0, sizeof(ref_atinput));
   TT(elk_trans_input, iterations, perf,
-      (convolution_winograd_kernel<Type, 0, A, K, V, ISA_GENERIC,
-          false>::trans_input(xc, ref_atinput, (Type*)&ainput)));
+      (convolution_winograd_kernel<S_INPUT(Type, A, K, V,
+              ISA_GENERIC)>::trans_input(xc, ref_atinput, (Type *)&ainput)));
 
   for (int _hA = 0; _hA < A; ++_hA) {
     for (int _wA = 0; _wA < A; ++_wA) {

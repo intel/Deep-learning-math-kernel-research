@@ -13,7 +13,8 @@
 using namespace euler;
 
 template <typename Type, const int A, const int K, const int V, const int I>
-int test_elk_trans_output(bool perf, bool show_diff) {
+int test_elk_trans_output(bool perf, bool show_diff)
+{
   int error = 0;
 
   eld_conv_t<Type> desc;
@@ -46,12 +47,12 @@ int test_elk_trans_output(bool perf, bool show_diff) {
   memset((void *)ref_aoutput, 0, sizeof(ref_aoutput));
 
   TT(elk_trans_output, iterations, perf,
-      (convolution_winograd_kernel<Type, 0, A, K, V, I, true>::trans_output(
-          xc, (float*)&aoutput, atoutput, abias)));
+      (convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
+              true)>::trans_output(xc, (float *)&aoutput, atoutput, abias)));
 
   TT(elk_trans_input, iterations, perf,
-      (convolution_winograd_kernel<Type, 0, A, K, V, ISA_GENERIC,
-          true>::trans_output(xc, (float*)ref_aoutput, atoutput, abias)));
+      (convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, ISA_GENERIC,
+              true)>::trans_output(xc, (float *)ref_aoutput, atoutput, abias)));
 
   for (int _oh = 0; _oh < xc.oh; ++_oh) {
     for (int _ow = 0; _ow < xc.ow; ++_ow) {

@@ -23,24 +23,18 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   void trans_output(Type *output, Type *toutput, Type *bias, int _t2);
   void gemm(Type *toutput, Type *tinput, Type *tweights);
 
-  decltype(
-      convolution_winograd_kernel<Type, 0, A, K, V, I, false>::gemm)
-      *ker_gemm_;
-  decltype(
-      convolution_winograd_kernel<Type, 0, A, K, V, I, false>::trans_input)
+  decltype(convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_;
+  decltype(convolution_winograd_kernel<S_INPUT(Type, A, K, V, I)>::trans_input)
       *ker_trans_input_;
-  decltype(
-      convolution_winograd_kernel<Type, 0, A, K, V, I, false>::trans_input0)
+  decltype(convolution_winograd_kernel<S_INPUT(Type, A, K, V, I)>::trans_input0)
       *ker_trans_input0_;
   decltype(
-      convolution_winograd_kernel<Type, 0, A, K, V, I, false>::trans_weights)
+      convolution_winograd_kernel<S_WEIGHTS(Type, A, K, V, I)>::trans_weights)
       *ker_trans_weights_;
-  decltype(
-      convolution_winograd_kernel<Type, 0, A, K, V, I, false>::trans_output)
-      *ker_trans_output_;
-  decltype(
-      convolution_winograd_kernel<Type, 0, A, K, V, I, false>::trans_output0)
-      *ker_trans_output0_;
+  decltype(convolution_winograd_kernel<S_OUTPUT(
+          Type, A, K, V, I, BIAS(false))>::trans_output) *ker_trans_output_;
+  decltype(convolution_winograd_kernel<S_OUTPUT(
+          Type, A, K, V, I, BIAS(false))>::trans_output0) *ker_trans_output0_;
 
   size_t mthr_;
   Type *tweights_;

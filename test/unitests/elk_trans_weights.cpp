@@ -13,7 +13,8 @@
 using namespace euler;
 
 template <typename Type, const int A, const int K, const int V, const int I>
-int test_elk_trans_weights(bool perf, bool show_diff) {
+int test_elk_trans_weights(bool perf, bool show_diff)
+{
   int error = 0;
 
   Type aweights[K][K][V][V];
@@ -32,13 +33,13 @@ int test_elk_trans_weights(bool perf, bool show_diff) {
 
   memset(atweights, 0, sizeof(atweights));
   TT(elk_trans_weights, iterations, perf,
-      (convolution_winograd_kernel<Type, 0, A, K, V, I, false>::trans_weights(
+      (convolution_winograd_kernel<S_WEIGHTS(Type, A, K, V, I)>::trans_weights(
           atweights, aweights)));
 
   memset(ref_atweights, 0, sizeof(ref_atweights));
   TT(ref_elk_trans_weights, iterations, perf,
-      (convolution_winograd_kernel<Type, 0, A, K, V, ISA_GENERIC,
-          false>::trans_weights(ref_atweights, aweights)));
+      (convolution_winograd_kernel<S_WEIGHTS(Type, A, K, V,
+              ISA_GENERIC)>::trans_weights(ref_atweights, aweights)));
 
   for (int _hK = 0; _hK < K; ++_hK) {
     for (int _wK = 0; _wK < K; ++_wK) {

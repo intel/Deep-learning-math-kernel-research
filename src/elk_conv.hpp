@@ -63,6 +63,27 @@ template <typename Type, const int T, const int A, const int K, const int V,
 struct winograd_template_parameter_t {
 };
 
+#define BIAS(x) x
+
+#define D_INPUT(d_type, d_a, d_k, d_v, d_i)                                    \
+  d_type, const int T, d_a, d_k, d_v, d_i, const bool with_bias
+#define R_INPUT(type, a, k, v, i) type, T, a, k, v, i, with_bias
+#define S_INPUT(type, a, k, v, i) type, 0, a, k, v, i, BIAS(false)
+
+#define D_OUTPUT(d_type, d_a, d_k, d_v, d_i, d_bias)                           \
+  d_type, const int T, d_a, d_k, d_v, d_i, d_bias
+#define R_OUTPUT(type, a, k, v, i, bias) type, T, a, k, v, i, bias
+#define S_OUTPUT(type, a, k, v, i, bias) type, 0, a, k, v, i, bias
+
+#define D_GEMM(d_type, d_t, d_v, d_i)                                          \
+  d_type, d_t, const int A, const int K, d_v, d_i, const bool with_bias
+#define R_GEMM(type, t, v, i) type, t, A, K, v, i, with_bias
+#define S_GEMM(type, t, v, i) type, t, 0, 0, v, i, BIAS(false)
+
+#define D_WEIGHTS D_INPUT
+#define R_WEIGHTS R_INPUT
+#define S_WEIGHTS S_INPUT
+
 template <typename Type, const int T, const int A, const int K, const int V,
     const int I, const bool with_bias>
 struct convolution_winograd_kernel {
@@ -86,66 +107,70 @@ struct convolution_winograd_kernel {
 
   // C
   static inline void __trans_input(
-      winograd_template_parameter_t<float, 0, 5, 3, 16, ISA_GENERIC, false>,
+      winograd_template_parameter_t<S_INPUT(float, 5, 3, 16, ISA_GENERIC)>,
       elx_conv_t<float>& xc, float atinput[5][5][16], float* input);
 
   static inline void __trans_input0(
-      winograd_template_parameter_t<float, 0, 5, 3, 16, ISA_GENERIC, false>,
+      winograd_template_parameter_t<S_INPUT(float, 5, 3, 16, ISA_GENERIC)>,
       elx_conv_t<float>& xc, float atinput[5][5][16], float* input,
       int _hT_start, int _hT_end, int _wT_start, int _wT_end);
 
   template <const bool with_bias_>
-  static inline void __trans_output(winograd_template_parameter_t<float, 0, 5,
-                                        3, 16, ISA_GENERIC, with_bias_>,
-      elx_conv_t<float>& xc, float* output, float atoutput[A][A][V],
-      float* bias);
+  static inline void __trans_output(
+      winograd_template_parameter_t<S_OUTPUT(
+          float, 5, 3, 16, ISA_GENERIC, with_bias_)>,
+      elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
+      float *bias);
 
   template <const bool with_bias_>
-  static inline void __trans_output0(winograd_template_parameter_t<float, 0, 5,
-                                         3, 16, ISA_GENERIC, with_bias_>,
-      elx_conv_t<float>& xc, float* output, float atoutput[A][A][V],
-      float* bias, int _hOA_end, int _wOA_end);
+  static inline void __trans_output0(
+      winograd_template_parameter_t<S_OUTPUT(
+          float, 5, 3, 16, ISA_GENERIC, with_bias_)>,
+      elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
+      float *bias, int _hOA_end, int _wOA_end);
 
   static inline void __trans_weights(
-      winograd_template_parameter_t<float, 0, 5, 3, 16, ISA_GENERIC, false>,
+      winograd_template_parameter_t<S_WEIGHTS(float, 5, 3, 16, ISA_GENERIC)>,
       Type atweights[A][A][V][V], Type aweights[K][K][V][V]);
 
   template <const int T_>
   static inline void __gemm(
-      winograd_template_parameter_t<float, T_, 0, 0, 16, ISA_GENERIC, false>,
-      elx_conv_t<float>& xc, float* toutput, float* tinput, float* tweights,
+      winograd_template_parameter_t<S_GEMM(float, T_, 16, ISA_GENERIC)>,
+      elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights,
       bool zero_out);
 
   // AVX512
   static inline void __trans_input(
-      winograd_template_parameter_t<float, 0, 5, 3, 16, ISA_SKX_AVX512, false>,
+      winograd_template_parameter_t<S_INPUT(float, 5, 3, 16, ISA_SKX_AVX512)>,
       elx_conv_t<float>& xc, float atinput[5][5][16], float* input);
 
   static inline void __trans_input0(
-      winograd_template_parameter_t<float, 0, 5, 3, 16, ISA_SKX_AVX512, false>,
+      winograd_template_parameter_t<S_INPUT(float, 5, 3, 16, ISA_SKX_AVX512)>,
       elx_conv_t<float>& xc, float atinput[5][5][16], float* input,
       int _hT_start, int _hT_end, int _wT_start, int _wT_end);
 
   template <const bool with_bias_>
-  static inline void __trans_output(winograd_template_parameter_t<float, 0, 5,
-                                        3, 16, ISA_SKX_AVX512, with_bias_>,
-      elx_conv_t<float>& xc, float* output, float atoutput[A][A][V],
-      float* bias);
+  static inline void __trans_output(
+      winograd_template_parameter_t<S_OUTPUT(
+          float, 5, 3, 16, ISA_SKX_AVX512, with_bias_)>,
+      elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
+      float *bias);
 
   template <const bool with_bias_>
-  static inline void __trans_output0(winograd_template_parameter_t<float, 0, 5,
-                                         3, 16, ISA_SKX_AVX512, with_bias_>,
-      elx_conv_t<float>& xc, float* output, float atoutput[A][A][V],
-      float* bias, int _hOA_end, int _wOA_end);
+  static inline void __trans_output0(
+      winograd_template_parameter_t<S_OUTPUT(
+          float, 5, 3, 16, ISA_SKX_AVX512, with_bias_)>,
+      elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
+      float *bias, int _hOA_end, int _wOA_end);
 
   static inline void __trans_weights(
-      winograd_template_parameter_t<float, 0, 5, 3, 16, ISA_SKX_AVX512, false>,
+      winograd_template_parameter_t<S_WEIGHTS(float, 5, 3, 16, ISA_SKX_AVX512)>,
       Type atweights[A][A][V][V], Type aweights[K][K][V][V]);
 
 #define DEF_gemm(z, n, nil)                                                    \
-  static inline void __gemm(winograd_template_parameter_t<float, n, 0, 0, 16,  \
-                                ISA_SKX_AVX512, false>,                        \
-      elx_conv_t<float>& xc, float* toutput, float* tinput, float* tweights,   \
+  static inline void __gemm(                                                   \
+      winograd_template_parameter_t<S_GEMM(float, n, 16, ISA_SKX_AVX512)>,     \
+      elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights,   \
       bool zero_out);
   BOOST_PP_REPEAT_FROM_TO(1, 29, DEF_gemm, nil);
 
