@@ -17,8 +17,8 @@
 namespace euler {
 
 template <typename T, const int A, const int K, const int V, const int I>
-void elk_product_trans_output(elx_conv_t<T> &xc, T *tinput, T *tweights,
-                              T *output, int _ih2, int _iw2) {}
+void elk_product_trans_output(elx_conv_t<T> &, T *, T *,
+                              T *, int, int) {}
 
 template <>
 void elk_product_trans_output<float, 5, 3, 16, ISA_GENERIC>(

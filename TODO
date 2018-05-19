@@ -11,6 +11,5 @@
 
 - arch-specific compiling option
 
-- bias
 - relu
 - sum
