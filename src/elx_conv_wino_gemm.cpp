@@ -57,10 +57,10 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   tinput_ = (Type*)memalign(64, tinput_size);
   toutput_ = (Type*)memalign(64, toutput_size);
 
-  ker_trans_input_
-      = convolution_winograd_kernel<S_INPUT(Type, A, K, V, I)>::trans_input;
-  ker_trans_input0_
-      = convolution_winograd_kernel<S_INPUT(Type, A, K, V, I)>::trans_input0;
+  ker_trans_input_ = convolution_winograd_kernel<S_INPUT(
+      Type, A, K, V, I, BORDER(false))>::trans_input;
+  ker_trans_input0_ = convolution_winograd_kernel<S_INPUT(
+      Type, A, K, V, I, BORDER(true))>::trans_input;
   ker_trans_weights_
       = convolution_winograd_kernel<S_WEIGHTS(Type, A, K, V, I)>::trans_weights;
   if (this->with_bias) {
@@ -183,10 +183,10 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(
         if (_wt < this->wt - 1)
           _wA_end = A - 1;
 
-        Type* in = &ainput(_t / this->nt, _ic3 * this->I2 + _I2, _ih, _iw, 0);
+        Type *in = &ainput(_t / this->nt, _ic3 * this->I2 + _I2, _ih, _iw, 0);
         if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
             && _wA_end == A - 1) {
-          ker_trans_input_(*this, aout, in);
+          ker_trans_input_(*this, aout, in, 0, A - 1, 0, A - 1);
         } else
           ker_trans_input0_(
               *this, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);

@@ -93,14 +93,14 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::trans_input(T* tinput, T* input)
 
           if (_hT_start == 0 && _wT_start == 0 && _hT_end == A - 1
               && _wT_end == A - 1) {
-            convolution_winograd_kernel<S_INPUT(T, A, K, V, I)>::trans_input(
-                *this, atinput[_n][_ic2][_ht][_wt],
-                (T*)ainput[_n][_ic2][_ih][_iw]);
+            convolution_winograd_kernel<S_INPUT(T, A, K, V, I,
+                BORDER(false))>::trans_input(*this, atinput[_n][_ic2][_ht][_wt],
+                (T *)ainput[_n][_ic2][_ih][_iw], 0, A - 1, 0, A - 1);
           } else {
-            convolution_winograd_kernel<S_INPUT(T, A, K, V, I)>::trans_input0(
-                *this, atinput[_n][_ic2][_ht][_wt],
-                (T*)ainput[_n][_ic2][_ih][_iw], _hT_start, _hT_end, _wT_start,
-                _wT_end);
+            convolution_winograd_kernel<S_INPUT(
+                T, A, K, V, I, BORDER(true))>::trans_input(*this,
+                atinput[_n][_ic2][_ht][_wt], (T *)ainput[_n][_ic2][_ih][_iw],
+                _hT_start, _hT_end, _wT_start, _wT_end);
           }
         }
       }

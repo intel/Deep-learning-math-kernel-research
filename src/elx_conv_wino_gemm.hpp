@@ -24,10 +24,10 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   void gemm(Type *toutput, Type *tinput, Type *tweights);
 
   decltype(convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_;
-  decltype(convolution_winograd_kernel<S_INPUT(Type, A, K, V, I)>::trans_input)
-      *ker_trans_input_;
-  decltype(convolution_winograd_kernel<S_INPUT(Type, A, K, V, I)>::trans_input0)
-      *ker_trans_input0_;
+  decltype(convolution_winograd_kernel<S_INPUT(
+          Type, A, K, V, I, BORDER(false))>::trans_input) *ker_trans_input_;
+  decltype(convolution_winograd_kernel<S_INPUT(
+          Type, A, K, V, I, BORDER(true))>::trans_input) *ker_trans_input0_;
   decltype(
       convolution_winograd_kernel<S_WEIGHTS(Type, A, K, V, I)>::trans_weights)
       *ker_trans_weights_;
