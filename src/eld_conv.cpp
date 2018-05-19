@@ -37,6 +37,10 @@ int eld_conv_t<F>::setup() {
     eld_error("Dimension error");
     return ELD_GENERAL_ERROR;
   }
+  if (with_bias && dims.bias.c != dims.output.c) {
+    eld_error("Dimension error");
+    return ELD_GENERAL_ERROR;
+  }
 
   sizes.input =
       accumulate(dims.input.n, dims.input.c, dims.input.h, dims.input.w);

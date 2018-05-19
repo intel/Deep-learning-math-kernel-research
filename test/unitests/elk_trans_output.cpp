@@ -17,10 +17,10 @@ int test_elk_trans_output(bool perf, bool show_diff) {
   int error = 0;
 
   eld_conv_t<Type> desc;
-  desc.dims = {{64, 224, 224, 64}, {3, 3, 64, 64}, {64, 224, 224, 64}};
+  desc.dims = {{64, 224, 224, 64}, {3, 3, 64, 64}, {64, 224, 224, 64}, {64}};
   desc.formats = {nChw16c, OIhw16i16o, nChw16c};
   desc.pads = {1, 1, 1, 1};
-  desc.with_bias = false;
+  desc.with_bias = true;
   desc.algorithm = CONV_WINOGRAD;
   desc.tile_size = 5;
   desc.with_relu = false;

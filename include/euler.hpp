@@ -69,7 +69,7 @@ struct eld_conv_t {
     elx_conv_t<T> *xc;
 };
 
-template class eld_conv_t<float>;
+template struct eld_conv_t<float>;
 
 // Convolution execution
 template<typename T>

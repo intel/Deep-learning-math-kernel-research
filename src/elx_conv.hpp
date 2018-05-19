@@ -15,7 +15,7 @@ namespace euler {
 // wino-gemm tweights: oc3, ic3, A*A, O2, I2, V, V
 
 template <typename Type>
-class elx_conv_t {
+struct elx_conv_t {
  public:
   // dims
   int ic, oc, ih, iw, oh, ow, n, t, kh, kw;
@@ -54,7 +54,7 @@ class elx_conv_t {
                         Type *bias) = 0;
 };
 
-template class elx_conv_t<float>;
+template struct elx_conv_t<float>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_HPP__

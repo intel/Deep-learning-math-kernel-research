@@ -355,9 +355,11 @@ void convolution_winograd_kernel<Type, T, A, K, V, I,
 #undef T
 #undef C
 #undef P
+#undef B
 #define T(_hA, _wA) atoutput[_hA][_wA][_V]
 #define C(n) c##n[_V]
 #define P(_h, _w) *p(_h, _w, _V)
+#define B bias[_V]
   float c0[16], c1[16], c2[16], c3[16], c4[16];
 #pragma omp simd
   for (int _V = 0; _V < 16; ++_V) {
@@ -367,8 +369,11 @@ void convolution_winograd_kernel<Type, T, A, K, V, I,
     C(3) = T(3, 0) + T(3, 1) + T(3, 2) + T(3, 3);
     C(4) = T(4, 0) + T(4, 1) + T(4, 2) + T(4, 3);
     P(0, 0) = C(0) + C(1) + C(2) + C(3);
+    if (with_bias_) P(0, 0) += B;
     P(1, 0) = C(2) - C(1) + 2 * C(3);
+    if (with_bias_) P(1, 0) += B;
     P(2, 0) = C(1) + C(2) + 4 * C(3) + C(4);
+    if (with_bias_) P(2, 0) += B;
 
     C(0) = T(0, 2) - T(0, 1) + 2 * T(0, 3);
     C(1) = T(1, 2) - T(1, 1) + 2 * T(1, 3);
@@ -376,8 +381,11 @@ void convolution_winograd_kernel<Type, T, A, K, V, I,
     C(3) = T(3, 2) - T(3, 1) + 2 * T(3, 3);
     C(4) = T(4, 2) - T(4, 1) + 2 * T(4, 3);
     P(0, 1) = C(0) + C(1) + C(2) + C(3);
+    if (with_bias_) P(0, 1) += B;
     P(1, 1) = C(2) - C(1) + 2 * C(3);
+    if (with_bias_) P(1, 1) += B;
     P(2, 1) = C(1) + C(2) + 4 * C(3) + C(4);
+    if (with_bias_) P(2, 1) += B;
 
     C(0) = T(0, 1) + T(0, 2) + 4 * T(0, 3) + T(0, 4);
     C(1) = T(1, 1) + T(1, 2) + 4 * T(1, 3) + T(1, 4);
@@ -385,8 +393,11 @@ void convolution_winograd_kernel<Type, T, A, K, V, I,
     C(3) = T(3, 1) + T(3, 2) + 4 * T(3, 3) + T(3, 4);
     C(4) = T(4, 1) + T(4, 2) + 4 * T(4, 3) + T(4, 4);
     P(0, 2) = C(0) + C(1) + C(2) + C(3);
+    if (with_bias_) P(0, 2) += B;
     P(1, 2) = C(2) - C(1) + 2 * C(3);
+    if (with_bias_) P(1, 2) += B;
     P(2, 2) = C(1) + C(2) + 4 * C(3) + C(4);
+    if (with_bias_) P(2, 2) += B;
   }
 }
 
@@ -432,8 +443,14 @@ void convolution_winograd_kernel<Type, T, A, K, V, I,
   c##n = FMADD(z4, t##n##3, ADD(ADD(t##n##1, t##n##2), t##n##4));
 #define AVX512_CALCULATE_P(n)                                                  \
   __m512 p0##n = ADD(ADD(ADD(c0, c1), c2), c3);                                \
+  if (with_bias_)                                                              \
+    p0##n = ADD(p0##n, *(__m512*)bias);                                        \
   __m512 p1##n = FMADD(z2, c3, SUB(c2, c1));                                   \
-  __m512 p2##n = FMADD(z4, c3, ADD(ADD(c1, c2), c4));
+  if (with_bias_)                                                              \
+    p1##n = ADD(p1##n, *(__m512*)bias);                                        \
+  __m512 p2##n = FMADD(z4, c3, ADD(ADD(c1, c2), c4));                          \
+  if (with_bias_)                                                              \
+    p2##n = ADD(p2##n, *(__m512*)bias);
 
 template <typename Type, const int T, const int A, const int K, const int V,
     const int I, const bool with_bias>

@@ -284,9 +284,6 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::winograd(
   mdarray<Type, 2> atinput(tinput_, mthr_, A * A * this->T * this->ic);
   mdarray<Type, 2> atoutput(toutput_, mthr_, A * A * this->T * this->oc);
 
-  // TODO: support bias
-  if (bias == nullptr)
-    return;
   trans_weights(tweights_, weights);
 
 #pragma omp parallel for
