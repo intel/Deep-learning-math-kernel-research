@@ -24,8 +24,7 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I)>::trans_input0(
     elx_conv_t<Type> &xc, Type atinput[A][A][V], Type *input, int _hT_start,
     int _hT_end, int _wT_start, int _wT_end)
 {
-  __trans_input0(
-      winograd_template_parameter_t<Type, T, A, K, V, I, with_bias>(), xc,
+  __trans_input0(winograd_template_parameter_t<R_INPUT(Type, A, K, V, I)>(), xc,
       atinput, input, _hT_start, _hT_end, _wT_start, _wT_end);
 }
 
@@ -40,11 +39,10 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I)>::trans_input(
 
 template <D_INPUT(
     typename Type, const int A, const int K, const int V, const int I)>
-void convolution_winograd_kernel<Type, T, A, K, V, I, with_bias>::
-    __trans_input0(
-        winograd_template_parameter_t<S_INPUT(float, 5, 3, 16, ISA_GENERIC)>,
-        elx_conv_t<float> &xc, float atinput[5][5][16], float *input,
-        int _hT_start, int _hT_end, int _wT_start, int _wT_end)
+void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I)>::__trans_input0(
+    winograd_template_parameter_t<S_INPUT(float, 5, 3, 16, ISA_GENERIC)>,
+    elx_conv_t<float> &xc, float atinput[5][5][16], float *input, int _hT_start,
+    int _hT_end, int _wT_start, int _wT_end)
 {
   const float z2 = 2.0f;
   const float z3 = 3.0f;

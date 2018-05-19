@@ -58,26 +58,26 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   toutput_ = (Type*)memalign(64, toutput_size);
 
   ker_trans_input_
-      = convolution_winograd_kernel<Type, 0, A, K, V, I, false>::trans_input;
+      = convolution_winograd_kernel<S_INPUT(Type, A, K, V, I)>::trans_input;
   ker_trans_input0_
-      = convolution_winograd_kernel<Type, 0, A, K, V, I, false>::trans_input0;
+      = convolution_winograd_kernel<S_INPUT(Type, A, K, V, I)>::trans_input0;
   ker_trans_weights_
-      = convolution_winograd_kernel<Type, 0, A, K, V, I, false>::trans_weights;
+      = convolution_winograd_kernel<S_WEIGHTS(Type, A, K, V, I)>::trans_weights;
   if (this->with_bias) {
-    ker_trans_output_
-        = convolution_winograd_kernel<Type, 0, A, K, V, I, true>::trans_output;
-    ker_trans_output0_
-        = convolution_winograd_kernel<Type, 0, A, K, V, I, true>::trans_output0;
+    ker_trans_output_ = convolution_winograd_kernel<S_OUTPUT(
+        Type, A, K, V, I, BIAS(true))>::trans_output;
+    ker_trans_output0_ = convolution_winograd_kernel<S_OUTPUT(
+        Type, A, K, V, I, BIAS(true))>::trans_output0;
   } else {
-    ker_trans_output_
-        = convolution_winograd_kernel<Type, 0, A, K, V, I, false>::trans_output;
-    ker_trans_output0_ = convolution_winograd_kernel<Type, 0, A, K, V, I,
-        false>::trans_output0;
+    ker_trans_output_ = convolution_winograd_kernel<S_OUTPUT(
+        Type, A, K, V, I, BIAS(false))>::trans_output;
+    ker_trans_output0_ = convolution_winograd_kernel<S_OUTPUT(
+        Type, A, K, V, I, BIAS(false))>::trans_output0;
   }
 
 #define CASE(z, T, data)                                                       \
   case T:                                                                      \
-    ker_gemm_ = convolution_winograd_kernel<Type, T, 0, 0, V, I, false>::gemm; \
+    ker_gemm_ = convolution_winograd_kernel<S_GEMM(Type, T, V, I)>::gemm;      \
     break;
 
   switch (this->T) {

@@ -59,33 +59,38 @@ void elk_product_trans_output(
 // I: ISA
 // with_bias: has bias
 template <typename Type, const int T, const int A, const int K, const int V,
-    const int I, const bool with_bias>
+    const int I, const int is_border, const bool with_bias>
 struct winograd_template_parameter_t {
 };
 
 #define BIAS(x) x
+#define BORDER(x) x
 
 #define D_INPUT(d_type, d_a, d_k, d_v, d_i)                                    \
-  d_type, const int T, d_a, d_k, d_v, d_i, const bool with_bias
-#define R_INPUT(type, a, k, v, i) type, T, a, k, v, i, with_bias
-#define S_INPUT(type, a, k, v, i) type, 0, a, k, v, i, BIAS(false)
+  d_type, const int T, d_a, d_k, d_v, d_i, const bool is_border,               \
+      const bool with_bias
+#define R_INPUT(type, a, k, v, i) type, T, a, k, v, i, is_border, with_bias
+#define S_INPUT(type, a, k, v, i)                                              \
+  type, 0, a, k, v, i, BORDER(false), BIAS(false)
 
 #define D_OUTPUT(d_type, d_a, d_k, d_v, d_i, d_bias)                           \
-  d_type, const int T, d_a, d_k, d_v, d_i, d_bias
-#define R_OUTPUT(type, a, k, v, i, bias) type, T, a, k, v, i, bias
-#define S_OUTPUT(type, a, k, v, i, bias) type, 0, a, k, v, i, bias
+  d_type, const int T, d_a, d_k, d_v, d_i, const bool is_border, d_bias
+#define R_OUTPUT(type, a, k, v, i, bias) type, T, a, k, v, i, is_border, bias
+#define S_OUTPUT(type, a, k, v, i, bias)                                       \
+  type, 0, a, k, v, i, BORDER(false), bias
 
 #define D_GEMM(d_type, d_t, d_v, d_i)                                          \
-  d_type, d_t, const int A, const int K, d_v, d_i, const bool with_bias
-#define R_GEMM(type, t, v, i) type, t, A, K, v, i, with_bias
-#define S_GEMM(type, t, v, i) type, t, 0, 0, v, i, BIAS(false)
+  d_type, d_t, const int A, const int K, d_v, d_i, const bool is_border,       \
+      const bool with_bias
+#define R_GEMM(type, t, v, i) type, t, A, K, v, i, is_border, with_bias
+#define S_GEMM(type, t, v, i) type, t, 0, 0, v, i, BORDER(false), BIAS(false)
 
 #define D_WEIGHTS D_INPUT
 #define R_WEIGHTS R_INPUT
 #define S_WEIGHTS S_INPUT
 
 template <typename Type, const int T, const int A, const int K, const int V,
-    const int I, const bool with_bias>
+    const int I, const bool is_border, const bool with_bias>
 struct convolution_winograd_kernel {
   static void trans_input(
       elx_conv_t<Type>& xc, Type atinput[A][A][V], Type* input);
@@ -176,48 +181,50 @@ struct convolution_winograd_kernel {
 
   // Generic
   template <typename Type_, const int T_, const int A_, const int K_,
-      const int V_, const int I_, const bool with_bias_>
-  static inline void __trans_input(
-      winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, with_bias_>,
-      elx_conv_t<Type_>&, Type_[A_][A_][V_], Type_*)
+      const int V_, const int I_, const bool is_border_, const bool with_bias_>
+  static inline void __trans_input(winograd_template_parameter_t<Type_, T_, A_,
+                                       K_, V_, I_, is_border_, with_bias_>,
+      elx_conv_t<Type_> &, Type_[A_][A_][V_], Type_ *)
   {
   }
 
   template <typename Type_, const int T_, const int A_, const int K_,
-      const int V_, const int I_, const bool with_bias_>
-  static inline void __trans_input0(
-      winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, with_bias_>,
-      elx_conv_t<Type_>&, Type_[A_][A_][V_], Type_*, int, int, int, int)
+      const int V_, const int I_, const bool is_border_, const bool with_bias_>
+  static inline void __trans_input0(winograd_template_parameter_t<Type_, T_, A_,
+                                        K_, V_, I_, is_border_, with_bias_>,
+      elx_conv_t<Type_> &, Type_[A_][A_][V_], Type_ *, int, int, int, int)
   {
   }
 
   template <typename Type_, const int T_, const int A_, const int K_,
-      const int V_, const int I_, const bool with_bias_>
-  static inline void __trans_output(
-      winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, with_bias_>,
-      elx_conv_t<Type_>&, Type_*, Type_[A_][A_][V_], Type_*)
+      const int V_, const int I_, const bool is_border_, const bool with_bias_>
+  static inline void __trans_output(winograd_template_parameter_t<Type_, T_, A_,
+                                        K_, V_, I_, is_border_, with_bias_>,
+      elx_conv_t<Type_> &, Type_ *, Type_[A_][A_][V_], Type_ *)
   {
   }
 
   template <typename Type_, const int T_, const int A_, const int K_,
-      const int V_, const int I_, const bool with_bias_>
+      const int V_, const int I_, const bool is_border_, const bool with_bias_>
   static inline void __trans_output0(
-      winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, with_bias_>,
-      elx_conv_t<Type_>&, Type_*, Type_[A_][A_][V_], Type_*, int, int)
+      winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, is_border_,
+          with_bias_>,
+      elx_conv_t<Type_> &, Type_ *, Type_[A_][A_][V_], Type_ *, int, int)
   {
   }
 
   template <typename Type_, const int T_, const int A_, const int K_,
-      const int V_, const int I_, const bool with_bias_>
+      const int V_, const int I_, const bool is_border_, const bool with_bias_>
   static inline void __trans_weights(
-      winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, with_bias_>,
+      winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, is_border_,
+          with_bias_>,
       Type[A_][A_][V_][V_], Type[K_][K_][V_][V_]);
 
   template <typename Type_, const int T_, const int A_, const int K_,
-      const int V_, const int I_, const bool with_bias_>
-  static inline void __gemm(
-      winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, with_bias_>,
-      elx_conv_t<Type>&, Type*, Type*, Type*, bool)
+      const int V_, const int I_, const bool is_border_, const bool with_bias_>
+  static inline void __gemm(winograd_template_parameter_t<Type_, T_, A_, K_, V_,
+                                I_, is_border_, with_bias_>,
+      elx_conv_t<Type> &, Type *, Type *, Type *, bool)
   {
   }
 };

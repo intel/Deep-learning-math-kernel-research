@@ -29,10 +29,9 @@ void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::trans_weights(
 
 template <D_WEIGHTS(
     typename Type, const int A, const int K, const int V, const int I)>
-void convolution_winograd_kernel<Type, T, A, K, V, I, with_bias>::
-    __trans_weights(
-        winograd_template_parameter_t<S_WEIGHTS(float, 5, 3, 16, ISA_GENERIC)>,
-        Type atweights[A][A][V][V], Type aweights[K][K][V][V])
+void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::__trans_weights(
+    winograd_template_parameter_t<S_WEIGHTS(float, 5, 3, 16, ISA_GENERIC)>,
+    Type atweights[A][A][V][V], Type aweights[K][K][V][V])
 {
   const float r12 = 1.0f / 12.0f;
   const float r6 = 1.0f / 6.0f;
