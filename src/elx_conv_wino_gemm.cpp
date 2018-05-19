@@ -278,7 +278,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
 // tinputs:  t2, A, A, ic3, I2, T, V
 // toutput:  t2, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::winograd(
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::execute(
     Type* input, Type* weights, Type* output, Type* bias)
 {
   mdarray<Type, 2> atinput(tinput_, mthr_, A * A * this->T * this->ic);

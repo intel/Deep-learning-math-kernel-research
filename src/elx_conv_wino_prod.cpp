@@ -130,7 +130,7 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::product_trans_output(
 }
 
 template <typename T, const int A, const int K, const int V, const int I>
-void elx_conv_wino_prod_t<T, A, K, V, I>::winograd(
+void elx_conv_wino_prod_t<T, A, K, V, I>::execute(
     T* input, T* weights, T* output, T* bias)
 {
   // TODO: support bias

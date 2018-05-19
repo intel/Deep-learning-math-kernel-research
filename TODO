@@ -8,6 +8,7 @@
 - blocking
   performance with similar blocking
 - tail dim handling
+  tail T
 
 - arch-specific compiling option
 

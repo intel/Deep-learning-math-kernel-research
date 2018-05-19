@@ -14,10 +14,7 @@ class elx_conv_wino_prod_t : public elx_conv_t<T> {
   elx_conv_wino_prod_t(eld_conv_t<T> &dc);
   virtual ~elx_conv_wino_prod_t();
 
-  virtual void direct(T *input, T *weights, T *output, T *bias) {
-    elx_error("Unimplemented");
-  }
-  virtual void winograd(T *input, T *weights, T *output, T *bias);
+  virtual void execute(T *input, T *weights, T *output, T *bias);
 
  private:
   void trans_weights(T *tweights, T *weights);
