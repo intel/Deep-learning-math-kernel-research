@@ -12,9 +12,6 @@
 
 using namespace euler;
 
-template <typename T>
-int ref_elk_gemm_ker(T *mxp, T *mxn, T *nxp, int m, int n, int p,
-                     bool zero_out);
 template <typename F>
 int ref_elk_gemm(elx_conv_t<F> &xc, F *output, F *input, F *weights,
                  bool zero_out);
@@ -33,6 +30,7 @@ int test_elk_gemm(bool perf, bool show_diff)
   desc.tile_size = 5;
   desc.with_relu = false;
   elx_conv_wino_gemm_t<Type, 5, 3, V, I> xc(desc);
+  xc.T = T;
 
   Type *tinput, *tweights, *toutput;
   int tinput_sz, tweights_sz, toutput_sz;
@@ -72,8 +70,14 @@ int test_elk_gemm(bool perf, bool show_diff)
       }
     }
   }
+  free(tinput);
+  free(tweights);
+  free(toutput);
+
   return error;
 }
 
+template int test_elk_gemm<float, 16, 16, ISA_SKX_AVX512>(
+    bool perf, bool show_diff);
 template int test_elk_gemm<float, 25, 16, ISA_SKX_AVX512>(
     bool perf, bool show_diff);

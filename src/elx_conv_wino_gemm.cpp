@@ -31,22 +31,23 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   // I2, O2
   // tweights + pt-tinputs + pt-toutput ~ L2
   // tweights:gemm + tinputs:gemm + toutput:gemm ~ L1
-  this->T = 25; // TODO: T selection
+  this->T = 16; // TODO: T selection
   this->O2 = 1; // TODO: O2 selection
   this->I2 = 4; // TODO: I2 selection
-
-  this->oc3 = this->oc / (this->O2 * V);
-  this->ic3 = this->ic / (this->I2 * V);
-  this->t2 = this->t / this->T;
 
   // Tailing
   this->Ir = this->ic % V;
   this->Or = this->oc % V;
   this->Tr = this->t % this->T;
+  if (this->Tr == 0) this->Tr = this->T;
   // TODO: support tailing
   assert(this->Ir == 0);
   assert(this->Or == 0);
-  assert(this->Tr == 0);
+
+  // TODO: add tailing?
+  this->oc3 = this->oc / (this->O2 * V);
+  this->ic3 = this->ic / (this->I2 * V);
+  this->t2 = (this->t + this->T - 1) / this->T;
 
   mthr_ = omp_get_max_threads();
   size_t tweights_size = sizeof(Type) * A * A * this->ic * this->oc;
@@ -61,8 +62,8 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
       Type, A, K, V, I, BORDER(false))>::trans_input;
   ker_trans_input0_ = convolution_winograd_kernel<S_INPUT(
       Type, A, K, V, I, BORDER(true))>::trans_input;
-  ker_trans_weights_
-      = convolution_winograd_kernel<S_WEIGHTS(Type, A, K, V, I)>::trans_weights;
+  ker_trans_weights_ = convolution_winograd_kernel<S_WEIGHTS(
+      Type, A, K, V, I)>::trans_weights;
   if (this->with_bias) {
     ker_trans_output_ = convolution_winograd_kernel<S_OUTPUT(
         Type, A, K, V, I, BORDER(false), BIAS(true))>::trans_output;
@@ -75,13 +76,23 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
         Type, A, K, V, I, BORDER(true), BIAS(false))>::trans_output;
   }
 
-#define CASE(z, T, data)                                                       \
-  case T:                                                                      \
-    ker_gemm_ = convolution_winograd_kernel<S_GEMM(Type, T, V, I)>::gemm;      \
+#define GEMM_CASE(z, n, data)                                                \
+  case n:                                                                    \
+    ker_gemm_ = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm;    \
     break;
 
   switch (this->T) {
-    BOOST_PP_REPEAT_FROM_TO(1, 29, CASE, xxx)
+    BOOST_PP_REPEAT_FROM_TO(1, 29, GEMM_CASE, nil)
+  default:
+    elx_error("Unimplemented");
+    break;
+  }
+#define GEMM_CASE0(z, n, data)                                               \
+  case n:                                                                    \
+    ker_gemm0_ = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm;   \
+    break;
+  switch (this->Tr) {
+    BOOST_PP_REPEAT_FROM_TO(1, 29, GEMM_CASE0, nil);
   default:
     elx_error("Unimplemented");
     break;
@@ -150,6 +161,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(
   mdarray<Type, 6> atinput(tinput, A, A, this->ic3, this->I2, this->T, V);
 
   alignas(64) Type aout[A][A][V];
+  int T_now = _t2 == (this->t2 - 1) ? this->Tr : this->T;
   int _hA_start = this->lp; // first
   int _wA_start = this->tp;
   int _hA_end = (this->ih + this->lp) % (A - K + 1) - 1; // last
@@ -162,7 +174,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(
 
   for_each (_ic3, this->ic3) {
     for_each (_I2, this->I2) {
-      for_each (_T, this->T) {
+      for_each (_T, T_now) {
         int _t = _t2 * this->T + _T;
         int _nt = _t % this->nt;
         int _ht = _nt / this->wt;
@@ -206,18 +218,20 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemm(
-    Type* tinput, Type* tweights, Type* toutput)
+    Type *toutput, Type *tweights, Type *tinput, int _t2)
 {
   mdarray<Type, 8> atweights(
       tweights, this->oc3, this->ic3, A, A, this->O2, this->I2, V, V);
   mdarray<Type, 6> atinput(tinput, A, A, this->ic3, this->I2, V);
   mdarray<Type, 6> atoutput(toutput, A, A, this->oc3, this->O2, V);
 
+  auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
+
   for_each (_hA, A) {
     for_each (_wA, A) {
       for_each (_oc3, this->oc3) {
         for_each (_ic3, this->ic3) {
-          ker_gemm_(*this, &atoutput(_hA, _wA, _oc3, 0, 0, 0),
+          ker_gemm(*this, &atoutput(_hA, _wA, _oc3, 0, 0, 0),
               &atinput(_hA, _wA, _ic3, 0, 0, 0),
               &atweights(_oc3, _ic3, _hA, _wA, 0, 0, 0, 0), _ic3 == 0);
         }
@@ -238,10 +252,11 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
   Type ain[A][A][V];
   int _hOA_end = this->oh % (A - K + 1) - 1;
   int _wOA_end = this->ow % (A - K + 1) - 1;
+  int T_now = _t2 == (this->t2 - 1) ? this->Tr : this->T;
 
   for_each (_oc3, this->oc3) {
     for_each (_O2, this->O2) {
-      for_each (_T, this->T) {
+      for_each (_T, T_now) {
         for_each (_hA, A) {
           for_each (_wA, A) {
 #pragma omp simd
@@ -290,7 +305,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::execute(
   for_each (_t2, this->t2) {
     size_t ithr = omp_get_thread_num();
     trans_input(&atinput(ithr, 0), input, _t2);
-    gemm(&atinput(ithr, 0), tweights_, &atoutput(ithr, 0));
+    gemm(&atoutput(ithr, 0), tweights_, &atinput(ithr, 0), _t2);
     trans_output(output, &atoutput(ithr, 0), bias, _t2);
   }
 }

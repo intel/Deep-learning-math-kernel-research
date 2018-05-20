@@ -1,5 +1,3 @@
-- zero copy
-- macro for 2-dims ops
 - Shape specialization
 - Correctness
 - Tile-size: 6
@@ -15,4 +13,5 @@
 - relu
 - sum
 
-- move convolutoin_winograd_kernels into wino_gemm
+- move convolutoin_winograd_kernels into wino_gemm (?)
+- move elk_product_trans_output into convolutoin_winograd_kernels
