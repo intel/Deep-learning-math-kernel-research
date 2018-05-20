@@ -32,7 +32,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   // tweights + pt-tinputs + pt-toutput ~ L2
   // tweights:gemm + tinputs:gemm + toutput:gemm ~ L1
   this->T = 30; // TODO: T selection
-  this->O2 = 1; // TODO: O2 selection
+  this->O2 = 2; // TODO: O2 selection
   this->I2 = 4; // TODO: I2 selection
 
   // Tailing
@@ -49,6 +49,11 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   this->ic3 = this->ic / (this->I2 * V);
   this->t2 = (this->t + this->T - 1) / this->T;
 
+// dbg
+printf("T=%d, Tr=%d, t2=%d, t=%d\n", this->T, this->Tr, this->t2, this->t);
+printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic=%d\n", this->V, this->Ir, this->I2, this->ic3, this->ic);
+printf("V=%d, Or=%d, O2=%d, oc3=%d, oc=%d\n", this->V, this->Or, this->O2, this->oc3, this->oc);
+
   mthr_ = omp_get_max_threads();
   size_t tweights_size = sizeof(Type) * A * A * this->ic * this->oc;
   size_t tinput_size = sizeof(Type) * A * A * this->T * this->ic * mthr_;
@@ -57,6 +62,11 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   tweights_ = (Type*)memalign(64, tweights_size);
   tinput_ = (Type*)memalign(64, tinput_size);
   toutput_ = (Type*)memalign(64, toutput_size);
+
+// dbg
+size_t l2_usage = tweights_size + sizeof(Type) * A * A * this->T * (this->ic + this->oc);
+size_t l1_usage = sizeof(Type) * this->O2 * this->I2 * V * V + sizeof(Type) * this->T * V * (this->I2 + this->O2);
+printf("l2_usage=%ld, l1_usage=%ld\n", l2_usage, l1_usage);
 
   ker_trans_input_ = convolution_winograd_kernel<S_INPUT(
       Type, A, K, V, I, BORDER(false))>::trans_input;

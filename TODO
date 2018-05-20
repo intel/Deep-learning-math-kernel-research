@@ -1,12 +1,8 @@
 - Shape specialization
-- Correctness
 - Tile-size: 6
 
-- unit tests: input/output/gemm
 - blocking
-  performance with similar blocking
-- tail dim handling
-  tail T
+- tail oc/ic handling
 
 - arch-specific compiling option
 
@@ -15,3 +11,5 @@
 
 - move convolutoin_winograd_kernels into wino_gemm (?)
 - move elk_product_trans_output into convolutoin_winograd_kernels
+
+- effective tflops

@@ -21,7 +21,7 @@ static lest::tests specification;
 TEST_CASE("test_elk_gemm")
 {
   EXPECT((0
-      == test_elk_gemm<float, 25, 16, ISA_SKX_AVX512>(test_perf, show_diff)));
+      == test_elk_gemm<float, 16, 16, ISA_SKX_AVX512>(test_perf, show_diff)));
 }
 
 TEST_CASE("test_elk_trans_weights")
