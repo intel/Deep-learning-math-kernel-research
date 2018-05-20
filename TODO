@@ -15,5 +15,4 @@
 - relu
 - sum
 
-- merge input0/input, output0/output
 - move convolutoin_winograd_kernels into wino_gemm

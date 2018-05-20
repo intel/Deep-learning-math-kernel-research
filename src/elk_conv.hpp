@@ -72,11 +72,12 @@ struct winograd_template_parameter_t {
 #define S_INPUT(type, a, k, v, i, border)                                      \
   type, 0, a, k, v, i, border, BIAS(false)
 
-#define D_OUTPUT(d_type, d_a, d_k, d_v, d_i, d_bias)                           \
-  d_type, const int T, d_a, d_k, d_v, d_i, const bool is_border, d_bias
-#define R_OUTPUT(type, a, k, v, i, bias) type, T, a, k, v, i, is_border, bias
-#define S_OUTPUT(type, a, k, v, i, bias)                                       \
-  type, 0, a, k, v, i, BORDER(false), bias
+#define D_OUTPUT(d_type, d_a, d_k, d_v, d_i, d_border, d_bias)                 \
+  d_type, const int T, d_a, d_k, d_v, d_i, d_border, d_bias
+#define R_OUTPUT(type, a, k, v, i, border, bias)                               \
+  type, T, a, k, v, i, border, bias
+#define S_OUTPUT(type, a, k, v, i, border, bias)                               \
+  type, 0, a, k, v, i, border, bias
 
 #define D_GEMM(d_type, d_t, d_v, d_i)                                          \
   d_type, d_t, const int A, const int K, d_v, d_i, const bool is_border,       \
@@ -94,13 +95,11 @@ struct winograd_template_parameter_t {
 template <typename Type, const int T, const int A, const int K, const int V,
     const int I, const bool is_border, const bool with_bias>
 struct convolution_winograd_kernel {
+  // Interfaces
   static void trans_input(elx_conv_t<Type> &xc, Type atinput[A][A][V],
       Type *input, int _hA_start, int _hA_end, int _wA_start, int _wA_end);
 
-  static void trans_output(
-      elx_conv_t<Type>& xc, Type* output, Type atoutput[A][A][V], Type* bias);
-
-  static void trans_output0(elx_conv_t<Type>& xc, Type* output,
+  static void trans_output(elx_conv_t<Type>& xc, Type* output,
       Type atoutput[A][A][V], Type* bias, int _hOA_end, int _wOA_end);
 
   static void trans_weights(
@@ -116,17 +115,10 @@ struct convolution_winograd_kernel {
       elx_conv_t<float> &xc, float atinput[5][5][16], float *input,
       int _hT_start, int _hT_end, int _wT_start, int _wT_end);
 
-  template <const bool with_bias_>
+  template <const bool is_border_, const bool with_bias_>
   static inline void __trans_output(
       winograd_template_parameter_t<S_OUTPUT(
-          float, 5, 3, 16, ISA_GENERIC, with_bias_)>,
-      elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
-      float *bias);
-
-  template <const bool with_bias_>
-  static inline void __trans_output0(
-      winograd_template_parameter_t<S_OUTPUT(
-          float, 5, 3, 16, ISA_GENERIC, with_bias_)>,
+          float, 5, 3, 16, ISA_GENERIC, is_border_, with_bias_)>,
       elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
       float *bias, int _hOA_end, int _wOA_end);
 
@@ -147,17 +139,10 @@ struct convolution_winograd_kernel {
       elx_conv_t<float> &xc, float atinput[5][5][16], float *input,
       int _hT_start, int _hT_end, int _wT_start, int _wT_end);
 
-  template <const bool with_bias_>
+  template <const bool is_border_, const bool with_bias_>
   static inline void __trans_output(
       winograd_template_parameter_t<S_OUTPUT(
-          float, 5, 3, 16, ISA_SKX_AVX512, with_bias_)>,
-      elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
-      float *bias);
-
-  template <const bool with_bias_>
-  static inline void __trans_output0(
-      winograd_template_parameter_t<S_OUTPUT(
-          float, 5, 3, 16, ISA_SKX_AVX512, with_bias_)>,
+          float, 5, 3, 16, ISA_SKX_AVX512, is_border_, with_bias_)>,
       elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
       float *bias, int _hOA_end, int _wOA_end);
 
@@ -183,15 +168,7 @@ struct convolution_winograd_kernel {
 
   template <typename Type_, const int T_, const int A_, const int K_,
       const int V_, const int I_, const bool is_border_, const bool with_bias_>
-  static inline void __trans_output(winograd_template_parameter_t<Type_, T_, A_,
-                                        K_, V_, I_, is_border_, with_bias_>,
-      elx_conv_t<Type_> &, Type_ *, Type_[A_][A_][V_], Type_ *)
-  {
-  }
-
-  template <typename Type_, const int T_, const int A_, const int K_,
-      const int V_, const int I_, const bool is_border_, const bool with_bias_>
-  static inline void __trans_output0(
+  static inline void __trans_output(
       winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, is_border_,
           with_bias_>,
       elx_conv_t<Type_> &, Type_ *, Type_[A_][A_][V_], Type_ *, int, int)

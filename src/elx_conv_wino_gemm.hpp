@@ -31,10 +31,10 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   decltype(
       convolution_winograd_kernel<S_WEIGHTS(Type, A, K, V, I)>::trans_weights)
       *ker_trans_weights_;
-  decltype(convolution_winograd_kernel<S_OUTPUT(
-          Type, A, K, V, I, BIAS(false))>::trans_output) *ker_trans_output_;
-  decltype(convolution_winograd_kernel<S_OUTPUT(
-          Type, A, K, V, I, BIAS(false))>::trans_output0) *ker_trans_output0_;
+  decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I, BORDER(false),
+          BIAS(false))>::trans_output) *ker_trans_output_;
+  decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I, BORDER(true),
+          BIAS(false))>::trans_output) *ker_trans_output0_;
 
   size_t mthr_;
   Type *tweights_;

@@ -65,14 +65,14 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
       = convolution_winograd_kernel<S_WEIGHTS(Type, A, K, V, I)>::trans_weights;
   if (this->with_bias) {
     ker_trans_output_ = convolution_winograd_kernel<S_OUTPUT(
-        Type, A, K, V, I, BIAS(true))>::trans_output;
+        Type, A, K, V, I, BORDER(false), BIAS(true))>::trans_output;
     ker_trans_output0_ = convolution_winograd_kernel<S_OUTPUT(
-        Type, A, K, V, I, BIAS(true))>::trans_output0;
+        Type, A, K, V, I, BORDER(true), BIAS(true))>::trans_output;
   } else {
     ker_trans_output_ = convolution_winograd_kernel<S_OUTPUT(
-        Type, A, K, V, I, BIAS(false))>::trans_output;
+        Type, A, K, V, I, BORDER(false), BIAS(false))>::trans_output;
     ker_trans_output0_ = convolution_winograd_kernel<S_OUTPUT(
-        Type, A, K, V, I, BIAS(false))>::trans_output0;
+        Type, A, K, V, I, BORDER(true), BIAS(false))>::trans_output;
   }
 
 #define CASE(z, T, data)                                                       \
@@ -267,7 +267,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
         if (_hOA_end < A - K || _wOA_end < A - K) {
           ker_trans_output0_(*this, out, ain, b, _hOA_end, _wOA_end);
         } else {
-          ker_trans_output_(*this, out, ain, b);
+          ker_trans_output_(*this, out, ain, b, A - K, A - K);
         }
       }
     }
