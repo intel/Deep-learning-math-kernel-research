@@ -44,6 +44,7 @@
 #define OP_0_to_32() OP_0_to_31(); __OP(32)
 
 #define IMM_BCAST16(x) x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x
+#define MAX_FMA_PRL 33
 
 namespace euler {
 
@@ -155,7 +156,7 @@ struct convolution_winograd_kernel {
       winograd_template_parameter_t<S_GEMM(float, n, 16, ISA_SKX_AVX512)>,     \
       elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights,   \
       bool zero_out);
-  BOOST_PP_REPEAT_FROM_TO(1, 29, DEF_gemm, nil);
+  BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, DEF_gemm, nil);
 
   // Generic
   template <typename Type_, const int T_, const int A_, const int K_,

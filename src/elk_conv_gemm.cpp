@@ -102,20 +102,20 @@ void convolution_winograd_kernel<R_GEMM(Type, T, V, I)>::__gemm(
     }                                                                          \
   }
 
-BOOST_PP_REPEAT_FROM_TO(1, 29, DEF_function_gemm, nil);
+BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, DEF_function_gemm, nil);
 
 #define INST_C_gemm(z, n, data)                                                \
   template void                                                                \
   convolution_winograd_kernel<S_GEMM(float, n, 16, ISA_GENERIC)>::gemm(        \
       elx_conv_t<float> &, float *, float *, float *, bool zero_out);
 
-BOOST_PP_REPEAT_FROM_TO(1, 29, INST_C_gemm, nil);
+BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, INST_C_gemm, nil);
 
 #define INST_V_gemm(z, n, nil)                                                 \
   template void                                                                \
   convolution_winograd_kernel<S_GEMM(float, n, 16, ISA_SKX_AVX512)>::gemm(     \
       elx_conv_t<float> &, float *, float *, float *, bool zero_out);
 
-BOOST_PP_REPEAT_FROM_TO(1, 29, INST_V_gemm, nil);
+BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, INST_V_gemm, nil);
 
 } // namespace euler

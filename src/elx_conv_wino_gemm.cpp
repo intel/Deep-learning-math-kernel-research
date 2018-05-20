@@ -31,7 +31,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   // I2, O2
   // tweights + pt-tinputs + pt-toutput ~ L2
   // tweights:gemm + tinputs:gemm + toutput:gemm ~ L1
-  this->T = 16; // TODO: T selection
+  this->T = 30; // TODO: T selection
   this->O2 = 1; // TODO: O2 selection
   this->I2 = 4; // TODO: I2 selection
 
@@ -82,7 +82,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
     break;
 
   switch (this->T) {
-    BOOST_PP_REPEAT_FROM_TO(1, 29, GEMM_CASE, nil)
+    BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE, nil)
   default:
     elx_error("Unimplemented");
     break;
@@ -92,7 +92,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
     ker_gemm0_ = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm;   \
     break;
   switch (this->Tr) {
-    BOOST_PP_REPEAT_FROM_TO(1, 29, GEMM_CASE0, nil);
+    BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE0, nil);
   default:
     elx_error("Unimplemented");
     break;
