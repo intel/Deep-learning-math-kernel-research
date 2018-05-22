@@ -11,7 +11,7 @@ namespace euler {
 
 template <typename Type, const int A, const int K, const int V, const int I>
 elx_conv_wino_prod_t<Type, A, K, V, I>::elx_conv_wino_prod_t(
-    eld_conv_t<Type>& dc)
+    eld_conv_t<Type> &dc)
     : elx_conv_t<Type>(dc)
 {
   this->V = V;
@@ -50,7 +50,8 @@ elx_conv_wino_prod_t<T, A, K, V, I>::~elx_conv_wino_prod_t()
 }
 
 template <typename T, const int A, const int K, const int V, const int I>
-void elx_conv_wino_prod_t<T, A, K, V, I>::trans_weights(T* tweights, T* weights)
+void elx_conv_wino_prod_t<T, A, K, V, I>::trans_weights(
+    T *tweights, T *weights)
 {
 #pragma omp parallel for collapse(2)
   for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
@@ -66,7 +67,7 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::trans_weights(T* tweights, T* weights)
 }
 
 template <typename T, const int A, const int K, const int V, const int I>
-void elx_conv_wino_prod_t<T, A, K, V, I>::trans_input(T* tinput, T* input)
+void elx_conv_wino_prod_t<T, A, K, V, I>::trans_input(T *tinput, T *input)
 {
   MD(T, atinput, [this->n][this->ic2][this->ht][this->wt][A][A][V], tinput);
   MD(T, ainput, [this->n][this->ic2][this->ih][this->iw][V], input);
@@ -110,7 +111,7 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::trans_input(T* tinput, T* input)
 
 template <typename T, const int A, const int K, const int V, const int I>
 void elx_conv_wino_prod_t<T, A, K, V, I>::product_trans_output(
-    T* tinput, T* tweights, T* output)
+    T *output, T *tinput, T *tweights)
 {
   MD(T, atweights, [this->oc2][this->ic2][A][A][V][V], tweights);
   MD(T, atinput, [this->n][this->ic2][this->ht][this->wt][A][A][V], tinput);
@@ -131,14 +132,14 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::product_trans_output(
 
 template <typename T, const int A, const int K, const int V, const int I>
 void elx_conv_wino_prod_t<T, A, K, V, I>::execute(
-    T* input, T* weights, T* output, T* bias)
+    T *output, T *input, T *weights, T *bias)
 {
   // TODO: support bias
   if (bias != nullptr)
     return;
   trans_weights(tweights_, weights);
   trans_input(tinput_, input);
-  product_trans_output(tinput_, tweights_, output);
+  product_trans_output(output, tinput_, tweights_);
 }
 
 } // namespace euler

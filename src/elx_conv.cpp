@@ -36,11 +36,12 @@ elx_conv_t<Type>::elx_conv_t(eld_conv_t<Type> &dc) {
 }
 
 template <typename T>
-int elx_conv(eld_conv_t<T> &desc, T *input, T *weights, T *output, T *bias) {
+int elx_conv(eld_conv_t<T> &desc, T *output, T *input, T *weights, T *bias) {
   elx_conv_t<T> &xc = *desc.xc;
 
   // Sanity check
-  if (any_null(input, weights, output) || (desc.with_bias && bias == nullptr)) {
+  if (input == nullptr || weights == nullptr || output == nullptr
+      || (desc.with_bias && bias == nullptr)) {
     elx_error("Parameter error");
     return ELX_GENERAL_ERROR;
   }
@@ -51,12 +52,12 @@ int elx_conv(eld_conv_t<T> &desc, T *input, T *weights, T *output, T *bias) {
 
   } else {
     assert(desc.algorithm == CONV_WINOGRAD);
-    xc.execute(input, weights, output, bias);
+    xc.execute(output, input, weights, bias);
   }
   return ELX_OK;
 }
 
-template int elx_conv<float>(eld_conv_t<float> &desc, float *input,
-                             float *weights, float *output, float *bias);
+template int elx_conv<float>(
+    eld_conv_t<float> &, float *, float *, float *, float *);
 
 }  // namespace euler

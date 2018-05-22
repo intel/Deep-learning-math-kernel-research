@@ -15,7 +15,7 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   elx_conv_wino_gemm_t(eld_conv_t<Type> &dc);
   virtual ~elx_conv_wino_gemm_t();
 
-  virtual void execute(Type *input, Type *weights, Type *output, Type *bias);
+  virtual void execute(Type *output, Type *input, Type *weights, Type *bias);
 
   private:
   void trans_weights(Type *tweights, Type *weights);

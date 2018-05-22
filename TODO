@@ -13,3 +13,7 @@
 - move elk_product_trans_output into convolutoin_winograd_kernels
 
 - effective tflops
+
+- kmp_malloc(?) allocate from thread-local heap
+- omp_in_final()
+- omp_get_num_procs

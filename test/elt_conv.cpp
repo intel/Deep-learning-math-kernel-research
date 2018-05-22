@@ -7,29 +7,6 @@
 
 using namespace euler;
 
-size_t cal_ops(eld_conv_t<float> &desc) {
-
-  size_t num_ops = 0;
-
-  for (int oh = 0; oh < desc.dims.output.h; ++oh) {
-    for (int ow = 0; ow < desc.dims.output.w; ++ow) {
-      for (int kh = 0; kh < desc.dims.weights.h; ++kh) {
-        int ih = oh * desc.strides.h - desc.pads.b + kh * desc.dilations.h;
-        if (ih < 0 || ih >= desc.dims.input.h)
-          continue;
-        for (int kw = 0; kw < desc.dims.weights.w; ++kw) {
-          int iw = ow * desc.strides.w - desc.pads.l + kw * desc.dilations.w;
-          if (iw < 0 || iw >= desc.dims.input.w)
-            continue;
-          num_ops += 1;
-        }
-      }
-    }
-  }
-  return num_ops * desc.dims.input.n * desc.dims.weights.i
-      * desc.dims.weights.o * 2;
-}
-
 int main()
 {
   // 1, create convolution desc
@@ -62,13 +39,17 @@ int main()
   for (int i = 0; i < desc.sizes.weights; i++) {
     weights[i] = i % 32;
   }
+#pragma omp parallel for
+  for (int i = 0; i < desc.sizes.bias; i++) {
+    bias[i] = i % 13;
+  }
 
   // 3. execute convolution
   int iterations = 100;
   size_t num_ops = cal_ops(desc);
   time_start(conv);
   for (int n = 0; n < iterations; ++n) {
-    if (ELX_OK != elx_conv<float>(desc, input, weights, output, bias)) {
+    if (ELX_OK != elx_conv<float>(desc, output, input, weights, bias)) {
       printf("Error\n");
     }
   }

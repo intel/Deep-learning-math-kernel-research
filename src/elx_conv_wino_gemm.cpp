@@ -128,7 +128,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::~elx_conv_wino_gemm_t()
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights(
-    Type* tweights, Type* weights)
+    Type *tweights, Type *weights)
 {
   // oc2, ic2, K, K, V, V => oc3, ic3, A, A, O2, I2, V, V
   mdarray<Type, 6> aweights(weights, this->oc2, this->ic2, K, K, V, V);
@@ -140,10 +140,10 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights(
       for_each (_O2, this->O2) {
         for_each (_I2, this->I2) {
           Type aout[A][A][V][V];
-          Type* in = &aweights(
+          Type *in = &aweights(
               _oc3 * this->O2 + _O2, _ic3 * this->I2 + _I2, 0, 0, 0, 0);
           using Array = Type[K][K][V][V];
-          ker_trans_weights_(aout, *(Array*)in);
+          ker_trans_weights_(aout, *(Array *)in);
 
           for_each (_hA, A) {
             for_each (_wA, A) {
@@ -164,7 +164,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(
-    Type* tinput, Type* input, int _t2)
+    Type *tinput, Type *input, int _t2)
 {
   // n, ic2, ih, iw, V => t2=1, A, A, ic3, I2, T, V
   mdarray<Type, 5> ainput(input, this->n, this->ic2, this->ih, this->iw, V);
@@ -252,7 +252,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemm(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
-    Type* output, Type* toutput, Type* bias, int _t2)
+    Type *output, Type *toutput, Type *bias, int _t2)
 {
   // A, A, oc3, O2, T, V -> n, oc2, oh, ow, V
   mdarray<Type, 6> atoutput(toutput, A, A, this->oc3, this->O2, this->T, V);
@@ -304,7 +304,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
 // toutput:  t2, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::execute(
-    Type* input, Type* weights, Type* output, Type* bias)
+    Type *output, Type *input, Type *weights, Type *bias)
 {
   mdarray<Type, 2> atinput(tinput_, mthr_, A * A * this->T * this->ic);
   mdarray<Type, 2> atoutput(toutput_, mthr_, A * A * this->T * this->oc);

@@ -73,7 +73,7 @@ template struct eld_conv_t<float>;
 
 // Convolution execution
 template<typename T>
-int elx_conv(eld_conv_t<T> &desc, T *input, T *weights, T *output, T *bias);
+int elx_conv(eld_conv_t<T> &desc, T *output, T *input, T *weights, T *bias);
 
 }
 

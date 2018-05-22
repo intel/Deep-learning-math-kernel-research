@@ -49,7 +49,7 @@ struct elx_conv_t {
   elx_conv_t(eld_conv_t<Type> &dc);
   virtual ~elx_conv_t() {}
 
-  virtual void execute(Type* input, Type* weights, Type* output, Type* bias)
+  virtual void execute(Type *output, Type *input, Type *weights, Type *bias)
       = 0;
 };
 

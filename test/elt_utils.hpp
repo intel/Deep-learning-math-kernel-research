@@ -1,5 +1,6 @@
 #include <cxxabi.h>
 #include <chrono>
+#include "euler.hpp"
 
 #ifndef __ELT_UTILS_HPP__
 #define __ELT_UTILS_HPP__
@@ -26,6 +27,10 @@ typedef std::chrono::duration<float, std::milli> Duration;
     }                                                                        \
   } while (0)
 
-namespace euler {}
+namespace euler {
+
+size_t cal_ops(eld_conv_t<float> &desc);
+
+}
 
 #endif  // __ELT_UTILS_HPP__
