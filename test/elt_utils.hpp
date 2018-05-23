@@ -27,10 +27,9 @@ typedef std::chrono::duration<float, std::milli> Duration;
     }                                                                        \
   } while (0)
 
-namespace euler {
+#define for_each(i, lim) for (int(i) = 0; (i) < (lim); ++(i))
 
-size_t cal_ops(eld_conv_t<float> &desc);
-
-}
+#define MD(type, array, dims, ptr)                                           \
+  type(&array) dims = *reinterpret_cast<type(*) dims>(ptr)
 
 #endif  // __ELT_UTILS_HPP__

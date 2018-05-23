@@ -24,8 +24,10 @@ enum {
 };
 
 enum {
+    nchw,
     nhwc,
     nChw16c,
+    oihw,
     hwio,
     OIhw16i16o
 };
