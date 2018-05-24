@@ -31,9 +31,9 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   // I2, O2
   // tweights + pt-tinputs + pt-toutput ~ L2
   // tweights:gemm + tinputs:gemm + toutput:gemm ~ L1
-  this->T = 4; // TODO: T selection
+  this->T = 25; // TODO: T selection
   this->O2 = 1; // TODO: O2 selection
-  this->I2 = 1; // TODO: I2 selection
+  this->I2 = 4; // TODO: I2 selection
 
   // Tailing
   this->Ir = this->ic % V;
@@ -182,12 +182,8 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(
         int _nt = _t % this->nt;
         int _ht = _nt / this->wt;
         int _wt = _nt % this->wt;
-        int _ih = _ht * (A - K + 1) - this->lp;
+        int _ih = _ht * (A - K + 1) - this->lp; // may < 0
         int _iw = _wt * (A - K + 1) - this->tp;
-
-        if (_ih < 0) _ih = 0;
-        if (_iw < 0) _iw = 0;
-
         int _hA_start = (_ht > 0) ? 0 : this->lp;
         int _wA_start = (_wt > 0) ? 0 : this->tp;
         int _hA_end = (_ht < this->ht - 1) ? A - 1 : hA_end;

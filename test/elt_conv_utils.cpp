@@ -1,3 +1,4 @@
+#include <math.h>
 #include "elt_conv_utils.hpp"
 
 namespace euler {
@@ -55,19 +56,40 @@ namespace test {
       eld_conv_t<float> &desc, float *out, float *ref)
   {
     auto dims = desc.dims.output;
-    MD(float, aout, [dims.n][dims.c / 16][dims.h][dims.w][16], out);
-    MD(float, aref, [dims.n][dims.c / 16][dims.h][dims.w][16], ref);
+    using Array = float[dims.n][dims.c / 16][dims.h][dims.w][16];
+    Array *aout = (Array *)out;
+    Array *aref = (Array *)ref;
+
+#define MAX_PRINT_ERRORS (20)
+    int errors = 0;
+
+#pragma omp parallel for collapse(3)
     for_each (_n, dims.n) {
       for_each (_C, dims.c / 16) {
         for_each (_h, dims.h) {
           for_each (_w, dims.w) {
-            if (aout[_n][_C][_h][_w][0] != aref[_n][_C][_h][_w][0]) {
-              printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref)\n", _n, _C,
-                  _h, _w, aout[_n][_C][_h][_w][0], aref[_n][_C][_h][_w][0]);
+            for_each (_v, 16) {
+              double delta = fabs(
+                  (*aout)[_n][_C][_h][_w][_v] - (*aref)[_n][_C][_h][_w][_v]);
+              double rel_diff = delta / fabs((*aref)[_n][_C][_h][_w][_v]);
+              if (rel_diff > 1e-6) {
+                if (errors < MAX_PRINT_ERRORS) {
+                  printf("Not equal!: [%d][%d][%d][%d][%d]: %f != %f (ref), "
+                         "delta=%g, rel_diff=%g\n",
+                      _n, _C, _h, _w, _v, (*aout)[_n][_C][_h][_w][0],
+                      (*aref)[_n][_C][_h][_w][0], delta, rel_diff);
+                }
+                errors++;
+              }
             }
           }
         }
       }
+    }
+
+    if (errors > 0) {
+      printf("Error: number of errors: %d/%d, percentage: %f%%\n", errors,
+          desc.sizes.output, ((errors * 1.0) / desc.sizes.output) * 100.0);
     }
   }
 
@@ -100,13 +122,12 @@ namespace test {
   reorder<Type, nchw, nChw16c>::reorder(
       Type *dst, Type *src, int n, int c, int h, int w)
   {
-
     using Array1 = Type[n][c / 16][h][w][16];
     using Array2 = Type[n][c][h][w];
     Array1 *asrc = (Array1 *)src;
     Array2 *adst = (Array2 *)dst;
 
-#pragma omp parallel for collapse(4)
+#pragma omp parallel for collapse(3)
     for_each (_n, n) {
       for_each (_C, c / 16) {
         for_each (_h, h) {
@@ -129,7 +150,7 @@ namespace test {
     Array1 *asrc = (Array1 *)src;
     Array2 *adst = (Array2 *)dst;
 
-#pragma omp parallel for collapse(4)
+#pragma omp parallel for collapse(3)
     for_each (_n, n) {
       for_each (_C, c / 16) {
         for_each (_h, h) {
@@ -152,7 +173,7 @@ namespace test {
     Array1 *asrc = (Array1 *)src;
     Array2 *adst = (Array2 *)dst;
 
-#pragma omp parallel for collapse(4)
+#pragma omp parallel for collapse(3)
     for_each (_O, o / 16) {
       for_each (_I, i / 16) {
         for_each (_h, h) {
@@ -178,7 +199,7 @@ namespace test {
     Array1 *asrc = (Array1 *)src;
     Array2 *adst = (Array2 *)dst;
 
-#pragma omp parallel for collapse(4)
+#pragma omp parallel for collapse(3)
     for_each (_O, o / 16) {
       for_each (_I, i / 16) {
         for_each (_h, h) {
@@ -208,6 +229,12 @@ namespace test {
     int ow = desc.dims.output.w;
     int kh = desc.dims.weights.h;
     int kw = desc.dims.weights.w;
+    int sh = desc.strides.h;
+    int sw = desc.strides.w;
+    int pt = desc.pads.t;
+    int pl = desc.pads.l;
+    int dh = desc.dilations.h;
+    int dw = desc.dilations.w;
 
     using Array1 = Type[n][ic][ih][iw];
     using Array2 = Type[oc][ic][kh][kw];
@@ -225,17 +252,13 @@ namespace test {
             (*aoutput)[_n][_oc][_oh][_ow] = desc.with_bias ? bias[_oc] : 0.0f;
             for_each (_ic, ic) {
               for_each (_kh, kh) {
-                int _ih = _oh * desc.strides.h - desc.pads.t
-                    + _kh * desc.dilations.h;
+                int _ih = _oh * sh - pt + _kh * dh;
                 if (_ih < 0 || _ih >= ih)
                   continue;
-
                 for_each (_kw, kw) {
-                  int _iw = _ow * desc.strides.w - desc.pads.l
-                      + _kw * desc.dilations.w;
+                  int _iw = _ow * sw - pl + _kw * dw;
                   if (_iw < 0 || _iw >= iw)
                     continue;
-
                   (*aoutput)[_n][_oc][_oh][_ow]
                       += (*ainput)[_n][_ic][_ih][_iw]
                       * (*aweights)[_oc][_ic][_kh][_kw];
@@ -253,29 +276,59 @@ namespace test {
       Type *input, Type *weights, Type *bias)
   {
     int n = desc.dims.input.n;
-    int ic = desc.dims.input.c;
-    int oc = desc.dims.output.c;
+    int IC = desc.dims.input.c / 16;
+    int OC = desc.dims.output.c / 16;
     int ih = desc.dims.input.h;
     int iw = desc.dims.input.w;
     int oh = desc.dims.output.h;
     int ow = desc.dims.output.w;
     int kh = desc.dims.weights.h;
     int kw = desc.dims.weights.w;
+    int sh = desc.strides.h;
+    int sw = desc.strides.w;
+    int pt = desc.pads.t;
+    int pl = desc.pads.l;
+    int dh = desc.dilations.h;
+    int dw = desc.dilations.w;
 
-    Type *in = (Type *)malloc(sizeof(Type) * n * ic * ih * iw);
-    Type *out = (Type *)malloc(sizeof(Type) * n * oc * oh * ow);
-    Type *wei = (Type *)malloc(sizeof(Type) * oc * ic * kh * kw);
+    using Array1 = Type[n][IC][ih][iw][16];
+    using Array2 = Type[OC][IC][kh][kw][16][16];
+    using Array3 = Type[n][OC][oh][ow][16];
 
-    reorder<Type, nchw, nChw16c>(in, input, n, ic, ih, iw);
-    reorder<Type, oihw, OIhw16i16o>(wei, weights, oc, ic, kh, kw);
+    Array1 *ainput = (Array1 *)input;
+    Array2 *aweights = (Array2 *)weights;
+    Array3 *aoutput = (Array3 *)output;
 
-    ref_convolution2d(desc, out, in, wei, bias);
-
-    reorder<Type, nChw16c, nchw>(output, out, n, oc, oh, ow);
-
-    free(in);
-    free(out);
-    free(wei);
+#pragma omp parallel for collapse(4)
+    for_each (_n, n) {
+      for_each (_OC, OC) {
+        for_each (_oh, oh) {
+          for_each (_ow, ow) {
+            for_each (_ov, 16) {
+              (*aoutput)[_n][_OC][_oh][_ow][_ov]
+                  = desc.with_bias ? bias[_OC * 16 + _ov] : 0.0f;
+              for_each (_IC, IC) {
+                for_each (_iv, 16) {
+                  for_each (_kh, kh) {
+                    int _ih = _oh * sh - pt + _kh * dh;
+                    if (_ih < 0 || _ih >= ih)
+                      continue;
+                    for_each (_kw, kw) {
+                      int _iw = _ow * sw - pl + _kw * dw;
+                      if (_iw < 0 || _iw >= iw)
+                        continue;
+                      (*aoutput)[_n][_OC][_oh][_ow][_ov]
+                          += (*ainput)[_n][_IC][_ih][_iw][_iv]
+                          * (*aweights)[_OC][_IC][_kh][_kw][_iv][_ov];
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   template void ref_convolution2d<float>(
