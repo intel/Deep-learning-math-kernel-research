@@ -4,8 +4,6 @@ ROOT_DIR="$(dirname $(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd))"
 
 echo Root dir: $ROOT_DIR
 echo
-echo Release Build...
-#cd "$ROOT_DIR" && make distclean && make -j all && cd -
 
 sockets=$( lscpu | grep 'Socket(s)' | cut -d: -f2 )
 cores_per_socket=$( lscpu | grep 'Core(s) per socket' | cut -d: -f2 )
@@ -16,9 +14,52 @@ OMP_ENV="OMP_NUM_THREADS=$(( cores )) \
   KMP_BLOCKTIME=infinite"
 echo OMP Environment: $OMP_ENV
 
-echo Run convolution test...
-eval $OMP_ENV $ROOT_DIR/build/release/bin/elt_conv
+function build() {
+  cd "$ROOT_DIR" && make distclean && make -j all && cd -
+}
 
-echo Run unit tests...
-eval $OMP_ENV $ROOT_DIR/build/release/bin/elt_unitests -t
+function conv_test() {
+  eval $OMP_ENV $ROOT_DIR/build/release/bin/elt_conv
+}
 
+function unit_test() {
+  eval $OMP_ENV $ROOT_DIR/build/release/bin/elt_unitests -t
+}
+
+function show_help() {
+cat <<@
+
+Euler test script:
+  -h        display this help and exit.
+  -b        rebuild
+  -c        convolution test
+  -u        unit test
+
+@
+}
+
+OPTIND=1
+while getopts "hbuc" opt; do
+  case "$opt" in
+    h)
+      show_help
+      exit 0
+      ;;
+    b)
+      echo Release Build...
+      build
+      ;;
+    c)
+      echo Run convolution test...
+      conv_test
+      ;;
+    u)
+      echo Run unit tests...
+      unit_test
+      ;;
+    *)
+      show_help
+      ;;
+  esac
+done
+shift $((OPTIND-1))

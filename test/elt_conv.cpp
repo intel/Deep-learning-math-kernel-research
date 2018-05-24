@@ -13,10 +13,10 @@ int main()
 {
   // 1, create convolution desc
   eld_conv_t<float> desc;
-  desc.dims = { .input   = { 64, 224, 224, 64 },
-                .weights = { 3, 3, 64, 64 },
-                .output  = { 64, 224, 224, 64 },
-                .bias    = { 64 } };
+  desc.dims = { .input   = { 1, 5, 5, 16 },
+                .weights = { 3, 3, 16, 16 },
+                .output  = { 1, 5, 5, 16 },
+                .bias    = { 16 } };
   desc.formats = { .input = nChw16c, .weights = OIhw16i16o, .output = nChw16c };
   desc.pads = { 1, 1, 1, 1 };
   desc.with_bias = true;
@@ -43,16 +43,10 @@ int main()
 
   // 4. cosim
   if (validate_results) {
-    int error = 0;
     float *ref_output = (float *)memalign(64, desc.byte_sizes.output);
     test::ref_convolution2d_block16<float>(
         desc, ref_output, input, weights, bias);
-    for (int i = 0; i < desc.sizes.output; i++) {
-      if (ref_output[i] != output[i] && error++ < 10) {
-        printf("Not equal!: [%d]: %f != %f (ref)\n", i, output[i],
-            ref_output[i]);
-      }
-    }
+    test::compare_conv_results_block16(desc, output, ref_output);
     free(ref_output);
   }
   test::teardown_conv_data(input, weights, output, bias);

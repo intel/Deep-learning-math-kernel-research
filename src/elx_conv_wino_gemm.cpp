@@ -19,8 +19,8 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   this->oc2 = this->oc / V;
 
   this->A = A;
-  this->ht = (this->oh + A - 3) / (A - K + 1);
-  this->wt = (this->ow + A - 3) / (A - K + 1);
+  this->ht = (this->oh + A - K) / (A - K + 1);
+  this->wt = (this->ow + A - K) / (A - K + 1);
   this->nt = this->ht * this->wt;
   this->t = this->nt * this->n;
 
@@ -31,9 +31,9 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   // I2, O2
   // tweights + pt-tinputs + pt-toutput ~ L2
   // tweights:gemm + tinputs:gemm + toutput:gemm ~ L1
-  this->T = 30; // TODO: T selection
-  this->O2 = 2; // TODO: O2 selection
-  this->I2 = 4; // TODO: I2 selection
+  this->T = 4; // TODO: T selection
+  this->O2 = 1; // TODO: O2 selection
+  this->I2 = 1; // TODO: I2 selection
 
   // Tailing
   this->Ir = this->ic % V;
@@ -172,15 +172,8 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(
 
   alignas(64) Type aout[A][A][V];
   int T_now = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-  int _hA_start = this->lp; // first
-  int _wA_start = this->tp;
-  int _hA_end = (this->ih + this->lp) % (A - K + 1) - 1; // last
-  int _wA_end = (this->iw + this->tp) % (A - K + 1) - 1;
-
-  if (_hA_end == -1)
-    _hA_end = A - K;
-  if (_wA_end == -1)
-    _wA_end = A - K;
+  int hA_end = (this->ih + this->lp) - (this->ht - 1) * (A - K + 1) - 1;
+  int wA_end = (this->iw + this->tp) - (this->wt - 1) * (A - K + 1) - 1;
 
   for_each (_ic3, this->ic3) {
     for_each (_I2, this->I2) {
@@ -192,26 +185,22 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(
         int _ih = _ht * (A - K + 1) - this->lp;
         int _iw = _wt * (A - K + 1) - this->tp;
 
-        if (_ih < 0)
-          _ih = 0;
-        if (_iw < 0)
-          _iw = 0;
-        if (_ht > 0)
-          _hA_start = 0;
-        if (_wt > 0)
-          _wA_start = 0;
-        if (_ht < this->ht - 1)
-          _hA_end = A - 1;
-        if (_wt < this->wt - 1)
-          _wA_end = A - 1;
+        if (_ih < 0) _ih = 0;
+        if (_iw < 0) _iw = 0;
+
+        int _hA_start = (_ht > 0) ? 0 : this->lp;
+        int _wA_start = (_wt > 0) ? 0 : this->tp;
+        int _hA_end = (_ht < this->ht - 1) ? A - 1 : hA_end;
+        int _wA_end = (_wt < this->wt - 1) ? A - 1 : wA_end;
 
         Type *in = &ainput(_t / this->nt, _ic3 * this->I2 + _I2, _ih, _iw, 0);
         if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
             && _wA_end == A - 1) {
           ker_trans_input_(*this, aout, in, 0, A - 1, 0, A - 1);
-        } else
+        } else {
           ker_trans_input0_(
               *this, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
+        }
 
         for_each (_hA, A) {
           for_each (_wA, A) {
@@ -232,8 +221,8 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemm(
 {
   mdarray<Type, 8> atweights(
       tweights, this->oc3, this->ic3, A, A, this->O2, this->I2, V, V);
-  mdarray<Type, 6> atinput(tinput, A, A, this->ic3, this->I2, V);
-  mdarray<Type, 6> atoutput(toutput, A, A, this->oc3, this->O2, V);
+  mdarray<Type, 6> atinput(tinput, A, A, this->ic3, this->I2, this->T, V);
+  mdarray<Type, 6> atoutput(toutput, A, A, this->oc3, this->O2, this->T, V);
 
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
 
@@ -260,9 +249,12 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
   mdarray<Type, 3> abias(bias, this->oc3, this->O2, V);
 
   Type ain[A][A][V];
-  int _hOA_end = this->oh % (A - K + 1) - 1;
-  int _wOA_end = this->ow % (A - K + 1) - 1;
   int T_now = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+
+  int hOA_end = this->oh % (A - K + 1) - 1;
+  if (hOA_end == -1) hOA_end = A - K;
+  int wOA_end = this->ow % (A - K + 1) - 1;
+  if (wOA_end == -1) wOA_end = A - K;
 
   for_each (_oc3, this->oc3) {
     for_each (_O2, this->O2) {
@@ -284,10 +276,9 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
         int _ow = _wt * (A - K + 1);
         Type* out = &aoutput(_t / this->nt, _oc3 * this->O2 + _O2, _oh, _ow, 0);
         Type* b = &abias(_oc3, _O2, 0);
-        if (_ht < this->ht - 1)
-          _hOA_end = A - K; // A - K + 1 - 1
-        if (_wt < this->wt - 1)
-          _wOA_end = A - K;
+
+        int _hOA_end = (_ht < this->ht - 1) ? A - K : hOA_end;
+        int _wOA_end = (_wt < this->wt - 1) ? A - K : wOA_end;
 
         if (_hOA_end < A - K || _wOA_end < A - K) {
           ker_trans_output0_(*this, out, ain, b, _hOA_end, _wOA_end);

@@ -45,6 +45,32 @@ namespace test {
       free(bias);
   }
 
+  template <typename Type>
+  void compare_conv_results_block16(eld_conv_t<Type> &, Type *, Type *)
+  {
+  }
+
+  template <>
+  void compare_conv_results_block16<float>(
+      eld_conv_t<float> &desc, float *out, float *ref)
+  {
+    auto dims = desc.dims.output;
+    MD(float, aout, [dims.n][dims.c / 16][dims.h][dims.w][16], out);
+    MD(float, aref, [dims.n][dims.c / 16][dims.h][dims.w][16], ref);
+    for_each (_n, dims.n) {
+      for_each (_C, dims.c / 16) {
+        for_each (_h, dims.h) {
+          for_each (_w, dims.w) {
+            if (aout[_n][_C][_h][_w][0] != aref[_n][_C][_h][_w][0]) {
+              printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref)\n", _n, _C,
+                  _h, _w, aout[_n][_C][_h][_w][0], aref[_n][_C][_h][_w][0]);
+            }
+          }
+        }
+      }
+    }
+  }
+
   size_t cal_ops(eld_conv_t<float> &desc)
   {
     size_t num_ops = 0;
@@ -201,13 +227,13 @@ namespace test {
               for_each (_kh, kh) {
                 int _ih = _oh * desc.strides.h - desc.pads.t
                     + _kh * desc.dilations.h;
-                if (_ih < 0 || _ih > ih)
+                if (_ih < 0 || _ih >= ih)
                   continue;
 
                 for_each (_kw, kw) {
                   int _iw = _ow * desc.strides.w - desc.pads.l
                       + _kw * desc.dilations.w;
-                  if (_iw < 0 || _iw > iw)
+                  if (_iw < 0 || _iw >= iw)
                     continue;
 
                   (*aoutput)[_n][_oc][_oh][_ow]
