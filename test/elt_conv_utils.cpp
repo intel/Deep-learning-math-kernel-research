@@ -47,12 +47,13 @@ namespace test {
   }
 
   template <typename Type>
-  void compare_conv_results_block16(eld_conv_t<Type> &, Type *, Type *)
+  int compare_conv_results_block16(eld_conv_t<Type> &, Type *, Type *)
   {
+    return -1;
   }
 
   template <>
-  void compare_conv_results_block16<float>(
+  int compare_conv_results_block16<float>(
       eld_conv_t<float> &desc, float *out, float *ref)
   {
     auto dims = desc.dims.output;
@@ -90,7 +91,9 @@ namespace test {
     if (errors > 0) {
       printf("Error: number of errors: %d/%d, percentage: %f%%\n", errors,
           desc.sizes.output, ((errors * 1.0) / desc.sizes.output) * 100.0);
+      return -1;
     }
+    return 0;
   }
 
   size_t cal_ops(eld_conv_t<float> &desc)
@@ -217,7 +220,7 @@ namespace test {
   }
 
   template <typename Type>
-  void ref_convolution2d(eld_conv_t<Type> &desc, Type *output, Type *input,
+  int ref_convolution2d(eld_conv_t<Type> &desc, Type *output, Type *input,
       Type *weights, Type *bias)
   {
     int n = desc.dims.input.n;
@@ -244,6 +247,14 @@ namespace test {
     Array2 *aweights = (Array2 *)weights;
     Array3 *aoutput = (Array3 *)output;
 
+    if (desc.dims.input.n != desc.dims.output.n
+        || desc.dims.input.c != desc.dims.weights.i
+        || desc.dims.output.c != desc.dims.weights.o
+        || desc.dims.output.c != desc.dims.bias.c) {
+      printf("Dimension error!");
+      return -1;
+    }
+
 #pragma omp parallel for collapse(4)
     for_each (_n, n) {
       for_each (_oc, oc) {
@@ -269,10 +280,11 @@ namespace test {
         }
       }
     }
+    return 0;
   }
 
   template <typename Type>
-  void ref_convolution2d_block16(eld_conv_t<Type> &desc, Type *output,
+  int ref_convolution2d_block16(eld_conv_t<Type> &desc, Type *output,
       Type *input, Type *weights, Type *bias)
   {
     int n = desc.dims.input.n;
@@ -298,6 +310,14 @@ namespace test {
     Array1 *ainput = (Array1 *)input;
     Array2 *aweights = (Array2 *)weights;
     Array3 *aoutput = (Array3 *)output;
+
+    if (desc.dims.input.n != desc.dims.output.n
+        || desc.dims.input.c != desc.dims.weights.i
+        || desc.dims.output.c != desc.dims.weights.o
+        || desc.dims.output.c != desc.dims.bias.c) {
+      printf("Dimension error!");
+      return -1;
+    }
 
 #pragma omp parallel for collapse(4)
     for_each (_n, n) {
@@ -329,12 +349,13 @@ namespace test {
         }
       }
     }
+    return 0;
   }
 
-  template void ref_convolution2d<float>(
+  template int ref_convolution2d<float>(
       eld_conv_t<float> &, float *, float *, float *, float *);
 
-  template void ref_convolution2d_block16<float>(
+  template int ref_convolution2d_block16<float>(
       eld_conv_t<float> &, float *, float *, float *, float *);
 }
 }

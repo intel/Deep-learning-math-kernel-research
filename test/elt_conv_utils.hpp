@@ -20,7 +20,7 @@ namespace test {
       void *input, void *weights, void *output, void *bias);
 
   template <typename Type>
-  void compare_conv_results_block16(eld_conv_t<Type> &, Type *out, Type *ref);
+  int compare_conv_results_block16(eld_conv_t<Type> &, Type *out, Type *ref);
 
   size_t cal_ops(eld_conv_t<float> &desc);
 
@@ -50,11 +50,11 @@ namespace test {
   };
 
   template <typename Type>
-  void ref_convolution2d(eld_conv_t<Type> &desc, Type *output, Type *input,
+  int ref_convolution2d(eld_conv_t<Type> &desc, Type *output, Type *input,
       Type *weights, Type *bias);
 
   template <typename Type>
-  void ref_convolution2d_block16(eld_conv_t<Type> &desc, Type *output,
+  int ref_convolution2d_block16(eld_conv_t<Type> &desc, Type *output,
       Type *input, Type *weights, Type *bias);
 }
 }
