@@ -5,7 +5,7 @@ LDLIBS    := -liomp5
 
 TCXX      := icc
 TCXXFLAGS := -g -std=c++11 -fopenmp -pie -fPIE -Iinclude/ -Dlest_FEATURE_AUTO_REGISTER=1
-TLDFLAGS   = -Llib -L$(LIB_DIR) -liomp5 -lel -Wl,-rpath=$(LIB_DIR)
+TLDFLAGS   = -Llib -L$(LIB_DIR) -liomp5 -lel -lboost_program_options -Wl,-rpath=$(LIB_DIR)
 
 ROOT_DIR   = $(shell pwd)
 BUILD_DIR := $(ROOT_DIR)/build
