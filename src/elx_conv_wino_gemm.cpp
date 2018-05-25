@@ -31,9 +31,9 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   // I2, O2
   // tweights + pt-tinputs + pt-toutput ~ L2
   // tweights:gemm + tinputs:gemm + toutput:gemm ~ L1
-  this->T = 4; // TODO: T selection
-  this->O2 = 1; // TODO: O2 selection
-  this->I2 = 1; // TODO: I2 selection
+  this->T = 30; // TODO: T selection
+  this->O2 = 2; // TODO: O2 selection
+  this->I2 = 4; // TODO: I2 selection
 
   // Tailing
   this->Ir = this->ic % V;
@@ -166,18 +166,19 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(
     Type *tinput, Type *input, int _t2)
 {
+  int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+
   // n, ic2, ih, iw, V => t2=1, A, A, ic3, I2, T, V
   mdarray<Type, 5> ainput(input, this->n, this->ic2, this->ih, this->iw, V);
-  mdarray<Type, 6> atinput(tinput, A, A, this->ic3, this->I2, this->T, V);
+  mdarray<Type, 6> atinput(tinput, A, A, this->ic3, this->I2, Tz, V);
 
   alignas(64) Type aout[A][A][V];
-  int T_now = _t2 == (this->t2 - 1) ? this->Tr : this->T;
   int hA_end = (this->ih + this->lp) - (this->ht - 1) * (A - K + 1) - 1;
   int wA_end = (this->iw + this->tp) - (this->wt - 1) * (A - K + 1) - 1;
 
   for_each (_ic3, this->ic3) {
     for_each (_I2, this->I2) {
-      for_each (_T, T_now) {
+      for_each (_T, Tz) {
         int _t = _t2 * this->T + _T;
         int _nt = _t % this->nt;
         int _ht = _nt / this->wt;
@@ -215,12 +216,14 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemm(
     Type *toutput, Type *tweights, Type *tinput, int _t2)
 {
+  int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+  auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
+
   mdarray<Type, 8> atweights(
       tweights, this->oc3, this->ic3, A, A, this->O2, this->I2, V, V);
-  mdarray<Type, 6> atinput(tinput, A, A, this->ic3, this->I2, this->T, V);
-  mdarray<Type, 6> atoutput(toutput, A, A, this->oc3, this->O2, this->T, V);
+  mdarray<Type, 6> atinput(tinput, A, A, this->ic3, this->I2, Tz, V);
+  mdarray<Type, 6> atoutput(toutput, A, A, this->oc3, this->O2, Tz, V);
 
-  auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
 
   for_each (_hA, A) {
     for_each (_wA, A) {
@@ -239,14 +242,14 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
     Type *output, Type *toutput, Type *bias, int _t2)
 {
+  int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+
   // A, A, oc3, O2, T, V -> n, oc2, oh, ow, V
-  mdarray<Type, 6> atoutput(toutput, A, A, this->oc3, this->O2, this->T, V);
+  mdarray<Type, 6> atoutput(toutput, A, A, this->oc3, this->O2, Tz, V);
   mdarray<Type, 5> aoutput(output, this->n, this->oc2, this->oh, this->ow, V);
   mdarray<Type, 3> abias(bias, this->oc3, this->O2, V);
 
   Type ain[A][A][V];
-  int T_now = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-
   int hOA_end = this->oh % (A - K + 1) - 1;
   if (hOA_end == -1) hOA_end = A - K;
   int wOA_end = this->ow % (A - K + 1) - 1;
@@ -254,7 +257,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
 
   for_each (_oc3, this->oc3) {
     for_each (_O2, this->O2) {
-      for_each (_T, T_now) {
+      for_each (_T, Tz) {
         for_each (_hA, A) {
           for_each (_wA, A) {
 #pragma omp simd

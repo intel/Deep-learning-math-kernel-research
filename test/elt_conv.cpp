@@ -13,10 +13,10 @@ int main()
 {
   // 1, create convolution desc
   eld_conv_t<float> desc;
-  desc.dims = { .input   = { 1, 5, 5, 16 },
-                .weights = { 3, 3, 16, 16 },
-                .output  = { 1, 5, 5, 16 },
-                .bias    = { 16 } };
+  desc.dims = { .input   = { 32, 224, 224, 64 },
+                .weights = { 3, 3, 64, 64 },
+                .output  = { 32, 224, 224, 64 },
+                .bias    = { 64 } };
   desc.formats = { .input = nChw16c, .weights = OIhw16i16o, .output = nChw16c };
   desc.pads = { 1, 1, 1, 1 };
   desc.with_bias = true;
