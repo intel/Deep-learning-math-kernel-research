@@ -39,9 +39,9 @@ template<typename T>
 struct eld_conv_t {
     // Conv parameters
     struct {
-        struct { int n, h, w, c; } input;
-        struct { int h, w, i, o; } weights;
-        struct { int n, h, w, c; } output;
+        struct { int n, c, h, w; } input;
+        struct { int o, i, h, w; } weights;
+        struct { int n, c, h, w; } output;
         struct { int c;          } bias;
     } dims;
     struct { int l, r, t, b; } pads;
