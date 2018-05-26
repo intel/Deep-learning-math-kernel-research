@@ -7,12 +7,12 @@ echo
 
 num_sockets=
 cores_per_socket=
-threads_per_core=
+threads_per_core=1
 num_threads=
 
-${num_sockets:=$( lscpu | grep 'Socket(s)' | cut -d: -f2 )}
-${cores_per_socket:=$( lscpu | grep 'Core(s) per socket' | cut -d: -f2 )}
-${num_threads:=$(( num_sockets  * cores_per_socket ))}
+num_sockets=${num_sockets:=$( lscpu | grep 'Socket(s)' | cut -d: -f2 )}
+cores_per_socket=${cores_per_socket:=$( lscpu | grep 'Core(s) per socket' | cut -d: -f2 )}
+num_threads=${num_threads:=$(( num_sockets  * cores_per_socket ))}
 
 OMP_ENV="OMP_NUM_THREADS=$(( num_threads )) \
   KMP_HW_SUBSET=$(( num_sockets ))s,$(( cores_per_socket ))c,${threads_per_core}t \
