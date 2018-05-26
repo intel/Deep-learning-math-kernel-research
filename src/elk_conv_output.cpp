@@ -404,9 +404,9 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
   BOOST_PP_REPEAT(5, AVX512_LOAD3, nil);                                       \
   BOOST_PP_REPEAT(5, AVX512_LOAD4, nil);
 
-#define AVX512_STORE0(z, n, nil) _mm512_stream_ps(P(0, n), p0##n);
-#define AVX512_STORE1(z, n, nil) _mm512_stream_ps(P(1, n), p1##n);
-#define AVX512_STORE2(z, n, nil) _mm512_stream_ps(P(2, n), p2##n);
+#define AVX512_STORE0(z, n, nil) _mm512_store_ps(P(0, n), p0##n);
+#define AVX512_STORE1(z, n, nil) _mm512_store_ps(P(1, n), p1##n);
+#define AVX512_STORE2(z, n, nil) _mm512_store_ps(P(2, n), p2##n);
 #define STORE_ZMMS()                                                           \
   BOOST_PP_REPEAT(3, AVX512_STORE0, nil);                                      \
   BOOST_PP_REPEAT(3, AVX512_STORE1, nil);                                      \

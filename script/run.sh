@@ -20,8 +20,8 @@ function build() {
 
 function conv_test() {
   eval $OMP_ENV $ROOT_DIR/build/release/bin/elt_conv \
-    -n64 -i64 -o64 -h224 -w224 -H224 -W224 -k3 -K3 -p1 -P1 -s1 -S1 \
-    -b1 -r0 -v0 -awino
+    -n1 -i64 -o64 -h224 -w224 -H224 -W224 -k3 -K3 -p1 -P1 -s1 -S1 \
+    -b1 -r0 -v1 -awino
 }
 
 function unit_test() {

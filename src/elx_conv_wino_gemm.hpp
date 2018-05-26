@@ -11,13 +11,17 @@ namespace euler {
 
 template <typename Type, const int A, const int K, const int V, const int I>
 class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
- public:
+  public:
   elx_conv_wino_gemm_t(eld_conv_t<Type> &dc);
   virtual ~elx_conv_wino_gemm_t();
 
   virtual void execute(Type *output, Type *input, Type *weights, Type *bias);
 
   private:
+  inline void __execute_inf(
+      Type *output, Type *input, Type *weights, Type *bias);
+  inline void __execute(Type *output, Type *input, Type *weights, Type *bias);
+
   void trans_weights(Type *tweights, Type *weights);
   void trans_input(Type *tinput, Type *input, int _t2);
   void trans_output(Type *output, Type *toutput, Type *bias, int _t2);
@@ -39,6 +43,10 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
           BORDER(true), BIAS(false))>::trans_output) *ker_trans_output0_;
 
+  bool is_first_run_;
+  bool is_inference_;
+  size_t nsockets_;
+  size_t ncores_;
   size_t mthr_;
   Type *tweights_;
   Type *tinput_;
