@@ -49,35 +49,51 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   this->ic3 = this->ic / (this->I2 * V);
   this->t2 = (this->t + this->T - 1) / this->T;
 
-// dbg
-printf("T=%d, Tr=%d, t2=%d, t=%d\n", this->T, this->Tr, this->t2, this->t);
-printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic=%d\n", this->V, this->Ir, this->I2, this->ic3, this->ic);
-printf("V=%d, Or=%d, O2=%d, oc3=%d, oc=%d\n", this->V, this->Or, this->O2, this->oc3, this->oc);
+  // dbg
+  printf("T=%d, Tr=%d, t2=%d, t=%d\n", this->T, this->Tr, this->t2, this->t);
+  printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic=%d\n", this->V, this->Ir, this->I2, this->ic3, this->ic);
+  printf("V=%d, Or=%d, O2=%d, oc3=%d, oc=%d\n", this->V, this->Or, this->O2, this->oc3, this->oc);
 
-is_first_run_ = true;
-inference_acc_ = false;
-mthr_ = omp_get_max_threads();
-int mthr = this->hws_s * this->hws_c * this->hws_t;
-if (mthr > 0 && mthr <= mthr_) {
-  ncores_ = this->hws_c * this->hws_t;
-  nsockets_ = this->hws_s;
-  inference_acc_ = this->prop_kind == forward_inference;
-} else {
-  el_warn("hw_subset does not match with OMP settings. Fallback to slow path");
-}
+  is_first_run_ = true;
+  inference_acc_ = false;
+  mthr_ = omp_get_max_threads();
+  int hws_mthr = this->hws_s * this->hws_c * this->hws_t;
+  if (hws_mthr > 0 && hws_mthr <= mthr_ && this->hws_s < MAX_SOCKETS) {
+    ncores_ = this->hws_c * this->hws_t;
+    nsockets_ = this->hws_s;
+    inference_acc_ = this->prop_kind == forward_inference;
 
-size_t tweights_size = sizeof(Type) * A * A * this->ic * this->oc * nsockets_;
-size_t tinput_size = sizeof(Type) * A * A * this->T * this->ic * mthr_;
-size_t toutput_size = sizeof(Type) * A * A * this->T * this->oc * mthr_;
+    int ntasks_base = this->t2 / nsockets_;
+    int rem = this->t2 - nsockets_ * ntasks_base;
+    for_each (s, nsockets_) {
+      int i = nsockets_ - s - 1;
+      if (s < rem) {
+        ts_[i].start = (ntasks_base + 1) * s;
+        ts_[i].end = ts_[i].start + ntasks_base;
+      } else {
+        ts_[i].start = rem * (ntasks_base + 1) + (s - rem) * ntasks_base;
+        ts_[i].end = ts_[i].start + ntasks_base - 1;
+      }
+      printf("ts_[%d]=[%d,%d]\n", i, ts_[i].start, ts_[i].end);
+    }
+  } else {
+    el_warn(
+        "hw_subset does not match with OMP settings. Fallback to slow path");
+  }
 
-tweights_ = (Type *)memalign(64, tweights_size);
-tinput_ = (Type *)memalign(64, tinput_size);
-toutput_ = (Type *)memalign(64, toutput_size);
+  size_t tweights_size
+      = sizeof(Type) * A * A * this->ic * this->oc * nsockets_;
+  size_t tinput_size = sizeof(Type) * A * A * this->T * this->ic * mthr_;
+  size_t toutput_size = sizeof(Type) * A * A * this->T * this->oc * mthr_;
 
-// dbg
-size_t l2_usage = tweights_size / nsockets_ + sizeof(Type) * A * A * this->T * (this->ic + this->oc);
-size_t l1_usage = sizeof(Type) * this->O2 * this->I2 * V * V + sizeof(Type) * this->T * V * (this->I2 + this->O2);
-printf("l2_usage=%ld, l1_usage=%ld\n", l2_usage, l1_usage);
+  tweights_ = (Type *)memalign(64, tweights_size);
+  tinput_ = (Type *)memalign(64, tinput_size);
+  toutput_ = (Type *)memalign(64, toutput_size);
+
+  // dbg
+  size_t l2_usage = tweights_size / nsockets_ + sizeof(Type) * A * A * this->T * (this->ic + this->oc);
+  size_t l1_usage = sizeof(Type) * this->O2 * this->I2 * V * V + sizeof(Type) * this->T * V * (this->I2 + this->O2);
+  printf("l2_usage=%ld, l1_usage=%ld\n", l2_usage, l1_usage);
 
   ker_trans_input_ = convolution_winograd_kernel<S_INPUT(
       Type, A, K, V, I, BORDER(false))>::trans_input;
@@ -328,17 +344,6 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_inf(
     Type *output, Type *input, Type *weights, Type *bias)
 {
-  // Support only nsockets_ == 2
-  // TODO
-  struct tasks_socket {
-    int start;
-    int end;
-  } ts[2];
-  ts[0].start = 0;
-  ts[0].end = this->t2 / nsockets_ - 1;
-  ts[1].start = this-> t2 / nsockets_;
-  ts[1].end = this->t2 - 1;
-
   mdarray<Type, 3> atinput(
       tinput_, nsockets_, ncores_, A * A * this->T * this->ic);
   mdarray<Type, 3> atoutput(
@@ -357,7 +362,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_inf(
 #pragma omp barrier
     }
 #pragma omp for nowait collapse(1) schedule(static)
-    for (int _t2 = ts[s].start; _t2 <= ts[s].end; _t2++) {
+    for (int _t2 = ts_[s].start; _t2 <= ts_[s].end; _t2++) {
       size_t ithr = omp_get_thread_num();
       trans_input(&atinput(s, ithr, 0), input, _t2);
       gemm(&atoutput(s, ithr, 0), &atweights(s, 0), &atinput(s, ithr, 0), _t2);

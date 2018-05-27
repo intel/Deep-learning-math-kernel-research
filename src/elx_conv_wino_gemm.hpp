@@ -43,6 +43,9 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
           BORDER(true), BIAS(false))>::trans_output) *ker_trans_output0_;
 
+#define MAX_SOCKETS (8)
+  // tasks allocation per sockets
+  struct { int start; int end; } ts_[MAX_SOCKETS];
   bool is_first_run_;
   bool inference_acc_;
   size_t nsockets_;
