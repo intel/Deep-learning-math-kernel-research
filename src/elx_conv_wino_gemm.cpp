@@ -327,6 +327,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute(
 #pragma omp parallel proc_bind(close)
   {
     trans_weights(tweights_, weights);
+#pragma omp barrier
 
 #pragma omp for nowait collapse(1)
     for_each (_t2, this->t2) {

@@ -43,15 +43,16 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
           BORDER(true), BIAS(false))>::trans_output) *ker_trans_output0_;
 
-#define MAX_THREAD_TEAMS (8)
-  // tasks allocation per thread team
-  struct { int start; int end; } ttm_[MAX_THREAD_TEAMS];
   bool is_first_run_;
   bool inference_acc_;
   size_t mthr_;
   Type *tweights_;
   Type *tinput_;
   Type *toutput_;
+
+#define MAX_THREAD_TEAMS (8)
+  // tasks allocation per thread team
+  struct { int start; int end; } ttm_[MAX_THREAD_TEAMS];
 };
 
 template class elx_conv_wino_gemm_t<float, 5, 3, 16, ISA_GENERIC>;

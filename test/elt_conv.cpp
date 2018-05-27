@@ -51,7 +51,7 @@ int main(int argc, char **argv)
   test::prepare_conv_data<float>(desc, &input, &weights, &output, &bias);
 
   // 3. execute convolution
-  int iterations = validate_results ? 1: 3200 / mb;
+  int iterations = validate_results ? 1: 6400 / mb;
   size_t num_ops = test::cal_ops(desc);
   time_start(conv);
   for (int n = 0; n < iterations; ++n) {
