@@ -20,9 +20,9 @@ enum {
 #define pragma_opt_core_avx512
 #endif
 
-inline void eld_error(const char* msg) { printf("Euler:d: %s\n", msg); }
+inline void el_error(const char* msg) { printf("Euler:Error: %s\n", msg); }
 
-inline void elx_error(const char* msg) { printf("Euler:x: %s\n", msg); }
+inline void el_warn(const char* msg) { printf("Euler:Warning: %s\n", msg); }
 
 } // namespace euler
 

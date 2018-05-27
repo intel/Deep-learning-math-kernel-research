@@ -33,6 +33,12 @@ elx_conv_t<Type>::elx_conv_t(eld_conv_t<Type> &dc) {
   this->output_fmt = dc.formats.output;
   this->with_relu = dc.with_relu;
   this->with_bias = dc.with_bias;
+
+  this->prop_kind = dc.prop_kind;
+
+  this->hws_s = dc.hw_subset.s;
+  this->hws_c = dc.hw_subset.c;
+  this->hws_t = dc.hw_subset.t;
 }
 
 template <typename T>
@@ -42,12 +48,12 @@ int elx_conv(eld_conv_t<T> &desc, T *output, T *input, T *weights, T *bias) {
   // Sanity check
   if (input == nullptr || weights == nullptr || output == nullptr
       || (desc.with_bias && bias == nullptr)) {
-    elx_error("Parameter error");
+    el_error("Parameter error");
     return ELX_GENERAL_ERROR;
   }
 
   if (desc.algorithm == CONV_DIRECT) {
-    elx_error("Unimplemented");
+    el_error("Unimplemented");
     return ELX_UNIMPLEMENTED;
 
   } else {

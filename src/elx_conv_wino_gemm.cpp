@@ -54,22 +54,28 @@ printf("T=%d, Tr=%d, t2=%d, t=%d\n", this->T, this->Tr, this->t2, this->t);
 printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic=%d\n", this->V, this->Ir, this->I2, this->ic3, this->ic);
 printf("V=%d, Or=%d, O2=%d, oc3=%d, oc=%d\n", this->V, this->Or, this->O2, this->oc3, this->oc);
 
-  // TODO
-  is_first_run_ = true;
-  is_inference_ = true;
-  nsockets_ = 1;
-  ncores_ = 18;
-  mthr_ = omp_get_max_threads();
-  size_t tweights_size = sizeof(Type) * A * A * this->ic * this->oc * nsockets_;
-  size_t tinput_size = sizeof(Type) * A * A * this->T * this->ic * mthr_;
-  size_t toutput_size = sizeof(Type) * A * A * this->T * this->oc * mthr_;
+is_first_run_ = true;
+inference_acc_ = false;
+mthr_ = omp_get_max_threads();
+int mthr = this->hws_s * this->hws_c * this->hws_t;
+if (mthr > 0 && mthr <= mthr_) {
+  ncores_ = this->hws_c * this->hws_t;
+  nsockets_ = this->hws_s;
+  inference_acc_ = this->prop_kind == forward_inference;
+} else {
+  el_warn("hw_subset does not match with OMP settings. Fallback to slow path");
+}
 
-  tweights_ = (Type*)memalign(64, tweights_size);
-  tinput_ = (Type*)memalign(64, tinput_size);
-  toutput_ = (Type*)memalign(64, toutput_size);
+size_t tweights_size = sizeof(Type) * A * A * this->ic * this->oc * nsockets_;
+size_t tinput_size = sizeof(Type) * A * A * this->T * this->ic * mthr_;
+size_t toutput_size = sizeof(Type) * A * A * this->T * this->oc * mthr_;
+
+tweights_ = (Type *)memalign(64, tweights_size);
+tinput_ = (Type *)memalign(64, tinput_size);
+toutput_ = (Type *)memalign(64, toutput_size);
 
 // dbg
-size_t l2_usage = tweights_size + sizeof(Type) * A * A * this->T * (this->ic + this->oc);
+size_t l2_usage = tweights_size / nsockets_ + sizeof(Type) * A * A * this->T * (this->ic + this->oc);
 size_t l1_usage = sizeof(Type) * this->O2 * this->I2 * V * V + sizeof(Type) * this->T * V * (this->I2 + this->O2);
 printf("l2_usage=%ld, l1_usage=%ld\n", l2_usage, l1_usage);
 
@@ -99,7 +105,7 @@ printf("l2_usage=%ld, l1_usage=%ld\n", l2_usage, l1_usage);
   switch (this->T) {
     BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE, nil)
   default:
-    elx_error("Unimplemented");
+    el_error("Unimplemented");
     break;
   }
 #define GEMM_CASE0(z, n, data)                                               \
@@ -109,7 +115,7 @@ printf("l2_usage=%ld, l1_usage=%ld\n", l2_usage, l1_usage);
   switch (this->Tr) {
     BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE0, nil);
   default:
-    elx_error("Unimplemented");
+    el_error("Unimplemented");
     break;
   }
 }
@@ -365,7 +371,7 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::execute(
     Type *output, Type *input, Type *weights, Type *bias)
 {
-  if (is_inference_)
+  if (inference_acc_)
     __execute_inf(output, input, weights, bias);
   else
     __execute(output, input, weights, bias);

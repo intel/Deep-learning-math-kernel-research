@@ -43,8 +43,14 @@ struct elx_conv_t {
   int weights_fmt;
   int output_fmt;
 
+  // propagation kind
+  int prop_kind;
+
   // relu, bias
   bool with_relu, with_bias;
+
+  // hw_subset
+  int hws_s, hws_c, hws_t;
 
   elx_conv_t(eld_conv_t<Type> &dc);
   virtual ~elx_conv_t() {}

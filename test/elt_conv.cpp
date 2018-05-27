@@ -16,7 +16,8 @@ int parse_cmd_options(int, char **);
 int mb = 0, ic = 0, ih = 0, iw = 0, oc = 0, oh = 0, ow = 0, kh = 3, kw = 3;
 int ph = 1, pw = 1, sh = 1, sw = 1, dh = 1, dw = 1;
 bool with_bias = true, with_relu = false;
-int alg = CONV_WINOGRAD;
+int prop_kind = forward_inference, alg = CONV_WINOGRAD;
+int nsockets = 0, ncores_per_socket = 0, nthreads_per_core = 1;
 
 bool validate_results = false;
 
@@ -37,6 +38,8 @@ int main(int argc, char **argv)
   desc.with_relu = with_relu;
   desc.algorithm = alg;
   desc.tile_size = 5;
+  desc.prop_kind = prop_kind;
+  desc.hw_subset = { nsockets, ncores_per_socket, nthreads_per_core };
 
   if (desc.setup() != ELD_OK) {
     printf("Fail: Convolution setup error!\n");
@@ -100,7 +103,10 @@ int parse_cmd_options(int argc, char **argv) {
     ("validate-results,v", po::value<bool>(&validate_results), "on|off. Validate correctness. Default: off")
     ("with-bias,b", po::value<bool>(&with_bias), "on|off. With bias. Default: on")
     ("with-relu,r", po::value<bool>(&with_relu), "on|off. With relu. Default: off")
-    ("alg,a", po::value<std::string>(), "wino|direct. Algorithm. Default: wino");
+    ("alg,a", po::value<std::string>(), "wino|direct. Algorithm. Default: wino")
+    ("socket-number,", po::value<int>(&nsockets), "Sockets number")
+    ("socket-core-number", po::value<int>(&ncores_per_socket), "Core number per Socket")
+    ("core-thread-number", po::value<int>(&nthreads_per_core), "Thread number per sockets");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -127,9 +133,21 @@ int parse_cmd_options(int argc, char **argv) {
   printf("Convolution options:\n"
          "mb:%d, ic:%d, ih:%d, iw:%d, oc:%d, oh:%d, ow:%d, kh:%d, kw:%d, "
          "ph:%d, pw:%d, sh:%d, sw:%d, dh:%d, dw:%d\n"
-         "with_bias:%d, with_relu:%d, validate_results:%d, ",
-      mb, ic, ih, iw, oc, oh, ow, kh, kw, ph, pw, sh, sw, dh, dw, with_bias,
-      with_relu, validate_results);
+         "with_bias:%d, with_relu:%d, validate_results:%d\n"
+         "nsockets:%d, ncores_per_socket:%d, nthreads_per_core:%d\n",
+      mb, ic, ih, iw, oc, oh, ow, kh, kw, ph, pw, sh, sw, dh, dw,
+      with_bias, with_relu, validate_results, nsockets, ncores_per_socket,
+      nthreads_per_core);
+
+  if (prop_kind == forward_inference)
+    printf("prop_kind:forward_inference\n");
+  else if (prop_kind == forward_training)
+    printf("prop_kind:forward_training\n");
+  else if (prop_kind == backward_data)
+    printf("prop_kind:backward_data\n");
+  else if (prop_kind == backward_weights)
+    printf("prop_kind:backward_weights\n");
+
   if (alg == CONV_DIRECT)
     printf("alg:CONV_DIRECT\n");
   else

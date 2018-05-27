@@ -34,11 +34,11 @@ int eld_conv_t<F>::setup() {
   // Dimensions
   if (dims.input.c != dims.weights.i || dims.input.n != dims.output.n ||
       dims.output.c != dims.weights.o) {
-    eld_error("Dimension error");
+    el_error("Dimension error");
     return ELD_GENERAL_ERROR;
   }
   if (with_bias && dims.bias.c != dims.output.c) {
-    eld_error("Dimension error");
+    el_error("Dimension error");
     return ELD_GENERAL_ERROR;
   }
 
@@ -59,16 +59,22 @@ int eld_conv_t<F>::setup() {
   // TODO: Check formats
   if (formats.input != nChw16c || formats.output != nChw16c ||
       formats.weights != OIhw16i16o) {
-    eld_error("Unimplemented");
+    el_error("Unimplemented");
     return ELD_UNIMPLEMENTED;
   }
 
   // TODO: Check CPUID
   xc = nullptr;
 
+  if (prop_kind != forward_training && prop_kind != forward_inference
+      && prop_kind != backward_data && prop_kind != backward_weights) {
+    el_error("Propagation kind error");
+    return ELD_GENERAL_ERROR;
+  }
+
   // Direct
   if (algorithm == CONV_DIRECT) {
-    eld_error("Unimplemented");
+    el_error("Unimplemented");
     // TODO: Direct
     return ELD_UNIMPLEMENTED;
   } else if (algorithm == CONV_WINOGRAD) {
@@ -76,10 +82,11 @@ int eld_conv_t<F>::setup() {
     if (dilations.h > 1 || dilations.w > 1 || tile_size != 5 ||
         strides.h != 1 || strides.w != 1 || dims.weights.h != 3 ||
         dims.weights.w != 3) {
-      eld_error("Unimplemented");
+      el_error("Unimplemented");
       return ELD_UNIMPLEMENTED;
     }
 
+    // TODO: forward, backward_data, backward_weights
     switch (tile_size) {
       case 5:
         xc = new elx_conv_wino_gemm_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);

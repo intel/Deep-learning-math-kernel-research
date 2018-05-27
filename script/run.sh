@@ -5,17 +5,17 @@ ROOT_DIR="$(dirname $(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd))"
 echo Root dir: $ROOT_DIR
 echo
 
-num_sockets=
-cores_per_socket=
-threads_per_core=1
-num_threads=
+nsockets=
+ncores_per_socket=
+nthreads_per_core=1
+nthreads=
 
-num_sockets=${num_sockets:=$( lscpu | grep 'Socket(s)' | cut -d: -f2 )}
-cores_per_socket=${cores_per_socket:=$( lscpu | grep 'Core(s) per socket' | cut -d: -f2 )}
-num_threads=${num_threads:=$(( num_sockets  * cores_per_socket ))}
+nsockets=${nsockets:=$( lscpu | grep 'Socket(s)' | cut -d: -f2 )}
+ncores_per_socket=${ncores_per_socket:=$( lscpu | grep 'Core(s) per socket' | cut -d: -f2 )}
+nthreads=${nthreads:=$(( nsockets  * ncores_per_socket ))}
 
-OMP_ENV="OMP_NUM_THREADS=$(( num_threads )) \
-  KMP_HW_SUBSET=$(( num_sockets ))s,$(( cores_per_socket ))c,${threads_per_core}t \
+OMP_ENV="OMP_NUM_THREADS=$(( nthreads )) \
+  KMP_HW_SUBSET=$(( nsockets ))s,$(( ncores_per_socket ))c,$(( nthreads_per_core ))t \
   KMP_AFFINITY=compact,granularity=fine \
   KMP_BLOCKTIME=infinite"
 echo OMP Environment: $OMP_ENV
@@ -27,7 +27,7 @@ function build() {
 function conv_test() {
   # Default
   n=1; i=64; o=64; h=224; w=224; H=224; W=224; k=3; K=3; p=1; P=1; s=1; S=1
-  b=1; r=0; v=1; a=wino
+  b=1; r=0; v=1; a=wino;
 
   OPTIND=1
   while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:a:" opt; do
@@ -54,7 +54,10 @@ function conv_test() {
   shift $((OPTIND-1))
   eval $OMP_ENV $ROOT_DIR/build/release/bin/elt_conv \
     -n$n -i$i -o$o -h$h -w$w -H$H -W$W -k$k -K$K -p$p -P$P -s$s -S$S \
-    -b$b -r$r -v$v -a$a
+    -b$b -r$r -v$v -a$a \
+    --socket-number=$(( nsockets )) \
+    --socket-core-number=$(( ncores_per_socket )) \
+    --core-thread-number=$(( nthreads_per_core ))
 }
 
 function unit_test() {

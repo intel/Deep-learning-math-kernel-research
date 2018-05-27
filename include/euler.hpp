@@ -23,6 +23,7 @@ enum {
     ELX_GENERAL_ERROR = 2
 };
 
+// Data formats
 enum {
     nchw,
     nhwc,
@@ -30,6 +31,14 @@ enum {
     oihw,
     hwio,
     OIhw16i16o
+};
+
+// Propagation kind
+enum {
+    forward_training,
+    forward_inference,
+    backward_data,
+    backward_weights
 };
 
 template<typename T> struct elx_conv_t;
@@ -51,12 +60,20 @@ struct eld_conv_t {
     // Data layout
     struct { int input, weights, output; } formats;
 
+    // propagation kind
+    int prop_kind;
+
     // Algorithm
     int algorithm; // CONV_DIRECT | CONV_WINOGRAD
     int tile_size; // for Winograd only
 
     bool with_relu;
     bool with_bias;
+    bool is_inference;
+
+    // Performance: KMP_HW_SUBSET
+    // sockets, cores per socket, threads per core
+    struct { int s; int c; int t;} hw_subset;
 
     // Defaults
     eld_conv_t();

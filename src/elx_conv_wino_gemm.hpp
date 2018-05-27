@@ -44,7 +44,7 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
           BORDER(true), BIAS(false))>::trans_output) *ker_trans_output0_;
 
   bool is_first_run_;
-  bool is_inference_;
+  bool inference_acc_;
   size_t nsockets_;
   size_t ncores_;
   size_t mthr_;
