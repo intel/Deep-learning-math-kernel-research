@@ -66,15 +66,14 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
     int ntasks_base = this->t2 / nsockets_;
     int rem = this->t2 - nsockets_ * ntasks_base;
     for_each (s, nsockets_) {
-      int i = nsockets_ - s - 1;
       if (s < rem) {
-        ts_[i].start = (ntasks_base + 1) * s;
-        ts_[i].end = ts_[i].start + ntasks_base;
+        ts_[s].start = (ntasks_base + 1) * s;
+        ts_[s].end = ts_[s].start + ntasks_base;
       } else {
-        ts_[i].start = rem * (ntasks_base + 1) + (s - rem) * ntasks_base;
-        ts_[i].end = ts_[i].start + ntasks_base - 1;
+        ts_[s].start = rem * (ntasks_base + 1) + (s - rem) * ntasks_base;
+        ts_[s].end = ts_[s].start + ntasks_base - 1;
       }
-      printf("ts_[%d]=[%d,%d]\n", i, ts_[i].start, ts_[i].end);
+      printf("ts_[%d]=[%d,%d]\n", s, ts_[s].start, ts_[s].end);
     }
   } else {
     el_warn(
