@@ -57,7 +57,7 @@ function conv_test() {
             ;;
           nthreads) nthreads="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
             ;;
-          nthreads=) nthreads=${OPTARG#*=}
+          nthreads=*) nthreads=${OPTARG#*=}
             ;;
        esac
        ;;
