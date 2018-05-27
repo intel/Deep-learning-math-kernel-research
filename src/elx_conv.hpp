@@ -49,8 +49,8 @@ struct elx_conv_t {
   // relu, bias
   bool with_relu, with_bias;
 
-  // hw_subset
-  int hws_s, hws_c, hws_t;
+  // threading
+  int nteams, nthreads;
 
   elx_conv_t(eld_conv_t<Type> &dc);
   virtual ~elx_conv_t() {}

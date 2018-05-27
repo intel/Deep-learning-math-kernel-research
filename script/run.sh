@@ -27,10 +27,10 @@ function build() {
 function conv_test() {
   # Default
   n=1; i=64; o=64; h=224; w=224; H=224; W=224; k=3; K=3; p=1; P=1; s=1; S=1
-  b=1; r=0; v=1; a=wino;
+  b=1; r=0; v=1; a=wino; nteams=0; nthreads=0
 
   OPTIND=1
-  while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:a:" opt; do
+  while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:a:-:" opt; do
     case "$opt" in
       n) n=$OPTARG ;;
       i) i=$OPTARG ;;
@@ -49,15 +49,24 @@ function conv_test() {
       r) r=$OPTARG ;;
       v) v=$OPTARG ;;
       a) a=$OPTARG ;;
+      -)
+        case "${OPTARG}" in
+          nteams) nteams="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          nteams=*) nteams=${OPTARG#*=}
+            ;;
+          nthreads) nthreads="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          nthreads=) nthreads=${OPTARG#*=}
+            ;;
+       esac
+       ;;
     esac
   done
   shift $((OPTIND-1))
   eval $OMP_ENV $ROOT_DIR/build/release/bin/elt_conv \
     -n$n -i$i -o$o -h$h -w$w -H$H -W$W -k$k -K$K -p$p -P$P -s$s -S$S \
-    -b$b -r$r -v$v -a$a \
-    --socket-number=$(( nsockets )) \
-    --socket-core-number=$(( ncores_per_socket )) \
-    --core-thread-number=$(( nthreads_per_core ))
+    -b$b -r$r -v$v -a$a --nteams=$nteams --nthreads=$nthreads
 }
 
 function unit_test() {

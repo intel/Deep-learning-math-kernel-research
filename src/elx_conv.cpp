@@ -36,9 +36,8 @@ elx_conv_t<Type>::elx_conv_t(eld_conv_t<Type> &dc) {
 
   this->prop_kind = dc.prop_kind;
 
-  this->hws_s = dc.hw_subset.s;
-  this->hws_c = dc.hw_subset.c;
-  this->hws_t = dc.hw_subset.t;
+  this->nteams = dc.threading.nteams;
+  this->nthreads = dc.threading.nthreads;
 }
 
 template <typename T>

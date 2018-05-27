@@ -57,31 +57,30 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   is_first_run_ = true;
   inference_acc_ = false;
   mthr_ = omp_get_max_threads();
-  int hws_mthr = this->hws_s * this->hws_c * this->hws_t;
-  if (hws_mthr > 0 && hws_mthr <= mthr_ && this->hws_s < MAX_SOCKETS) {
-    ncores_ = this->hws_c * this->hws_t;
-    nsockets_ = this->hws_s;
-    inference_acc_ = this->prop_kind == forward_inference;
+  if (this->nteams == 0 || this->nthreads == 0
+      || this->nteams * this->nthreads > mthr_
+      || this->nteams > MAX_THREAD_TEAMS) {
+    this->nteams = 1;
+    this->nthreads = mthr_;
+  }
+  inference_acc_ = this->prop_kind == forward_inference;
 
-    int ntasks_base = this->t2 / nsockets_;
-    int rem = this->t2 - nsockets_ * ntasks_base;
-    for_each (s, nsockets_) {
-      if (s < rem) {
-        ts_[s].start = (ntasks_base + 1) * s;
-        ts_[s].end = ts_[s].start + ntasks_base;
-      } else {
-        ts_[s].start = rem * (ntasks_base + 1) + (s - rem) * ntasks_base;
-        ts_[s].end = ts_[s].start + ntasks_base - 1;
-      }
-      printf("ts_[%d]=[%d,%d]\n", s, ts_[s].start, ts_[s].end);
+  int ntasks_base = this->t2 / this->nteams;
+  int rem = this->t2 - this->nteams * ntasks_base;
+  for_each (s, this->nteams) {
+    if (s < rem) {
+      ttm_[s].start = (ntasks_base + 1) * s;
+      ttm_[s].end = ttm_[s].start + ntasks_base;
+    } else {
+      ttm_[s].start = rem * (ntasks_base + 1) + (s - rem) * ntasks_base;
+      ttm_[s].end = ttm_[s].start + ntasks_base - 1;
     }
-  } else {
-    el_warn(
-        "hw_subset does not match with OMP settings. Fallback to slow path");
+    // dbg
+    printf("ttm_[%d]=[%d,%d]\n", s, ttm_[s].start, ttm_[s].end);
   }
 
   size_t tweights_size
-      = sizeof(Type) * A * A * this->ic * this->oc * nsockets_;
+      = sizeof(Type) * A * A * this->ic * this->oc * this->nteams;
   size_t tinput_size = sizeof(Type) * A * A * this->T * this->ic * mthr_;
   size_t toutput_size = sizeof(Type) * A * A * this->T * this->oc * mthr_;
 
@@ -90,7 +89,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   toutput_ = (Type *)memalign(64, toutput_size);
 
   // dbg
-  size_t l2_usage = tweights_size / nsockets_ + sizeof(Type) * A * A * this->T * (this->ic + this->oc);
+  size_t l2_usage = tweights_size / this->nteams + sizeof(Type) * A * A * this->T * (this->ic + this->oc);
   size_t l1_usage = sizeof(Type) * this->O2 * this->I2 * V * V + sizeof(Type) * this->T * V * (this->I2 + this->O2);
   printf("l2_usage=%ld, l1_usage=%ld\n", l2_usage, l1_usage);
 
@@ -344,24 +343,24 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_inf(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   mdarray<Type, 3> atinput(
-      tinput_, nsockets_, ncores_, A * A * this->T * this->ic);
+      tinput_, this->nteams, this->nthreads, A * A * this->T * this->ic);
   mdarray<Type, 3> atoutput(
-      toutput_, nsockets_, ncores_, A * A * this->T * this->oc);
+      toutput_, this->nteams, this->nthreads, A * A * this->T * this->oc);
   mdarray<Type, 2> atweights(
-      tweights_, nsockets_, A * A * this->ic * this->oc);
+      tweights_, this->nteams, A * A * this->ic * this->oc);
 
   omp_set_nested(1);
-#pragma omp parallel num_threads(nsockets_) proc_bind(spread)
+#pragma omp parallel num_threads(this->nteams) proc_bind(spread)
 #pragma omp for nowait collapse(1) schedule(static)
-  for (int s = 0; s < nsockets_; s++)
-#pragma omp parallel num_threads(ncores_) proc_bind(close)
+  for (int s = 0; s < this->nteams; s++)
+#pragma omp parallel num_threads(this->nthreads) proc_bind(close)
   {
     if (is_first_run_) {
       trans_weights(&atweights(s, 0), weights);
 #pragma omp barrier
     }
 #pragma omp for nowait collapse(1) schedule(static)
-    for (int _t2 = ts_[s].start; _t2 <= ts_[s].end; _t2++) {
+    for (int _t2 = ttm_[s].start; _t2 <= ttm_[s].end; _t2++) {
       size_t ithr = omp_get_thread_num();
       trans_input(&atinput(s, ithr, 0), input, _t2);
       gemm(&atoutput(s, ithr, 0), &atweights(s, 0), &atinput(s, ithr, 0), _t2);

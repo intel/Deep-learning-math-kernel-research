@@ -71,9 +71,9 @@ struct eld_conv_t {
     bool with_bias;
     bool is_inference;
 
-    // Performance: KMP_HW_SUBSET
-    // sockets, cores per socket, threads per core
-    struct { int s; int c; int t;} hw_subset;
+    // Performance:
+    // number of thread teams, number of threads per team
+    struct { int nteams; int nthreads;} threading;
 
     // Defaults
     eld_conv_t();

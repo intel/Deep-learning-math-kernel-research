@@ -20,6 +20,7 @@ eld_conv_t<F>::eld_conv_t() {
   with_relu = false;
   with_bias = false;
   xc        = nullptr;
+  threading = {0, 0};
 }
 
 template <typename F>
