@@ -32,7 +32,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   // tweights + pt-tinputs + pt-toutput ~ L2
   // tweights:gemm + tinputs:gemm + toutput:gemm ~ L1
   this->T = 18; // TODO: T selection
-  this->O2 = 2; // TODO: O2 selection
+  this->O2 = 4; // TODO: O2 selection
   this->I2 = 4; // TODO: I2 selection
 
   // Tailing

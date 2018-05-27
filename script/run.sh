@@ -12,7 +12,7 @@ nthreads=
 
 nsockets=${nsockets:=$( lscpu | grep 'Socket(s)' | cut -d: -f2 )}
 ncores_per_socket=${ncores_per_socket:=$( lscpu | grep 'Core(s) per socket' | cut -d: -f2 )}
-nthreads=${nthreads:=$(( nsockets  * ncores_per_socket ))}
+nthreads=${nthreads:=$(( nsockets  * ncores_per_socket * nthreads_per_core ))}
 
 OMP_ENV="OMP_NUM_THREADS=$(( nthreads )) \
   KMP_HW_SUBSET=$(( nsockets ))s,$(( ncores_per_socket ))c,$(( nthreads_per_core ))t \
