@@ -18,14 +18,13 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   virtual void execute(Type *output, Type *input, Type *weights, Type *bias);
 
   private:
-  inline void __execute_inf(
+  inline void __execute_ttm(
       Type *output, Type *input, Type *weights, Type *bias);
   inline void __execute(Type *output, Type *input, Type *weights, Type *bias);
 
   void trans_weights(Type *tweights, Type *weights);
-  void trans_input(Type *tinput, Type *input, int _t2);
-  void trans_output(Type *output, Type *toutput, Type *bias, int _t2);
-  void gemm(Type *toutput, Type *tweights, Type *tinput, int _t2);
+  void trans_input(Type *tinput, Type *input, int _t2, int Tz);
+  void trans_output(Type *output, Type *toutput, Type *bias, int _t2, int Tz);
 
   decltype(
       convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_;
