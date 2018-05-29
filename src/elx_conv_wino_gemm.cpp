@@ -44,8 +44,11 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   assert(this->Ir == 0);
   assert(this->Or == 0);
 
+  int policy = 3;
+
   // TODO: add tailing?
   this->oc3 = this->oc / (this->O2 * V);
+  if (policy == 3) this->oc3 /= this->nteams;
   this->ic3 = this->ic / (this->I2 * V);
   this->t2 = (this->t + this->T - 1) / this->T;
 
@@ -65,27 +68,45 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   }
   inference_acc_ = this->prop_kind == forward_inference;
 
-  int ntasks_base = this->t2 / this->nteams;
-  int rem = this->t2 - this->nteams * ntasks_base;
-  for_each (s, this->nteams) {
-    if (s < rem) {
-      ttm_[s].start = (ntasks_base + 1) * s;
-      ttm_[s].end = ttm_[s].start + ntasks_base;
-    } else {
-      ttm_[s].start = rem * (ntasks_base + 1) + (s - rem) * ntasks_base;
-      ttm_[s].end = ttm_[s].start + ntasks_base - 1;
+  auto divide_tasks_ttm =
+      [this](size_t tasks) {
+        size_t ntasks_base = tasks / this->nteams;
+        size_t rem = tasks - this->nteams * ntasks_base;
+        for_each (s, this->nteams) {
+          if (s < rem) {
+            ttm_[s].start = (ntasks_base + 1) * s;
+            ttm_[s].end = ttm_[s].start + ntasks_base;
+          } else {
+            ttm_[s].start = rem * (ntasks_base + 1) + (s - rem) * ntasks_base;
+            ttm_[s].end = ttm_[s].start + ntasks_base - 1;
+          }
+          // dbg
+          printf("ttm_[%d]=[%d,%d]\n", s, ttm_[s].start, ttm_[s].end);
+        }
+      };
+
+  size_t tweights_size, tinput_size, toutput_size;
+
+  if (policy < 2) {
+    size_t nteams = 1;
+    if (policy == 1) {
+      nteams = this->nteams;
+      divide_tasks_ttm(this->t2);
     }
-    // dbg
-    printf("ttm_[%d]=[%d,%d]\n", s, ttm_[s].start, ttm_[s].end);
+    tweights_size = sizeof(Type) * A * A * this->ic * this->oc * nteams;
+    tinput_size = sizeof(Type) * A * A * this->T * this->ic * mthr_;
+    toutput_size = sizeof(Type) * A * A * this->T * this->oc * mthr_;
+  } else if (policy == 2 || policy == 3) {
+    size_t nteams = 1;
+    if (policy == 3) {
+      nteams = this->nteams;
+    }
+    tweights_size = sizeof(Type) * A * A * this->ic * this->oc;
+    tinput_size = sizeof(Type) * A * A * this->T * this->ic * this->t2 * nteams;
+    toutput_size = sizeof(Type) * A * A * this->T * this->oc * this->t2;
+
   }
-
   // TODO
-  size_t nt = this->t2; //mthr_;
-  size_t tweights_size
-      = sizeof(Type) * A * A * this->ic * this->oc * this->nteams;
-  size_t tinput_size = sizeof(Type) * A * A * this->T * this->ic * nt;
-  size_t toutput_size = sizeof(Type) * A * A * this->T * this->oc * nt;
-
   tweights_ = (Type *)memalign(64, tweights_size);
   tinput_ = (Type *)memalign(64, tinput_size);
   toutput_ = (Type *)memalign(64, toutput_size);
@@ -289,40 +310,13 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
 //  }
 }
 
-
-#if 0
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemm(
-    Type *toutput, Type *tweights, Type *tinput, int _t2)
-{
-  int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-  auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
-
-  mdarray<Type, 8> atweights(
-      tweights, this->oc3, this->ic3, A, A, this->O2, this->I2, V, V);
-  mdarray<Type, 6> atinput(tinput, A, A, this->ic3, this->I2, Tz, V);
-  mdarray<Type, 6> atoutput(toutput, A, A, this->oc3, this->O2, Tz, V);
-
-
-  for_each (_hA, A) {
-    for_each (_wA, A) {
-      for_each (_oc3, this->oc3) {
-        for_each (_ic3, this->ic3) {
-          ker_gemm(*this, &atoutput(_hA, _wA, _oc3, 0, 0, 0),
-              &atinput(_hA, _wA, _ic3, 0, 0, 0),
-              &atweights(_oc3, _ic3, _hA, _wA, 0, 0, 0, 0), _ic3 == 0);
-        }
-      }
-    }
-  }
-}
-#endif
-
+// Fuse trans-input, gemm and trans-output along 't' dimension
+//
 // tweights: oc3, ic3, A, A, O2, I2, V, V
 // tinputs:  t2, A, A, ic3, I2, T, V
 // toutput:  t2, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute(
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute0(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   mdarray<Type, 5> ainput(input, this->n, this->ic2, this->ih, this->iw, V);
@@ -378,8 +372,9 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute(
   }
 }
 
+// Flat mode (no-fusion)
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_flat(
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute2(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   mdarray<Type, 5> ainput(input, this->n, this->ic2, this->ih, this->iw, V);
@@ -390,10 +385,10 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_flat(
   mdarray<Type, 8> atweights(
       tweights_, this->oc3, this->ic3, A, A, this->O2, this->I2, V, V);
 
-
 #pragma omp parallel proc_bind(close)
   {
-    trans_weights(tweights_, weights);
+    if (is_first_run_)
+      trans_weights(tweights_, weights);
 
 #pragma omp for nowait collapse(3)
     for_each (_t2, this->t2) {
@@ -445,10 +440,14 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_flat(
       }
     }
   }
+  if (inference_acc_)
+    is_first_run_ = false;
 }
 
+// Thread-teaming along 't' dimension. TODO: ttm along 'o'
+// Fuse trans-input, gemm and trans-output along 't' dimension
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_ttm(
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute1(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   mdarray<Type, 5> ainput(input, this->n, this->ic2, this->ih, this->iw, V);
@@ -513,11 +512,94 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_ttm(
     is_first_run_ = false;
 }
 
+// Thread teaming along 'o' dimension. TODO: teaming along 't'?
+// Flat mode (no-fusion)
+//
+// tweights: nteams, oc3, ic3, A, A, O2, I2, V, V
+// tinputs:  t2, A, A, ic3, I2, T, V
+// toutput:  nteams, t2, A, A, oc3, O2, T, V
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute3(
+    Type *output, Type *input, Type *weights, Type *bias)
+{
+  mdarray<Type, 5> ainput(input, this->n, this->ic2, this->ih, this->iw, V);
+  mdarray<Type, 5> aoutput(output, this->n, this->oc2, this->oh, this->ow, V);
+  mdarray<Type, 7> aweights(weights, this->nteams, this->oc2 / this->nteams, this->ic2, K, K, V, V);
+  mdarray<Type, 4> abias(bias, this->nteams, this->oc3, this->O2, V);
+  mdarray<Type, 3> atinput3(tinput_, this->nteams, this->t2, A * A * this->T * this->ic);
+  mdarray<Type, 3> atoutput3(toutput_, this->nteams, this->t2, A * A * this->T * this->oc / this->nteams);
+  mdarray<Type, 9> atweights(tweights_, this->nteams, this->oc3, this->ic3, A, A, this->O2, this->I2, V, V);
+
+  omp_set_nested(1);
+
+#pragma omp parallel num_threads(this->nteams) proc_bind(spread)
+#pragma omp for nowait collapse(1) schedule(static)
+  for (int s = 0; s < this->nteams; s++)
+#pragma omp parallel num_threads(this->nthreads) proc_bind(close)
+  {
+    if (is_first_run_)
+      trans_weights(&atweights(s, 0, 0, 0, 0, 0, 0, 0, 0), &aweights(s, 0, 0, 0, 0, 0, 0));
+
+#pragma omp for nowait collapse(3)
+    for_each (_t2, this->t2) {
+      for_each (_ic3, this->ic3) {
+        for_each (_I2, this->I2) {
+          int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+          mdarray<Type, 6> atinput6(
+              &atinput3(s, _t2, 0), A, A, this->ic3, this->I2, Tz, V);
+          trans_input(&atinput6(0, 0, _ic3, _I2, 0, 0),
+              &ainput(0, _ic3 * this->I2 + _I2, 0, 0, 0), _t2, Tz);
+        }
+      }
+    }
+
+#pragma omp barrier
+#pragma omp for nowait collapse(4)
+    for_each (_t2, this->t2) {
+      for_each (_hA, A) {
+        for_each (_wA, A) {
+          for_each (_oc3, this->oc3) {
+            for_each (_ic3, this->ic3) {
+              int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+              auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
+              mdarray<Type, 6> atinput6(
+                  &atinput3(s, _t2, 0), A, A, this->ic3, this->I2, Tz, V);
+              mdarray<Type, 6> atoutput6(
+                  &atoutput3(s, _t2, 0), A, A, this->oc3, this->O2, Tz, V);
+              ker_gemm(*this, &atoutput6(_hA, _wA, _oc3, 0, 0, 0),
+                  &atinput6(_hA, _wA, _ic3, 0, 0, 0),
+                  &atweights(s, _oc3, _ic3, _hA, _wA, 0, 0, 0, 0), _ic3 == 0);
+            }
+          }
+        }
+      }
+    }
+
+#pragma omp barrier
+#pragma omp for nowait collapse(3)
+    for_each (_t2, this->t2) {
+      for_each (_oc3, this->oc3) {
+        for_each (_O2, this->O2) {
+          int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+          mdarray<Type, 6> atoutput6(
+              &atoutput3(s, _t2, 0), A, A, this->oc3, this->O2, Tz, V);
+          trans_output(&aoutput(0, s * (this->oc2 / this->nteams) + _oc3 * this->O2 + _O2, 0, 0, 0),
+              &atoutput6(0, 0, _oc3, _O2, 0, 0), &abias(s, _oc3, _O2, 0), _t2,
+              Tz);
+        }
+      }
+    }
+  }
+  if (inference_acc_)
+    is_first_run_ = false;
+}
+
+
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::execute(
     Type *output, Type *input, Type *weights, Type *bias)
 {
-  __execute_flat(output, input, weights, bias);
+  __execute3(output, input, weights, bias);
 }
 
 } // namespace euler

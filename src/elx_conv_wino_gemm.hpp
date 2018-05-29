@@ -18,10 +18,10 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   virtual void execute(Type *output, Type *input, Type *weights, Type *bias);
 
   private:
-  inline void __execute_ttm(
-      Type *output, Type *input, Type *weights, Type *bias);
-  inline void __execute(Type *output, Type *input, Type *weights, Type *bias);
-  inline void __execute_flat(Type *output, Type *input, Type *weights, Type *bias);
+  inline void __execute0(Type *output, Type *input, Type *weights, Type *bias);
+  inline void __execute1(Type *output, Type *input, Type *weights, Type *bias);
+  inline void __execute2(Type *output, Type *input, Type *weights, Type *bias);
+  inline void __execute3(Type *output, Type *input, Type *weights, Type *bias);
 
   void trans_weights(Type *tweights, Type *weights);
   void trans_input(Type *tinput, Type *input, int _t2, int Tz);
