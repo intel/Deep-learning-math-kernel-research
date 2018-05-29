@@ -98,15 +98,16 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
     tinput_size = sizeof(Type) * A * A * this->T * this->ic * mthr_;
     toutput_size = sizeof(Type) * A * A * this->T * this->oc * mthr_;
   } else if (policy == 2 || policy == 3 || policy == 4) {
-    size_t nteams = 1;
+    size_t wei_dup = 1, in_dup = 1;
     if (policy == 3) {
-      nteams = this->nteams;
+      in_dup = this->nteams;
     }
     if (policy == 4) {
+      wei_dup = this->nteams;
       divide_tasks_ttm(this->t2);
     }
-    tweights_size = sizeof(Type) * A * A * this->ic * this->oc;
-    tinput_size = sizeof(Type) * A * A * this->T * this->ic * this->t2 * nteams;
+    tweights_size = sizeof(Type) * A * A * this->ic * this->oc * wei_dup;
+    tinput_size = sizeof(Type) * A * A * this->T * this->ic * this->t2 * in_dup;
     toutput_size = sizeof(Type) * A * A * this->T * this->oc * this->t2;
   }
 
@@ -614,13 +615,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute4(
   mdarray<Type, 4> abias(bias, this->oc3, this->O2, V);
   mdarray<Type, 2> atinput2(tinput_, this->t2, A * A * this->T * this->ic);
   mdarray<Type, 2> atoutput2(toutput_, this->t2, A * A * this->T * this->oc);
-  mdarray<Type, 8> atweights(tweights_, this->oc3, this->ic3, A, A, this->O2, this->I2, V, V);
-
-
-  if (is_first_run_) {
-#pragma omp parallel proc_bind(close)
-    trans_weights(tweights_, weights);
-  }
+  mdarray<Type, 9> atweights(tweights_, this->nteams, this->oc3, this->ic3, A, A, this->O2, this->I2, V, V);
 
   omp_set_nested(1);
 
@@ -629,6 +624,10 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute4(
   for (int s = 0; s < this->nteams; s++)
 #pragma omp parallel num_threads(this->nthreads) proc_bind(close)
   {
+    if (is_first_run_) {
+      trans_weights(&atweights(s, 0, 0, 0, 0, 0, 0, 0, 0), weights);
+    }
+
 #pragma omp for nowait collapse(3)
     for (int _t2 = ttm_[s].start; _t2 <= ttm_[s].end; _t2++) {
       for_each (_ic3, this->ic3) {
@@ -657,7 +656,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute4(
                   &atoutput2(_t2, 0), A, A, this->oc3, this->O2, Tz, V);
               ker_gemm(*this, &atoutput6(_hA, _wA, _oc3, 0, 0, 0),
                   &atinput6(_hA, _wA, _ic3, 0, 0, 0),
-                  &atweights(_oc3, _ic3, _hA, _wA, 0, 0, 0, 0), _ic3 == 0);
+                  &atweights(s, _oc3, _ic3, _hA, _wA, 0, 0, 0, 0), _ic3 == 0);
             }
           }
         }
