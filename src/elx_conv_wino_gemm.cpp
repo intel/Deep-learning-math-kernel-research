@@ -44,19 +44,6 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   assert(this->Ir == 0);
   assert(this->Or == 0);
 
-  int policy = 3;
-
-  // TODO: add tailing?
-  this->oc3 = this->oc / (this->O2 * V);
-  if (policy == 3) this->oc3 /= this->nteams;
-  this->ic3 = this->ic / (this->I2 * V);
-  this->t2 = (this->t + this->T - 1) / this->T;
-
-  // dbg
-  printf("T=%d, Tr=%d, t2=%d, t=%d\n", this->T, this->Tr, this->t2, this->t);
-  printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic=%d\n", this->V, this->Ir, this->I2, this->ic3, this->ic);
-  printf("V=%d, Or=%d, O2=%d, oc3=%d, oc=%d\n", this->V, this->Or, this->O2, this->oc3, this->oc);
-
   is_first_run_ = true;
   inference_acc_ = false;
   mthr_ = omp_get_max_threads();
@@ -84,6 +71,20 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
           printf("ttm_[%d]=[%d,%d]\n", s, ttm_[s].start, ttm_[s].end);
         }
       };
+
+
+  int policy = 3;
+
+  // TODO: add tailing?
+  this->oc3 = this->oc / (this->O2 * V);
+  if (policy == 3) this->oc3 /= this->nteams;
+  this->ic3 = this->ic / (this->I2 * V);
+  this->t2 = (this->t + this->T - 1) / this->T;
+
+  // dbg
+  printf("T=%d, Tr=%d, t2=%d, t=%d\n", this->T, this->Tr, this->t2, this->t);
+  printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic=%d\n", this->V, this->Ir, this->I2, this->ic3, this->ic);
+  printf("V=%d, Or=%d, O2=%d, oc3=%d, oc=%d\n", this->V, this->Or, this->O2, this->oc3, this->oc);
 
   size_t tweights_size, tinput_size, toutput_size;
 
