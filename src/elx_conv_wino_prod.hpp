@@ -25,6 +25,9 @@ class elx_conv_wino_prod_t : public elx_conv_t<Type> {
   Type *tinput_;
   Type *toutput_;
   Type *tweights_;
+
+  bool is_first_run_;
+  bool inference_acc_;
 };
 
 template class elx_conv_wino_prod_t<float, 5, 3, 16, ISA_GENERIC>;

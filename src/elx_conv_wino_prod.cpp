@@ -23,12 +23,15 @@ elx_conv_wino_prod_t<Type, A, K, V, I>::elx_conv_wino_prod_t(
   this->ht = (this->oh + A - 3) / (A - K + 1);
   this->wt = (this->ow + A - 3) / (A - K + 1);
 
-  int tweights_size = sizeof(Type) * A * A * this->ic * this->oc;
-  int tinput_size
+  size_t tweights_size = sizeof(Type) * A * A * this->ic * this->oc;
+  size_t tinput_size
       = sizeof(Type) * A * A * this->ht * this->wt * this->ic * this->n;
-  tweights_ = (Type *)malloc(tweights_size);
-  tinput_ = (Type *)malloc(tinput_size);
+  tweights_ = (Type *)memalign(64, tweights_size);
+  tinput_ = (Type *)memalign(64, tinput_size);
   toutput_ = nullptr;
+
+  is_first_run_ = true;
+  inference_acc_ = this->prop_kind == forward_inference ? true : false;
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
@@ -147,9 +150,9 @@ void elx_conv_wino_prod_t<Type, A, K, V, I>::product_trans_output(
           Type tout[A][A][V];
           memset(&tout, 0, sizeof(tout));
 
-          for (int _hA = 0; _hA < A; _hA++) {
-            for (int _wA = 0; _wA < A; _wA++) {
-              for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
+          for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
+            for (int _hA = 0; _hA < A; _hA++) {
+              for (int _wA = 0; _wA < A; _wA++) {
                 for (int _IV = 0; _IV < V; ++_IV) {
 #pragma omp simd
                   for (int _OV = 0; _OV < V; ++_OV) {
@@ -179,9 +182,12 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_prod_t<Type, A, K, V, I>::execute(
     Type *output, Type *input, Type *weights, Type *bias)
 {
-  trans_weights(tweights_, weights);
+  if (is_first_run_)
+    trans_weights(tweights_, weights);
   trans_input(tinput_, input);
   product_trans_output(output, tinput_, tweights_, bias);
+  if (inference_acc_)
+    is_first_run_ = false;
 }
 
 } // namespace euler
