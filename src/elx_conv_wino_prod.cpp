@@ -26,15 +26,13 @@ elx_conv_wino_prod_t<Type, A, K, V, I>::elx_conv_wino_prod_t(
   int tweights_size = sizeof(Type) * A * A * this->ic * this->oc;
   int tinput_size
       = sizeof(Type) * A * A * this->ht * this->wt * this->ic * this->n;
-  // int toutput_size  = sizeof(Type) * A * A * this->ht * this->wt
-  //                                         * this->oc * this->n;
-  tweights_ = (Type*)malloc(tweights_size);
-  tinput_ = (Type*)malloc(tinput_size);
+  tweights_ = (Type *)malloc(tweights_size);
+  tinput_ = (Type *)malloc(tinput_size);
   toutput_ = nullptr;
 }
 
-template <typename T, const int A, const int K, const int V, const int I>
-elx_conv_wino_prod_t<T, A, K, V, I>::~elx_conv_wino_prod_t()
+template <typename Type, const int A, const int K, const int V, const int I>
+elx_conv_wino_prod_t<Type, A, K, V, I>::~elx_conv_wino_prod_t()
 {
   if (tweights_ != nullptr) {
     free(tweights_);
@@ -50,28 +48,30 @@ elx_conv_wino_prod_t<T, A, K, V, I>::~elx_conv_wino_prod_t()
   }
 }
 
-template <typename T, const int A, const int K, const int V, const int I>
-void elx_conv_wino_prod_t<T, A, K, V, I>::trans_weights(
-    T *tweights, T *weights)
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_prod_t<Type, A, K, V, I>::trans_weights(
+    Type *tweights, Type *weights)
 {
 #pragma omp parallel for collapse(2)
   for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
     for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
       int d = 16 * 16 * (_ic2 + _oc2 * this->ic2);
-      MD(T, aweights, [K][K][V][V], weights + K * K * d);
-      MD(T, atweights, [A][A][V][V], tweights + A * A * d);
+      MD(Type, aweights, [K][K][V][V], weights + K * K * d);
+      MD(Type, atweights, [A][A][V][V], tweights + A * A * d);
 
-      convolution_winograd_kernel<S_WEIGHTS(T, A, K, V, I)>::trans_weights(
+      convolution_winograd_kernel<S_WEIGHTS(Type, A, K, V, I)>::trans_weights(
           atweights, aweights);
     }
   }
 }
 
-template <typename T, const int A, const int K, const int V, const int I>
-void elx_conv_wino_prod_t<T, A, K, V, I>::trans_input(T *tinput, T *input)
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_prod_t<Type, A, K, V, I>::trans_input(
+    Type *tinput, Type *input)
 {
-  MD(T, atinput, [this->n][this->ic2][this->ht][this->wt][A][A][V], tinput);
-  MD(T, ainput, [this->n][this->ic2][this->ih][this->iw][V], input);
+  MD(Type, atinput, [this->n][this->ic2][this->ht][this->wt][A][A][V],
+      tinput);
+  MD(Type, ainput, [this->n][this->ic2][this->ih][this->iw][V], input);
   int hA_end = (this->ih + this->lp) - (this->ht - 1) * (A - K + 1) - 1;
   int wA_end = (this->iw + this->tp) - (this->wt - 1) * (A - K + 1) - 1;
 
@@ -90,14 +90,15 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::trans_input(T *tinput, T *input)
           if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
               && _wA_end == A - 1) {
             convolution_winograd_kernel<S_INPUT(
-                T, A, K, V, I, BORDER(false))>::trans_input(*this,
-                atinput[_n][_ic2][_ht][_wt], (T *)ainput[_n][_ic2][_ih][_iw],
-                0, A - 1, 0, A - 1);
+                Type, A, K, V, I, BORDER(false))>::trans_input(*this,
+                atinput[_n][_ic2][_ht][_wt],
+                (Type *)ainput[_n][_ic2][_ih][_iw], 0, A - 1, 0, A - 1);
           } else {
             convolution_winograd_kernel<S_INPUT(
-                T, A, K, V, I, BORDER(true))>::trans_input(*this,
-                atinput[_n][_ic2][_ht][_wt], (T *)ainput[_n][_ic2][_ih][_iw],
-                _hA_start, _hA_end, _wA_start, _wA_end);
+                Type, A, K, V, I, BORDER(true))>::trans_input(*this,
+                atinput[_n][_ic2][_ht][_wt],
+                (Type *)ainput[_n][_ic2][_ih][_iw], _hA_start, _hA_end,
+                _wA_start, _wA_end);
           }
         }
       }
@@ -105,9 +106,9 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::trans_input(T *tinput, T *input)
   }
 }
 
-template <typename T, const int A, const int K, const int V, const int I>
-void elx_conv_wino_prod_t<T, A, K, V, I>::product_trans_output(
-    T *output, T *tinput, T *tweights, T *bias)
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_prod_t<Type, A, K, V, I>::product_trans_output(
+    Type *output, Type *tinput, Type *tweights, Type *bias)
 {
   auto ker_trans_output = this->with_bias
       ? convolution_winograd_kernel<S_OUTPUT(
@@ -120,15 +121,18 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::product_trans_output(
       : convolution_winograd_kernel<S_OUTPUT(
             float, 5, 3, 16, I, BORDER(true), BIAS(false))>::trans_output;
 
-  MD(T, atweights, [this->oc2][this->ic2][A][A][V][V], tweights);
-  MD(T, atinput, [this->n][this->ic2][this->ht][this->wt][A][A][V], tinput);
-  MD(T, aoutput, [this->n][this->oc2][this->oh][this->ow][V], output);
-  MD(T, abias, [this->oc2][V], bias);
+  MD(Type, atweights, [this->oc2][this->ic2][A][A][V][V], tweights);
+  MD(Type, atinput, [this->n][this->ic2][this->ht][this->wt][A][A][V],
+      tinput);
+  MD(Type, aoutput, [this->n][this->oc2][this->oh][this->ow][V], output);
+  MD(Type, abias, [this->oc2][V], bias);
 
   int hOA_end = this->oh % (A - K + 1) - 1;
-  if (hOA_end == -1) hOA_end = A - K;
+  if (hOA_end == -1)
+    hOA_end = A - K;
   int wOA_end = this->ow % (A - K + 1) - 1;
-  if (wOA_end == -1) wOA_end = A - K;
+  if (wOA_end == -1)
+    wOA_end = A - K;
 
 #pragma omp parallel for collapse(4)
   for (int _n = 0; _n < this->n; ++_n) {
@@ -140,7 +144,7 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::product_trans_output(
           int _hOA_end = (_ht < this->ht - 1) ? A - K : hOA_end;
           int _wOA_end = (_wt < this->wt - 1) ? A - K : wOA_end;
 
-          T tout[A][A][V];
+          Type tout[A][A][V];
           memset(&tout, 0, sizeof(tout));
 
           for (int _hA = 0; _hA < A; _hA++) {
@@ -150,8 +154,8 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::product_trans_output(
 #pragma omp simd
                   for (int _OV = 0; _OV < V; ++_OV) {
                     tout[_hA][_wA][_OV]
-                      += atweights[_oc2][_ic2][_hA][_wA][_IV][_OV] *
-                      atinput[_n][_ic2][_ht][_wt][_hA][_wA][_IV];
+                        += atweights[_oc2][_ic2][_hA][_wA][_IV][_OV]
+                        * atinput[_n][_ic2][_ht][_wt][_hA][_wA][_IV];
                   }
                 }
               }
@@ -159,11 +163,11 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::product_trans_output(
           }
 
           if (_hOA_end < A - K || _wOA_end < A - K) {
-            ker_trans_output0(*this, (T *)aoutput[_n][_oc2][_oh][_ow], tout,
-                (T *)abias[_oc2], _hOA_end, _wOA_end);
+            ker_trans_output0(*this, (Type *)aoutput[_n][_oc2][_oh][_ow],
+                tout, (Type *)abias[_oc2], _hOA_end, _wOA_end);
           } else {
-            ker_trans_output(*this, (T *)aoutput[_n][_oc2][_oh][_ow], tout,
-                (T *)abias[_oc2], _hOA_end, _wOA_end);
+            ker_trans_output(*this, (Type *)aoutput[_n][_oc2][_oh][_ow], tout,
+                (Type *)abias[_oc2], _hOA_end, _wOA_end);
           }
         }
       }
@@ -171,9 +175,9 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::product_trans_output(
   }
 }
 
-template <typename T, const int A, const int K, const int V, const int I>
-void elx_conv_wino_prod_t<T, A, K, V, I>::execute(
-    T *output, T *input, T *weights, T *bias)
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_prod_t<Type, A, K, V, I>::execute(
+    Type *output, Type *input, Type *weights, Type *bias)
 {
   trans_weights(tweights_, weights);
   trans_input(tinput_, input);
