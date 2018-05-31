@@ -23,18 +23,22 @@ void elk_product_trans_output(elx_conv_t<T> &, T *, T *,
 template <>
 void elk_product_trans_output<float, 5, 3, 16, ISA_GENERIC>(
     elx_conv_t<float> &xc, float *tinput, float *tweights, float *output,
-    int _ih2, int _iw2) {
+    float *bias, int _ht, int _wt, int _hOA_end, int _wOA_end) {
 #undef T
 #undef F
 #undef W
-#define T(h, w) t##h##w[_OV]
-#define F(h, w) atinput[_ic2][_ih2][_iw2][h][w][_IV]
+//#define T(h, w) t##h##w[_OV]
+#define T(h, w) t[h][w][_OV]
+#define F(h, w) atinput[_ic2][_ht][_wt][h][w][_IV]
 #define W(h, w) atweights[_ic2][h][w][_IV][_OV]
 
+  float t[5][5][16];
+#if 0
   float t00[16], t01[16], t02[16], t03[16], t04[16], t10[16], t11[16], t12[16],
       t13[16], t14[16], t20[16], t21[16], t22[16], t23[16], t24[16], t30[16],
       t31[16], t32[16], t33[16], t34[16], t40[16], t41[16], t42[16], t43[16],
       t44[16];
+#endif
 
   MD(float, atinput, [xc.ic2][xc.ht][xc.wt][5][5][16], tinput);
   MD(float, atweights, [xc.ic2][5][5][16][16], tweights);
@@ -101,10 +105,15 @@ void elk_product_trans_output<float, 5, 3, 16, ISA_GENERIC>(
     }
   }
 
+  convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_SKX_AVX512,
+      BORDER(true), BIAS(true))>::trans_output(xc, output, t, bias, _hOA_end,
+      _wOA_end);
+
+#if 0
 #undef C
 #define C(n) c##n[_OV]
 #define P(_h, _w) \
-  aoutput[xc.ht * 3 + _h][xc.wt * 3 + _w][_OV]  // TODO: overflow
+  aoutput[_ht * 3 + _h][_wt * 3 + _w][_OV]  // TODO: overflow
   float c0[16], c1[16], c2[16], c3[16], c4[16];
 
 #pragma omp simd
@@ -136,12 +145,13 @@ void elk_product_trans_output<float, 5, 3, 16, ISA_GENERIC>(
     P(1, 2) = C(2) - C(1) + 2 * C(3);
     P(2, 2) = C(1) + C(2) + 4 * C(3) + C(4);
   }
+#endif
 }
 
 template <>
 void elk_product_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(
     elx_conv_t<float> &xc, float *tinput, float *tweights, float *output,
-    int _ih2, int _iw2) {
+    int _ht, int _wt) {
   ENABLE_AVX512F();
 
   __m512 t00, t10, t20, t30, t40, t01, t11, t21, t31, t41, t02, t12, t22, t32,
@@ -155,7 +165,7 @@ void elk_product_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(
 #undef F
 #undef W
 #define T(_h, _w) t##_h##_w
-#define F(_h, _w) atinput[_ic2][_ih2][_iw2][_h][_w][_V]
+#define F(_h, _w) atinput[_ic2][_ht][_wt][_h][_w][_V]
 #define W(_h, _w) atweights[_ic2][_h][_w][_V]
 
 #define FMA(_h, _w)                                               \
@@ -229,7 +239,7 @@ void elk_product_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(
   }
 
 #undef P
-#define P(_h, _w) (aoutput[xc.ht * 3 + _h][xc.wt * 3 + _w])  // TODO: overflow
+#define P(_h, _w) (aoutput[_ht * 3 + _h][_wt * 3 + _w])  // TODO: overflow
   __m512 c0, c1, c2, c3, c4;
   __m512 p00, p01, p02, p10, p11, p12, p20, p21, p22;
   __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));

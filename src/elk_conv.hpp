@@ -49,8 +49,8 @@
 namespace euler {
 
 template <typename T, const int A, const int K, const int V, const int I>
-void elk_product_trans_output(
-    elx_conv_t<T>& xc, T* tinput, T* tweights, T* output, int _ih2, int _iw2);
+void elk_product_trans_output(elx_conv_t<T> &xc, T *tinput, T *tweights,
+    T *output, T *bias, int _ih2, int _iw2, int _hOA_end, int _wOA_end);
 
 // Type: data type
 // T: tile blocking unit

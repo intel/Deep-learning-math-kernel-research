@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include "euler.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
@@ -71,37 +72,32 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::trans_input(T *tinput, T *input)
 {
   MD(T, atinput, [this->n][this->ic2][this->ht][this->wt][A][A][V], tinput);
   MD(T, ainput, [this->n][this->ic2][this->ih][this->iw][V], input);
+  int hA_end = (this->ih + this->lp) - (this->ht - 1) * (A - K + 1) - 1;
+  int wA_end = (this->iw + this->tp) - (this->wt - 1) * (A - K + 1) - 1;
 
 #pragma omp parallel for collapse(4)
   for (int _n = 0; _n < this->n; ++_n) {
     for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
       for (int _ht = 0; _ht < this->ht; ++_ht) {
         for (int _wt = 0; _wt < this->wt; ++_wt) {
-          int _ih = _ht * (A - K + 1) - this->lp;
-          int _iw = _wt * (A - K + 1) - this->tp;
-          int _wT_start = 0;
-          int _hT_start = 0;
-          int _wT_end = this->iw - _iw - 1;
-          int _hT_end = this->ih - _ih - 1;
-          if (_ih < 0) {
-            _hT_start = -_ih;
-            _ih = 0;
-          }
-          if (_iw < 0) {
-            _wT_start = -_iw;
-            _iw = 0;
-          }
+          int _ih = _ht * (A - K + 1) - this->tp;
+          int _iw = _wt * (A - K + 1) - this->lp;
+          int _hA_start = (_ht > 0) ? 0 : this->tp;
+          int _wA_start = (_wt > 0) ? 0 : this->lp;
+          int _hA_end = (_ht < this->ht - 1) ? A - 1 : hA_end;
+          int _wA_end = (_wt < this->wt - 1) ? A - 1 : wA_end;
 
-          if (_hT_start == 0 && _wT_start == 0 && _hT_end == A - 1
-              && _wT_end == A - 1) {
-            convolution_winograd_kernel<S_INPUT(T, A, K, V, I,
-                BORDER(false))>::trans_input(*this, atinput[_n][_ic2][_ht][_wt],
-                (T *)ainput[_n][_ic2][_ih][_iw], 0, A - 1, 0, A - 1);
+          if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
+              && _wA_end == A - 1) {
+            convolution_winograd_kernel<S_INPUT(
+                T, A, K, V, I, BORDER(false))>::trans_input(*this,
+                atinput[_n][_ic2][_ht][_wt], (T *)ainput[_n][_ic2][_ih][_iw],
+                0, A - 1, 0, A - 1);
           } else {
             convolution_winograd_kernel<S_INPUT(
                 T, A, K, V, I, BORDER(true))>::trans_input(*this,
                 atinput[_n][_ic2][_ht][_wt], (T *)ainput[_n][_ic2][_ih][_iw],
-                _hT_start, _hT_end, _wT_start, _wT_end);
+                _hA_start, _hA_end, _wA_start, _wA_end);
           }
         }
       }
@@ -111,19 +107,64 @@ void elx_conv_wino_prod_t<T, A, K, V, I>::trans_input(T *tinput, T *input)
 
 template <typename T, const int A, const int K, const int V, const int I>
 void elx_conv_wino_prod_t<T, A, K, V, I>::product_trans_output(
-    T *output, T *tinput, T *tweights)
+    T *output, T *tinput, T *tweights, T *bias)
 {
+  auto ker_trans_output = this->with_bias
+      ? convolution_winograd_kernel<S_OUTPUT(
+            float, 5, 3, 16, I, BORDER(false), BIAS(true))>::trans_output
+      : convolution_winograd_kernel<S_OUTPUT(
+            float, 5, 3, 16, I, BORDER(false), BIAS(false))>::trans_output;
+  auto ker_trans_output0 = this->with_bias
+      ? convolution_winograd_kernel<S_OUTPUT(
+            float, 5, 3, 16, I, BORDER(true), BIAS(true))>::trans_output
+      : convolution_winograd_kernel<S_OUTPUT(
+            float, 5, 3, 16, I, BORDER(true), BIAS(false))>::trans_output;
+
   MD(T, atweights, [this->oc2][this->ic2][A][A][V][V], tweights);
   MD(T, atinput, [this->n][this->ic2][this->ht][this->wt][A][A][V], tinput);
   MD(T, aoutput, [this->n][this->oc2][this->oh][this->ow][V], output);
+  MD(T, abias, [this->oc2][V], bias);
+
+  int hOA_end = this->oh % (A - K + 1) - 1;
+  if (hOA_end == -1) hOA_end = A - K;
+  int wOA_end = this->ow % (A - K + 1) - 1;
+  if (wOA_end == -1) wOA_end = A - K;
 
 #pragma omp parallel for collapse(4)
   for (int _n = 0; _n < this->n; ++_n) {
     for (int _oc2 = 0; _oc2 < this->oc2; ++_oc2) {
       for (int _ht = 0; _ht < this->ht; ++_ht) {
         for (int _wt = 0; _wt < this->wt; ++_wt) {
-          elk_product_trans_output<T, A, K, V, I>(*this, (T*)atinput[_n],
-              (T*)atweights[_oc2], (T*)aoutput[_n][_oc2], _ht, _wt);
+          int _oh = _ht * (A - K + 1);
+          int _ow = _wt * (A - K + 1);
+          int _hOA_end = (_ht < this->ht - 1) ? A - K : hOA_end;
+          int _wOA_end = (_wt < this->wt - 1) ? A - K : wOA_end;
+
+          T tout[A][A][V];
+          memset(&tout, 0, sizeof(tout));
+
+          for (int _hA = 0; _hA < A; _hA++) {
+            for (int _wA = 0; _wA < A; _wA++) {
+              for (int _ic2 = 0; _ic2 < this->ic2; ++_ic2) {
+                for (int _IV = 0; _IV < V; ++_IV) {
+#pragma omp simd
+                  for (int _OV = 0; _OV < V; ++_OV) {
+                    tout[_hA][_wA][_OV]
+                      += atweights[_oc2][_ic2][_hA][_wA][_IV][_OV] *
+                      atinput[_n][_ic2][_ht][_wt][_hA][_wA][_IV];
+                  }
+                }
+              }
+            }
+          }
+
+          if (_hOA_end < A - K || _wOA_end < A - K) {
+            ker_trans_output0(*this, (T *)aoutput[_n][_oc2][_oh][_ow], tout,
+                (T *)abias[_oc2], _hOA_end, _wOA_end);
+          } else {
+            ker_trans_output(*this, (T *)aoutput[_n][_oc2][_oh][_ow], tout,
+                (T *)abias[_oc2], _hOA_end, _wOA_end);
+          }
         }
       }
     }
@@ -134,12 +175,9 @@ template <typename T, const int A, const int K, const int V, const int I>
 void elx_conv_wino_prod_t<T, A, K, V, I>::execute(
     T *output, T *input, T *weights, T *bias)
 {
-  // TODO: support bias
-  if (bias != nullptr)
-    return;
   trans_weights(tweights_, weights);
   trans_input(tinput_, input);
-  product_trans_output(output, tinput_, tweights_);
+  product_trans_output(output, tinput_, tweights_, bias);
 }
 
 } // namespace euler

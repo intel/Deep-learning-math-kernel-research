@@ -77,8 +77,8 @@ namespace test {
                 if (errors < MAX_PRINT_ERRORS) {
                   printf("Not equal!: [%d][%d][%d][%d][%d]: %f != %f (ref), "
                          "delta=%g, rel_diff=%g\n",
-                      _n, _C, _h, _w, _v, (*aout)[_n][_C][_h][_w][0],
-                      (*aref)[_n][_C][_h][_w][0], delta, rel_diff);
+                      _n, _C, _h, _w, _v, (*aout)[_n][_C][_h][_w][_v],
+                      (*aref)[_n][_C][_h][_w][_v], delta, rel_diff);
                 }
                 errors++;
               }
