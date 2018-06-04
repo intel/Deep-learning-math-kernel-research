@@ -90,7 +90,7 @@ int eld_conv_t<F>::setup() {
     // TODO: forward, backward_data, backward_weights
     switch (tile_size) {
       case 5:
-        xc = new elx_conv_wino_prod_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_wino_gemm_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       default:
         xc = new elx_conv_wino_prod_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);

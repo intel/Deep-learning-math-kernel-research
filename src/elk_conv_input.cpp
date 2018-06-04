@@ -44,12 +44,12 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
   const float z6 = 6.0f;
 
   auto f = [&](int _h, int _w, int _V) {
-    mdarray<float, 3> ainput(input, xc.ih, xc.iw, 16);
+    MD(float, ainput, [xc.ih][xc.iw][16], input);
     if (is_border_
         && (_h < _hT_start || _w < _wT_start || _h > _hT_end || _w > _wT_end))
       return 0.0f;
     else
-      return ainput(_h, _w, _V);
+      return ainput[_h][_w][_V];
   };
 
 #undef F
@@ -143,12 +143,12 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
   __m512 z6 = _mm512_set_ps(IMM_BCAST16(6.0f));
 
   auto f = [&](int _h, int _w) {
-    mdarray<float, 3> ainput(input, xc.ih, xc.iw, 16);
+    MD(float, ainput, [xc.ih][xc.iw][16], input);
     if (is_border_
         && (_h < _hT_start || _w < _wT_start || _h > _hT_end || _w > _wT_end))
       return z0;
     else
-      return _mm512_load_ps(&ainput(_h, _w, 0));
+      return _mm512_load_ps(ainput[_h][_w]);
   };
 
 #undef F

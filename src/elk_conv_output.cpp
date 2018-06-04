@@ -39,11 +39,11 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
 {
   float dummy[16];
   auto p = [&](int _h, int _w, int _V) {
-    mdarray<float, 3> aoutput(output, xc.oh, xc.ow, 16);
+    MD(float, aoutput, [xc.oh][xc.ow][16], output);
     if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
       return &dummy[_V];
     else
-      return &aoutput(_h, _w, _V);
+      return &aoutput[_h][_w][_V];
   };
 
 #undef T
@@ -146,11 +146,11 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
 
   alignas(64) float dummy[16];
   auto p = [&](int _h, int _w) {
-    mdarray<float, 3> aoutput(output, xc.oh, xc.ow, 16);
+    MD(float, aoutput,[xc.oh][xc.ow][16], output);
     if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
       return dummy;
     else
-      return &aoutput(_h, _w, 0);
+      return aoutput[_h][_w];
   };
 
 #undef P
