@@ -167,10 +167,10 @@ void elx_conv_wino_prod_t<Type, A, K, V, I>::product_trans_output(
 
           if (_hOA_end < A - K || _wOA_end < A - K) {
             ker_trans_output0(*this, (Type *)aoutput[_n][_oc2][_oh][_ow],
-                tout, (Type *)abias[_oc2], _hOA_end, _wOA_end);
+                tout, (Type *)abias[_oc2], _hOA_end, _wOA_end, true);
           } else {
             ker_trans_output(*this, (Type *)aoutput[_n][_oc2][_oh][_ow], tout,
-                (Type *)abias[_oc2], _hOA_end, _wOA_end);
+                (Type *)abias[_oc2], _hOA_end, _wOA_end, true);
           }
         }
       }

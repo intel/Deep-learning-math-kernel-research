@@ -58,8 +58,9 @@ struct convolution_winograd_kernel {
   static void trans_input(elx_conv_t<Type> &xc, Type atinput[A][A][V],
       Type *input, int _hA_start, int _hA_end, int _wA_start, int _wA_end);
 
-  static void trans_output(elx_conv_t<Type>& xc, Type* output,
-      Type atoutput[A][A][V], Type* bias, int _hOA_end, int _wOA_end);
+  static void trans_output(elx_conv_t<Type> &xc, Type *output,
+      Type atoutput[A][A][V], Type *bias, int _hOA_end, int _wOA_end,
+      bool stream_out);
 
   static void trans_weights(
       Type atweights[A][A][V][V], Type aweights[K][K][V][V]);
@@ -79,7 +80,7 @@ struct convolution_winograd_kernel {
       winograd_template_parameter_t<S_OUTPUT(
           float, 5, 3, 16, ISA_GENERIC, is_border_, with_bias_)>,
       elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
-      float *bias, int _hOA_end, int _wOA_end);
+      float *bias, int _hOA_end, int _wOA_end, bool stream_out);
 
   static inline void __trans_weights(
       winograd_template_parameter_t<S_WEIGHTS(float, 5, 3, 16, ISA_GENERIC)>,
@@ -103,7 +104,7 @@ struct convolution_winograd_kernel {
       winograd_template_parameter_t<S_OUTPUT(
           float, 5, 3, 16, ISA_SKX_AVX512, is_border_, with_bias_)>,
       elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
-      float *bias, int _hOA_end, int _wOA_end);
+      float *bias, int _hOA_end, int _wOA_end, bool steram_out);
 
   static inline void __trans_weights(
       winograd_template_parameter_t<S_WEIGHTS(float, 5, 3, 16, ISA_SKX_AVX512)>,
@@ -130,7 +131,7 @@ struct convolution_winograd_kernel {
   static inline void __trans_output(
       winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, is_border_,
           with_bias_>,
-      elx_conv_t<Type_> &, Type_ *, Type_[A_][A_][V_], Type_ *, int, int)
+      elx_conv_t<Type_> &, Type_ *, Type_[A_][A_][V_], Type_ *, int, int, bool)
   {
   }
 

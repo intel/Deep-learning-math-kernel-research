@@ -86,6 +86,10 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
 
   size_t tweights_size, tinput_size, toutput_size;
 
+  stream_in_ = false;
+  stream_out_ = false;
+  stream_wei_ = false;
+
   if (execute_policy_ < 2) {
     size_t nteams = 1;
     if (execute_policy_ == 1) {
@@ -103,6 +107,10 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
     tweights_size = sizeof(Type) * A * A * this->ic * this->oc * wei_dup;
     tinput_size = sizeof(Type) * A * A * this->T * this->ic * this->t2 * in_dup;
     toutput_size = sizeof(Type) * A * A * this->T * this->oc * this->t2;
+
+    stream_in_ = true;
+    stream_out_ = true;
+    stream_wei_ = true;
   }
 
   // TODO
@@ -195,10 +203,20 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights(
           for_each (_hA, A) {
             for_each (_wA, A) {
               for_each (_iV, V) {
+                if (I == ISA_SKX_AVX512) {
+                  if (stream_wei_)
+                    _mm512_stream_ps(
+                        atweights[_oc3][_ic3][_hA][_wA][_O2][_I2][_iV],
+                        *((__m512 *)&aout[_hA][_wA][_iV][0]));
+                  else
+                    _mm512_store_ps(
+                        atweights[_oc3][_ic3][_hA][_wA][_O2][_I2][_iV],
+                        *((__m512 *)&aout[_hA][_wA][_iV][0]));
+                } else {
 #pragma omp simd
-                for_each (_oV, V) {
-                  atweights[_oc3][_ic3][_hA][_wA][_O2][_I2][_iV][_oV]
-                      = aout[_hA][_wA][_iV][_oV];
+                  for_each (_oV, V)
+                    atweights[_oc3][_ic3][_hA][_wA][_O2][_I2][_iV][_oV]
+                        = aout[_hA][_wA][_iV][_oV];
                 }
               }
             }
@@ -244,9 +262,17 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__trans_input(
 
     for_each (_hA, A) {
       for_each (_wA, A) {
+        if (I == ISA_SKX_AVX512) {
+          if (stream_in_)
+            _mm512_stream_ps(
+                atinput[_hA][_wA][0][0][_T], *((__m512 *)&aout[_hA][_wA][0]));
+          else
+            _mm512_store_ps(
+                atinput[_hA][_wA][0][0][_T], *((__m512 *)&aout[_hA][_wA][0]));
+        } else {
 #pragma omp simd
-        for_each (_V, V) {
-          atinput[_hA][_wA][0][0][_T][_V] = aout[_hA][_wA][_V];
+          for_each (_V, V)
+            atinput[_hA][_wA][0][0][_T][_V] = aout[_hA][_wA][_V];
         }
       }
     }
@@ -379,9 +405,9 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__trans_output(
     int _wOA_end = (_wt < this->wt - 1) ? A - K : wOA_end;
 
     if (_hOA_end < A - K || _wOA_end < A - K) {
-      ker_trans_output0_(*this, out, ain, bias, _hOA_end, _wOA_end);
+      ker_trans_output0_(*this, out, ain, bias, _hOA_end, _wOA_end, stream_out_);
     } else {
-      ker_trans_output_(*this, out, ain, bias, A - K, A - K);
+      ker_trans_output_(*this, out, ain, bias, A - K, A - K, stream_out_);
     }
   }
 }
