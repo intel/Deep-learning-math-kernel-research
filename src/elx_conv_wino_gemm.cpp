@@ -32,8 +32,8 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   // tweights + pt-tinputs + pt-toutput ~ L2
   // tweights:gemm + tinputs:gemm + toutput:gemm ~ L1
   this->T = 18; // TODO: T selection
-  this->O2 = 8; // TODO: O2 selection
-  this->I2 = 8; // TODO: I2 selection
+  this->O2 = 4; // TODO: O2 selection
+  this->I2 = 4; // TODO: I2 selection
 
   // Tailing
   this->Ir = this->ic % V;
@@ -71,7 +71,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
     }
   };
 
-  execute_policy_ = 0;
+  execute_policy_ = 3;
 
   // TODO: add tailing?
   this->oc3 = this->oc / (this->O2 * V);
@@ -342,7 +342,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemm(
     Type *toutput, Type *tinput, Type *tweights)
 {
   MD(Type, atinput2, [this->t2][A * A * this->T * this->ic], tinput);
-  MD(Type, atoutput2, [this->t2][A * A * this->T * this->oc], toutput);
+  MD(Type, atoutput2, [this->t2][A * A * this->T * this->oc3 * this->O2 * V], toutput);
   MD(Type, atweights, [this->oc3][this->ic3][A][A][this->O2][this->I2][V][V],
       tweights);
 
@@ -432,7 +432,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
 {
   MD(Type, aoutput, [this->n][this->oc2][this->oh][this->ow][V], output);
   MD(Type, abias, [this->oc3][this->O2][V], bias);
-  MD(Type, atoutput2, [this->t2][A * A * this->T * this->oc], toutput);
+  MD(Type, atoutput2, [this->t2][A * A * this->T * this->oc3 * this->O2 * V], toutput);
 
 #pragma omp for nowait collapse(3)
   for_each (_t2, this->t2) {
@@ -457,9 +457,6 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute0(
     Type *output, Type *input, Type *weights, Type *bias)
 {
-  MD(Type, ainput, [this->n][this->ic2][this->ih][this->iw][V], input);
-  MD(Type, aoutput, [this->n][this->oc2][this->oh][this->ow][V], output);
-  MD(Type, abias, [this->oc3][this->O2][V], bias);
   MD(Type, atinput2, [mthr_][A * A * this->T * this->ic], tinput_);
   MD(Type, atoutput2, [mthr_][A * A * this->T * this->oc], toutput_);
 
@@ -489,9 +486,6 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute1(
     Type *output, Type *input, Type *weights, Type *bias)
 {
-  MD(Type, ainput, [this->n][this->ic2][this->ih][this->iw][V], input);
-  MD(Type, aoutput, [this->n][this->oc2][this->oh][this->ow][V], output);
-  MD(Type, abias, [this->oc3][this->O2][V], bias);
   MD(Type, atinput3, [this->nteams][this->nthreads][A * A * this->T * this->ic], tinput_);
   MD(Type, atoutput3, [this->nteams][this->nthreads][A * A * this->T * this->oc], toutput_);
   MD(Type, atweights2, [this->nteams][this->oc * this->ic * A * A], tweights_);
@@ -524,10 +518,6 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute2(
     Type *output, Type *input, Type *weights, Type *bias)
 {
-  MD(Type, ainput, [this->n][this->ic2][this->ih][this->iw][V], input);
-  MD(Type, aoutput, [this->n][this->oc2][this->oh][this->ow][V], output);
-  MD(Type, abias, [this->oc3][this->O2][V], bias);
-
 #pragma omp parallel proc_bind(close)
   {
     if (is_first_run_)
@@ -551,13 +541,12 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute3(
     Type *output, Type *input, Type *weights, Type *bias)
 {
-  MD(Type, ainput, [this->n][this->ic2][this->ih][this->iw][V], input);
-  MD(Type, aoutput, [this->n][this->oc2][this->oh][this->ow][V], output);
+  MD(Type, aoutput3, [this->n][this->nteams][this->oc * this->oh * this->ow / this->nteams], output);
   MD(Type, aweights2, [this->nteams][this->oc * this->ic * K * K / this->nteams], weights);
-  MD(Type, abias, [this->nteams][this->oc3][this->O2][V], bias);
-  MD(Type, atinput3, [this->nteams][this->t2][A * A * this->T * this->ic], tinput_);
-  MD(Type, atoutput3, [this->nteams][this->t2][A * A * this->T * this->oc / this->nteams], toutput_);
-  MD(Type, atweights2, [this->nteams][this->oc * this->ic3 * A * A / this->nteams], tweights_);
+  MD(Type, abias2, [this->nteams][this->oc / this->nteams], bias);
+  MD(Type, atinput2, [this->nteams][this->t2 * A * A * this->T * this->ic], tinput_);
+  MD(Type, atoutput2, [this->nteams][this->t2 * A * A * this->T * this->oc / this->nteams], toutput_);
+  MD(Type, atweights2, [this->nteams][this->oc * this->ic * A * A / this->nteams], tweights_);
 
   omp_set_nested(1);
 #pragma omp parallel num_threads(this->nteams) proc_bind(spread)
@@ -567,11 +556,11 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute3(
   {
     if (is_first_run_)
       trans_weights((Type *)atweights2[s], (Type *)aweights2[s]);
-    trans_input((Type *)atinput3[s], input);
+    trans_input((Type *)atinput2[s], input);
 #pragma omp barrier
-    gemm((Type *)atoutput3[s], (Type *)atinput3[s], (Type *)atweights2[s]);
+    gemm((Type *)atoutput2[s], (Type *)atinput2[s], (Type *)atweights2[s]);
 #pragma omp barrier
-    trans_output((Type *)output, (Type *)atoutput3[s], (Type *)bias);
+    trans_output((Type *)aoutput3[0][s], (Type *)atoutput2[s], (Type *)abias2[s]);
   }
   if (inference_acc_) is_first_run_ = false;
 }
