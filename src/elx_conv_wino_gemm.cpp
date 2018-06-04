@@ -87,7 +87,6 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   size_t tweights_size, tinput_size, toutput_size;
 
   stream_in_ = false;
-  stream_out_ = false;
   stream_wei_ = false;
 
   if (execute_policy_ < 2) {
@@ -109,7 +108,6 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
     toutput_size = sizeof(Type) * A * A * this->T * this->oc * this->t2;
 
     stream_in_ = true;
-    stream_out_ = true;
     stream_wei_ = true;
   }
 
@@ -405,9 +403,9 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__trans_output(
     int _wOA_end = (_wt < this->wt - 1) ? A - K : wOA_end;
 
     if (_hOA_end < A - K || _wOA_end < A - K) {
-      ker_trans_output0_(*this, out, ain, bias, _hOA_end, _wOA_end, stream_out_);
+      ker_trans_output0_(*this, out, ain, bias, _hOA_end, _wOA_end);
     } else {
-      ker_trans_output_(*this, out, ain, bias, A - K, A - K, stream_out_);
+      ker_trans_output_(*this, out, ain, bias, A - K, A - K);
     }
   }
 }
