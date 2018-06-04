@@ -55,6 +55,7 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
           BORDER(true), BIAS(false))>::trans_output) *ker_trans_output0_;
 
+  int  execute_policy_;
   bool is_first_run_;
   bool inference_acc_;
   size_t mthr_;

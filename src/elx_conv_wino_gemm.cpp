@@ -7,7 +7,6 @@
 #include "elx_conv.hpp"
 #include "euler.hpp"
 
-#define XXX 1
 namespace euler {
 
 template <typename Type, const int A, const int K, const int V, const int I>
@@ -56,29 +55,27 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   }
   inference_acc_ = this->prop_kind == forward_inference;
 
-  auto divide_tasks_ttm =
-      [this](size_t tasks) {
-        size_t ntasks_base = tasks / this->nteams;
-        size_t rem = tasks - this->nteams * ntasks_base;
-        for_each (s, this->nteams) {
-          if (s < rem) {
-            ttm_[s].start = (ntasks_base + 1) * s;
-            ttm_[s].end = ttm_[s].start + ntasks_base;
-          } else {
-            ttm_[s].start = rem * (ntasks_base + 1) + (s - rem) * ntasks_base;
-            ttm_[s].end = ttm_[s].start + ntasks_base - 1;
-          }
-          // dbg
-          printf("ttm_[%d]=[%d,%d]\n", s, ttm_[s].start, ttm_[s].end);
-        }
-      };
+  auto divide_tasks_ttm = [this](size_t tasks) {
+    size_t ntasks_base = tasks / this->nteams;
+    size_t rem = tasks - this->nteams * ntasks_base;
+    for_each (s, this->nteams) {
+      if (s < rem) {
+        ttm_[s].start = (ntasks_base + 1) * s;
+        ttm_[s].end = ttm_[s].start + ntasks_base;
+      } else {
+        ttm_[s].start = rem * (ntasks_base + 1) + (s - rem) * ntasks_base;
+        ttm_[s].end = ttm_[s].start + ntasks_base - 1;
+      }
+      // dbg
+      printf("ttm_[%d]=[%d,%d]\n", s, ttm_[s].start, ttm_[s].end);
+    }
+  };
 
-
-  int policy = 0;
+  execute_policy_ = 0;
 
   // TODO: add tailing?
   this->oc3 = this->oc / (this->O2 * V);
-  if (policy == 3) this->oc3 /= this->nteams;
+  if (execute_policy_ == 3) this->oc3 /= this->nteams;
   this->ic3 = this->ic / (this->I2 * V);
   this->t2 = (this->t + this->T - 1) / this->T;
 
@@ -89,18 +86,18 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
 
   size_t tweights_size, tinput_size, toutput_size;
 
-  if (policy < 2) {
+  if (execute_policy_ < 2) {
     size_t nteams = 1;
-    if (policy == 1) {
+    if (execute_policy_ == 1) {
       nteams = this->nteams;
       divide_tasks_ttm(this->t2);
     }
     tweights_size = sizeof(Type) * A * A * this->ic * this->oc * nteams;
     tinput_size = sizeof(Type) * A * A * this->T * this->ic * mthr_;
     toutput_size = sizeof(Type) * A * A * this->T * this->oc * mthr_;
-  } else if (policy == 2 || policy == 3) {
+  } else if (execute_policy_ == 2 || execute_policy_ == 3) {
     size_t wei_dup = 1, in_dup = 1;
-    if (policy == 3) {
+    if (execute_policy_ == 3) {
       in_dup = this->nteams;
     }
     tweights_size = sizeof(Type) * A * A * this->ic * this->oc * wei_dup;
@@ -559,7 +556,23 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::execute(
     Type *output, Type *input, Type *weights, Type *bias)
 {
-  __execute0(output, input, weights, bias);
+  switch (execute_policy_) {
+  case 0:
+    __execute0(output, input, weights, bias);
+    break;
+  case 1:
+    __execute1(output, input, weights, bias);
+    break;
+  case 2:
+    __execute2(output, input, weights, bias);
+    break;
+  case 3:
+    __execute3(output, input, weights, bias);
+    break;
+  default:
+    el_error("Unimplemented");
+    break;
+  }
 }
 
 } // namespace euler
