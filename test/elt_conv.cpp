@@ -19,6 +19,7 @@ bool with_bias = true, with_relu = false;
 int prop_kind = forward_inference, alg = CONV_WINOGRAD;
 int nteams = 0, nthreads = 0;
 int execution_mode = 0;
+int blk_i = 0, blk_o = 0, blk_t = 0;
 
 bool validate_results = false;
 
@@ -42,6 +43,7 @@ int main(int argc, char **argv)
   desc.prop_kind = prop_kind;
   desc.threading = { nteams, nthreads };
   desc.execution_mode = execution_mode;
+  desc.blocking = { blk_i, blk_o, blk_t };
 
   if (desc.setup() != ELD_OK) {
     printf("Fail: Convolution setup error!\n");
@@ -108,7 +110,10 @@ int parse_cmd_options(int argc, char **argv) {
     ("alg,a", po::value<std::string>(), "wino|direct. Algorithm. Default: wino")
     ("nteams", po::value<int>(&nteams), "Number of thread team")
     ("nthreads", po::value<int>(&nthreads), "Number of threads per team")
-    ("execution-mode", po::value<std::string>(), "Execution mode");
+    ("execution-mode", po::value<std::string>(), "Execution mode")
+    ("blk-i", po::value<int>(&blk_i), "IC blocking")
+    ("blk-o", po::value<int>(&blk_o), "OC blocking")
+    ("blk-t", po::value<int>(&blk_t), "Tile blocking");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -141,10 +146,12 @@ int parse_cmd_options(int argc, char **argv) {
          "mb:%d, ic:%d, ih:%d, iw:%d, oc:%d, oh:%d, ow:%d, kh:%d, kw:%d, "
          "ph:%d, pw:%d, sh:%d, sw:%d, dh:%d, dw:%d\n"
          "with_bias:%d, with_relu:%d, validate_results:%d\n"
+         "blk_i:%d, blk_o:%d, blk_t:%d\n"
          "nteams:%d, nthreads:%d\n"
          "execution-mode:%x\n",
       mb, ic, ih, iw, oc, oh, ow, kh, kw, ph, pw, sh, sw, dh, dw,
-      with_bias, with_relu, validate_results, nteams, nthreads, execution_mode);
+      with_bias, with_relu, validate_results, blk_i, blk_o, blk_t,
+      nteams, nthreads, execution_mode);
 
   if (prop_kind == forward_inference)
     printf("prop_kind:forward_inference\n");

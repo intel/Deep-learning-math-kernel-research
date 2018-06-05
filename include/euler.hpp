@@ -73,9 +73,11 @@ struct eld_conv_t {
 
     // Performance:
     // Number of thread teams, number of threads per team
-    struct { int nteams; int nthreads;} threading;
+    struct { int nteams, nthreads;} threading;
     // Execution mode
     int execution_mode;
+    // Blocking: 2nd level blocking unit
+    struct { int i, o, t; } blocking;
 
     // Defaults
     eld_conv_t();
