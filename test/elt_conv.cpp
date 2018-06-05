@@ -18,6 +18,7 @@ int ph = 1, pw = 1, sh = 1, sw = 1, dh = 1, dw = 1;
 bool with_bias = true, with_relu = false;
 int prop_kind = forward_inference, alg = CONV_WINOGRAD;
 int nteams = 0, nthreads = 0;
+int execution_mode = 0;
 
 bool validate_results = false;
 
@@ -40,6 +41,7 @@ int main(int argc, char **argv)
   desc.tile_size = 5;
   desc.prop_kind = prop_kind;
   desc.threading = { nteams, nthreads };
+  desc.execution_mode = execution_mode;
 
   if (desc.setup() != ELD_OK) {
     printf("Fail: Convolution setup error!\n");
@@ -104,8 +106,9 @@ int parse_cmd_options(int argc, char **argv) {
     ("with-bias,b", po::value<bool>(&with_bias), "on|off. With bias. Default: on")
     ("with-relu,r", po::value<bool>(&with_relu), "on|off. With relu. Default: off")
     ("alg,a", po::value<std::string>(), "wino|direct. Algorithm. Default: wino")
-    ("nteams,", po::value<int>(&nteams), "Number of thread team")
-    ("nthreads", po::value<int>(&nthreads), "Number of threads per team");
+    ("nteams", po::value<int>(&nteams), "Number of thread team")
+    ("nthreads", po::value<int>(&nthreads), "Number of threads per team")
+    ("execution-mode", po::value<std::string>(), "Execution mode");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -128,14 +131,20 @@ int parse_cmd_options(int argc, char **argv) {
       return -1;
     }
   }
+  if (vm.count("execution-mode")) {
+    std::stringstream interpreter;
+    interpreter << std::hex << vm["execution-mode"].as<std::string>();
+    interpreter >> execution_mode;
+  }
 
   printf("Convolution options:\n"
          "mb:%d, ic:%d, ih:%d, iw:%d, oc:%d, oh:%d, ow:%d, kh:%d, kw:%d, "
          "ph:%d, pw:%d, sh:%d, sw:%d, dh:%d, dw:%d\n"
          "with_bias:%d, with_relu:%d, validate_results:%d\n"
-         "nteams:%d, nthreads:%d\n",
+         "nteams:%d, nthreads:%d\n"
+         "execution-mode:%x\n",
       mb, ic, ih, iw, oc, oh, ow, kh, kw, ph, pw, sh, sw, dh, dw,
-      with_bias, with_relu, validate_results, nteams, nthreads);
+      with_bias, with_relu, validate_results, nteams, nthreads, execution_mode);
 
   if (prop_kind == forward_inference)
     printf("prop_kind:forward_inference\n");

@@ -1,5 +1,4 @@
 #include <x86intrin.h>
-#include <algorithm>
 #include "el_utils.hpp"
 #include "elx_conv_wino_gemm.hpp"
 #include "el_def.hpp"
@@ -86,6 +85,8 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
       || this->nteams > MAX_THREAD_TEAMS) {
     this->nteams = 1;
     this->nthreads = mthr_;
+  } else {
+    mthr_ = this->nteams * this->nthreads;
   }
   inference_acc_ = this->prop_kind == forward_inference;
 
@@ -94,7 +95,11 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   this->ic3 = this->ic / (this->I2 * V);
   this->t2 = (this->t + this->T - 1) / this->T;
 
-  xopt_ = TTM_O | FUS_T | DUP_I;
+  xopt_ = this->execution_mode;
+  if (xopt_ == 0) {
+    // TODO: deduce xopt
+    xopt_ = TTM_O | FUS_T | DUP_I;
+  }
 
   prepare_execute_opt();
   bind_execute_functions();
@@ -138,8 +143,8 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
     this->oc3 /= this->nteams;
   }
   if (xopt_ & TTM_N) {
+    this->nthreads = mthr_;
     this->nteams = 1;
-    this->nthreads = std::min(mthr_, (size_t)this->nteams * this->nthreads);
   }
   if (xopt_ & FUS_N) {
     nt = this->t2;

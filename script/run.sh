@@ -27,7 +27,7 @@ function build() {
 function conv_test() {
   # Default
   n=1; i=64; o=64; h=224; w=224; H=224; W=224; k=3; K=3; p=1; P=1; s=1; S=1
-  b=1; r=0; v=1; a=wino; nteams=0; nthreads=0
+  b=1; r=0; v=1; a=wino; nteams=0; nthreads=0; execution_mode=0
 
   OPTIND=1
   while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:a:-:" opt; do
@@ -59,6 +59,10 @@ function conv_test() {
             ;;
           nthreads=*) nthreads=${OPTARG#*=}
             ;;
+          execution-mode) execution_mode="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          execution-mode=*) execution_mode=${OPTARG#*=}
+            ;;
        esac
        ;;
     esac
@@ -66,7 +70,8 @@ function conv_test() {
   shift $((OPTIND-1))
   eval $OMP_ENV $ROOT_DIR/build/release/bin/elt_conv \
     -n$n -i$i -o$o -h$h -w$w -H$H -W$W -k$k -K$K -p$p -P$P -s$s -S$S \
-    -b$b -r$r -v$v -a$a --nteams=$nteams --nthreads=$nthreads
+    -b$b -r$r -v$v -a$a \
+    --nteams=$nteams --nthreads=$nthreads --execution-mode=$execution_mode
 }
 
 function unit_test() {

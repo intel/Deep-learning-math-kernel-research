@@ -38,6 +38,7 @@ elx_conv_t<Type>::elx_conv_t(eld_conv_t<Type> &dc) {
 
   this->nteams = dc.threading.nteams;
   this->nthreads = dc.threading.nthreads;
+  this->execution_mode = dc.execution_mode;
 }
 
 template <typename T>

@@ -21,6 +21,7 @@ eld_conv_t<F>::eld_conv_t() {
   with_bias = false;
   xc        = nullptr;
   threading = {0, 0};
+  execution_mode = 0;
 }
 
 template <typename F>

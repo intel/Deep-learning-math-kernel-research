@@ -51,6 +51,7 @@ struct elx_conv_t {
 
   // threading
   int nteams, nthreads;
+  int execution_mode;
 
   elx_conv_t(eld_conv_t<Type> &dc);
   virtual ~elx_conv_t() {}

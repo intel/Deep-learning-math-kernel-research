@@ -72,8 +72,10 @@ struct eld_conv_t {
     bool is_inference;
 
     // Performance:
-    // number of thread teams, number of threads per team
+    // Number of thread teams, number of threads per team
     struct { int nteams; int nthreads;} threading;
+    // Execution mode
+    int execution_mode;
 
     // Defaults
     eld_conv_t();
