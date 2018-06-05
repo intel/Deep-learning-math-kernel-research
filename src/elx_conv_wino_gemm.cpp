@@ -1,4 +1,5 @@
 #include <x86intrin.h>
+#include <algorithm>
 #include "el_utils.hpp"
 #include "elx_conv_wino_gemm.hpp"
 #include "el_def.hpp"
@@ -136,16 +137,21 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
   if (xopt_ & TTM_O) {
     this->oc3 /= this->nteams;
   }
+  if (xopt_ & TTM_N) {
+    this->nteams = 1;
+    this->nthreads = std::min(mthr_, (size_t)this->nteams * this->nthreads);
+  }
   if (xopt_ & FUS_N) {
     nt = this->t2;
     stream_in_ = true;
     stream_wei_ = true;
   }
   if (xopt_ & FUS_T) {
-    nt = this->nthreads;
+    nt = this->nteams * this->nthreads;
   }
   if (xopt_ & DUP_I) {
-    in_ndup = this->nteams;
+    if (!(xopt_ & FUS_T))
+      in_ndup = this->nteams;
   }
   if (xopt_ & DUP_W) {
     wei_ndup = this->nteams;
