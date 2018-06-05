@@ -15,18 +15,17 @@ namespace euler {
 // -------------+-------------------+--------------+---------------
 //      848     |        _          |      t       |    _
 // -------------+-------------------+--------------+---------------
-//      442     |        t          |      t       |  W * nteams
+//      442     |        t          |      t       |    W
 // -------------+-------------------+--------------+---------------
-//      248*    |        o          |      t       |    _
+//      241     |        o          |      t       |    I
 // -------------+-------------------+--------------+---------------
 //      888     |        _          |      _       |    _
 // -------------+-------------------+--------------+---------------
-//      281     |        o          |      _       |  I * nteams
-// -------------+-------------------+--------------+---------------
-//      288*    |        o          |      _       |    _
+//      281     |        o          |      _       |    I
 // -------------+-------------------+--------------+---------------
 //      828*    |        _          |      o       |    _
 // -------------+-------------------+--------------+---------------
+//  *: TODO
 //
 
 const unsigned TTM_I = 0x100;
@@ -66,7 +65,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   // tweights + pt-tinputs + pt-toutput ~ L2
   // tweights:gemm + tinputs:gemm + toutput:gemm ~ L1
   this->T = 18; // TODO: T selection
-  this->O2 = 4; // TODO: O2 selection
+  this->O2 = 2; // TODO: O2 selection
   this->I2 = 4; // TODO: I2 selection
 
   // Tailing
@@ -94,7 +93,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   this->ic3 = this->ic / (this->I2 * V);
   this->t2 = (this->t + this->T - 1) / this->T;
 
-  xopt_ = TTM_T | FUS_T | DUP_W;
+  xopt_ = TTM_O | FUS_T | DUP_I;
 
   prepare_execute_opt();
   bind_execute_functions();
@@ -143,7 +142,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
     stream_wei_ = true;
   }
   if (xopt_ & FUS_T) {
-    nt = mthr_;
+    nt = this->nthreads;
   }
   if (xopt_ & DUP_I) {
     in_ndup = this->nteams;
@@ -214,14 +213,16 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::bind_execute_functions()
 
 #define EXECUTE_CASE(n)                                                      \
   case 0x##n:                                                                \
+    printf("execute_opt=" #n "\n");\
     execute_opt_ = &elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute##n;    \
     break
 
   switch (xopt_) {
-  EXECUTE_CASE(888);
-  EXECUTE_CASE(848);
+  EXECUTE_CASE(241);
   EXECUTE_CASE(281);
   EXECUTE_CASE(442);
+  EXECUTE_CASE(848);
+  EXECUTE_CASE(888);
   default:
     el_error("Unimplemented");
     break;
@@ -630,6 +631,42 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute281(
   }
   if (inference_acc_) is_first_run_ = false;
 }
+
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute241(
+    Type *output, Type *input, Type *weights, Type *bias)
+{
+  MD(Type, aoutput3, [this->n][this->nteams][this->oc * this->oh * this->ow / this->nteams], output);
+  MD(Type, aweights2, [this->nteams][this->oc * this->ic * K * K / this->nteams], weights);
+  MD(Type, abias2, [this->nteams][this->oc / this->nteams], bias);
+  MD(Type, atinput3, [this->nteams][this->nthreads][A * A * this->T * this->ic], tinput_);
+  MD(Type, atoutput3, [this->nteams][this->nthreads][A * A * this->T * this->oc / this->nteams], toutput_);
+  MD(Type, atweights2, [this->nteams][this->oc * this->ic * A * A / this->nteams], tweights_);
+
+  omp_set_nested(1);
+#pragma omp parallel num_threads(this->nteams) proc_bind(spread)
+#pragma omp for nowait collapse(1) schedule(static)
+  for (int s = 0; s < this->nteams; s++)
+#pragma omp parallel num_threads(this->nthreads) proc_bind(close)
+  {
+    if (is_first_run_) {
+      trans_weights((Type *)atweights2[s], (Type *)aweights2[s]);
+#pragma omp barrier
+    }
+#pragma omp for nowait collapse(1)
+    for_each (_t2, this->t2) {
+      int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+      size_t ithr = omp_get_thread_num();
+
+      trans_input(atinput3[s][ithr], input, _t2, Tz);
+      gemm(atoutput3[s][ithr], atinput3[s][ithr], atweights2[s], _t2, Tz);
+      trans_output(aoutput3[0][s], atoutput3[s][ithr], abias2[s], _t2, Tz);
+    }
+  }
+  if (inference_acc_) is_first_run_ = false;
+}
+
+
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::execute(
