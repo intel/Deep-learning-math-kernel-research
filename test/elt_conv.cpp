@@ -115,6 +115,9 @@ int parse_cmd_options(int argc, char **argv) {
     ("blk-o", po::value<int>(&blk_o), "OC blocking")
     ("blk-t", po::value<int>(&blk_t), "Tile blocking");
 
+  iw = iw == 0 ? ih : iw;
+  ow = ow == 0 ? oh : ow;
+
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
   po::notify(vm);

@@ -142,7 +142,13 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
     divide_tasks_ttm(this->t2);
   }
   if (xopt_ & TTM_O) {
-    this->oc3 /= this->nteams;
+    if (this->oc3 % this->nteams != 0) {
+      // Force single nteams
+      this->nthreads = mthr_;
+      this->nteams = 1;
+    } else {
+      this->oc3 /= this->nteams;
+    }
   }
   if (xopt_ & TTM_N) {
     this->nthreads = mthr_;
@@ -173,7 +179,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
   toutput_ = (Type *)memalign(64, toutput_size);
 
   // dbg
-  printf("wei_ndup=%ld, in_ndup=%ld, nt=%ld\n", wei_ndup, in_ndup, nt);
+  printf("nteams=%d, nthreads=%d\n", this->nteams, this->nthreads);
   size_t l2_usage = tweights_size / this->nteams + sizeof(Type) * A * A * this->T * (this->ic + this->oc);
   size_t l1_usage = sizeof(Type) * this->O2 * this->I2 * V * V + sizeof(Type) * this->T * V * (this->I2 + this->O2);
   printf("l2_usage=%ld, l1_usage=%ld\n", l2_usage, l1_usage);
