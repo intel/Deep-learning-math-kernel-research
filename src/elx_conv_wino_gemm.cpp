@@ -179,7 +179,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
   toutput_ = (Type *)memalign(64, toutput_size);
 
   // dbg
-  printf("nteams=%d, nthreads=%d\n", this->nteams, this->nthreads);
+  printf("nteams=%d, nthreads=%d, mthr_=%ld\n", this->nteams, this->nthreads, mthr_);
   size_t l2_usage = tweights_size / this->nteams + sizeof(Type) * A * A * this->T * (this->ic + this->oc);
   size_t l1_usage = sizeof(Type) * this->O2 * this->I2 * V * V + sizeof(Type) * this->T * V * (this->I2 + this->O2);
   printf("l2_usage=%ld, l1_usage=%ld\n", l2_usage, l1_usage);
@@ -546,7 +546,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute848(
   MD(Type, atinput2, [mthr_][A * A * this->T * this->ic], tinput_);
   MD(Type, atoutput2, [mthr_][A * A * this->T * this->oc], toutput_);
 
-#pragma omp parallel proc_bind(close)
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
     if (is_first_run_) {
       trans_weights(tweights_, weights);
@@ -604,7 +604,7 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute888(
     Type *output, Type *input, Type *weights, Type *bias)
 {
-#pragma omp parallel proc_bind(close)
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
     if (is_first_run_)
       trans_weights(tweights_, weights);
