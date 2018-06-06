@@ -26,7 +26,7 @@ function build() {
 
 function conv_test() {
   # Default
-  n=1; i=64; o=64; h=224; w=224; H=224; W=224; k=3; K=3; p=1; P=1; s=1; S=1
+  n=1; i=0; o=0; h=0; w=0; H=0; W=0; k=3; K=3; p=1; P=1; s=1; S=1
   b=1; r=0; v=1; a=wino; blk_i=0; blk_o=0; blk_t=0
   nteams=0; nthreads=0; execution_mode=0
 
