@@ -35,7 +35,7 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   void trans_output(
       Type *output, Type *toutput, Type *bias, int _t2, int Tz);
   void trans_output(Type *output, Type *toutput, Type *bias);
-  void trans_weights(Type *tweights, Type *weights);
+  void trans_weights(Type *tweights, Type *weights, int oc4 = 1);
 
   void gemm(
       Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);

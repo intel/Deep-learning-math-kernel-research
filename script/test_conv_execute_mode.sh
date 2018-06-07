@@ -8,6 +8,10 @@ function __val_conv() {
   $ROOT_DIR/script/run.sh -c -v1 -n 3 -i 128 -o 256 -h 56 -w 56 -H 56 -W 56 \
     --execution-mode=$1 \
     --nteams=$2 --nthreads=$3
+  if [ $? != 0 ]; then
+    echo "XXXXX FAILURE: XXXXX"
+    exit -1
+  fi
 }
 
 function bench_conv() {
@@ -33,6 +37,9 @@ function val_conv() {
   __val_conv 0x000 0 0
   __val_conv 0x000 1 18
   __val_conv 0x000 2 9
+  __val_conv 0x080 0 0
+  __val_conv 0x080 1 18
+  __val_conv 0x080 2 9
 }
 
 vgg19_conv1_2=" -i64  -h224 -o64  -H224 "

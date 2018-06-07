@@ -96,7 +96,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   inference_acc_ = this->prop_kind == forward_inference;
 
   // TODO: add tailing?
-  this->oc4 = 1;
+  this->oc4 = 2;
   this->oc3 = this->oc / (this->O2 * V);
   this->ic3 = this->ic / (this->I2 * V);
   this->t2 = (this->t + this->T - 1) / this->T;
@@ -113,7 +113,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   // dbg
   printf("T=%d, Tr=%d, t2=%d, t=%d\n", this->T, this->Tr, this->t2, this->t);
   printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic=%d\n", this->V, this->Ir, this->I2, this->ic3, this->ic);
-  printf("V=%d, Or=%d, O2=%d, oc3=%d, oc=%d\n", this->V, this->Or, this->O2, this->oc3, this->oc);
+  printf("V=%d, Or=%d, O2=%d, oc3=%d, oc4=%d, oc=%d\n", this->V, this->Or, this->O2, this->oc3,this->oc4,  this->oc);
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
@@ -276,48 +276,43 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::~elx_conv_wino_gemm_t()
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights(
-    Type *tweights, Type *weights)
+    Type *tweights, Type *weights, int oc4)
 {
   // oc2, ic2, K, K, V, V => oc3, ic3, A, A, O2, I2, V, V
   MD(Type, aweights, [this->oc2][this->ic2][K][K][V][V], weights);
-  MD(Type, atweights, [this->oc3][this->ic3][A][A][this->O2][this->I2][V][V],
+  MD(Type, atweights, [oc4][this->oc3][this->ic3][A][A][this->O2][this->I2][V][V],
       tweights);
-#pragma omp for nowait collapse(4) schedule(static)
+#pragma omp for nowait collapse(5) schedule(static)
+  for_each (_oc4, oc4) {
   for_each (_oc3, this->oc3) {
-    for_each (_ic3, this->ic3) {
-      for_each (_O2, this->O2) {
-        for_each (_I2, this->I2) {
-          Type aout[A][A][V][V];
-          Type *in = (Type *)
-              aweights[_oc3 * this->O2 + _O2][_ic3 * this->I2 + _I2];
-          using Array = Type[K][K][V][V];
-          ker_trans_weights_(aout, *(Array *)in);
+  for_each (_ic3, this->ic3) {
+  for_each (_O2, this->O2) {
+  for_each (_I2, this->I2) {
+    Type aout[A][A][V][V];
+    Type *in = (Type *)aweights[_oc3 * this->O2 + _O2][_ic3 * this->I2 + _I2];
+    using Array = Type[K][K][V][V];
+    ker_trans_weights_(aout, *(Array *)in);
+    for_each (_hA, A) {
+    for_each (_wA, A) {
+    for_each (_iV, V) {
+      if (I == ISA_SKX_AVX512) {
+        if (stream_wei_)
+          _mm512_stream_ps(
+              atweights[_oc4][_oc3][_ic3][_hA][_wA][_O2][_I2][_iV],
+              *((__m512 *)&aout[_hA][_wA][_iV][0]));
+        else
+          _mm512_store_ps(
+              atweights[_oc4][_oc3][_ic3][_hA][_wA][_O2][_I2][_iV],
+              *((__m512 *)&aout[_hA][_wA][_iV][0]));
+      } else {
 
-          for_each (_hA, A) {
-            for_each (_wA, A) {
-              for_each (_iV, V) {
-                if (I == ISA_SKX_AVX512) {
-                  if (stream_wei_)
-                    _mm512_stream_ps(
-                        atweights[_oc3][_ic3][_hA][_wA][_O2][_I2][_iV],
-                        *((__m512 *)&aout[_hA][_wA][_iV][0]));
-                  else
-                    _mm512_store_ps(
-                        atweights[_oc3][_ic3][_hA][_wA][_O2][_I2][_iV],
-                        *((__m512 *)&aout[_hA][_wA][_iV][0]));
-                } else {
 #pragma omp simd
-                  for_each (_oV, V)
-                    atweights[_oc3][_ic3][_hA][_wA][_O2][_I2][_iV][_oV]
-                        = aout[_hA][_wA][_iV][_oV];
-                }
-              }
-            }
-          }
-        }
+        for_each (_oV, V)
+          atweights[_oc4][_oc3][_ic3][_hA][_wA][_O2][_I2][_iV][_oV]
+              = aout[_hA][_wA][_iV][_oV];
       }
-    }
-  }
+    }}}}
+  }}}}
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
@@ -594,7 +589,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute080(
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
     if (is_first_run_) {
-      trans_weights(tweights_, weights);
+      trans_weights(tweights_, weights, this->oc4);
 #pragma omp barrier
     }
 #pragma omp for nowait collapse(2)
