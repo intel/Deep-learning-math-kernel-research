@@ -13,34 +13,37 @@ namespace euler {
 // -------------+-------------------+--------------+---------------
 //  execute-opt | thread-teaming-by | fusion-along | duplication
 // -------------+-------------------+--------------+---------------
-//      848     |        _          |      t       |    _
+//      040     |        _          |      t       |    _
+// -------------+-------------------+--------------+---------------
+//      080*    |        _          |     t*o      |    _
 // -------------+-------------------+--------------+---------------
 //      442     |        t          |      t       |    W
 // -------------+-------------------+--------------+---------------
 //      241     |        o          |      t       |    I
 // -------------+-------------------+--------------+---------------
-//      888     |        _          |      _       |    _
+//      000     |        _          |      _       |    _
 // -------------+-------------------+--------------+---------------
-//      281     |        o          |      _       |    I
+//      201     |        o          |      _       |    I
 // -------------+-------------------+--------------+---------------
-//      828*    |        _          |      o       |    _
+//      020*    |        _          |      o       |    _
 // -------------+-------------------+--------------+---------------
 //  *: TODO
 //
 
-const unsigned TTM_I = 0x100;
-const unsigned TTM_O = 0x200;
-const unsigned TTM_T = 0x400;
-const unsigned TTM_N = 0x800;
+const unsigned TTM_MSK = 0xF00;
+const unsigned TTM_I   = 0x100;
+const unsigned TTM_O   = 0x200;
+const unsigned TTM_T   = 0x400;
+const unsigned TTM_TO  = 0x800;
 
-const unsigned FUS_I = 0x10;
-const unsigned FUS_O = 0x20;
-const unsigned FUS_T = 0x40;
-const unsigned FUS_N = 0x80;
+const unsigned FUS_MSK = 0xF0;
+const unsigned FUS_I   = 0x10;
+const unsigned FUS_O   = 0x20;
+const unsigned FUS_T   = 0x40;
 
-const unsigned DUP_I = 0x1;
-const unsigned DUP_W = 0x2;
-const unsigned DUP_N = 0x8;
+const unsigned DUP_MSK = 0xF;
+const unsigned DUP_I   = 0x1;
+const unsigned DUP_W   = 0x2;
 
 template <typename Type, const int A, const int K, const int V, const int I>
 elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
@@ -150,11 +153,11 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
       this->oc3 /= this->nteams;
     }
   }
-  if (xopt_ & TTM_N) {
+  if (!(xopt_ & TTM_MSK)) {
     this->nthreads = mthr_;
     this->nteams = 1;
   }
-  if (xopt_ & FUS_N) {
+  if (!(xopt_ & FUS_MSK)) {
     nt = this->t2;
     stream_in_ = true;
     stream_wei_ = true;
@@ -238,10 +241,10 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::bind_execute_functions()
 
   switch (xopt_) {
   EXECUTE_CASE(241);
-  EXECUTE_CASE(281);
+  EXECUTE_CASE(201);
   EXECUTE_CASE(442);
-  EXECUTE_CASE(848);
-  EXECUTE_CASE(888);
+  EXECUTE_CASE(040);
+  EXECUTE_CASE(000);
   default:
     el_error("Unimplemented");
     break;
@@ -540,7 +543,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
 // tinputs:  t2, A, A, ic3, I2, T, V
 // toutput:  t2, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute848(
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute040(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, atinput2, [mthr_][A * A * this->T * this->ic], tinput_);
@@ -601,7 +604,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute442(
 
 // Flat mode
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute888(
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute000(
     Type *output, Type *input, Type *weights, Type *bias)
 {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
@@ -624,7 +627,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute888(
 // tinputs:  nteams, t2, A, A, ic3, I2, T, V (dup)
 // toutput:  nteams, t2, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute281(
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute201(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, aoutput3, [this->n][this->nteams][this->oc * this->oh * this->ow / this->nteams], output);

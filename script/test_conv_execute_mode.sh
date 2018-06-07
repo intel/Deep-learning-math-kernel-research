@@ -21,18 +21,18 @@ function val_conv() {
   __val_conv 0x241 0 0
   __val_conv 0x241 1 18
   __val_conv 0x241 2 9
-  __val_conv 0x281 0 0
-  __val_conv 0x281 2 9
-  __val_conv 0x281 1 18
+  __val_conv 0x201 0 0
+  __val_conv 0x201 2 9
+  __val_conv 0x201 1 18
   __val_conv 0x442 0 0
   __val_conv 0x442 1 18
   __val_conv 0x442 2 9
-  __val_conv 0x848 0 0
-  __val_conv 0x848 1 18
-  __val_conv 0x848 2 9
-  __val_conv 0x888 0 0
-  __val_conv 0x888 1 18
-  __val_conv 0x888 2 9
+  __val_conv 0x040 0 0
+  __val_conv 0x040 1 18
+  __val_conv 0x040 2 9
+  __val_conv 0x000 0 0
+  __val_conv 0x000 1 18
+  __val_conv 0x000 2 9
 }
 
 vgg19_conv1_2=" -i64  -h224 -o64  -H224 "
@@ -49,9 +49,10 @@ resnet50_res3a_branch2b=" -i128 -h28 -oc128 -H28 "
 resnet50_res4a_branch2b=" -i256 -h14 -oc256 -H14 "
 resnet50_res5a_branch2b=" -i512 -h7  -oc512 -H7  "
 
+val_conv
 
 set -x
 $ROOT_DIR/script/run.sh -c $vgg19_conv1_2 -v1 -n1 \
-  --execution-mode=0x888 \
+  --execution-mode=0x000 \
   --nteams=1 --nthreads=18 \
   --blk-i=2 --blk-o=2 --blk-t=18 \
