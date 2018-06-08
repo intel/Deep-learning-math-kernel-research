@@ -19,12 +19,12 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
 
   private:
 
-  void __execute000(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute040(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute080(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute201(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute241(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute442(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a040(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a080(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a201(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a241(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a442(Type *output, Type *input, Type *weights, Type *bias);
 
   inline void __trans_input(Type *tinput, Type *input, int _t2, int Tz);
   void trans_input(Type *tinput, Type *input, int _t2, int Tz);

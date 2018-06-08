@@ -22,24 +22,24 @@ function bench_conv() {
 }
 
 function val_conv() {
-  __val_conv 0x241 0 0
-  __val_conv 0x241 1 18
-  __val_conv 0x241 2 9
-  __val_conv 0x201 0 0
-  __val_conv 0x201 2 9
-  __val_conv 0x201 1 18
-  __val_conv 0x442 0 0
-  __val_conv 0x442 1 18
-  __val_conv 0x442 2 9
-  __val_conv 0x040 0 0
-  __val_conv 0x040 1 18
-  __val_conv 0x040 2 9
-  __val_conv 0x000 0 0
-  __val_conv 0x000 1 18
-  __val_conv 0x000 2 9
-  __val_conv 0x080 0 0
-  __val_conv 0x080 1 18
-  __val_conv 0x080 2 9
+  __val_conv 0xa241 0 0
+  __val_conv 0xa241 1 18
+  __val_conv 0xa241 2 9
+  __val_conv 0xa201 0 0
+  __val_conv 0xa201 2 9
+  __val_conv 0xa201 1 18
+  __val_conv 0xa442 0 0
+  __val_conv 0xa442 1 18
+  __val_conv 0xa442 2 9
+  __val_conv 0xa040 0 0
+  __val_conv 0xa040 1 18
+  __val_conv 0xa040 2 9
+  __val_conv 0xa000 0 0
+  __val_conv 0xa000 1 18
+  __val_conv 0xa000 2 9
+  __val_conv 0xa080 0 0
+  __val_conv 0xa080 1 18
+  __val_conv 0xa080 2 9
 }
 
 vgg19_conv1_2=" -i64  -h224 -o64  -H224 "
@@ -51,15 +51,16 @@ vgg19_conv4_1=" -i256 -h28  -o512 -H28  "
 vgg19_conv4_2=" -i512 -h28  -o512 -H28  "
 vgg19_conv5_1=" -i512 -h14  -o512 -H14  "
 
-resnet50_res2a_branch2b=" -i64  -h56 -oc64  -H56 "
-resnet50_res3a_branch2b=" -i128 -h28 -oc128 -H28 "
-resnet50_res4a_branch2b=" -i256 -h14 -oc256 -H14 "
-resnet50_res5a_branch2b=" -i512 -h7  -oc512 -H7  "
+resnet50_res2a_branch2b=" -i64  -h56 -o64  -H56 "
+resnet50_res3a_branch2b=" -i128 -h28 -o128 -H28 "
+resnet50_res4a_branch2b=" -i256 -h14 -o256 -H14 "
+resnet50_res5a_branch2b=" -i512 -h7  -o512 -H7  "
+
+set -x
 
 val_conv
 
-set -x
 $ROOT_DIR/script/run.sh -c $vgg19_conv1_2 -v1 -n1 \
-  --execution-mode=0x000 \
+  --execution-mode=0xa000 \
   --nteams=1 --nthreads=18 \
   --blk-i=2 --blk-o=2 --blk-t=18 \

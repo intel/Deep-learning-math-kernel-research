@@ -13,22 +13,24 @@ namespace euler {
 // -------------+-------------------+--------------+---------------
 //  execute-opt | thread-teaming-by | fusion-along | duplication
 // -------------+-------------------+--------------+---------------
-//      040     |        _          |      t       |    _
+//     A040     |        _          |      t       |    _
 // -------------+-------------------+--------------+---------------
-//      080*    |        _          |     t*o      |    _
+//     A080     |        _          |     t*o      |    _
 // -------------+-------------------+--------------+---------------
-//      442     |        t          |      t       |    W
+//     A442     |        t          |      t       |    W
 // -------------+-------------------+--------------+---------------
-//      241     |        o          |      t       |    I
+//     A241     |        o          |      t       |    I
 // -------------+-------------------+--------------+---------------
-//      000     |        _          |      _       |    _
+//     A000     |        _          |      _       |    _
 // -------------+-------------------+--------------+---------------
-//      201     |        o          |      _       |    I
+//     A201     |        o          |      _       |    I
 // -------------+-------------------+--------------+---------------
-//      020*    |        _          |      o       |    _
+//     A020*    |        _          |      o       |    _
 // -------------+-------------------+--------------+---------------
 //  *: TODO
 //
+
+const unsigned XOPT_MSK = 0xA000;
 
 const unsigned TTM_MSK = 0xF00;
 const unsigned TTM_I   = 0x100;
@@ -102,7 +104,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   this->t2 = (this->t + this->T - 1) / this->T;
 
   xopt_ = this->execution_mode;
-  if (xopt_ == 0) {
+  if (!(xopt_& XOPT_MSK)) {
     // TODO: deduce xopt
     xopt_ = TTM_O | FUS_T | DUP_I;
   }
@@ -164,10 +166,14 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
     stream_wei_ = true;
   } else if (xopt_ & FUS_T) {
     nt = this->nteams * this->nthreads;
-  } else if (xopt_ & FUS_TO) {
+  }
+  if (xopt_ & FUS_TO) {
+    nt = this->nteams * this->nthreads;
     this->oc3 /= this->oc4;
     // TODO:
     //toutput_size
+  } else {
+    this->oc4 = 1;
   }
 
   if (xopt_ & DUP_I) {
@@ -241,16 +247,16 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::bind_execute_functions()
 #define EXECUTE_CASE(n)                                                      \
   case 0x##n:                                                                \
     printf("execute_opt=" #n "\n");\
-    execute_opt_ = &elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute##n;    \
+    execute_opt_ = &elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_##n;   \
     break
 
   switch (xopt_) {
-  EXECUTE_CASE(241);
-  EXECUTE_CASE(201);
-  EXECUTE_CASE(442);
-  EXECUTE_CASE(040);
-  EXECUTE_CASE(080);
-  EXECUTE_CASE(000);
+  EXECUTE_CASE(a241);
+  EXECUTE_CASE(a201);
+  EXECUTE_CASE(a442);
+  EXECUTE_CASE(a040);
+  EXECUTE_CASE(a080);
+  EXECUTE_CASE(a000);
   default:
     el_error("Unimplemented");
     break;
@@ -544,7 +550,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
 // tinputs:  t2, A, A, ic3, I2, T, V
 // toutput:  t2, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute040(
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a040(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, atinput2, [mthr_][A * A * this->T * this->ic], tinput_);
@@ -576,7 +582,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute040(
 // tinputs:  t2, oc4, A, A, ic3, I2, T, V
 // toutput:  t2, oc4, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute080(
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a080(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, atinput2, [mthr_][A * A * this->T * this->ic], tinput_);
@@ -610,7 +616,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute080(
 // Thread-teaming along 't' dimension. TODO: ttm along 'o'
 // Fuse trans-input, gemm and trans-output along 't' dimension
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute442(
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a442(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, atinput3, [this->nteams][this->nthreads][A * A * this->T * this->ic], tinput_);
@@ -642,7 +648,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute442(
 
 // Flat mode
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute000(
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a000(
     Type *output, Type *input, Type *weights, Type *bias)
 {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
@@ -665,7 +671,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute000(
 // tinputs:  nteams, t2, A, A, ic3, I2, T, V (dup)
 // toutput:  nteams, t2, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute201(
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a201(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, aoutput3, [this->n][this->nteams][this->oc * this->oh * this->ow / this->nteams], output);
@@ -693,7 +699,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute201(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute241(
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a241(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, aoutput3, [this->n][this->nteams][this->oc * this->oh * this->ow / this->nteams], output);
