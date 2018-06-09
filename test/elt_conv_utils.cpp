@@ -25,7 +25,7 @@ namespace test {
     }
 #pragma omp parallel for
     for (int i = 0; i < desc.sizes.weights; i++) {
-      (*weights)[i] = i % 32;
+      (*weights)[i] = i % 31;
     }
 #pragma omp parallel for
     for (int i = 0; i < desc.sizes.bias; i++) {

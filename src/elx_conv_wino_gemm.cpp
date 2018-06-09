@@ -15,7 +15,13 @@ namespace euler {
 // -------------+-------------------+--------------+---------------
 //     A040     |        _          |      t       |    _
 // -------------+-------------------+--------------+---------------
-//     A080     |        _          |     t*o      |    _
+//     A042*    |        _          |      t       |    W
+// -------------+-------------------+--------------+---------------
+//     A060*    |        _          |    t + o     |    _
+// -------------+-------------------+--------------+---------------
+//     A061     |        _          |    t + o     |    I
+// -------------+-------------------+--------------+---------------
+//     A063*    |        _          |    t + o     |  I + W
 // -------------+-------------------+--------------+---------------
 //     A442     |        t          |      t       |    W
 // -------------+-------------------+--------------+---------------
@@ -26,6 +32,8 @@ namespace euler {
 //     A201     |        o          |      _       |    I
 // -------------+-------------------+--------------+---------------
 //     A020*    |        _          |      o       |    _
+// -------------+-------------------+--------------+---------------
+//     A021*    |        _          |      o       |    I
 // -------------+-------------------+--------------+---------------
 //  *: TODO
 //
@@ -98,7 +106,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   inference_acc_ = this->prop_kind == forward_inference;
 
   // TODO: add tailing?
-  this->oc4 = 2;
+  this->oc4 = 4;
   this->oc3 = this->oc / (this->O2 * V);
   this->ic3 = this->ic / (this->I2 * V);
   this->t2 = (this->t + this->T - 1) / this->T;
@@ -285,7 +293,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights(
     Type *tweights, Type *weights, int oc4)
 {
   // oc2, ic2, K, K, V, V => oc3, ic3, A, A, O2, I2, V, V
-  MD(Type, aweights, [this->oc2][this->ic2][K][K][V][V], weights);
+  MD(Type, aweights, [oc4][this->oc3][this->O2][this->ic3][this->I2][K][K][V][V], weights);
   MD(Type, atweights, [oc4][this->oc3][this->ic3][A][A][this->O2][this->I2][V][V],
       tweights);
 #pragma omp for nowait collapse(5) schedule(static)
@@ -295,7 +303,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights(
   for_each (_O2, this->O2) {
   for_each (_I2, this->I2) {
     Type aout[A][A][V][V];
-    Type *in = (Type *)aweights[_oc3 * this->O2 + _O2][_ic3 * this->I2 + _I2];
+    Type *in = (Type *)aweights[_oc4][_oc3][_O2][_ic3][_I2];
     using Array = Type[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
     for_each (_hA, A) {
@@ -579,7 +587,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a040(
 // Fuse trans-input, gemm and trans-output along 't*o' dimension
 //
 // tweights: oc4, oc3, ic3, A, A, O2, I2, V, V
-// tinputs:  t2, oc4, A, A, ic3, I2, T, V
+// tinputs:  t2, A, A, ic3, I2, T, V
 // toutput:  t2, oc4, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a080(
