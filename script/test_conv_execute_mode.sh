@@ -22,24 +22,24 @@ function bench_conv() {
 }
 
 function val_conv() {
-  __val_conv 0xa241 0 0
-  __val_conv 0xa241 1 18
-  __val_conv 0xa241 2 9
-  __val_conv 0xa201 0 0
-  __val_conv 0xa201 2 9
-  __val_conv 0xa201 1 18
-  __val_conv 0xa442 0 0
-  __val_conv 0xa442 1 18
-  __val_conv 0xa442 2 9
   __val_conv 0xa040 0 0
   __val_conv 0xa040 1 18
   __val_conv 0xa040 2 9
+  __val_conv 0xa061 0 0
+  __val_conv 0xa061 1 18
+  __val_conv 0xa061 2 9
+  __val_conv 0xa442 0 0
+  __val_conv 0xa442 1 18
+  __val_conv 0xa442 2 9
+  __val_conv 0xa241 0 0
+  __val_conv 0xa241 1 18
+  __val_conv 0xa241 2 9
   __val_conv 0xa000 0 0
   __val_conv 0xa000 1 18
   __val_conv 0xa000 2 9
-  __val_conv 0xa080 0 0
-  __val_conv 0xa080 1 18
-  __val_conv 0xa080 2 9
+  __val_conv 0xa201 0 0
+  __val_conv 0xa201 2 9
+  __val_conv 0xa201 1 18
 }
 
 vgg19_conv1_2=" -i64  -h224 -o64  -H224 "

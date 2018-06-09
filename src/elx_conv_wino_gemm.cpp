@@ -49,7 +49,6 @@ const unsigned FUS_MSK = 0xF0;
 const unsigned FUS_I   = 0x10;
 const unsigned FUS_O   = 0x20;
 const unsigned FUS_T   = 0x40;
-const unsigned FUS_TO  = 0x80;
 
 const unsigned DUP_MSK = 0xF;
 const unsigned DUP_I   = 0x1;
@@ -106,7 +105,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
   inference_acc_ = this->prop_kind == forward_inference;
 
   // TODO: add tailing?
-  this->oc4 = 4;
+  this->oc4 = 1;
   this->oc3 = this->oc / (this->O2 * V);
   this->ic3 = this->ic / (this->I2 * V);
   this->t2 = (this->t + this->T - 1) / this->T;
@@ -131,7 +130,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
 {
   size_t tweights_size, tinput_size, toutput_size;
   size_t in_ndup = 1, wei_ndup = 1;
-  size_t nt;
+  size_t num_t = 0, num_o = 0;
 
   auto divide_tasks_ttm = [this](size_t tasks) {
     size_t ntasks_base = tasks / this->nteams;
@@ -155,9 +154,11 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
   if (!(xopt_ & TTM_MSK)) {
     this->nthreads = mthr_;
     this->nteams = 1;
-  } else if (xopt_ & TTM_T) {
+  }
+  if (xopt_ & TTM_T) {
     divide_tasks_ttm(this->t2);
-  } else if (xopt_ & TTM_O) {
+  }
+  if (xopt_ & TTM_O) {
     if (this->oc3 % this->nteams != 0) {
       // Force single nteams
       this->nthreads = mthr_;
@@ -169,19 +170,21 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
   }
 
   if (!(xopt_ & FUS_MSK)) {
-    nt = this->t2;
     stream_in_ = true;
     stream_wei_ = true;
-  } else if (xopt_ & FUS_T) {
-    nt = this->nteams * this->nthreads;
+    num_t = this->t2;
   }
-  if (xopt_ & FUS_TO) {
-    nt = this->nteams * this->nthreads;
-    this->oc3 /= this->oc4;
-    // TODO:
-    //toutput_size
+  if (xopt_ & FUS_T) {
+    num_t = this->nteams * this->nthreads;
+  }
+  if (xopt_ & FUS_O) {
+    //this->oc3 /= this->oc4;
+    this->oc4 = this->oc3;
+    this->oc3 = 1;
+    num_o = this->oc / this->oc4;
   } else {
     this->oc4 = 1;
+    num_o = this->oc;
   }
 
   if (xopt_ & DUP_I) {
@@ -189,12 +192,15 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
       in_ndup = this->nteams;
   }
   if (xopt_ & DUP_W) {
-    wei_ndup = this->nteams;
+    if (xopt_ & TTM_MSK)
+      wei_ndup = this->nteams;
+    else
+      wei_ndup = this->nthreads;
   }
 
   tweights_size = sizeof(Type) * A * A * this->ic * this->oc * wei_ndup;
-  tinput_size = sizeof(Type) * A * A * this->T * this->ic * nt * in_ndup;
-  toutput_size = sizeof(Type) * A * A * this->T * this->oc * nt;
+  tinput_size = sizeof(Type) * A * A * this->T * this->ic * num_t * in_ndup;
+  toutput_size = sizeof(Type) * A * A * this->T * num_o * num_t;
 
   tweights_ = (Type *)memalign(64, tweights_size);
   tinput_ = (Type *)memalign(64, tinput_size);
@@ -263,7 +269,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::bind_execute_functions()
   EXECUTE_CASE(a201);
   EXECUTE_CASE(a442);
   EXECUTE_CASE(a040);
-  EXECUTE_CASE(a080);
+  EXECUTE_CASE(a061);
   EXECUTE_CASE(a000);
   default:
     el_error("Unimplemented");
@@ -590,7 +596,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a040(
 // tinputs:  t2, A, A, ic3, I2, T, V
 // toutput:  t2, oc4, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a080(
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a061(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, atinput2, [mthr_][A * A * this->T * this->ic], tinput_);
