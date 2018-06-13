@@ -78,6 +78,7 @@ struct eld_conv_t {
     int execution_mode;
     // Blocking: 2nd level blocking unit
     struct { int i, o, t; } blocking;
+    struct { int i, o; } partition;
 
     // Defaults
     eld_conv_t();

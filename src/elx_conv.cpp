@@ -43,6 +43,9 @@ elx_conv_t<Type>::elx_conv_t(eld_conv_t<Type> &dc) {
   this->I2 = dc.blocking.i;
   this->O2 = dc.blocking.o;
   this->T = dc.blocking.t;
+
+  this->ic4 = dc.partition.i;
+  this->oc4 = dc.partition.o;
 }
 
 template <typename T>

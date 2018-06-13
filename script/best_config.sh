@@ -37,6 +37,8 @@ if [ "x$m" = "xvgg-n1-8180-2s" ]; then
   ./script/run.sh -c -i256 -h56 -o256 -H56 -v0 -n1 --blk-i=8 --blk-o=4 --blk-t=26 --execution-mode=0xa061
   # vgg19_conv4_1, 9.5T
   #./script/run.sh -c -i256 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=4 --blk-t=15 --execution-mode=0xa061
+  # vgg19_conv4_1, 9.7T
+  ./script/run.sh -c -i256 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=8 --blk-t=15 --pat-i=2 --pat-o=4 --execution-mode=0xa075
   # vgg19_conv4_1, 10.2T
   ./script/run.sh -c -i256 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=4 --blk-t=25 --execution-mode=0xa000
   # vgg19_conv4_2, 10.5T
@@ -63,7 +65,7 @@ if [ "x$m" = "xresnet-n1-8180-2s" ]; then
   ./script/run.sh -c -i64 -h56 -o64 -H56 -v0 -n1 --execution-mode=0xa061 --blk-i=4 --blk-o=2 --blk-t=13
   # resnet50_res3a_branch2b, 6.0T
   ./script/run.sh -c -i128 -h28 -o128 -H28 -v0 -n1 --execution-mode=0xa061 --blk-i=8 --blk-o=1 --blk-t=15
-  # resnet50_res4a_branch2b, 4.2T
+  # resnet50_res4a_branch2b, 5.1T
   ./script/run.sh -c -i256 -h14 -o256 -H14 -v0 -n1 --execution-mode=0xa000 --blk-i=8 --blk-o=1 --blk-t=9
   # resnet50_res5a_branch2b, 3.6T
   ./script/run.sh -c -i512 -h7 -o512 -H7 -v0 -n1 --execution-mode=0xa000 --blk-i=8 --blk-o=4 --blk-t=9

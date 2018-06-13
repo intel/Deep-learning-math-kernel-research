@@ -23,6 +23,7 @@ eld_conv_t<F>::eld_conv_t() {
   threading = {0, 0};
   blocking  = {0, 0, 0};
   execution_mode = 0;
+  partition = {1, 1};
 }
 
 template <typename F>

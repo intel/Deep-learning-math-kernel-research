@@ -22,6 +22,7 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a040(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a061(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a075(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a201(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a241(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a442(Type *output, Type *input, Type *weights, Type *bias);
@@ -32,8 +33,9 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
 
   inline void __trans_output(
       Type *output, Type *toutput, Type *bias, int _t2, int Tz);
-  void trans_output(
-      Type *output, Type *toutput, Type *bias, int _t2, int Tz);
+  void trans_output(Type *output, Type *toutput, Type *bias, int _t2, int Tz);
+  void trans_output(Type *res, Type *output, Type *toutput, Type *bias,
+      int _t2, int Tz, int ic4, int oc4, bool inline_reduce);
   void trans_output(Type *output, Type *toutput, Type *bias);
   void trans_weights(Type *tweights, Type *weights, int oc4 = 1);
 
@@ -41,7 +43,7 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
       Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
   void gemm(Type *toutput, Type *tinput, Type *tweights);
 
-  void prepare_execute_opt();
+  int prepare_execute_opt();
   void bind_execute_functions();
 
   decltype(
@@ -59,6 +61,11 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
           BORDER(false), BIAS(false))>::trans_output) *ker_trans_output_;
   decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
           BORDER(true), BIAS(false))>::trans_output) *ker_trans_output0_;
+  decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
+          BORDER(false), BIAS(false))>::trans_output) *ker_trans_output_nobias_;
+  decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
+          BORDER(true), BIAS(false))>::trans_output) *ker_trans_output0_nobias_;
+
 
   void (elx_conv_wino_gemm_t::*execute_opt_)(Type *, Type *, Type *, Type *);
 
@@ -71,6 +78,8 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   Type *tweights_;
   Type *tinput_;
   Type *toutput_;
+  Type *routput_; // reduce output
+  unsigned char *routput_cntr_;
 
 #define MAX_THREAD_TEAMS (8)
   // tasks allocation per thread team
