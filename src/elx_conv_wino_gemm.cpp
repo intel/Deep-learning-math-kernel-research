@@ -16,17 +16,17 @@ namespace euler {
 // -------------+-------------------+--------------+---------------
 //     A040     |        _          |      t       |    _
 // -------------+-------------------+--------------+---------------
-//     A042*    |        _          |      t       |    W
+//     A048*    |        _          |      t       |    W
 // -------------+-------------------+--------------+---------------
 //     A060*    |        _          |    t + o     |    _
 // -------------+-------------------+--------------+---------------
 //     A061     |        _          |    t + o     |    I
 // -------------+-------------------+--------------+---------------
-//     A063*    |        _          |    t + o     |  I + W
+//     A069*    |        _          |    t + o     |  I + W
 // -------------+-------------------+--------------+---------------
-//     A075*    |        _          |  t + o + i   |  I + O
+//     A073*    |        _          |  t + o + i   |  I + O
 // -------------+-------------------+--------------+---------------
-//     A442     |        t          |      t       |    W
+//     A448     |        t          |      t       |    W
 // -------------+-------------------+--------------+---------------
 //     A241     |        o          |      t       |    I
 // -------------+-------------------+--------------+---------------
@@ -55,8 +55,8 @@ const unsigned FUS_T   = 0x40;
 
 const unsigned DUP_MSK = 0xF;
 const unsigned DUP_I   = 0x1;
-const unsigned DUP_W   = 0x2;
-const unsigned DUP_O   = 0x4;
+const unsigned DUP_O   = 0x2;
+const unsigned DUP_W   = 0x8;
 
 template <typename Type, const int A, const int K, const int V, const int I>
 elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
@@ -299,10 +299,10 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::bind_execute_functions()
   switch (xopt_) {
   EXECUTE_CASE(a241);
   EXECUTE_CASE(a201);
-  EXECUTE_CASE(a442);
+  EXECUTE_CASE(a448);
   EXECUTE_CASE(a040);
   EXECUTE_CASE(a061);
-  EXECUTE_CASE(a075);
+  EXECUTE_CASE(a073);
   EXECUTE_CASE(a000);
   default:
     el_error("Unimplemented");
@@ -769,7 +769,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a061(
 // tinputs:  t2, ic4, A, A, ic3, I2, T, V
 // toutput:  t2, oc4, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a075(
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a073(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, atinput2, [mthr_][A * A * this->T * this->ic3 * this->I2 * V], tinput_);
@@ -835,7 +835,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a075(
 // Thread-teaming along 't' dimension. TODO: ttm along 'o'
 // Fuse trans-input, gemm and trans-output along 't' dimension
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a442(
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a448(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, atinput3, [this->nteams][this->nthreads][A * A * this->T * this->ic], tinput_);

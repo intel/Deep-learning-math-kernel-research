@@ -38,7 +38,7 @@ if [ "x$m" = "xvgg-n1-8180-2s" ]; then
   # vgg19_conv4_1, 9.5T
   #./script/run.sh -c -i256 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=4 --blk-t=15 --execution-mode=0xa061
   # vgg19_conv4_1, 9.7T
-  ./script/run.sh -c -i256 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=8 --blk-t=15 --pat-i=2 --pat-o=4 --execution-mode=0xa075
+  ./script/run.sh -c -i256 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=8 --blk-t=15 --pat-i=2 --pat-o=4 --execution-mode=0xa073
   # vgg19_conv4_1, 10.2T
   ./script/run.sh -c -i256 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=4 --blk-t=25 --execution-mode=0xa000
   # vgg19_conv4_2, 10.5T
