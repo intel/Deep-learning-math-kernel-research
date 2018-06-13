@@ -24,7 +24,7 @@ namespace euler {
 // -------------+-------------------+--------------+---------------
 //     A069*    |        _          |    t + o     |  I + W
 // -------------+-------------------+--------------+---------------
-//     A073*    |        _          |  t + o + i   |  I + O
+//     A073     |        _          |  t + o + i   |  I + O
 // -------------+-------------------+--------------+---------------
 //     A448     |        t          |      t       |    W
 // -------------+-------------------+--------------+---------------
@@ -340,7 +340,7 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights(
     Type *tweights, Type *weights, int oc4)
 {
-  // oc2, ic2, K, K, V, V => oc3, ic3, A, A, O2, I2, V, V
+  // oc2, ic2, K, K, V, V => oc4, ic4, oc3, ic3, A, A, O2, I2, V, V
   MD(Type, aweights, [oc4][this->oc3][this->O2][this->ic4][this->ic3][this->I2][K][K][V][V], weights);
   MD(Type, atweights, [oc4][this->ic4][this->oc3][this->ic3][A][A][this->O2][this->I2][V][V], tweights);
 
@@ -610,6 +610,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(Type *output,
     _wOA_end = (_wt < this->wt - 1) ? A - K : wOA_end;
   };
 
+  // TODO: pause
   auto sync_on = [this](int _t2, int oc4) {
     MD(unsigned char, cntr, [this->t2][this->oc4], routput_cntr_);
 #pragma omp atomic
@@ -618,6 +619,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(Type *output,
 #pragma omp atomic read
     c = cntr[_t2][oc4];
     while (c != this->ic4) {
+      _mm_pause();
 #pragma omp atomic read
       c = cntr[_t2][oc4];
     }
