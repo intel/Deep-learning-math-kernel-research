@@ -31,6 +31,52 @@ template <D_OUTPUT(typename Type, const int A, const int K, const int V,
     const int I, const bool is_border, const bool with_bias)>
 template <const bool is_border_, const bool with_bias_>
 void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
+    with_bias)>::__trans_output(winograd_template_parameter_t<S_OUTPUT(float, 4,
+                                    3, 16, ISA_GENERIC, is_border_,
+                                    with_bias_)>,
+    elx_conv_t<float> &xc, float *output, float atoutput[A][A][V], float *bias,
+    int _hOA_end, int _wOA_end)
+{
+  float dummy[16];
+  auto p = [&](int _h, int _w, int _V) {
+    MD(float, aoutput, [xc.oh][xc.ow][16], output);
+    if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
+      return &dummy[_V];
+    else
+      return &aoutput[_h][_w][_V];
+  };
+
+#undef T
+#undef C
+#undef P
+#undef B
+#define T(_hA, _wA) atoutput[_hA][_wA][_V]
+#define C(n) c##n[_V]
+#define P(_h, _w) *p(_h, _w, _V)
+#define B bias[_V]
+  float c0[16], c1[16], c2[16], c3[16];
+#pragma omp simd
+  for (int _V = 0; _V < 16; ++_V) {
+    C(0) = T(1,0) + T(1,1) + T(1,2);
+    C(1) = T(2,0) + T(2,1) + T(2,2);
+    C(2) = T(1,2) + T(1,3) - T(1,1);
+    C(3) = T(2,2) + T(2,3) - T(2,1);
+
+    P(0,0) = T(0,0) + T(0,1) + T(0,2) + C(0) + C(1);
+    if (with_bias_) P(0, 0) += B;
+    P(1,0) = C(1) - C(0) + T(3,0) + T(3,1) + T(3,2);
+    if (with_bias_) P(1, 0) += B;
+    P(0,1) = T(0,2) - T(0,1) + T(0,3) + C(2) + C(3);
+    if (with_bias_) P(0, 1) += B;
+    P(1,1) = C(3) - C(2) - T(3,1) + T(3,2) + T(3,3);
+    if (with_bias_) P(1, 1) += B;
+  }
+}
+
+template <D_OUTPUT(typename Type, const int A, const int K, const int V,
+    const int I, const bool is_border, const bool with_bias)>
+template <const bool is_border_, const bool with_bias_>
+void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
     with_bias)>::__trans_output(winograd_template_parameter_t<S_OUTPUT(float, 5,
                                     3, 16, ISA_GENERIC, is_border_,
                                     with_bias_)>,

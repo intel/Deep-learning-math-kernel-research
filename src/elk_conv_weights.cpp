@@ -30,6 +30,53 @@ void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::trans_weights(
 template <D_WEIGHTS(
     typename Type, const int A, const int K, const int V, const int I)>
 void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::__trans_weights(
+    winograd_template_parameter_t<S_WEIGHTS(float, 4, 3, 16, ISA_GENERIC)>,
+    Type atweights[A][A][V][V], Type aweights[K][K][V][V])
+{
+  const float r4 = 1.0f / 4.0f;
+
+  float C10[16], C11[16], C12[16], C20[16], C21[16], C22[16];
+#undef F
+#undef T
+#define F(h, w) aweights[h][w][_IV][_OV]
+#define T(h, w) atweights[h][w][_IV][_OV]
+#define C(c, n) C##c##n[_OV]
+  for (int _IV = 0; _IV < 16; ++_IV) {
+#pragma omp simd
+    for (int _OV = 0; _OV < 16; ++_OV) {
+      T(0,0) = F(0,0);
+      T(1,0) = r2 * (F(0,0) - F(1,0) + F(2,0));
+      T(2,0) = r2 * (F(0,0) + F(1,0) + F(2,0));
+      T(3,0) = F(2,0);
+
+      C(1,0) = r4 * (F(0,0) - F(0,1) + F(0,2));
+      C(1,1) = r4 * (F(1,0) - F(1,1) + F(1,2));
+      C(1,2) = r4 * (F(2,0) - F(2,1) + F(2,2));
+      T(0,1) = 2 * C(1,0);
+      T(1,1) = C(1,0) - C(1,1) + C(1,2);
+      T(2,1) = C(1,0) + C(1,1) + C(1,2);
+      T(3,1) = 2 * C(1,1);
+
+      C(2,0) = r4 * (F(0,0) + F(0,1) + F(0,2));
+      C(2,1) = r4 * (F(1,0) + F(1,1) + F(1,2));
+      C(2,2) = r4 * (F(2,0) + F(2,1) + F(2,2));
+      T(0,2) = 2 * C(2,0);
+      T(1,2) = C(2,0) - C(2,1) + C(2,2);
+      T(2,2) = C(2,0) + C(2,1) + C(2,2);
+      T(3,2) = 2 * C(2,2);
+
+      T(0,3) = F(0,2);
+      T(1,3) = r2 * (F(0,2) - F(1,2) + F(2,2));
+      T(2,3) = r2 * (F(0,2) + F(1,2) + F(2,2));
+      T(3,3) = F(2,2);
+    }
+  }
+}
+
+
+template <D_WEIGHTS(
+    typename Type, const int A, const int K, const int V, const int I)>
+void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::__trans_weights(
     winograd_template_parameter_t<S_WEIGHTS(float, 5, 3, 16, ISA_GENERIC)>,
     Type atweights[A][A][V][V], Type aweights[K][K][V][V])
 {

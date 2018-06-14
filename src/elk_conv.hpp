@@ -70,8 +70,25 @@ struct convolution_winograd_kernel {
   // C
   template <const bool is_border_>
   static inline void __trans_input(winograd_template_parameter_t<S_INPUT(float,
+                                       4, 3, 16, ISA_GENERIC, is_border_)>,
+      elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
+      int _hT_start, int _hT_end, int _wT_start, int _wT_end);
+
+  template <const bool is_border_, const bool with_bias_>
+  static inline void __trans_output(
+      winograd_template_parameter_t<S_OUTPUT(
+          float, 4, 3, 16, ISA_GENERIC, is_border_, with_bias_)>,
+      elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
+      float *bias, int _hOA_end, int _wOA_end);
+
+  static inline void __trans_weights(
+      winograd_template_parameter_t<S_WEIGHTS(float, 4, 3, 16, ISA_GENERIC)>,
+      Type atweights[A][A][V][V], Type aweights[K][K][V][V]);
+
+  template <const bool is_border_>
+  static inline void __trans_input(winograd_template_parameter_t<S_INPUT(float,
                                        5, 3, 16, ISA_GENERIC, is_border_)>,
-      elx_conv_t<float> &xc, float atinput[5][5][16], float *input,
+      elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
       int _hT_start, int _hT_end, int _wT_start, int _wT_end);
 
   template <const bool is_border_, const bool with_bias_>
@@ -94,8 +111,25 @@ struct convolution_winograd_kernel {
   // AVX512
   template <const bool is_border_>
   static inline void __trans_input(winograd_template_parameter_t<S_INPUT(float,
+                                       4, 3, 16, ISA_SKX_AVX512, is_border_)>,
+      elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
+      int _hT_start, int _hT_end, int _wT_start, int _wT_end);
+
+  template <const bool is_border_, const bool with_bias_>
+  static inline void __trans_output(
+      winograd_template_parameter_t<S_OUTPUT(
+          float, 4, 3, 16, ISA_SKX_AVX512, is_border_, with_bias_)>,
+      elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
+      float *bias, int _hOA_end, int _wOA_end);
+
+  static inline void __trans_weights(
+      winograd_template_parameter_t<S_WEIGHTS(float, 4, 3, 16, ISA_SKX_AVX512)>,
+      Type atweights[A][A][V][V], Type aweights[K][K][V][V]);
+
+  template <const bool is_border_>
+  static inline void __trans_input(winograd_template_parameter_t<S_INPUT(float,
                                        5, 3, 16, ISA_SKX_AVX512, is_border_)>,
-      elx_conv_t<float> &xc, float atinput[5][5][16], float *input,
+      elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
       int _hT_start, int _hT_end, int _wT_start, int _wT_end);
 
   template <const bool is_border_, const bool with_bias_>
