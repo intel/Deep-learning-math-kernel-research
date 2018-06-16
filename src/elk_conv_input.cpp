@@ -38,7 +38,7 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
     elx_conv_t<float> &xc, float atinput[A][A][V], float *input, int _hT_start,
     int _hT_end, int _wT_start, int _wT_end)
 {
-  auto f = [&](int _h, int _w, int _V) {
+  auto f_cb = [&](int _h, int _w, int _V) {
     MD(float, ainput, [xc.ih][xc.iw][16], input);
     if (is_border_
         && (_h < _hT_start || _w < _wT_start || _h > _hT_end || _w > _wT_end))
@@ -50,7 +50,7 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
 #undef F
 #undef C
 #undef T
-#define F(_h, _w) f(_h, _w, _V)
+#define F(_h, _w) f_cb(_h, _w, _V)
 #define C(n) C##n[_V]
 #define T(_h, _w) atinput[_h][_w][_V]
 
@@ -98,9 +98,6 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
 {
   ENABLE_AVX512F();
 
-  // Inputs
-  __m512 f00, f01, f02, f03, f10, f11, f12, f13, f20, f21, f22, f23,
-      f30, f31, f32, f33;
   // Cache
   __m512 c1, c2;
   // Outputs
@@ -108,7 +105,7 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
       t30, t31, t32, t33;
 
   __m512 z0 = _mm512_setzero_ps();
-  auto f = [&](int _h, int _w) {
+  auto f_cb = [&](int _h, int _w) {
     MD(float, ainput, [xc.ih][xc.iw][16], input);
     if (is_border_
         && (_h < _hT_start || _w < _wT_start || _h > _hT_end || _w > _wT_end))
@@ -120,25 +117,12 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
 #undef F
 #undef C
 #undef T
-#define F(_h, _w) f(_h, _w)
+#define F(_h, _w) f_cb(_h, _w)
 #define T(h, w) atinput[h][w]
 
-  f00 = F(0, 0);
-  f01 = F(0, 1);
-  f02 = F(0, 2);
-  f03 = F(0, 3);
-  f10 = F(1, 0);
-  f11 = F(1, 1);
-  f12 = F(1, 2);
-  f13 = F(1, 3);
-  f20 = F(2, 0);
-  f21 = F(2, 1);
-  f22 = F(2, 2);
-  f23 = F(2, 3);
-  f30 = F(3, 0);
-  f31 = F(3, 1);
-  f32 = F(3, 2);
-  f33 = F(3, 3);
+#define f(m, n) f##m##n
+#define OP(m,n) __m512 f(m, n) = F(m, n)
+  MATRIX_DEF(4, 4);
 
   c1 = SUB(f12, f10);
   c2 = SUB(f20, f22);
@@ -200,7 +184,7 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
   const float z4 = 4.0f;
   const float z6 = 6.0f;
 
-  auto f = [&](int _h, int _w, int _V) {
+  auto f_cb = [&](int _h, int _w, int _V) {
     MD(float, ainput, [xc.ih][xc.iw][16], input);
     if (is_border_
         && (_h < _hT_start || _w < _wT_start || _h > _hT_end || _w > _wT_end))
@@ -212,7 +196,7 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
 #undef F
 #undef C
 #undef T
-#define F(_h, _w) f(_h, _w, _V)
+#define F(_h, _w) f_cb(_h, _w, _V)
 #define C(n) C##n[_V]
 #define T(_h, _w) atinput[_h][_w][_V]
 
@@ -299,7 +283,7 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
   __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
   __m512 z6 = _mm512_set_ps(IMM_BCAST16(6.0f));
 
-  auto f = [&](int _h, int _w) {
+  auto f_cb = [&](int _h, int _w) {
     MD(float, ainput, [xc.ih][xc.iw][16], input);
     if (is_border_
         && (_h < _hT_start || _w < _wT_start || _h > _hT_end || _w > _wT_end))
@@ -311,29 +295,14 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
 #undef F
 #undef C
 #undef T
-#define F(_h, _w) f(_h, _w)
+#define F(_h, _w) f_cb(_h, _w)
 #define T(h, w) atinput[h][w]
 
-  f00 = F(0, 0);
-  f01 = F(0, 1);
-  f02 = F(0, 2);
-  f03 = F(0, 3);
-  f10 = F(1, 0);
-  f11 = F(1, 1);
-  f12 = F(1, 2);
-  f13 = F(1, 3);
-  f20 = F(2, 0);
-  f21 = F(2, 1);
-  f22 = F(2, 2);
-  f23 = F(2, 3);
-  f30 = F(3, 0);
-  f31 = F(3, 1);
-  f32 = F(3, 2);
-  f33 = F(3, 3);
-  f40 = F(4, 0);
-  f41 = F(4, 1);
-  f42 = F(4, 2);
-  f43 = F(4, 3);
+#undef f
+#undef OP
+#define f(m, n) f##m##n
+#define OP(m,n) f(m, n) = F(m, n)
+  MATRIX_DEF(5, 4);
 
   c1 = FMADD(z2, SUB(f12, f10), SUB(f11, f13));
   c2 = FMADD(z2, SUB(f22, f20), SUB(f21, f23));

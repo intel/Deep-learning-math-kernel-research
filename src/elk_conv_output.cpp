@@ -38,7 +38,7 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
     int _hOA_end, int _wOA_end)
 {
   float dummy[16];
-  auto p = [&](int _h, int _w, int _V) {
+  auto p_cb = [&](int _h, int _w, int _V) {
     MD(float, aoutput, [xc.oh][xc.ow][16], output);
     if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
       return &dummy[_V];
@@ -52,7 +52,7 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
 #undef B
 #define T(_hA, _wA) atoutput[_hA][_wA][_V]
 #define C(n) c##n[_V]
-#define P(_h, _w) *p(_h, _w, _V)
+#define P(_h, _w) *p_cb(_h, _w, _V)
 #define B bias[_V]
   float c0[16], c1[16], c2[16], c3[16];
 #pragma omp simd
@@ -86,7 +86,7 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
   ENABLE_AVX512F();
 
   alignas(64) float dummy[16];
-  auto p = [&](int _h, int _w) {
+  auto p_cb = [&](int _h, int _w) {
     MD(float, aoutput,[xc.oh][xc.ow][16], output);
     if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
       return dummy;
@@ -97,7 +97,7 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
 #undef P
 #undef T
 #define T(_h, _w) atoutput[_h][_w]
-#define P(_h, _w) p(_h, _w)
+#define P(_h, _w) p_cb(_h, _w)
 
   __m512 c0, c1, c2, c3;
 #define t(m, n) t##m##n
@@ -135,7 +135,7 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
     int _hOA_end, int _wOA_end)
 {
   float dummy[16];
-  auto p = [&](int _h, int _w, int _V) {
+  auto p_cb = [&](int _h, int _w, int _V) {
     MD(float, aoutput, [xc.oh][xc.ow][16], output);
     if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
       return &dummy[_V];
@@ -149,7 +149,7 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
 #undef B
 #define T(_hA, _wA) atoutput[_hA][_wA][_V]
 #define C(n) c##n[_V]
-#define P(_h, _w) *p(_h, _w, _V)
+#define P(_h, _w) *p_cb(_h, _w, _V)
 #define B bias[_V]
   float c0[16], c1[16], c2[16], c3[16], c4[16];
 #pragma omp simd
@@ -192,26 +192,6 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
   }
 }
 
-#define AVX512_LOAD0(z, n, nil) __m512 t0##n = _mm512_load_ps(T(0, n));
-#define AVX512_LOAD1(z, n, nil) __m512 t1##n = _mm512_load_ps(T(1, n));
-#define AVX512_LOAD2(z, n, nil) __m512 t2##n = _mm512_load_ps(T(2, n));
-#define AVX512_LOAD3(z, n, nil) __m512 t3##n = _mm512_load_ps(T(3, n));
-#define AVX512_LOAD4(z, n, nil) __m512 t4##n = _mm512_load_ps(T(4, n));
-#define LOAD_ZMMS()                                                            \
-  BOOST_PP_REPEAT(5, AVX512_LOAD0, nil);                                       \
-  BOOST_PP_REPEAT(5, AVX512_LOAD1, nil);                                       \
-  BOOST_PP_REPEAT(5, AVX512_LOAD2, nil);                                       \
-  BOOST_PP_REPEAT(5, AVX512_LOAD3, nil);                                       \
-  BOOST_PP_REPEAT(5, AVX512_LOAD4, nil);
-
-#define AVX512_STORE0(z, n, nil) _mm512_store_ps(P(0, n), p0##n);
-#define AVX512_STORE1(z, n, nil) _mm512_store_ps(P(1, n), p1##n);
-#define AVX512_STORE2(z, n, nil) _mm512_store_ps(P(2, n), p2##n);
-#define STORE_ZMMS()                                                           \
-  BOOST_PP_REPEAT(3, AVX512_STORE0, nil);                                      \
-  BOOST_PP_REPEAT(3, AVX512_STORE1, nil);                                      \
-  BOOST_PP_REPEAT(3, AVX512_STORE2, nil);
-
 #define AVX512_CALCULATE_C_0(z, n, nil)                                        \
   c##n = ADD(ADD(ADD(t##n##0, t##n##1), t##n##2), t##n##3);
 #define AVX512_CALCULATE_C_1(z, n, nil)                                        \
@@ -242,7 +222,7 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
   ENABLE_AVX512F();
 
   alignas(64) float dummy[16];
-  auto p = [&](int _h, int _w) {
+  auto p_cb = [&](int _h, int _w) {
     MD(float, aoutput,[xc.oh][xc.ow][16], output);
     if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
       return dummy;
@@ -253,13 +233,17 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
 #undef P
 #undef T
 #define T(_h, _w) atoutput[_h][_w]
-#define P(_h, _w) p(_h, _w)
+#define P(_h, _w) p_cb(_h, _w)
 
   __m512 c0, c1, c2, c3, c4;
   __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
   __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
 
-  LOAD_ZMMS();
+#undef t
+#undef OP
+#define t(m, n) t##m##n
+#define OP(m,n) __m512 t(m,n) = _mm512_load_ps(T(m, n))
+  MATRIX_DEF(5, 5);
 
   BOOST_PP_REPEAT(5, AVX512_CALCULATE_C_0, nil);
   AVX512_CALCULATE_P(0);
@@ -270,7 +254,10 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
   BOOST_PP_REPEAT(5, AVX512_CALCULATE_C_2, nil);
   AVX512_CALCULATE_P(2);
 
-  STORE_ZMMS();
+#undef OP
+#define p(m, n) p##m##n
+#define OP(m,n) _mm512_store_ps(P(m, n), p(m, n))
+  MATRIX_DEF(3, 3);
 }
 
 template void convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_GENERIC,
