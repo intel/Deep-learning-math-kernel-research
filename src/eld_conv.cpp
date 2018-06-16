@@ -97,7 +97,7 @@ int eld_conv_t<F>::setup() {
       // TODO: forward, backward_data, backward_weights
       switch (tile_size) {
       case 4:
-        xc = new elx_conv_wino_gemm_t<F, 4, 3, 16, ISA_GENERIC>(*this);
+        xc = new elx_conv_wino_gemm_t<F, 4, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       case 5:
         xc = new elx_conv_wino_gemm_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);
