@@ -58,9 +58,9 @@ resnet50_res5a_branch2b=" -i512 -h7  -o512 -H7  "
 
 set -x
 
-val_conv
+# val_conv
 
 $ROOT_DIR/script/run.sh -c $resnet50_res5a_branch2b -v1 -n1 \
   --execution-mode=0xa000 \
   --nteams=1 --nthreads=18 \
-  --blk-i=2 --blk-o=2 --blk-t=18 \
+  --blk-i=2 --blk-o=2 --blk-t=18 --tile-size=4

@@ -21,6 +21,7 @@ int nteams = 0, nthreads = 0;
 int execution_mode = 0;
 int blk_i = 0, blk_o = 0, blk_t = 0;
 int pat_i = 1, pat_o = 1;
+int tile_size = 5;
 
 bool validate_results = false;
 
@@ -40,7 +41,7 @@ int main(int argc, char **argv)
   desc.with_bias = with_bias;
   desc.with_relu = with_relu;
   desc.algorithm = alg;
-  desc.tile_size = 5;
+  desc.tile_size = tile_size;
   desc.prop_kind = prop_kind;
   desc.threading = { nteams, nthreads };
   desc.execution_mode = execution_mode;
@@ -110,6 +111,7 @@ int parse_cmd_options(int argc, char **argv) {
     ("with-bias,b", po::value<bool>(&with_bias), "on|off. With bias. Default: on")
     ("with-relu,r", po::value<bool>(&with_relu), "on|off. With relu. Default: off")
     ("alg,a", po::value<std::string>(), "wino|direct. Algorithm. Default: wino")
+    ("tile-size", po::value<int>(&tile_size), "Winograd tile size: 5")
     ("nteams", po::value<int>(&nteams), "Number of thread team")
     ("nthreads", po::value<int>(&nthreads), "Number of threads per team")
     ("execution-mode", po::value<std::string>(), "Execution mode")
@@ -172,7 +174,7 @@ int parse_cmd_options(int argc, char **argv) {
   if (alg == CONV_DIRECT)
     printf("alg:CONV_DIRECT\n");
   else
-    printf("alg:CONV_WINOGRAD\n");
+    printf("alg:CONV_WINOGRAD, tile-size=%d\n", tile_size);
 
   if (mb <= 0 || ic <= 0 || ih <= 0 || iw <= 0 || oc <= 0 || oh <= 0
       || ow <= 0 || kh <= 0 || kw <= 0) {

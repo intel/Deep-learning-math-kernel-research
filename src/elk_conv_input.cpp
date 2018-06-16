@@ -316,6 +316,14 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
   _mm512_store_ps(T(4, 4), t44);
 }
 
+template void convolution_winograd_kernel<S_INPUT(float, 4, 3, 16, ISA_GENERIC,
+    BORDER(false))>::trans_input(elx_conv_t<float> &, float[4][4][16], float *,
+    int, int, int, int);
+
+template void convolution_winograd_kernel<S_INPUT(float, 4, 3, 16, ISA_GENERIC,
+    BORDER(true))>::trans_input(elx_conv_t<float> &, float[4][4][16], float *,
+    int, int, int, int);
+
 template void convolution_winograd_kernel<S_INPUT(float, 5, 3, 16, ISA_GENERIC,
     BORDER(false))>::trans_input(elx_conv_t<float> &, float[5][5][16], float *,
     int, int, int, int);

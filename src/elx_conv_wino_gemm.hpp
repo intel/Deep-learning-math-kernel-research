@@ -86,6 +86,7 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   struct { int start; int end; } ttm_[MAX_THREAD_TEAMS];
 };
 
+template class elx_conv_wino_gemm_t<float, 4, 3, 16, ISA_GENERIC>;
 template class elx_conv_wino_gemm_t<float, 5, 3, 16, ISA_GENERIC>;
 template class elx_conv_wino_gemm_t<float, 5, 3, 16, ISA_SKX_AVX512>;
 

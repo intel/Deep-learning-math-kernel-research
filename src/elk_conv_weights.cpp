@@ -34,6 +34,7 @@ void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::__trans_weights(
     Type atweights[A][A][V][V], Type aweights[K][K][V][V])
 {
   const float r4 = 1.0f / 4.0f;
+  const float r2 = 1.0f / 2.0f;
 
   float C10[16], C11[16], C12[16], C20[16], C21[16], C22[16];
 #undef F
@@ -55,7 +56,7 @@ void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::__trans_weights(
       T(0,1) = 2 * C(1,0);
       T(1,1) = C(1,0) - C(1,1) + C(1,2);
       T(2,1) = C(1,0) + C(1,1) + C(1,2);
-      T(3,1) = 2 * C(1,1);
+      T(3,1) = 2 * C(1,2);
 
       C(2,0) = r4 * (F(0,0) + F(0,1) + F(0,2));
       C(2,1) = r4 * (F(1,0) + F(1,1) + F(1,2));
@@ -246,6 +247,9 @@ void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::__trans_weights(
     _mm512_store_ps(T(4, 4), f22);
   }
 }
+
+template void convolution_winograd_kernel<S_WEIGHTS(float, 4, 3, 16,
+    ISA_GENERIC)>::trans_weights(float[4][4][16][16], float[3][3][16][16]);
 
 template void convolution_winograd_kernel<S_WEIGHTS(float, 5, 3, 16,
     ISA_GENERIC)>::trans_weights(float[5][5][16][16], float[3][3][16][16]);

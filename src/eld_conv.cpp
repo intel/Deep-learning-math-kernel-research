@@ -83,21 +83,29 @@ int eld_conv_t<F>::setup() {
     return ELD_UNIMPLEMENTED;
   } else if (algorithm == CONV_WINOGRAD) {
     // Winograd
-    if (dilations.h > 1 || dilations.w > 1 || tile_size != 5 ||
-        strides.h != 1 || strides.w != 1 || dims.weights.h != 3 ||
-        dims.weights.w != 3) {
+    if (dilations.h > 1 || dilations.w > 1 || 
+        strides.h != 1 || strides.w != 1 ||
+        dims.weights.h != 3 || dims.weights.w != 3) {
       el_error("Unimplemented");
       return ELD_UNIMPLEMENTED;
     }
 
-    // TODO: forward, backward_data, backward_weights
-    switch (tile_size) {
+    if (tile_size == 0) {
+      // TODO: auto-select tile_size
+      el_error("TODO: implement tile size auto-selection");
+    } else {
+      // TODO: forward, backward_data, backward_weights
+      switch (tile_size) {
+      case 4:
+        xc = new elx_conv_wino_gemm_t<F, 4, 3, 16, ISA_GENERIC>(*this);
+        break;
       case 5:
         xc = new elx_conv_wino_gemm_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       default:
-        xc = new elx_conv_wino_prod_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);
+        el_error("Unimplemented tile size");
         break;
+      }
     }
   }
 

@@ -222,6 +222,20 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
   STORE_ZMMS();
 }
 
+template void convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_GENERIC,
+    BORDER(false), BIAS(true))>::trans_output(elx_conv_t<float> &, float *,
+    float[4][4][16], float *, int, int);
+template void convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_GENERIC,
+    BORDER(true), BIAS(true))>::trans_output(elx_conv_t<float> &, float *,
+    float[4][4][16], float *, int, int);
+
+template void convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_GENERIC,
+    BORDER(false), BIAS(false))>::trans_output(elx_conv_t<float> &, float *,
+    float[4][4][16], float *, int, int);
+template void convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_GENERIC,
+    BORDER(true), BIAS(false))>::trans_output(elx_conv_t<float> &, float *,
+    float[4][4][16], float *, int, int);
+
 template void convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_GENERIC,
     BORDER(false), BIAS(true))>::trans_output(elx_conv_t<float> &, float *,
     float[5][5][16], float *, int, int);

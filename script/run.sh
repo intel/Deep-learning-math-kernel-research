@@ -28,7 +28,7 @@ function conv_test() {
   # Default
   n=1; i=0; o=0; h=0; w=0; H=0; W=0; k=3; K=3; p=1; P=1; s=1; S=1
   b=1; r=0; v=1; a=wino; blk_i=0; blk_o=0; blk_t=0; pat_i=1; pat_o=1
-  nteams=0; nthreads=0; execution_mode=0
+  tile_size=5; nteams=0; nthreads=0; execution_mode=0
 
   OPTIND=1
   while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:a:-:" opt; do
@@ -84,6 +84,11 @@ function conv_test() {
             ;;
           pat-o=*) pat_o=${OPTARG#*=}
             ;;
+          tile-size) tile_size="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          tile-size=*) tile_size=${OPTARG#*=}
+            ;;
+
        esac
        ;;
     esac
@@ -92,7 +97,7 @@ function conv_test() {
   eval $OMP_ENV $ROOT_DIR/build/release/bin/elt_conv \
     -n$n -i$i -o$o -h$h -w$w -H$H -W$W -k$k -K$K -p$p -P$P -s$s -S$S \
     -b$b -r$r -v$v -a$a --blk-i=$blk_i --blk-o=$blk_o --blk-t=$blk_t \
-    --pat-i=$pat_i --pat-o=$pat_o \
+    --pat-i=$pat_i --pat-o=$pat_o --tile-size=$tile_size \
     --nteams=$nteams --nthreads=$nthreads --execution-mode=$execution_mode
 }
 
