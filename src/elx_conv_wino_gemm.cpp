@@ -236,7 +236,7 @@ int  elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
   printf("nteams=%d, nthreads=%d, mthr_=%ld\n", this->nteams, this->nthreads, mthr_);
   size_t l2_usage = tweights_size / this->nteams + sizeof(Type) * A * A * this->T * (this->ic + this->oc);
   size_t l1_usage = sizeof(Type) * this->O2 * this->I2 * V * V + sizeof(Type) * this->T * V * (this->I2 + this->O2);
-  printf("l2_usage=%ld, l1_usage=%ld\n", l2_usage, l1_usage);
+  printf("l2_usage=%ld, l1_usage=%ld, tinput_size=%ld, tweights_size=%ld\n", l2_usage, l1_usage, tinput_size, tweights_size);
 
   return 0;
 }
