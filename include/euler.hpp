@@ -1,6 +1,8 @@
 #ifndef __EULER_HPP__
 #define __EULER_HPP__
 
+#include <stddef.h>
+
 namespace euler {
 
 // Convolution algorithm
@@ -86,8 +88,8 @@ struct eld_conv_t {
     int setup();
 
     // Auto computed by setup()
-    struct { int input, weights, output, bias; } byte_sizes;
-    struct { int input, weights, output, bias; } sizes;
+    struct { size_t input, weights, output, bias; } byte_sizes;
+    struct { size_t input, weights, output, bias; } sizes;
 
     // Internal data used by elx
     elx_conv_t<T> *xc;
