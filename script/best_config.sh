@@ -18,10 +18,10 @@ if [ "x$m" = "xvgg-n1-8180-1s" ]; then
   #./script/run.sh -c -i256 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=8 --blk-t=15 --pat-o=4 --execution-mode=0xa061
   # vgg19_conv4_1, 5.3T
   #./script/run.sh -c -i256 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=8 --blk-t=28 --pat-o=4 --execution-mode=0xa061 --tile-size=4
-  # vgg19_conv4_1, 6.1T, 6.6T (no-stream)
-  ./script/run.sh -c -i256 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=4 --blk-t=25 --execution-mode=0xa000
-  # vgg19_conv4_2, 6.0T
-  ./script/run.sh -c -i512 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=4 --blk-t=26 --execution-mode=0xa000
+  # vgg19_conv4_1, 6.6T
+  ./script/run.sh -c -i256 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=4 --blk-t=25 --execution-mode=0xa000 --streaming-input=1
+  # vgg19_conv4_2, 6.4T
+  ./script/run.sh -c -i512 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=4 --blk-t=26 --execution-mode=0xa000 --streaming-input=1
   # vgg19_conv5_1, 5.2T
   ./script/run.sh -c -i512 -h14 -o512 -H14 -v0 -n1 --blk-i=8 --blk-o=4 --blk-t=25 --execution-mode=0xa000
 fi
@@ -42,9 +42,9 @@ if [ "x$m" = "xvgg-n1-8180-2s" ]; then
   # vgg19_conv4_1, 9.7T
   #./script/run.sh -c -i256 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=8 --blk-t=15 --pat-i=2 --pat-o=4 --execution-mode=0xa073
   # vgg19_conv4_1, 10.2T
-  ./script/run.sh -c -i256 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=4 --blk-t=25 --execution-mode=0xa000
+  ./script/run.sh -c -i256 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=4 --blk-t=25 --execution-mode=0xa000 --streaming-input=1
   # vgg19_conv4_2, 10.5T
-  ./script/run.sh -c -i512 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=4 --blk-t=26 --execution-mode=0xa000
+  ./script/run.sh -c -i512 -h28 -o512 -H28 -v0 -n1 --blk-i=8 --blk-o=4 --blk-t=26 --execution-mode=0xa000 --streaming-input=1
   # vgg19_conv5_1, 7.3T
   ./script/run.sh -c -i512 -h14 -o512 -H14 -v0 -n1 --blk-i=8 --blk-o=4 --blk-t=25 --execution-mode=0xa000
 fi
