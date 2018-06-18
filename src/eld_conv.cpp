@@ -24,6 +24,7 @@ eld_conv_t<F>::eld_conv_t() {
   blocking  = {0, 0, 0};
   execution_mode = 0;
   partition = {1, 1};
+  streaming_hint = {0, 0, 0};
 }
 
 template <typename F>

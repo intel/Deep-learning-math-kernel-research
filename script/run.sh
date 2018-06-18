@@ -29,6 +29,7 @@ function conv_test() {
   n=1; i=0; o=0; h=0; w=0; H=0; W=0; k=3; K=3; p=1; P=1; s=1; S=1
   b=1; r=0; v=1; a=wino; blk_i=0; blk_o=0; blk_t=0; pat_i=1; pat_o=1
   tile_size=5; nteams=0; nthreads=0; execution_mode=0
+  streaming_weights=0; streaming_input=0; streaming_output=0
 
   OPTIND=1
   while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:a:-:" opt; do
@@ -88,7 +89,18 @@ function conv_test() {
             ;;
           tile-size=*) tile_size=${OPTARG#*=}
             ;;
-
+          streaming-weights) streaming_weights="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          streaming-weights=*) streaming_weights=${OPTARG#*=}
+            ;;
+          streaming-input) streaming_input="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          streaming-input=*) streaming_input=${OPTARG#*=}
+            ;;
+          streaming-output) streaming_output="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          streaming-output=*) streaming_output=${OPTARG#*=}
+            ;;
        esac
        ;;
     esac
@@ -98,7 +110,11 @@ function conv_test() {
     -n$n -i$i -o$o -h$h -w$w -H$H -W$W -k$k -K$K -p$p -P$P -s$s -S$S \
     -b$b -r$r -v$v -a$a --blk-i=$blk_i --blk-o=$blk_o --blk-t=$blk_t \
     --pat-i=$pat_i --pat-o=$pat_o --tile-size=$tile_size \
-    --nteams=$nteams --nthreads=$nthreads --execution-mode=$execution_mode
+    --nteams=$nteams --nthreads=$nthreads --execution-mode=$execution_mode \
+    --streaming-weights=$streaming_weights \
+    --streaming-input=$streaming_input \
+    --streaming-output=$streaming_output 
+
 }
 
 function unit_test() {

@@ -175,8 +175,9 @@ int  elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
   }
 
   if (!(xopt_ & FUS_MSK)) {
-    stream_in_ = true;
-    stream_wei_ = true;
+    // TODO
+    stream_in_ = this->streaming_input ? (this->streaming_input == STORE_STREAMING) : true;
+    stream_wei_ = this->streaming_weights ? (this->streaming_weights == STORE_STREAMING) : true;
     num_t = this->t2;
   }
   if (xopt_ & FUS_T) {

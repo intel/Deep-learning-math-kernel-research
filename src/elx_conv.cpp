@@ -46,6 +46,10 @@ elx_conv_t<Type>::elx_conv_t(eld_conv_t<Type> &dc) {
 
   this->ic4 = dc.partition.i;
   this->oc4 = dc.partition.o;
+
+  this->streaming_weights = dc.streaming_hint.weights;
+  this->streaming_input = dc.streaming_hint.input;
+  this->streaming_output = dc.streaming_hint.output;
 }
 
 template <typename T>

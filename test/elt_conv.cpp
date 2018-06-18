@@ -22,6 +22,7 @@ int execution_mode = 0;
 int blk_i = 0, blk_o = 0, blk_t = 0;
 int pat_i = 1, pat_o = 1;
 int tile_size = 5;
+int streaming_weights = 0, streaming_input = 0, streaming_output = 0;
 
 bool validate_results = false;
 
@@ -47,6 +48,7 @@ int main(int argc, char **argv)
   desc.execution_mode = execution_mode;
   desc.blocking = { blk_i, blk_o, blk_t };
   desc.partition = { pat_i, pat_o };
+  desc.streaming_hint = { streaming_weights, streaming_input, streaming_output };
 
   if (desc.setup() != ELD_OK) {
     printf("Fail: Convolution setup error!\n");
@@ -119,7 +121,10 @@ int parse_cmd_options(int argc, char **argv) {
     ("blk-o", po::value<int>(&blk_o), "OC blocking")
     ("blk-t", po::value<int>(&blk_t), "Tile blocking")
     ("pat-i", po::value<int>(&pat_i), "Partition on ic")
-    ("pat-o", po::value<int>(&pat_o), "Partition on oc");
+    ("pat-o", po::value<int>(&pat_o), "Partition on oc")
+    ("streaming-weights", po::value<int>(&streaming_weights), "Streaming hint for winograd transformed weights")
+    ("streaming-input", po::value<int>(&streaming_input), "Streaming hint for winograd transformed input")
+    ("streaming-output", po::value<int>(&streaming_output), "Streaming hint for winograd transformed output");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -156,10 +161,12 @@ int parse_cmd_options(int argc, char **argv) {
          "ph:%d, pw:%d, sh:%d, sw:%d, dh:%d, dw:%d\n"
          "with_bias:%d, with_relu:%d, validate_results:%d\n"
          "blk_i:%d, blk_o:%d, blk_t:%d, pat_i:%d, pat_o:%d\n"
+         "streaming-hint:%d, %d, %d\n"
          "nteams:%d, nthreads:%d\n"
          "execution-mode:%x\n",
       mb, ic, ih, iw, oc, oh, ow, kh, kw, ph, pw, sh, sw, dh, dw,
       with_bias, with_relu, validate_results, blk_i, blk_o, blk_t, pat_i, pat_o,
+      streaming_weights, streaming_input, streaming_output,
       nteams, nthreads, execution_mode);
 
   if (prop_kind == forward_inference)

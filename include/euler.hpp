@@ -25,6 +25,13 @@ enum {
     ELX_GENERAL_ERROR = 2
 };
 
+// Streaming hint
+enum {
+  STORE_DEFAULT = 0,
+  STORE_NORMAL = 1,
+  STORE_STREAMING = 2
+};
+
 // Data formats
 enum {
     nchw,
@@ -81,6 +88,8 @@ struct eld_conv_t {
     // Blocking: 2nd level blocking unit
     struct { int i, o, t; } blocking;
     struct { int i, o; } partition;
+    // Streaming hint: STORE_DEFAULT | STORE_NORMAL | STORE_STREAMING
+    struct { int weights, input, output; } streaming_hint;
 
     // Defaults
     eld_conv_t();

@@ -51,6 +51,11 @@ struct elx_conv_t {
   // relu, bias
   bool with_relu, with_bias;
 
+  // streaming hint
+  int streaming_weights;
+  int streaming_input;
+  int streaming_output;
+
   // threading
   int nteams, nthreads;
   int execution_mode;
