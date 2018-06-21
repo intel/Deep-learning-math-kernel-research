@@ -89,7 +89,7 @@ FILE(GLOB_RECURSE euler_src_files ${src_dir}/*.cpp)
 
 # find include dirs
 SET(euler_include_dirs "${CMAKE_SOURCE_DIR}/include")
-LIST(APPEND ${src_dir})
+LIST(APPEND euler_include_dirs ${src_dir})
 
 # build lib
 ADD_LIBRARY(${lib_name} SHARED ${euler_src_files})
