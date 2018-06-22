@@ -212,7 +212,7 @@ int  elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
   }
   if (xopt_ & DUP_O) {
     size_t routput_size = sizeof(Type) * this->n * this->oc * this-> oh * this->ow * (this->ic4 - 1);
-    routput_ = (Type *)memalign(64, routput_size);
+    posix_memalign((void **)&routput_, 64, routput_size);
      routput_cntr_ = (unsigned char *)malloc(this->t2 * this->oc4);
   } else {
     routput_ = nullptr;
@@ -229,9 +229,9 @@ int  elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
   tinput_size  = sizeof(Type) * A * A * this->T * num_t * num_i * in_ndup;
   toutput_size = sizeof(Type) * A * A * this->T * num_t * num_o;
 
-  tweights_ = (Type *)memalign(64, tweights_size);
-  tinput_ = (Type *)memalign(64, tinput_size);
-  toutput_ = (Type *)memalign(64, toutput_size);
+  posix_memalign((void **)&tweights_, 64, tweights_size);
+  posix_memalign((void **)&tinput_, 64, tinput_size);
+  posix_memalign((void **)&toutput_, 64, toutput_size);
 
   // dbg
   printf("nteams=%d, nthreads=%d, mthr_=%ld\n", this->nteams, this->nthreads, mthr_);
