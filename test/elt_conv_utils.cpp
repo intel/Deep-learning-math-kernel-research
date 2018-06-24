@@ -14,10 +14,10 @@ namespace test {
   void prepare_conv_data<float>(eld_conv_t<float> &desc, float **input,
       float **weights, float **output, float **bias)
   {
-    *input = (float *)memalign(64, desc.byte_sizes.input);
-    *weights = (float *)memalign(64, desc.byte_sizes.weights);
-    *output = (float *)memalign(64, desc.byte_sizes.output);
-    *bias = (float *)memalign(64, desc.byte_sizes.bias);
+    MEMALIGN64(input, desc.byte_sizes.input);
+    MEMALIGN64(weights, desc.byte_sizes.weights);
+    MEMALIGN64(output, desc.byte_sizes.output);
+    MEMALIGN64(bias, desc.byte_sizes.bias);
 
 #pragma omp parallel for
     for (int i = 0; i < desc.sizes.input; i++) {

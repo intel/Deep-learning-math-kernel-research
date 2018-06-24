@@ -32,4 +32,6 @@ typedef std::chrono::duration<float, std::milli> Duration;
 #define MD(type, array, dims, ptr)                                           \
   type(&array) dims = *reinterpret_cast<type(*) dims>(ptr)
 
+#define MEMALIGN64(ptr, size) posix_memalign((void **)ptr, 64, size);
+
 #endif  // __ELT_UTILS_HPP__

@@ -26,8 +26,8 @@ elx_conv_wino_prod_t<Type, A, K, V, I>::elx_conv_wino_prod_t(
   size_t tweights_size = sizeof(Type) * A * A * this->ic * this->oc;
   size_t tinput_size
       = sizeof(Type) * A * A * this->ht * this->wt * this->ic * this->n;
-  tweights_ = (Type *)memalign(64, tweights_size);
-  tinput_ = (Type *)memalign(64, tinput_size);
+  MEMALIGN64(&tweights_, tweights_size);
+  MEMALIGN64(&tinput_, tinput_size);
   toutput_ = nullptr;
 
   is_first_run_ = true;

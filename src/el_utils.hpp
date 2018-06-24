@@ -31,34 +31,7 @@ template <typename T, typename... Args> inline T accumulate(T a, Args... args)
 #define MD(type, array, dims, ptr)                                             \
   type(&array) dims = *reinterpret_cast<type(*) dims>(ptr)
 
-template <typename T, int N> class mdarray {
-  public:
-  template <typename... Args>
-  mdarray(T* p, Args... dims)
-      : _p(p)
-      , _dims{ dims... }
-  {
-  }
-  template <typename... Args> inline T& operator()(Args... dims)
-  {
-    return *(_p + offset(1, dims...));
-  }
-
-  private:
-  template <typename... Args>
-  inline size_t offset(size_t index, size_t off, size_t dim, Args... dims)
-  {
-    off = _dims[index] * off + dim;
-    return offset(index + 1, off, dims...);
-  }
-  inline size_t offset(size_t index, size_t off, size_t dim)
-  {
-    return _dims[index] * off + dim;
-  }
-
-  T* _p;
-  const int _dims[N];
-};
+#define MEMALIGN64(ptr, size) posix_memalign((void **)ptr, 64, size);
 
 } // namespace euler
 

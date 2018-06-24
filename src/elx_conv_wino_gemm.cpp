@@ -229,9 +229,9 @@ int  elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
   tinput_size  = sizeof(Type) * A * A * this->T * num_t * num_i * in_ndup;
   toutput_size = sizeof(Type) * A * A * this->T * num_t * num_o;
 
-  posix_memalign((void **)&tweights_, 64, tweights_size);
-  posix_memalign((void **)&tinput_, 64, tinput_size);
-  posix_memalign((void **)&toutput_, 64, toutput_size);
+  MEMALIGN64(&tweights_, tweights_size);
+  MEMALIGN64(&tinput_, tinput_size);
+  MEMALIGN64(&toutput_, toutput_size);
 
   // dbg
   printf("nteams=%d, nthreads=%d, mthr_=%ld\n", this->nteams, this->nthreads, mthr_);
