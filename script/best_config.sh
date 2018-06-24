@@ -63,22 +63,22 @@ if [ "x$m" = "xresnet-n1-8180-1s" ]; then
 fi
 
 if [ "x$m" = "xresnet-n1-8180-2s" ]; then
-  # resnet50_res2a_branch2b, 7.7T
-  ./script/run.sh -c -i64 -h56 -o64 -H56 -v0 -n1 --execution-mode=0xa061 --blk-i=4 --blk-o=2 --blk-t=13 --pat-o=1
-  # resnet50_res3a_branch2b, 6.0T
+  # resnet50_res2a_branch2b, 8.4T
+  ./script/run.sh -c -i64 -h56 -o64 -H56 -v0 -n1 --execution-mode=0xa061 --blk-i=4 --blk-o=2 --blk-t=13 --pat-o=2
+  # resnet50_res3a_branch2b, 6.3T
   ./script/run.sh -c -i128 -h28 -o128 -H28 -v0 -n1 --execution-mode=0xa061 --blk-i=8 --blk-o=1 --blk-t=15 --pat-o=8
-  # resnet50_res4a_branch2b, 5.1T
+  # resnet50_res4a_branch2b, 5.3T
   ./script/run.sh -c -i256 -h14 -o256 -H14 -v0 -n1 --execution-mode=0xa000 --blk-i=8 --blk-o=1 --blk-t=9
   # resnet50_res5a_branch2b, 3.6T
   ./script/run.sh -c -i512 -h7 -o512 -H7 -v0 -n1 --execution-mode=0xa000 --blk-i=8 --blk-o=4 --blk-t=9
 fi
 
 if [ "x$m" = "xresnet-n64-8180-2s" ]; then
-  # resnet50_res2a_branch2b, 11.2T
+  # resnet50_res2a_branch2b, 11.8T
   ./script/run.sh -c -i64 -h56 -o64 -H56 -v0 -n64 --execution-mode=0xa040 --blk-i=4 --blk-o=4 --blk-t=28
-  # resnet50_res3a_branch2b, 11.2T
+  # resnet50_res3a_branch2b, 11.9T
   ./script/run.sh -c -i128 -h28 -o128 -H28 -v0 -n64 --execution-mode=0xa040 --blk-i=8 --blk-o=8 --blk-t=29
-  # resnet50_res4a_branch2b, 9.7T
+  # resnet50_res4a_branch2b, 10.0T
   ./script/run.sh -c -i256 -h14 -o256 -H14 -v0 -n64 --execution-mode=0xa061 --blk-i=8 --blk-o=4 --blk-t=23 --pat-o=4
   # resnet50_res5a_branch2b, 6.7T
   ./script/run.sh -c -i512 -h7 -o512 -H7 -v0 -n64 --execution-mode=0xa000 --blk-i=8 --blk-o=8 --blk-t=29
