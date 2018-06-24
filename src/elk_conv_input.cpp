@@ -52,7 +52,7 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
 #undef T
 #define F(_h, _w) f_cb(_h, _w, _V)
 #define C(n) C##n[_V]
-#define T(_h, _w) atinput[_h][_w][_V]
+#define T(_h, _w) atinput[_w][_h][_V]
 
   float C1[16], C2[16];
 #pragma omp simd
@@ -118,7 +118,7 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
 #undef C
 #undef T
 #define F(_h, _w) f_cb(_h, _w)
-#define T(h, w) atinput[h][w]
+#define T(h, w) atinput[w][h]
 
 #define f(m, n) f##m##n
 #define OP(m,n) __m512 f(m, n) = F(m, n)
@@ -198,7 +198,7 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
 #undef T
 #define F(_h, _w) f_cb(_h, _w, _V)
 #define C(n) C##n[_V]
-#define T(_h, _w) atinput[_h][_w][_V]
+#define T(_h, _w) atinput[_w][_h][_V]
 
   float C1[16], C2[16], C3[16];
 #pragma omp simd
@@ -296,7 +296,7 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
 #undef C
 #undef T
 #define F(_h, _w) f_cb(_h, _w)
-#define T(h, w) atinput[h][w]
+#define T(h, w) atinput[w][h]
 
 #undef f
 #undef OP

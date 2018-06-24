@@ -40,7 +40,7 @@ void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::__trans_weights(
 #undef F
 #undef T
 #define F(h, w) aweights[h][w][_IV][_OV]
-#define T(h, w) atweights[h][w][_IV][_OV]
+#define T(h, w) atweights[w][h][_IV][_OV]
 #define C(c, n) C##c##n[_OV]
   for (int _IV = 0; _IV < 16; ++_IV) {
 #pragma omp simd
@@ -97,7 +97,7 @@ void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::__trans_weights(
 #undef F
 #undef T
 #define F(h, w) aweights[h][w][_V]
-#define T(h, w) atweights[h][w][_V]
+#define T(h, w) atweights[w][h][_V]
   for (int _V = 0; _V < 16; ++_V) {
     f00 = _mm512_load_ps(F(0, 0));
     f01 = _mm512_load_ps(F(0, 1));
@@ -167,7 +167,7 @@ void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::__trans_weights(
 #undef F
 #undef T
 #define F(h, w) aweights[h][w][_IV][_OV]
-#define T(h, w) atweights[h][w][_IV][_OV]
+#define T(h, w) atweights[w][h][_IV][_OV]
 #define C(c, n) C##c##n[_OV]
   for (int _IV = 0; _IV < 16; ++_IV) {
 #pragma omp simd
@@ -246,7 +246,7 @@ void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::__trans_weights(
 #undef F
 #undef T
 #define F(h, w) aweights[h][w][_V]
-#define T(h, w) atweights[h][w][_V]
+#define T(h, w) atweights[w][h][_V]
   for (int _V = 0; _V < 16; ++_V) {
     f00 = _mm512_load_ps(F(0, 0));
     f01 = _mm512_load_ps(F(0, 1));

@@ -50,7 +50,7 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
 #undef C
 #undef P
 #undef B
-#define T(_hA, _wA) atoutput[_hA][_wA][_V]
+#define T(_hA, _wA) atoutput[_wA][_hA][_V]
 #define C(n) c##n[_V]
 #define P(_h, _w) *p_cb(_h, _w, _V)
 #define B bias[_V]
@@ -96,7 +96,7 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
 
 #undef P
 #undef T
-#define T(_h, _w) atoutput[_h][_w]
+#define T(_h, _w) atoutput[_w][_h]
 #define P(_h, _w) p_cb(_h, _w)
 
   __m512 c0, c1, c2, c3;
@@ -147,7 +147,7 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
 #undef C
 #undef P
 #undef B
-#define T(_hA, _wA) atoutput[_hA][_wA][_V]
+#define T(_hA, _wA) atoutput[_wA][_hA][_V]
 #define C(n) c##n[_V]
 #define P(_h, _w) *p_cb(_h, _w, _V)
 #define B bias[_V]
@@ -232,7 +232,7 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
 
 #undef P
 #undef T
-#define T(_h, _w) atoutput[_h][_w]
+#define T(_h, _w) atoutput[_w][_h]
 #define P(_h, _w) p_cb(_h, _w)
 
   __m512 c0, c1, c2, c3, c4;

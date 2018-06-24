@@ -341,7 +341,7 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights(
     Type *tweights, Type *weights, int oc4)
 {
-  // oc2, ic2, K, K, V, V => oc4, ic4, oc3, ic3, A, A, O2, I2, V, V
+  // oc2, ic2, hK, wK, V, V => oc4, ic4, oc3, ic3, wA, hA, O2, I2, V, V
   MD(Type, aweights, [oc4][this->oc3][this->O2][this->ic4][this->ic3][this->I2][K][K][V][V], weights);
   MD(Type, atweights, [oc4][this->ic4][this->oc3][this->ic3][A][A][this->O2][this->I2][V][V], tweights);
 
@@ -356,24 +356,24 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights(
     Type *in = (Type *)aweights[_oc4][_oc3][_O2][_ic4][_ic3][_I2];
     using Array = Type[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
-    for_each (_hA, A) {
     for_each (_wA, A) {
+    for_each (_hA, A) {
     for_each (_iV, V) {
       if (I == ISA_SKX_AVX512) {
         if (stream_wei_)
           _mm512_stream_ps(
-              atweights[_oc4][_ic4][_oc3][_ic3][_hA][_wA][_O2][_I2][_iV],
-              *((__m512 *)&aout[_hA][_wA][_iV][0]));
+              atweights[_oc4][_ic4][_oc3][_ic3][_wA][_hA][_O2][_I2][_iV],
+              *((__m512 *)&aout[_wA][_hA][_iV][0]));
         else
           _mm512_store_ps(
-              atweights[_oc4][_ic4][_oc3][_ic3][_hA][_wA][_O2][_I2][_iV],
-              *((__m512 *)&aout[_hA][_wA][_iV][0]));
+              atweights[_oc4][_ic4][_oc3][_ic3][_wA][_hA][_O2][_I2][_iV],
+              *((__m512 *)&aout[_wA][_hA][_iV][0]));
       } else {
 
 #pragma omp simd
         for_each (_oV, V)
-          atweights[_oc4][_ic4][_oc3][_ic3][_hA][_wA][_O2][_I2][_iV][_oV]
-              = aout[_hA][_wA][_iV][_oV];
+          atweights[_oc4][_ic4][_oc3][_ic3][_wA][_hA][_O2][_I2][_iV][_oV]
+              = aout[_wA][_hA][_iV][_oV];
       }
     }}}}
   }}}}}
@@ -383,7 +383,7 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::__trans_input(
     Type *tinput, Type *input, int _t2, int Tz)
 {
-  // n, ic2, ih, iw, V => t2=1, A, A, ic3, I2, T, V
+  // n, ic2, ih, iw, V => t2=1, wA, hA, ic3, I2, T, V
   MD(Type, ainput, [this->n][this->ic2][this->ih][this->iw][V], input);
   MD(Type, atinput,[A][A][this->ic3][this->I2][Tz][V], tinput);
 
@@ -412,19 +412,19 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__trans_input(
           *this, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
     }
 
-    for_each (_hA, A) {
-      for_each (_wA, A) {
+    for_each (_wA, A) {
+      for_each (_hA, A) {
         if (I == ISA_SKX_AVX512) {
           if (stream_in_)
             _mm512_stream_ps(
-                atinput[_hA][_wA][0][0][_T], *((__m512 *)&aout[_hA][_wA][0]));
+                atinput[_wA][_hA][0][0][_T], *((__m512 *)&aout[_wA][_hA][0]));
           else
             _mm512_store_ps(
-                atinput[_hA][_wA][0][0][_T], *((__m512 *)&aout[_hA][_wA][0]));
+                atinput[_wA][_hA][0][0][_T], *((__m512 *)&aout[_wA][_hA][0]));
         } else {
 #pragma omp simd
           for_each (_V, V)
-            atinput[_hA][_wA][0][0][_T][_V] = aout[_hA][_wA][_V];
+            atinput[_wA][_hA][0][0][_T][_V] = aout[_wA][_hA][_V];
         }
       }
     }
@@ -478,13 +478,13 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemm(
   MD(Type, atweights, [this->oc3][this->ic3][A][A][this->O2][this->I2][V][V],
       tweights);
 
-  for_each (_hA, A) {
-    for_each (_wA, A) {
+  for_each (_wA, A) {
+    for_each (_hA, A) {
       for_each (_oc3, this->oc3) {
         for_each (_ic3, this->ic3) {
-          ker_gemm(*this, (Type *)atoutput[_hA][_wA][_oc3],
-              (Type *)atinput[_hA][_wA][_ic3],
-              (Type *)atweights[_oc3][_ic3][_hA][_wA], _ic3 == 0);
+          ker_gemm(*this, (Type *)atoutput[_wA][_hA][_oc3],
+              (Type *)atinput[_wA][_hA][_ic3],
+              (Type *)atweights[_oc3][_ic3][_wA][_hA], _ic3 == 0);
         }
       }
     }
@@ -502,8 +502,8 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemm(
 
 #pragma omp for nowait collapse(4)
   for_each (_t2, this->t2) {
-    for_each (_hA, A) {
-      for_each (_wA, A) {
+    for_each (_wA, A) {
+      for_each (_hA, A) {
         for_each (_oc3, this->oc3) {
           for_each (_ic3, this->ic3) {
             int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
@@ -512,9 +512,9 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemm(
                 atinput2[_t2]);
             MD(Type, atoutput6, [A][A][this->oc3][this->O2][Tz][V],
                 atoutput2[_t2]);
-            ker_gemm(*this, (Type *)atoutput6[_hA][_wA][_oc3],
-                (Type *)atinput6[_hA][_wA][_ic3],
-                (Type *)atweights[_oc3][_ic3][_hA][_wA], _ic3 == 0);
+            ker_gemm(*this, (Type *)atoutput6[_wA][_hA][_oc3],
+                (Type *)atinput6[_wA][_hA][_ic3],
+                (Type *)atweights[_oc3][_ic3][_wA][_hA], _ic3 == 0);
           }
         }
       }
@@ -537,11 +537,11 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__trans_output(
   if (wOA_end == -1) wOA_end = A - K;
 
   for_each (_T, Tz) {
-    for_each (_hA, A) {
-      for_each (_wA, A) {
+    for_each (_wA, A) {
+      for_each (_hA, A) {
 #pragma omp simd
         for_each (_V, V) {
-          ain[_hA][_wA][_V] = atoutput[_hA][_wA][0][0][_T][_V];
+          ain[_wA][_hA][_V] = atoutput[_wA][_hA][0][0][_T][_V];
         }
       }
     }
@@ -631,11 +631,11 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(Type *output,
   for_each (_ic4, this->ic4) {
     for_each (_oc, this->oc3 * this->O2/this->ic4) {
       for_each (_T, Tz) {
-        for_each (_hA, A) {
         for_each (_wA, A) {
+        for_each (_hA, A) {
 #pragma omp simd
         for_each (_V, V) {
-          ain[_hA][_wA][_V] = atoutput[_hA][_wA][_ic4][_oc][_T][_V];
+          ain[_wA][_hA][_V] = atoutput[_wA][_hA][_ic4][_oc][_T][_V];
         }}}
         int _n, _oh, _ow, _hOA_end, _wOA_end;
         t2spat(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
