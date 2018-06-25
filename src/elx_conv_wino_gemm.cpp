@@ -24,6 +24,8 @@ namespace euler {
 // -------------+-------------------+--------------+---------------
 //     A069*    |        _          |    t + o     |  I + W
 // -------------+-------------------+--------------+---------------
+//     A0e1*    |        _          |  t + o + wA  |    I
+// -------------+-------------------+--------------+---------------
 //     A073     |        _          |  t + o + i   |  I + O
 // -------------+-------------------+--------------+---------------
 //     A448     |        t          |      t       |    W
@@ -52,6 +54,7 @@ const unsigned FUS_MSK = 0xF0;
 const unsigned FUS_I   = 0x10;
 const unsigned FUS_O   = 0x20;
 const unsigned FUS_T   = 0x40;
+const unsigned FUS_A   = 0x80;
 
 const unsigned DUP_MSK = 0xF;
 const unsigned DUP_I   = 0x1;
