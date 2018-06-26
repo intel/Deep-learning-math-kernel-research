@@ -5,7 +5,7 @@ ROOT_DIR="$(dirname $(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd))"
 echo Root dir: $ROOT_DIR
 echo
 
-nsockets=
+nsockets=$NSOCKETS
 ncores_per_socket=
 nthreads_per_core=1
 nthreads=
