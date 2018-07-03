@@ -414,9 +414,9 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights_a0e1(
     Type *tweights, Type *weights, int oc4)
 {
-  // oc2, ic2, hK, wK, V, V => oc4, ic4, hA, oc3, ic3, hA, O2, I2, V, V
+  // oc2, ic2, hK, wK, V, V => oc4, ic4, wA, hA, oc3, ic3, O2, I2, V, V
   MD(Type, aweights, [oc4][this->oc3][this->O2][this->ic4][this->ic3][this->I2][K][K][V][V], weights);
-  MD(Type, atweights, [oc4][this->ic4][A][this->oc3][this->ic3][A][this->O2][this->I2][V][V], tweights);
+  MD(Type, atweights, [oc4][this->ic4][A][A][this->oc3][this->ic3][this->O2][this->I2][V][V], tweights);
 
 #pragma omp for nowait collapse(6) schedule(static)
   for_each (_oc4, oc4) {
@@ -435,16 +435,16 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights_a0e1(
       if (I == ISA_SKX_AVX512) {
         if (stream_wei_)
           _mm512_stream_ps(
-              atweights[_oc4][_ic4][_wA][_oc3][_ic3][_hA][_O2][_I2][_iV],
+              atweights[_oc4][_ic4][_wA][_hA][_oc3][_ic3][_O2][_I2][_iV],
               *((__m512 *)&aout[_wA][_hA][_iV][0]));
         else
           _mm512_store_ps(
-              atweights[_oc4][_ic4][_wA][_oc3][_ic3][_hA][_O2][_I2][_iV],
+              atweights[_oc4][_ic4][_wA][_hA][_oc3][_ic3][_O2][_I2][_iV],
               *((__m512 *)&aout[_wA][_hA][_iV][0]));
       } else {
 #pragma omp simd
         for_each (_oV, V)
-          atweights[_oc4][_ic4][_wA][_oc3][_ic3][_hA][_O2][_I2][_iV][_oV]
+          atweights[_oc4][_ic4][_wA][_hA][_oc3][_ic3][_O2][_I2][_iV][_oV]
               = aout[_wA][_hA][_iV][_oV];
       }
     }}}}
@@ -648,7 +648,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemm(
   }
 }
 
-// tweights:     oc4, A | oc3, ic3, A, O2, I2, V, V
+// tweights:     oc4, A | A, oc3, ic3, O2, I2, V, V
 // tinputs:       t2, A | A, ic3, I2, T, V
 // toutput:  t2, oc4, A | A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
@@ -659,14 +659,13 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemm_a0e1(
 
   MD(Type, atinput,  [A][this->ic3][this->I2][Tz][V], tinput);
   MD(Type, atoutput, [A][this->oc3][this->O2][Tz][V], toutput);
-  MD(Type, atweights, [this->oc3][this->ic3][A][this->O2][this->I2][V][V], tweights);
+  MD(Type, atweights, [A][this->oc3][this->ic3][this->O2][this->I2][V][V], tweights);
 
   for_each (_hA, A) {
   for_each (_oc3, this->oc3) {
   for_each (_ic3, this->ic3) {
       ker_gemm(*this, (Type *)atoutput[_hA][_oc3], (Type *)atinput[_hA][_ic3],
-          //(Type *)atweights[_oc3][_ic3], _ic3 == 0, _ic3 == this->ic3 - 1);
-          (Type *)atweights[_oc3][_ic3][_hA], _ic3 == 0);
+          (Type *)atweights[_hA][_oc3][_ic3], _ic3 == 0);
   }}}
 }
 
@@ -1015,7 +1014,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a061(
 
 // Fuse trans-input, gemm and trans-output along 't*o*wA' dimension
 //
-// tweights:     oc4, wA | oc3, ic3, hA, O2, I2, V, V
+// tweights:     oc4, wA | hA, oc3, ic3, O2, I2, V, V
 // tinputa:  t2,      wA | hA, ic3, I2, T, V
 // toutput:  t2, oc4, wA | hA, oc3, O2, T, V
 // toutputa: t2, oc4, oc3, O2, T, wA, hA, V

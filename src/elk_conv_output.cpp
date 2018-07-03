@@ -348,9 +348,9 @@ void convolution_winograd_kernel<R_OUTPUT(
   __m512 p1 = SUB(ADD(MUL(z2, t3), t2), t1);
   __m512 p2 = ADD(ADD(ADD(MUL(z4, t3), t2), t1), t4);
 
-  _mm512_store_ps(P(0), p0);
-  _mm512_store_ps(P(1), p1);
-  _mm512_store_ps(P(2), p2);
+  _mm512_stream_ps(P(0), p0);
+  _mm512_stream_ps(P(1), p1);
+  _mm512_stream_ps(P(2), p2);
 }
 
 template <D_OUTPUT(typename Type, const int A, const int K, const int V,
