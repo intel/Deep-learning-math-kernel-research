@@ -9,8 +9,10 @@
 #undef SUB
 #undef FMADD
 #undef FMSUB
+#undef MUL
 #define ADD _mm512_add_ps
 #define SUB _mm512_sub_ps
+#define MUL _mm512_mul_ps
 #define FMADD _mm512_fmadd_ps
 #define FMSUB _mm512_fmsub_ps
 
@@ -25,6 +27,28 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
   __trans_output(winograd_template_parameter_t<R_OUTPUT(
                      Type, A, K, V, I, is_border, with_bias)>(),
       xc, output, atoutput, bias, _hOA_end, _wOA_end);
+}
+
+template <D_OUTPUT(typename Type, const int A, const int K, const int V,
+    const int I, const bool is_border, const bool with_bias)>
+void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
+    with_bias)>::trans_outputa_th(elx_conv_t<Type> &xc, Type *toutputa,
+    Type *toutput, int Tz)
+{
+  __trans_outputa_th(winograd_template_parameter_t<R_OUTPUT(
+                     Type, A, K, V, I, is_border, with_bias)>(),
+      xc, toutputa, toutput, Tz);
+}
+
+template <D_OUTPUT(typename Type, const int A, const int K, const int V,
+    const int I, const bool is_border, const bool with_bias)>
+void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
+    with_bias)>::trans_outputa_bh(elx_conv_t<Type> &xc, Type *output,
+    Type atoutputa[A][A - K + 1][V], Type *bias, int _hOA_end, int _wOA_end)
+{
+  __trans_outputa_bh(winograd_template_parameter_t<R_OUTPUT(
+                     Type, A, K, V, I, is_border, with_bias)>(),
+      xc, output, atoutputa, bias, _hOA_end, _wOA_end);
 }
 
 template <D_OUTPUT(typename Type, const int A, const int K, const int V,
@@ -260,19 +284,225 @@ void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
   MATRIX_DEF(3, 3);
 }
 
+template <D_OUTPUT(typename Type, const int A, const int K, const int V,
+    const int I, const bool is_border, const bool with_bias)>
+void convolution_winograd_kernel<R_OUTPUT(
+    Type, A, K, V, I, is_border, with_bias)>::
+    __trans_outputa_th(winograd_template_parameter_t<S_OUTPUT(float, 4, 3, 16,
+                           ISA_GENERIC, false, false)>,
+        elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz)
+{
+  // TODO
+}
+
+template <D_OUTPUT(typename Type, const int A, const int K, const int V,
+    const int I, const bool is_border, const bool with_bias)>
+void convolution_winograd_kernel<R_OUTPUT(
+    Type, A, K, V, I, is_border, with_bias)>::
+    __trans_outputa_th(winograd_template_parameter_t<S_OUTPUT(float, 4, 3, 16,
+                           ISA_SKX_AVX512, false, false)>,
+        elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz)
+{
+  // TODO
+}
+
+template <D_OUTPUT(typename Type, const int A, const int K, const int V,
+    const int I, const bool is_border, const bool with_bias)>
+void convolution_winograd_kernel<R_OUTPUT(
+    Type, A, K, V, I, is_border, with_bias)>::
+    __trans_outputa_th(winograd_template_parameter_t<S_OUTPUT(float, 5, 3, 16,
+                           ISA_GENERIC, false, false)>,
+        elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz)
+{
+  // TODO
+}
+
+template <D_OUTPUT(typename Type, const int A, const int K, const int V,
+    const int I, const bool is_border, const bool with_bias)>
+void convolution_winograd_kernel<R_OUTPUT(
+    Type, A, K, V, I, is_border, with_bias)>::
+    __trans_outputa_th(winograd_template_parameter_t<S_OUTPUT(float, 5, 3, 16,
+                           ISA_SKX_AVX512, false, false)>,
+        elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz)
+{
+  ENABLE_AVX512F();
+
+  MD(float, atoutput, [A][xc.oc3 * xc.O2][Tz][V], toutput);
+  MD(float, atoutputa, [A - K + 1][V], toutputa);
+
+#undef P
+#undef T
+#define T(_h) atoutput[_h][0][0]
+#define P(_h) atoutputa[_h]
+
+  __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
+  __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
+
+  __m512 t0 = _mm512_load_ps(T(0));
+  __m512 t1 = _mm512_load_ps(T(1));
+  __m512 t2 = _mm512_load_ps(T(2));
+  __m512 t3 = _mm512_load_ps(T(3));
+  __m512 t4 = _mm512_load_ps(T(4));
+
+  __m512 p0 = ADD(ADD(ADD(t0, t1), t2), t3);
+  __m512 p1 = SUB(ADD(MUL(z2, t3), t2), t1);
+  __m512 p2 = ADD(ADD(ADD(MUL(z4, t3), t2), t1), t4);
+
+  _mm512_store_ps(P(0), p0);
+  _mm512_store_ps(P(1), p1);
+  _mm512_store_ps(P(2), p2);
+}
+
+template <D_OUTPUT(typename Type, const int A, const int K, const int V,
+    const int I, const bool is_border, const bool with_bias)>
+template <const bool is_border_, const bool with_bias_>
+void convolution_winograd_kernel<R_OUTPUT(
+    Type, A, K, V, I, is_border, with_bias)>::
+    __trans_outputa_bh(winograd_template_parameter_t<S_OUTPUT(float, 4, 3, 16,
+                           ISA_GENERIC, is_border_, with_bias_)>,
+        elx_conv_t<float> &xc, float *output, float atoutput[A][A - K + 1][V],
+        float *bias, int _hOA_end, int _wOA_end)
+{
+  // TODO
+}
+
+template <D_OUTPUT(typename Type, const int A, const int K, const int V,
+    const int I, const bool is_border, const bool with_bias)>
+template <const bool is_border_, const bool with_bias_>
+void convolution_winograd_kernel<R_OUTPUT(
+    Type, A, K, V, I, is_border, with_bias)>::
+    __trans_outputa_bh(winograd_template_parameter_t<S_OUTPUT(float, 4, 3, 16,
+                           ISA_SKX_AVX512, is_border_, with_bias_)>,
+        elx_conv_t<float> &xc, float *output, float atoutput[A][A - K + 1][V],
+        float *bias, int _hOA_end, int _wOA_end)
+{
+  // TODO
+}
+
+template <D_OUTPUT(typename Type, const int A, const int K, const int V,
+    const int I, const bool is_border, const bool with_bias)>
+template <const bool is_border_, const bool with_bias_>
+void convolution_winograd_kernel<R_OUTPUT(
+    Type, A, K, V, I, is_border, with_bias)>::
+    __trans_outputa_bh(winograd_template_parameter_t<S_OUTPUT(float, 5, 3, 16,
+                           ISA_GENERIC, is_border_, with_bias_)>,
+        elx_conv_t<float> &xc, float *output, float atoutput[A][A - K + 1][V],
+        float *bias, int _hOA_end, int _wOA_end)
+{
+  // TODO
+}
+
+template <D_OUTPUT(typename Type, const int A, const int K, const int V,
+    const int I, const bool is_border, const bool with_bias)>
+template <const bool is_border_, const bool with_bias_>
+void convolution_winograd_kernel<R_OUTPUT(
+    Type, A, K, V, I, is_border, with_bias)>::
+    __trans_outputa_bh(winograd_template_parameter_t<S_OUTPUT(float, 5, 3, 16,
+                           ISA_SKX_AVX512, is_border_, with_bias_)>,
+        elx_conv_t<float> &xc, float *output, float atoutput[A][A - K + 1][V],
+        float *bias, int _hOA_end, int _wOA_end)
+{
+  ENABLE_AVX512F();
+
+  alignas(64) float dummy[16];
+  auto p_cb = [&](int _h, int _w) {
+    MD(float, aoutput,[xc.oh][xc.ow][16], output);
+    if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
+      return dummy;
+    else
+      return aoutput[_h][_w];
+  };
+
+#undef P
+#undef T
+#define T(_h, _w) atoutput[_w][_h]
+#define P(_h, _w) p_cb(_h, _w)
+
+  __m512 c0, c1, c2, c3, c4;
+  __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
+  __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
+
+  __m512 t0, t1, t2, t3, t4, p0, p1, p2;
+  t0 = _mm512_load_ps(T(0,0));
+  t1 = _mm512_load_ps(T(0,1));
+  t2 = _mm512_load_ps(T(0,2));
+  t3 = _mm512_load_ps(T(0,3));
+  t4 = _mm512_load_ps(T(0,4));
+
+  p0 = ADD(ADD(ADD(t0, t1), t2), t3);
+  if (with_bias_) p0 = ADD(p0, *(__m512*)bias);
+  p1 = SUB(ADD(MUL(z2, t3), t2), t1);
+  if (with_bias_) p1 = ADD(p1, *(__m512*)bias);
+  p2 = ADD(ADD(ADD(MUL(z4, t3), t1), t2), t4);
+  if (with_bias_) p2 = ADD(p2, *(__m512*)bias);
+
+  _mm512_store_ps(P(0,0), p0);
+  _mm512_store_ps(P(0,1), p1);
+  _mm512_store_ps(P(0,2), p2);
+
+  t0 = _mm512_load_ps(T(1,0));
+  t1 = _mm512_load_ps(T(1,1));
+  t2 = _mm512_load_ps(T(1,2));
+  t3 = _mm512_load_ps(T(1,3));
+  t4 = _mm512_load_ps(T(1,4));
+
+  p0 = ADD(ADD(ADD(t0, t1), t2), t3);
+  if (with_bias_) p0 = ADD(p0, *(__m512*)bias);
+  p1 = SUB(ADD(MUL(z2, t3), t2), t1);
+  if (with_bias_) p1 = ADD(p1, *(__m512*)bias);
+  p2 = ADD(ADD(ADD(MUL(z4, t3), t1), t2), t4);
+  if (with_bias_) p2 = ADD(p2, *(__m512*)bias);
+
+  _mm512_store_ps(P(1,0), p0);
+  _mm512_store_ps(P(1,1), p1);
+  _mm512_store_ps(P(1,2), p2);
+
+  t0 = _mm512_load_ps(T(2,0));
+  t1 = _mm512_load_ps(T(2,1));
+  t2 = _mm512_load_ps(T(2,2));
+  t3 = _mm512_load_ps(T(2,3));
+  t4 = _mm512_load_ps(T(2,4));
+
+  p0 = ADD(ADD(ADD(t0, t1), t2), t3);
+  if (with_bias_) p0 = ADD(p0, *(__m512*)bias);
+  p1 = SUB(ADD(MUL(z2, t3), t2), t1);
+  if (with_bias_) p1 = ADD(p1, *(__m512*)bias);
+  p2 = ADD(ADD(ADD(MUL(z4, t3), t1), t2), t4);
+  if (with_bias_) p2 = ADD(p2, *(__m512*)bias);
+
+  _mm512_store_ps(P(2,0), p0);
+  _mm512_store_ps(P(2,1), p1);
+  _mm512_store_ps(P(2,2), p2);
+}
+
 template void convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_GENERIC,
     BORDER(false), BIAS(true))>::trans_output(elx_conv_t<float> &, float *,
     float[4][4][16], float *, int, int);
 template void convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_GENERIC,
     BORDER(true), BIAS(true))>::trans_output(elx_conv_t<float> &, float *,
     float[4][4][16], float *, int, int);
-
 template void convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_GENERIC,
     BORDER(false), BIAS(false))>::trans_output(elx_conv_t<float> &, float *,
     float[4][4][16], float *, int, int);
 template void convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_GENERIC,
     BORDER(true), BIAS(false))>::trans_output(elx_conv_t<float> &, float *,
     float[4][4][16], float *, int, int);
+
+template void convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_GENERIC,
+    BORDER(false), BIAS(false))>::trans_outputa_th(elx_conv_t<float> &, float *,
+    float *, int);
+template void convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_GENERIC,
+    BORDER(false), BIAS(true))>::trans_outputa_bh(elx_conv_t<float> &, float *,
+    float[4][2][16], float *, int, int);
+template void convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_GENERIC,
+    BORDER(true), BIAS(true))>::trans_outputa_bh(elx_conv_t<float> &, float *,
+    float[4][2][16], float *, int, int);
+template void convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_GENERIC,
+    BORDER(false), BIAS(false))>::trans_outputa_bh(elx_conv_t<float> &, float *,
+    float[4][2][16], float *, int, int);
+template void convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_GENERIC,
+    BORDER(true), BIAS(false))>::trans_outputa_bh(elx_conv_t<float> &, float *,
+    float[4][2][16], float *, int, int);
 
 template void
 convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_SKX_AVX512,
@@ -282,7 +512,6 @@ template void
 convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_SKX_AVX512,
     BORDER(true), BIAS(true))>::trans_output(elx_conv_t<float> &, float *,
     float[4][4][16], float *, int, int);
-
 template void
 convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_SKX_AVX512,
     BORDER(false), BIAS(false))>::trans_output(elx_conv_t<float> &, float *,
@@ -292,13 +521,33 @@ convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_SKX_AVX512,
     BORDER(true), BIAS(false))>::trans_output(elx_conv_t<float> &, float *,
     float[4][4][16], float *, int, int);
 
+template void
+convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_SKX_AVX512,
+    BORDER(false), BIAS(false))>::trans_outputa_th(elx_conv_t<float> &, float *,
+    float *, int);
+template void
+convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_SKX_AVX512,
+    BORDER(false), BIAS(true))>::trans_outputa_bh(elx_conv_t<float> &, float *,
+    float[4][2][16], float *, int, int);
+template void
+convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_SKX_AVX512,
+    BORDER(true), BIAS(true))>::trans_outputa_bh(elx_conv_t<float> &, float *,
+    float[4][2][16], float *, int, int);
+template void
+convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_SKX_AVX512,
+    BORDER(false), BIAS(false))>::trans_outputa_bh(elx_conv_t<float> &, float *,
+    float[4][2][16], float *, int, int);
+template void
+convolution_winograd_kernel<S_OUTPUT(float, 4, 3, 16, ISA_SKX_AVX512,
+    BORDER(true), BIAS(false))>::trans_outputa_bh(elx_conv_t<float> &, float *,
+    float[4][2][16], float *, int, int);
+
 template void convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_GENERIC,
     BORDER(false), BIAS(true))>::trans_output(elx_conv_t<float> &, float *,
     float[5][5][16], float *, int, int);
 template void convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_GENERIC,
     BORDER(true), BIAS(true))>::trans_output(elx_conv_t<float> &, float *,
     float[5][5][16], float *, int, int);
-
 template void convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_GENERIC,
     BORDER(false), BIAS(false))>::trans_output(elx_conv_t<float> &, float *,
     float[5][5][16], float *, int, int);
@@ -306,6 +555,22 @@ template void convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_GENERIC,
     BORDER(true), BIAS(false))>::trans_output(elx_conv_t<float> &, float *,
     float[5][5][16], float *, int, int);
 
+template void convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_GENERIC,
+    BORDER(false), BIAS(false))>::trans_outputa_th(elx_conv_t<float> &, float *,
+    float *, int);
+template void convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_GENERIC,
+    BORDER(false), BIAS(true))>::trans_outputa_bh(elx_conv_t<float> &, float *,
+    float[5][3][16], float *, int, int);
+template void convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_GENERIC,
+    BORDER(true), BIAS(true))>::trans_outputa_bh(elx_conv_t<float> &, float *,
+    float[5][3][16], float *, int, int);
+template void convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_GENERIC,
+    BORDER(false), BIAS(false))>::trans_outputa_bh(elx_conv_t<float> &, float *,
+    float[5][3][16], float *, int, int);
+template void convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_GENERIC,
+    BORDER(true), BIAS(false))>::trans_outputa_bh(elx_conv_t<float> &, float *,
+    float[5][3][16], float *, int, int);
+
 template void
 convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_SKX_AVX512,
     BORDER(false), BIAS(true))>::trans_output(elx_conv_t<float> &, float *,
@@ -314,7 +579,6 @@ template void
 convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_SKX_AVX512,
     BORDER(true), BIAS(true))>::trans_output(elx_conv_t<float> &, float *,
     float[5][5][16], float *, int, int);
-
 template void
 convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_SKX_AVX512,
     BORDER(false), BIAS(false))>::trans_output(elx_conv_t<float> &, float *,
@@ -323,5 +587,28 @@ template void
 convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_SKX_AVX512,
     BORDER(true), BIAS(false))>::trans_output(elx_conv_t<float> &, float *,
     float[5][5][16], float *, int, int);
+
+template void
+convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_SKX_AVX512,
+    BORDER(false), BIAS(false))>::trans_outputa_th(elx_conv_t<float> &, float *,
+    float *, int);
+template void
+convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_SKX_AVX512,
+    BORDER(false), BIAS(true))>::trans_outputa_bh(elx_conv_t<float> &, float *,
+    float[5][3][16], float *, int, int);
+template void
+convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_SKX_AVX512,
+    BORDER(true), BIAS(true))>::trans_outputa_bh(elx_conv_t<float> &, float *,
+    float[5][3][16], float *, int, int);
+template void
+convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_SKX_AVX512,
+    BORDER(false), BIAS(false))>::trans_outputa_bh(elx_conv_t<float> &, float *,
+    float[5][3][16], float *, int, int);
+template void
+convolution_winograd_kernel<S_OUTPUT(float, 5, 3, 16, ISA_SKX_AVX512,
+    BORDER(true), BIAS(false))>::trans_outputa_bh(elx_conv_t<float> &, float *,
+    float[5][3][16], float *, int, int);
+
+
 
 } // namespace euler

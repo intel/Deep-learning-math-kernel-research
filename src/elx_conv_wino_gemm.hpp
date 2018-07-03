@@ -48,7 +48,9 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   void trans_input_a0e1(Type *tinput, Type *input, int _t2, int _wA, int Tz);
   void trans_weights_a0e1(Type *tweights, Type *weights, int oc4 = 1);
   void gemm_a0e1(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
-  void trans_output_a0e1(Type *output, Type *toutput, Type *bias);
+  //void trans_output_a0e1(Type *output, Type *toutput, Type *bias);
+  void trans_output_a0e1_th(Type *toutputa, Type *toutput, int Tz);
+  void trans_output_a0e1_bh(Type *output, Type *toutputa, Type *bias);
 
   int prepare_execute_opt();
   void bind_execute_functions();
@@ -76,7 +78,12 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
           BORDER(false), BIAS(false))>::trans_output) *ker_trans_output_nobias_;
   decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
           BORDER(true), BIAS(false))>::trans_output) *ker_trans_output0_nobias_;
-
+  decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
+          BORDER(false), BIAS(false))>::trans_outputa_th) *ker_trans_outputa_th_;
+  decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
+          BORDER(false), BIAS(false))>::trans_outputa_bh) *ker_trans_outputa_bh_;
+  decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
+          BORDER(true), BIAS(false))>::trans_outputa_bh) *ker_trans_outputa0_bh_;
 
   void (elx_conv_wino_gemm_t::*execute_opt_)(Type *, Type *, Type *, Type *);
 
@@ -90,6 +97,7 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   Type *tinput_;
   Type *toutput_;
   Type *routput_; // reduce output
+  Type *toutputa_;
   unsigned char *routput_cntr_;
 
 #define MAX_THREAD_TEAMS (8)
