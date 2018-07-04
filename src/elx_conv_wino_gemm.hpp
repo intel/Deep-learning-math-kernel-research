@@ -23,6 +23,7 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   void __execute_a040(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a061(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a0e1(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a0e0(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a073(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a201(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a241(Type *output, Type *input, Type *weights, Type *bias);
