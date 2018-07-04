@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <x86intrin.h>
+#include "elk_def.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"

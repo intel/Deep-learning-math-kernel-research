@@ -1,7 +1,6 @@
 #ifndef __ELK_CONV_HPP__
 #define __ELK_CONV_HPP__
 
-
 #include <boost/preprocessor/seq/for_each_product.hpp>
 #include <boost/preprocessor/seq/to_tuple.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
@@ -11,25 +10,6 @@
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
 
-#define M1    (0)
-#define M2  M1(1)
-#define M3  M2(2)
-#define M4  M3(3)
-#define M5  M4(4)
-#define M6  M5(5)
-#define M7  M6(6)
-#define M8  M7(7)
-#define M9  M8(8)
-#define M10 M9(9)
-
-#define TUPLE(r, product) (BOOST_PP_SEQ_TO_TUPLE(product))
-#define EXPAND_2D(_, d, seq)                                                 \
-  OP(BOOST_PP_TUPLE_ELEM(2, 0, seq), BOOST_PP_TUPLE_ELEM(2, 1, seq));
-#define MATRIX_DEF(m, n)                                                     \
-  BOOST_PP_SEQ_FOR_EACH(                                                     \
-      EXPAND_2D, _, BOOST_PP_SEQ_FOR_EACH_PRODUCT(TUPLE, (M##m)(M##n)))
-
-#define IMM_BCAST16(x) x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x
 #define MAX_FMA_PRL 33
 
 namespace euler {

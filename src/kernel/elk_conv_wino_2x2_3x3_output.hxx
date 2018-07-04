@@ -1,20 +1,10 @@
 #include <assert.h>
 #include <x86intrin.h>
+#include "elk_def.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
 #include "elk_conv_wino.hpp"
-
-#undef ADD
-#undef SUB
-#undef FMADD
-#undef FMSUB
-#undef MUL
-#define ADD _mm512_add_ps
-#define SUB _mm512_sub_ps
-#define MUL _mm512_mul_ps
-#define FMADD _mm512_fmadd_ps
-#define FMSUB _mm512_fmsub_ps
 
 namespace euler {
 
