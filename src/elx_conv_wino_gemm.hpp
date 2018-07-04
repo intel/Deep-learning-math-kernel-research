@@ -45,13 +45,12 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
       Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
   void gemm(Type *toutput, Type *tinput, Type *tweights);
 
-  // TODO
-  void trans_input_a0e1(Type *tinput, Type *input, int _t2, int _wA, int Tz);
-  void trans_weights_a0e1(Type *tweights, Type *weights, int oc4 = 1);
-  void gemm_a0e1(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
-  //void trans_output_a0e1(Type *output, Type *toutput, Type *bias);
-  void trans_output_a0e1_th(Type *toutputa, Type *toutput, int Tz);
-  void trans_output_a0e1_bh(Type *output, Type *toutputa, Type *bias);
+  // Fusion along a (wA)
+  void trans_inputa(Type *tinput, Type *input, int _t2, int _wA, int Tz);
+  void trans_weightsa(Type *tweights, Type *weights);
+  void gemma(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
+  void trans_outputa_th(Type *toutputa, Type *toutput, int Tz);
+  void trans_outputa_bh(Type *output, Type *toutputa, Type *bias);
 
   int prepare_execute_opt();
   void bind_execute_functions();
