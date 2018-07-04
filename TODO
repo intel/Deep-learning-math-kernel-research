@@ -16,11 +16,9 @@ OMP:
 - omp_in_final()
 - omp_get_num_procs
 
-Modularity (2018-07-05):
+Modularity (2018-07-05): Done
 - trans_input/trans_output: common function for offset computing
 - code reorg, break transform kernels into small kernel files:
   elk_trans_3x3_3x3.cpp
   elk_trans_4x4_3x3.cpp
   ...
-- prepare_execute_opt: enhance memory size computation/allocation
-- conditional build for C kernels and AVX512 kernels
