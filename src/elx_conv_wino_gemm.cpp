@@ -379,6 +379,51 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::~elx_conv_wino_gemm_t()
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::t2spato(int _t2, int _T, int &_n,
+    int &_oh, int &_ow, int &_hOA_end, int &_wOA_end)
+{
+  int hOA_end = this->oh % (A - K + 1) - 1;
+  if (hOA_end == -1)
+    hOA_end = A - K;
+  int wOA_end = this->ow % (A - K + 1) - 1;
+  if (wOA_end == -1)
+    wOA_end = A - K;
+  int _t = _t2 * this->T + _T;
+  int _nt = _t % this->nt;
+  int _ht = _nt / this->wt;
+  int _wt = _nt % this->wt;
+
+  _n = _t / this->nt;
+  _oh = _ht * (A - K + 1);
+  _ow = _wt * (A - K + 1);
+  _hOA_end = (_ht < this->ht - 1) ? A - K : hOA_end;
+  _wOA_end = (_wt < this->wt - 1) ? A - K : wOA_end;
+}
+
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_gemm_t<Type, A, K, V, I>::t2spati(int _t2, int _T, int &_n,
+    int &_ih, int &_iw, int &_hA_start, int &_hA_end, int &_wA_start,
+    int &_wA_end)
+{
+  int hA_end = (this->ih + this->lp) - (this->ht - 1) * (A - K + 1) - 1;
+  int wA_end = (this->iw + this->tp) - (this->wt - 1) * (A - K + 1) - 1;
+
+  int _t = _t2 * this->T + _T;
+  int _nt = _t % this->nt;
+  int _ht = _nt / this->wt;
+  int _wt = _nt % this->wt;
+
+  _n = _t / this->nt;
+  _ih = _ht * (A - K + 1) - this->lp; // may < 0
+  _iw = _wt * (A - K + 1) - this->tp;
+  _hA_start = (_ht > 0) ? 0 : this->lp;
+  _wA_start = (_wt > 0) ? 0 : this->tp;
+  _hA_end = (_ht < this->ht - 1) ? A - 1 : hA_end;
+  _wA_end = (_wt < this->wt - 1) ? A - 1 : wA_end;
+}
+
+
+template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights(
     Type *tweights, Type *weights, int oc4)
 {
@@ -471,22 +516,12 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__trans_input(
   MD(Type, atinput,[A][A][this->ic3][this->I2][Tz][V], tinput);
 
   alignas(64) Type aout[A][A][V];
-  int hA_end = (this->ih + this->lp) - (this->ht - 1) * (A - K + 1) - 1;
-  int wA_end = (this->iw + this->tp) - (this->wt - 1) * (A - K + 1) - 1;
 
   for_each (_T, Tz) {
-    int _t = _t2 * this->T + _T;
-    int _nt = _t % this->nt;
-    int _ht = _nt / this->wt;
-    int _wt = _nt % this->wt;
-    int _ih = _ht * (A - K + 1) - this->lp; // may < 0
-    int _iw = _wt * (A - K + 1) - this->tp;
-    int _hA_start = (_ht > 0) ? 0 : this->lp;
-    int _wA_start = (_wt > 0) ? 0 : this->tp;
-    int _hA_end = (_ht < this->ht - 1) ? A - 1 : hA_end;
-    int _wA_end = (_wt < this->wt - 1) ? A - 1 : wA_end;
+    int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
+    t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
 
-    Type *in = ainput[_t / this->nt][0][_ih][_iw];
+    Type *in = ainput[_n][0][_ih][_iw];
     if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
         && _wA_end == A - 1) {
       ker_trans_input_(*this, aout, in, 0, A - 1, 0, A - 1);
@@ -559,25 +594,14 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_inputa(
   MD(Type, atinput, [A][this->ic3][this->I2][Tz][V], tinput);
 
   alignas(64) Type aout[A][A][V];
-  int hA_end = (this->ih + this->lp) - (this->ht - 1) * (A - K + 1) - 1;
-  int wA_end = (this->iw + this->tp) - (this->wt - 1) * (A - K + 1) - 1;
 
   for_each (_ic3, this->ic3) {
   for_each (_I2, this->I2) {
   for_each (_T, Tz) {
-    int _t = _t2 * this->T + _T;
-    int _nt = _t % this->nt;
-    int _ht = _nt / this->wt;
-    int _wt = _nt % this->wt;
+    int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
+    t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
 
-    int _ih = _ht * (A - K + 1) - this->lp; // may < 0
-    int _iw = _wt * (A - K + 1) - this->tp;
-    int _hA_start = (_ht > 0) ? 0 : this->lp;
-    int _wA_start = (_wt > 0) ? 0 : this->tp;
-    int _hA_end = (_ht < this->ht - 1) ? A - 1 : hA_end;
-    int _wA_end = (_wt < this->wt - 1) ? A - 1 : wA_end;
-
-    Type *in = ainput[_t / this->nt][0][_ic3][_I2][_ih][_iw];
+    Type *in = ainput[_n][0][_ic3][_I2][_ih][_iw];
     if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
         && _wA_end == A - 1) {
       ker_trans_inputa_(*this, aout, in, _wA, 0, A - 1, 0, A - 1);
@@ -688,10 +712,6 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__trans_output(
   MD(Type, aoutput, [this->n][this->oc2][this->oh][this->ow][V], output);
 
   Type ain[A][A][V];
-  int hOA_end = this->oh % (A - K + 1) - 1;
-  if (hOA_end == -1) hOA_end = A - K;
-  int wOA_end = this->ow % (A - K + 1) - 1;
-  if (wOA_end == -1) wOA_end = A - K;
 
   for_each (_T, Tz) {
     for_each (_wA, A) {
@@ -702,16 +722,10 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__trans_output(
         }
       }
     }
-    int _t = _t2 * this->T + _T;
-    int _nt = _t % this->nt;
-    int _ht = _nt / this->wt;
-    int _wt = _nt % this->wt;
-    int _oh = _ht * (A - K + 1);
-    int _ow = _wt * (A - K + 1);
-    Type *out = aoutput[_t / this->nt][0][_oh][_ow];
 
-    int _hOA_end = (_ht < this->ht - 1) ? A - K : hOA_end;
-    int _wOA_end = (_wt < this->wt - 1) ? A - K : wOA_end;
+    int _n, _oh, _ow, _hOA_end, _wOA_end;
+    t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
+    Type *out = aoutput[_n][0][_oh][_ow];
 
     if (_hOA_end < A - K || _wOA_end < A - K) {
       ker_trans_output0_(*this, out, ain, bias, _hOA_end, _wOA_end);
@@ -748,26 +762,6 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(Type *output,
   MD(Type, aroutput, [this->ic4][this->n][this->oc4][this->ic4] [this->oc3 * this->O2 / this->ic4][this->oh][this->ow][V], routput_);
   MD(Type, abias, [this->oc4][this->ic4][this->oc3 * this->O2 / this->ic4][V], bias);
 
-  auto t2spat = [this](int _t2, int _T, int &_n, int &_oh, int &_ow,
-                    int &_hOA_end, int &_wOA_end) {
-    int hOA_end = this->oh % (A - K + 1) - 1;
-    if (hOA_end == -1)
-      hOA_end = A - K;
-    int wOA_end = this->ow % (A - K + 1) - 1;
-    if (wOA_end == -1)
-      wOA_end = A - K;
-    int _t = _t2 * this->T + _T;
-    int _nt = _t % this->nt;
-    int _ht = _nt / this->wt;
-    int _wt = _nt % this->wt;
-
-    _n = _t / this->nt;
-    _oh = _ht * (A - K + 1);
-    _ow = _wt * (A - K + 1);
-    _hOA_end = (_ht < this->ht - 1) ? A - K : hOA_end;
-    _wOA_end = (_wt < this->wt - 1) ? A - K : wOA_end;
-  };
-
   // TODO: pause
   auto sync_on = [this](int _t2, int oc4) {
     MD(unsigned char, cntr, [this->t2][this->oc4], routput_cntr_);
@@ -795,7 +789,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(Type *output,
           ain[_wA][_hA][_V] = atoutput[_wA][_hA][_ic4][_oc][_T][_V];
         }}}
         int _n, _oh, _ow, _hOA_end, _wOA_end;
-        t2spat(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
+        t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
         Type *out = aoutput_tmp[_n][oc4][_ic4][_oc][_oh][_ow];
 
         if (bias == nullptr) {
@@ -821,7 +815,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(Type *output,
     for_each (_oc, this->oc3 * this->O2 / this->ic4) {
     for_each (_T, Tz) {
       int _n, _oh, _ow, _hOA_end, _wOA_end;
-      t2spat(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
+      t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
       for_each (_hA, _hOA_end + 1) {
       for_each (_wA, _wOA_end + 1) {
       for (int __ic4 = 1; __ic4 < this->ic4; __ic4++) {
@@ -861,27 +855,6 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_outputa_bh(
   MD(Type, abias, [this->oc2][V], bias);
   MD(Type, atoutputa2, [this->t2][A * (A - K + 1) * this->T * this->oc], toutputa);
 
-  // TODO: move to a common function
-  auto t2spat = [this](int _t2, int _T, int &_n, int &_oh, int &_ow,
-                    int &_hOA_end, int &_wOA_end) {
-    int hOA_end = this->oh % (A - K + 1) - 1;
-    if (hOA_end == -1)
-      hOA_end = A - K;
-    int wOA_end = this->ow % (A - K + 1) - 1;
-    if (wOA_end == -1)
-      wOA_end = A - K;
-    int _t = _t2 * this->T + _T;
-    int _nt = _t % this->nt;
-    int _ht = _nt / this->wt;
-    int _wt = _nt % this->wt;
-
-    _n = _t / this->nt;
-    _oh = _ht * (A - K + 1);
-    _ow = _wt * (A - K + 1);
-    _hOA_end = (_ht < this->ht - 1) ? A - K : hOA_end;
-    _wOA_end = (_wt < this->wt - 1) ? A - K : wOA_end;
-  };
-
 #pragma omp for nowait collapse(2)
   for_each (_t2, this->t2) {
   for_each (_oc2, this->oc2) {
@@ -890,7 +863,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_outputa_bh(
 
     for_each (_T, Tz) {
       int _n, _oh, _ow, _hOA_end, _wOA_end;
-      t2spat(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
+      t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
       Type *out = aoutput[_n][_oc2][_oh][_ow];
       using Array1 = Type[A][A - K + 1][V];
       Array1 *in = (Array1 *)atoutputa3[_oc2][_T];

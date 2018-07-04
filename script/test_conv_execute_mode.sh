@@ -40,6 +40,10 @@ function val_conv() {
   __val_conv 0xa201 0 0
   __val_conv 0xa201 2 9
   __val_conv 0xa201 1 18
+  __val_conv 0xa0e0 1 18
+  __val_conv 0xa0e0 2 9
+  __val_conv 0xa0e1 1 18
+  __val_conv 0xa0e1 2 9
 }
 
 vgg19_conv1_2=" -i64  -h224 -o64  -H224 "
