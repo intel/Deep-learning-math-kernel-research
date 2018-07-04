@@ -92,14 +92,14 @@ struct convolution_winograd_kernel {
   static void trans_outputa_th(elx_conv_t<Type>& xc,
       Type *toutputa, Type *toutput, int Tz, bool stream_out);
 
-  static void trans_outputa_bh(elx_conv_t<Type>& xc, Type* output,
+  static void trans_outputa_bh(elx_conv_t<Type> &xc, Type *output,
       Type atoutputa[A][A - K + 1][V], Type *bias, int _hOA_end, int _wOA_end);
 
   static void trans_weights(
       Type atweights[A][A][V][V], Type aweights[K][K][V][V]);
 
-  static void gemm(elx_conv_t<Type>& xc, Type* toutput, Type* tinput,
-      Type* tweights, bool zero_out);
+  static void gemm(elx_conv_t<Type> &xc, Type *toutput, Type *tinput,
+      Type *tweights, bool zero_out);
 
   // C
   template <const bool is_border_>

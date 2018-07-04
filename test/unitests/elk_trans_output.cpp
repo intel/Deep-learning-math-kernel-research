@@ -6,7 +6,7 @@
 #include "lest.hpp"
 #include "elt_unitests.hpp"
 #include "test/elt_utils.hpp"
-#include "src/elk_conv.hpp"
+#include "src/elk_conv_wino.hpp"
 #include "src/elx_conv.hpp"
 #include "src/elx_conv_wino.hpp"
 

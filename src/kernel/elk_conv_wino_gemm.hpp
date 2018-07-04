@@ -3,7 +3,7 @@
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
-#include "elk_conv.hpp"
+#include "elk_conv_wino.hpp"
 
 // blocking -
 // oc3, ic3, A * A, O2, I2, V, V
@@ -29,15 +29,6 @@ void elk_gemm_ker(
       }
     }
   }
-}
-
-template <D_GEMM(typename Type, const int T, const int V, const int I)>
-void convolution_winograd_kernel<R_GEMM(Type, T, V, I)>::gemm(
-    elx_conv_t<Type>& xc, Type* toutput, Type* tinput, Type* tweights,
-    bool zero_out)
-{
-  __gemm(winograd_template_parameter_t<R_GEMM(Type, T, V, I)>(), xc,
-      toutput, tinput, tweights, zero_out);
 }
 
 template <D_GEMM(typename Type, const int T, const int V, const int I)>
