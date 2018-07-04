@@ -5,6 +5,10 @@
 #include "elx_conv.hpp"
 #include "elk_conv_wino.hpp"
 
+#ifndef INCLUDE_WINOGRAD_CONVOLUTION_KERNEL
+#error "Don't include this file directly"
+#endif
+
 // blocking -
 // oc3, ic3, A * A, O2, I2, V, V
 // t2, A*A, ic3, I2, T, V

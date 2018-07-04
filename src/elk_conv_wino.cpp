@@ -83,6 +83,8 @@ void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::trans_weights(
 
 }
 
+#define INCLUDE_WINOGRAD_CONVOLUTION_KERNEL
+
 // Gemm kernel
 #include "kernel/elk_conv_wino_gemm.hxx"
 
