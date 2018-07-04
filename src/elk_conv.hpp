@@ -90,7 +90,7 @@ struct convolution_winograd_kernel {
       Type atoutput[A][A][V], Type *bias, int _hOA_end, int _wOA_end);
 
   static void trans_outputa_th(elx_conv_t<Type>& xc,
-      Type *toutputa, Type *toutput, int Tz);
+      Type *toutputa, Type *toutput, int Tz, bool stream_out);
 
   static void trans_outputa_bh(elx_conv_t<Type>& xc, Type* output,
       Type atoutputa[A][A - K + 1][V], Type *bias, int _hOA_end, int _wOA_end);
@@ -124,7 +124,8 @@ struct convolution_winograd_kernel {
   static inline void __trans_outputa_th(
       winograd_template_parameter_t<S_OUTPUT(
           float, 4, 3, 16, ISA_GENERIC, false, false)>,
-      elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz);
+      elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz,
+      bool stream_out);
 
   template <const bool is_border_, const bool with_bias_>
   static inline void __trans_outputa_bh(
@@ -159,7 +160,8 @@ struct convolution_winograd_kernel {
   static inline void __trans_outputa_th(
       winograd_template_parameter_t<S_OUTPUT(
           float, 5, 3, 16, ISA_GENERIC, false, false)>,
-      elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz);
+      elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz,
+      bool stream_out);
 
   template <const bool is_border_, const bool with_bias_>
   static inline void __trans_outputa_bh(
@@ -201,7 +203,8 @@ struct convolution_winograd_kernel {
   static inline void __trans_outputa_th(
       winograd_template_parameter_t<S_OUTPUT(
           float, 4, 3, 16, ISA_SKX_AVX512, false, false)>,
-      elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz);
+      elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz,
+      bool stream_out);
 
   template <const bool is_border_, const bool with_bias_>
   static inline void __trans_outputa_bh(
@@ -236,7 +239,8 @@ struct convolution_winograd_kernel {
   static inline void __trans_outputa_th(
       winograd_template_parameter_t<S_OUTPUT(
           float, 5, 3, 16, ISA_SKX_AVX512, false, false)>,
-      elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz);
+      elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz,
+      bool stream_out);
 
   template <const bool is_border_, const bool with_bias_>
   static inline void __trans_outputa_bh(
@@ -290,7 +294,7 @@ struct convolution_winograd_kernel {
   static inline void __trans_outputa_th(
       winograd_template_parameter_t<Type_, T_, A_, K_, V_, I_, is_border_,
           with_bias_>,
-      elx_conv_t<Type_> &, Type_ *, Type_ *, int)
+      elx_conv_t<Type_> &, Type_ *, Type_ *, int, bool)
   {
   }
 

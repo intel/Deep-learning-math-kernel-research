@@ -164,6 +164,9 @@ int  elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
   stream_wei_ = this->streaming_weights
       ? (this->streaming_weights == STORE_STREAMING)
       : !(xopt_ & FUS_MSK) ? true : false;
+  stream_out_ = this->streaming_output
+      ? (this->streaming_output == STORE_STREAMING)
+      : false;
 
   if (!(xopt_ & TTM_MSK)) {
     this->nthreads = mthr_;
@@ -843,7 +846,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_outputa_th(
   for_each (_oc, this->oc3 * this->O2) {
     for_each (_T, Tz) {
       ker_trans_outputa_th_(
-          *this, atoutputa[_oc][_T][0], atoutput[0][_oc][_T], Tz);
+          *this, atoutputa[_oc][_T][0], atoutput[0][_oc][_T], Tz, stream_out_);
     }
   }
 }

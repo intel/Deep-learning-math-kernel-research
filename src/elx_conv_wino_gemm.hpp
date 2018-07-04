@@ -91,6 +91,7 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   bool is_first_run_;
   bool inference_acc_;
   bool stream_in_;
+  bool stream_out_;
   bool stream_wei_;
   size_t mthr_;
   Type *tweights_;
