@@ -4,8 +4,7 @@
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
-#include "elx_conv_wino_prod.hpp"
-#include "elx_conv_wino_gemm.hpp"
+#include "elx_conv_wino.hpp"
 
 namespace euler {
 
@@ -98,10 +97,10 @@ int eld_conv_t<F>::setup() {
       // TODO: forward, backward_data, backward_weights
       switch (tile_size) {
       case 4:
-        xc = new elx_conv_wino_gemm_t<F, 4, 3, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_wino_t<F, 4, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       case 5:
-        xc = new elx_conv_wino_gemm_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_wino_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       default:
         el_error("Unimplemented tile size");

@@ -8,7 +8,7 @@
 #include "test/elt_utils.hpp"
 #include "src/elk_conv.hpp"
 #include "src/elx_conv.hpp"
-#include "src/elx_conv_wino_gemm.hpp"
+#include "src/elx_conv_wino.hpp"
 
 using namespace euler;
 
@@ -25,7 +25,7 @@ int test_elk_trans_output(bool perf, bool show_diff)
   desc.algorithm = CONV_WINOGRAD;
   desc.tile_size = 5;
   desc.with_relu = false;
-  elx_conv_wino_gemm_t<Type, A, K, V, I> xc(desc);
+  elx_conv_wino_t<Type, A, K, V, I> xc(desc);
 
   alignas(64) Type atoutput[A][A][V];
   alignas(64) Type abias[V];

@@ -8,7 +8,7 @@
 #include "test/elt_utils.hpp"
 #include "src/elk_conv.hpp"
 #include "src/elx_conv.hpp"
-#include "src/elx_conv_wino_gemm.hpp"
+#include "src/elx_conv_wino.hpp"
 
 
 using namespace euler;
@@ -30,7 +30,7 @@ int test_elk_gemm(bool perf, bool show_diff)
   desc.algorithm = CONV_WINOGRAD;
   desc.tile_size = 5;
   desc.with_relu = false;
-  elx_conv_wino_gemm_t<Type, 5, 3, V, I> xc(desc);
+  elx_conv_wino_t<Type, 5, 3, V, I> xc(desc);
   xc.T = T;
 
   Type *tinput, *tweights, *toutput;

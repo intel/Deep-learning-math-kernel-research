@@ -8,7 +8,7 @@
 #include "test/elt_utils.hpp"
 #include "src/elk_conv.hpp"
 #include "src/elx_conv.hpp"
-#include "src/elx_conv_wino_gemm.hpp"
+#include "src/elx_conv_wino.hpp"
 
 using namespace euler;
 

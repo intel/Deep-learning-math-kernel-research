@@ -8,7 +8,7 @@
 #include "test/elt_utils.hpp"
 #include "src/elk_conv.hpp"
 #include "src/elx_conv.hpp"
-#include "src/elx_conv_wino_gemm.hpp"
+#include "src/elx_conv_wino.hpp"
 
 using namespace euler;
 
@@ -27,7 +27,7 @@ int test_elk_trans_input(bool perf, bool show_diff)
   desc.tile_size = 5;
   desc.with_relu = false;
 
-  elx_conv_wino_gemm_t<Type, A, K, V, I> xc(desc);
+  elx_conv_wino_t<Type, A, K, V, I> xc(desc);
 
   Type atinput[A][A][V];
   Type ainput[xc.ih][xc.iw][V];

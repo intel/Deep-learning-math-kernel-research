@@ -10,10 +10,10 @@
 namespace euler {
 
 template <typename Type, const int A, const int K, const int V, const int I>
-class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
+class elx_conv_wino_t : public elx_conv_t<Type> {
   public:
-  elx_conv_wino_gemm_t(eld_conv_t<Type> &dc);
-  virtual ~elx_conv_wino_gemm_t();
+  elx_conv_wino_t(eld_conv_t<Type> &dc);
+  virtual ~elx_conv_wino_t();
 
   virtual void execute(Type *output, Type *input, Type *weights, Type *bias);
 
@@ -91,7 +91,7 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
           BORDER(true), BIAS(false))>::trans_outputa_bh) *ker_trans_outputa0_bh_;
 
-  void (elx_conv_wino_gemm_t::*execute_opt_)(Type *, Type *, Type *, Type *);
+  void (elx_conv_wino_t::*execute_opt_)(Type *, Type *, Type *, Type *);
 
   unsigned int xopt_;
   bool is_first_run_;
@@ -112,10 +112,10 @@ class elx_conv_wino_gemm_t : public elx_conv_t<Type> {
   struct { int start; int end; } ttm_[MAX_THREAD_TEAMS];
 };
 
-template class elx_conv_wino_gemm_t<float, 4, 3, 16, ISA_GENERIC>;
-template class elx_conv_wino_gemm_t<float, 4, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_gemm_t<float, 5, 3, 16, ISA_GENERIC>;
-template class elx_conv_wino_gemm_t<float, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<float, 4, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_t<float, 4, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<float, 5, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_t<float, 5, 3, 16, ISA_SKX_AVX512>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_WINO_GEMM_HPP__

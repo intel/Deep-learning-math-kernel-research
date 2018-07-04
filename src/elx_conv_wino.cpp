@@ -1,7 +1,7 @@
 #include <string.h>
 #include <x86intrin.h>
 #include "el_utils.hpp"
-#include "elx_conv_wino_gemm.hpp"
+#include "elx_conv_wino.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elk_conv.hpp"
@@ -64,7 +64,7 @@ const unsigned DUP_O   = 0x2;
 const unsigned DUP_W   = 0x8;
 
 template <typename Type, const int A, const int K, const int V, const int I>
-elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
+elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
     eld_conv_t<Type>& dc)
     : elx_conv_t<Type>(dc)
 {
@@ -136,7 +136,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::elx_conv_wino_gemm_t(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-int  elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
+int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
 {
   size_t tweights_size, tinput_size, toutput_size;
   size_t in_ndup = 1, wei_ndup = 1;
@@ -265,7 +265,7 @@ int  elx_conv_wino_gemm_t<Type, A, K, V, I>::prepare_execute_opt()
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::bind_execute_functions()
+void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 {
   ker_trans_input_ = convolution_winograd_kernel<S_INPUT(
       Type, A, K, V, I, BORDER(false))>::trans_input;
@@ -330,7 +330,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::bind_execute_functions()
 #define EXECUTE_CASE(n)                                                      \
   case 0x##n:                                                                \
     printf("execute_opt=" #n "\n");\
-    execute_opt_ = &elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_##n;   \
+    execute_opt_ = &elx_conv_wino_t<Type, A, K, V, I>::__execute_##n;   \
     break
 
   switch (xopt_) {
@@ -350,7 +350,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::bind_execute_functions()
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-elx_conv_wino_gemm_t<Type, A, K, V, I>::~elx_conv_wino_gemm_t()
+elx_conv_wino_t<Type, A, K, V, I>::~elx_conv_wino_t()
 {
   if (tweights_ != nullptr) {
     free(tweights_);
@@ -379,7 +379,7 @@ elx_conv_wino_gemm_t<Type, A, K, V, I>::~elx_conv_wino_gemm_t()
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::t2spato(int _t2, int _T, int &_n,
+void elx_conv_wino_t<Type, A, K, V, I>::t2spato(int _t2, int _T, int &_n,
     int &_oh, int &_ow, int &_hOA_end, int &_wOA_end)
 {
   int hOA_end = this->oh % (A - K + 1) - 1;
@@ -401,7 +401,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::t2spato(int _t2, int _T, int &_n,
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::t2spati(int _t2, int _T, int &_n,
+void elx_conv_wino_t<Type, A, K, V, I>::t2spati(int _t2, int _T, int &_n,
     int &_ih, int &_iw, int &_hA_start, int &_hA_end, int &_wA_start,
     int &_wA_end)
 {
@@ -424,7 +424,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::t2spati(int _t2, int _T, int &_n,
 
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights(
+void elx_conv_wino_t<Type, A, K, V, I>::trans_weights(
     Type *tweights, Type *weights, int oc4)
 {
   // oc2, ic2, hK, wK, V, V => oc4, ic4, oc3, ic3, wA, hA, O2, I2, V, V
@@ -466,7 +466,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weights(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weightsa(
+void elx_conv_wino_t<Type, A, K, V, I>::trans_weightsa(
     Type *tweights, Type *weights)
 {
   // oc2, ic2, hK, wK, V, V => oc4, ic4, wA, hA, oc3, ic3, O2, I2, V, V
@@ -508,7 +508,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_weightsa(
 
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__trans_input(
+void elx_conv_wino_t<Type, A, K, V, I>::__trans_input(
     Type *tinput, Type *input, int _t2, int Tz)
 {
   // n, ic2, ih, iw, V => t2=1, wA, hA, ic3, I2, T, V
@@ -550,7 +550,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__trans_input(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(
+void elx_conv_wino_t<Type, A, K, V, I>::trans_input(
     Type *tinput, Type *input, int _t2, int Tz)
 {
   MD(Type, ainput, [this->n][this->ic4][this->ic3][this->I2][this->ih][this->iw][V], input);
@@ -566,7 +566,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(
 
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(
+void elx_conv_wino_t<Type, A, K, V, I>::trans_input(
     Type *tinput, Type *input)
 {
   MD(Type, ainput, [this->n][this->ic4][this->ic3][this->I2][this->ih][this->iw][V], input);
@@ -586,7 +586,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_input(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_inputa(
+void elx_conv_wino_t<Type, A, K, V, I>::trans_inputa(
     Type *tinput, Type *input, int _t2, int _wA, int Tz)
 {
   // n, ic2, ih, iw, V => t2, wA, | hA, ic3, I2, T, V
@@ -628,7 +628,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_inputa(
 }
  
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemm(
+void elx_conv_wino_t<Type, A, K, V, I>::gemm(
     Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz)
 {
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
@@ -652,7 +652,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemm(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemm(
+void elx_conv_wino_t<Type, A, K, V, I>::gemm(
     Type *toutput, Type *tinput, Type *tweights)
 {
   MD(Type, atinput2, [this->t2][A * A * this->T * this->ic], tinput);
@@ -686,7 +686,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemm(
 // tinputs:       t2, A | A, ic3, I2, T, V
 // toutput:  t2, oc4, A | A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemma(
+void elx_conv_wino_t<Type, A, K, V, I>::gemma(
     Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz)
 {
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
@@ -704,7 +704,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::gemma(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__trans_output(
+void elx_conv_wino_t<Type, A, K, V, I>::__trans_output(
     Type *output, Type *toutput, Type *bias, int _t2, int Tz)
 {
   // A, A, oc3, O2, T, V -> n, oc2, oh, ow, V
@@ -736,7 +736,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__trans_output(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
+void elx_conv_wino_t<Type, A, K, V, I>::trans_output(
     Type *output, Type *toutput, Type *bias, int _t2, int Tz)
 {
   MD(Type, aoutput, [this->n][this->oc4][this->oc3][this->O2][this->oh][this->ow][V], output);
@@ -752,7 +752,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(Type *output,
+void elx_conv_wino_t<Type, A, K, V, I>::trans_output(Type *output,
     Type *output_tmp, Type *toutput, Type *bias, int _t2, int Tz, int ic4,
     int oc4, bool inline_reduce)
 {
@@ -831,7 +831,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(Type *output,
 // toutput:  mthr | hA/A, oc3, O2, T, V
 // toutputa: t2, oc4 | oc3, O2, T, wA/A | hA/A-K+1, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_outputa_th(
+void elx_conv_wino_t<Type, A, K, V, I>::trans_outputa_th(
     Type *toutputa, Type *toutput, int Tz)
 {
   MD(Type, atoutput, [A][this->oc3 * this->O2][Tz][V], toutput);
@@ -848,7 +848,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_outputa_th(
 // output: n, oc2, h, w, V
 // toutputa: t2, oc2, T, wA/A | hA/A-K+1, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_outputa_bh(
+void elx_conv_wino_t<Type, A, K, V, I>::trans_outputa_bh(
     Type *output, Type *toutputa, Type *bias)
 {
   MD(Type, aoutput, [this->n][this->oc2][this->oh][this->ow][V], output);
@@ -877,7 +877,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_outputa_bh(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
+void elx_conv_wino_t<Type, A, K, V, I>::trans_output(
     Type *output, Type *toutput, Type *bias)
 {
   MD(Type, aoutput, [this->n][this->oc4][this->oc3][this->O2][this->oh][this->ow][V], output);
@@ -902,7 +902,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output(
 #if 0
 // toutput:  t2, oc4, A, A | oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output_a0e1(
+void elx_conv_wino_t<Type, A, K, V, I>::trans_output_a0e1(
     Type *output, Type *toutput, Type *bias)
 {
   MD(Type, aoutput, [this->n][this->oc4][this->oc3][this->O2][this->oh][this->ow][V], output);
@@ -932,7 +932,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::trans_output_a0e1(
 // tinputs:  t2, A, A, ic3, I2, T, V
 // toutput:  t2, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a040(
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_a040(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, atinput2, [mthr_][A * A * this->T * this->ic], tinput_);
@@ -964,7 +964,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a040(
 // tinputs:  t2, A, A, ic3, I2, T, V
 // toutput:  t2, oc4, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a061(
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_a061(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, atinput2, [mthr_][A * A * this->T * this->ic], tinput_);
@@ -1002,7 +1002,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a061(
 // toutput:  t2, oc4, wA | hA, oc3, O2, T, V
 // toutputa: t2, oc4, oc3, O2, T, wA, hA, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a0e1(
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_a0e1(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, atinputa2, [mthr_][A * this->T * this->ic], tinput_);
@@ -1039,7 +1039,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a0e1(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a0e0(
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_a0e0(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, atinput2, [this->t2][A * A * this->T * this->ic], tinput_);
@@ -1082,7 +1082,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a0e0(
 // tinputs:  t2, ic4, A, A, ic3, I2, T, V
 // toutput:  t2, oc4, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a073(
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_a073(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, atinput2, [mthr_][A * A * this->T * this->ic3 * this->I2 * V], tinput_);
@@ -1148,7 +1148,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a073(
 // Thread-teaming along 't' dimension. TODO: ttm along 'o'
 // Fuse trans-input, gemm and trans-output along 't' dimension
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a448(
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_a448(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, atinput3, [this->nteams][this->nthreads][A * A * this->T * this->ic], tinput_);
@@ -1180,7 +1180,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a448(
 
 // Flat mode
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a000(
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_a000(
     Type *output, Type *input, Type *weights, Type *bias)
 {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
@@ -1203,7 +1203,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a000(
 // tinputs:  nteams, t2, A, A, ic3, I2, T, V (dup)
 // toutput:  nteams, t2, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a201(
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_a201(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, aoutput3, [this->n][this->nteams][this->oc * this->oh * this->ow / this->nteams], output);
@@ -1231,7 +1231,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a201(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a241(
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_a241(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD(Type, aoutput3, [this->n][this->nteams][this->oc * this->oh * this->ow / this->nteams], output);
@@ -1267,7 +1267,7 @@ void elx_conv_wino_gemm_t<Type, A, K, V, I>::__execute_a241(
 
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_gemm_t<Type, A, K, V, I>::execute(
+void elx_conv_wino_t<Type, A, K, V, I>::execute(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   (this->*execute_opt_)(output, input, weights, bias);
