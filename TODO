@@ -1,19 +1,26 @@
-- Shape specialization
+Wino:
 - Tile-size: 6
 
-- blocking
+Blocking:
 - tail oc/ic handling
 
+Build:
 - arch-specific compiling option
 
+Fusion:
 - relu
 - sum
 
-- move convolutoin_winograd_kernels into wino_gemm (?)
-- move elk_product_trans_output into convolutoin_winograd_kernels
-
-- effective tflops
-
+OMP:
 - kmp_malloc(?) allocate from thread-local heap
 - omp_in_final()
 - omp_get_num_procs
+
+Modularity (2018-07-05):
+- trans_input/trans_output: common function for offset computing
+- code reorg, break transform kernels into small kernel files:
+  elk_trans_3x3_3x3.cpp
+  elk_trans_4x4_3x3.cpp
+  ...
+- prepare_execute_opt: enhance memory size computation/allocation
+- conditional build for C kernels and AVX512 kernels
