@@ -5,10 +5,10 @@
 #include "euler.hpp"
 #include "lest.hpp"
 #include "elt_unitests.hpp"
-#include "../elt_utils.hpp"
-#include "../../src/elk_conv.hpp"
-#include "../../src/elx_conv.hpp"
-#include "../../src/elx_conv_wino_gemm.hpp"
+#include "test/elt_utils.hpp"
+#include "src/elk_conv.hpp"
+#include "src/elx_conv.hpp"
+#include "src/elx_conv_wino_gemm.hpp"
 
 using namespace euler;
 

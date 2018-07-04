@@ -34,6 +34,7 @@ FOREACH(__test_lib ${__test_libs})
     DOC "The path to library ${__test_lib}")
   LIST(APPEND test_dependency_libs ${__test_lib})
 ENDFOREACH()
+LIST(APPEND test_dependency_libs ${Boost_LIBRARIES})
 
 # find test/utest src files
 SET(test_src_dir "${CMAKE_SOURCE_DIR}/test")
@@ -46,20 +47,22 @@ ENDFOREACH()
 
 # find test includes
 SET(test_include_dirs "${CMAKE_SOURCE_DIR}/include")
-LIST(APPEND test_include_dirs ${test_src_dir})
+LIST(APPEND test_include_dirs ${Boost_INCLUDE_DIR} ${CMAKE_SOURCE_DIR})
 
 # build test
 SET(test_name elt_conv)
 ADD_EXECUTABLE(${test_name} ${test_src_files})
-TARGET_INCLUDE_DIRECTORIES(${test_name} PUBLIC ${test_include_dirs} ${Boost_INCLUDE_DIR})
-TARGET_LINK_LIBRARIES(${test_name} PUBLIC ${test_dependency_libs} ${Boost_LIBRARIES})
+TARGET_INCLUDE_DIRECTORIES(${test_name} PUBLIC ${test_include_dirs})
+TARGET_LINK_LIBRARIES(${test_name} PUBLIC ${test_dependency_libs})
 
 # find utest includes
 SET(utest_include_dirs "${CMAKE_SOURCE_DIR}/include")
-LIST(APPEND utest_include_dirs ${utest_src_dir})
+LIST(APPEND utest_include_dirs ${Boost_INCLUDE_DIR} ${CMAKE_SOURCE_DIR})
 
 # build utest
 SET(utest_name elt_unitests)
 ADD_EXECUTABLE(${utest_name} ${utest_src_files})
-TARGET_INCLUDE_DIRECTORIES(${utest_name} PUBLIC ${utest_include_dirs} ${Boost_INCLUDE_DIR})
-TARGET_LINK_LIBRARIES(${utest_name} PUBLIC ${test_dependency_libs} ${Boost_LIBRARIES})
+TARGET_INCLUDE_DIRECTORIES(${utest_name} PUBLIC ${utest_include_dirs})
+TARGET_LINK_LIBRARIES(${utest_name} PUBLIC ${test_dependency_libs})
+
+INSTALL(TARGETS ${test_name} ${utest_name} RUNTIME DESTINATION bin)

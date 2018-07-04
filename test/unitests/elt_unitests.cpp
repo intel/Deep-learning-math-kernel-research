@@ -4,9 +4,9 @@
 #include "euler.hpp"
 #include "elt_unitests.hpp"
 #include "lest.hpp"
-#include "../elt_utils.hpp"
-#include "../../src/elx_conv.hpp"
-#include "../../src/elk_conv.hpp"
+#include "test/elt_utils.hpp"
+#include "src/elx_conv.hpp"
+#include "src/elk_conv.hpp"
 
 using namespace std;
 using namespace euler;

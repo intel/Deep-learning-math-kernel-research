@@ -1,0 +1,10 @@
+#tags files
+GPATH
+GTAGS
+GRTAGS
+tags
+cscope.*
+.ycm_extra_conf.py
+
+#build path
+build/*

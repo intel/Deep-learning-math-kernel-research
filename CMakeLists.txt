@@ -89,11 +89,15 @@ FILE(GLOB_RECURSE euler_src_files ${src_dir}/*.cpp)
 
 # find include dirs
 SET(euler_include_dirs "${CMAKE_SOURCE_DIR}/include")
-LIST(APPEND euler_include_dirs ${src_dir})
+LIST(APPEND euler_include_dirs ${src_dir} ${CMAKE_SOURCE_DIR})
 
 # build lib
 ADD_LIBRARY(${lib_name} SHARED ${euler_src_files})
 TARGET_INCLUDE_DIRECTORIES(${lib_name} PUBLIC ${euler_include_dirs})
 TARGET_LINK_LIBRARIES(${lib_name} PUBLIC ${euler_dependency_libs})
+INSTALL(TARGETS ${lib_name} LIBRARY DESTINATION lib)
+
+FILE(GLOB_RECURSE h_files ${CMAKE_SOURCE_DIR}/include/*.hpp)
+INSTALL(FILES ${h_files} DESTINATION include)
 
 ADD_SUBDIRECTORY(test)
