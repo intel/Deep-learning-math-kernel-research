@@ -55,12 +55,6 @@ class elx_conv_wino_t : public elx_conv_t<Type> {
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  // Helpers for input/outout offset computing
-  inline void t2spati(int _t2, int _T, int &_n, int &_ih, int &_iw,
-      int &_hA_start, int &_hA_end, int &_wA_start, int &_wA_end);
-  inline void t2spato(int _t2, int _T, int &_n, int &_oh, int &_ow,
-      int &_hOA_end, int &_wOA_end);
-
   decltype(
       convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_;
   decltype(
@@ -106,6 +100,11 @@ class elx_conv_wino_t : public elx_conv_t<Type> {
   Type *routput_; // reduce output
   Type *toutputa_;
   unsigned char *routput_cntr_;
+
+  int hOA_end_;
+  int wOA_end_;
+  int hA_end_;
+  int wA_end_;
 
 #define MAX_THREAD_TEAMS (8)
   // tasks allocation per thread team

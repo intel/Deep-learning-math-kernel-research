@@ -78,6 +78,13 @@ elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
   this->nt = this->ht * this->wt;
   this->t = this->nt * this->n;
 
+  hOA_end_ = this->oh % (A - K + 1) - 1;
+  if (hOA_end_ == -1) hOA_end_ = A - K;
+  wOA_end_ = this->ow % (A - K + 1) - 1;
+  if (wOA_end_ == -1) wOA_end_ = A - K;
+  hA_end_ = (this->ih + this->lp) - (this->ht - 1) * (A - K + 1) - 1;
+  wA_end_ = (this->iw + this->tp) - (this->wt - 1) * (A - K + 1) - 1;
+
   // trans-buffer blocking
   // ic: ic3, I2, V
   // oc: oc3, O2, V
@@ -378,50 +385,34 @@ elx_conv_wino_t<Type, A, K, V, I>::~elx_conv_wino_t()
   }
 }
 
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::t2spato(int _t2, int _T, int &_n,
-    int &_oh, int &_ow, int &_hOA_end, int &_wOA_end)
-{
-  int hOA_end = this->oh % (A - K + 1) - 1;
-  if (hOA_end == -1)
-    hOA_end = A - K;
-  int wOA_end = this->ow % (A - K + 1) - 1;
-  if (wOA_end == -1)
-    wOA_end = A - K;
-  int _t = _t2 * this->T + _T;
-  int _nt = _t % this->nt;
-  int _ht = _nt / this->wt;
-  int _wt = _nt % this->wt;
+#define t2spato(__t2, __T, __n, __oh, __ow, __hOA_end, __wOA_end)            \
+  do {                                                                       \
+    int _t = __t2 * this->T + __T;                                           \
+    int _nt = _t % this->nt;                                                 \
+    int _ht = _nt / this->wt;                                                \
+    int _wt = _nt % this->wt;                                                \
+    __n = _t / this->nt;                                                     \
+    __oh = _ht * (A - K + 1);                                                \
+    __ow = _wt * (A - K + 1);                                                \
+    __hOA_end = (_ht < this->ht - 1) ? A - K : hOA_end_;                     \
+    __wOA_end = (_wt < this->wt - 1) ? A - K : wOA_end_;                     \
+  } while (0)
 
-  _n = _t / this->nt;
-  _oh = _ht * (A - K + 1);
-  _ow = _wt * (A - K + 1);
-  _hOA_end = (_ht < this->ht - 1) ? A - K : hOA_end;
-  _wOA_end = (_wt < this->wt - 1) ? A - K : wOA_end;
-}
-
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::t2spati(int _t2, int _T, int &_n,
-    int &_ih, int &_iw, int &_hA_start, int &_hA_end, int &_wA_start,
-    int &_wA_end)
-{
-  int hA_end = (this->ih + this->lp) - (this->ht - 1) * (A - K + 1) - 1;
-  int wA_end = (this->iw + this->tp) - (this->wt - 1) * (A - K + 1) - 1;
-
-  int _t = _t2 * this->T + _T;
-  int _nt = _t % this->nt;
-  int _ht = _nt / this->wt;
-  int _wt = _nt % this->wt;
-
-  _n = _t / this->nt;
-  _ih = _ht * (A - K + 1) - this->lp; // may < 0
-  _iw = _wt * (A - K + 1) - this->tp;
-  _hA_start = (_ht > 0) ? 0 : this->lp;
-  _wA_start = (_wt > 0) ? 0 : this->tp;
-  _hA_end = (_ht < this->ht - 1) ? A - 1 : hA_end;
-  _wA_end = (_wt < this->wt - 1) ? A - 1 : wA_end;
-}
-
+#define t2spati(                                                             \
+    __t2, __T, __n, __ih, __iw, __hA_start, __hA_end, __wA_start, __wA_end)  \
+  do {                                                                       \
+    int _t = __t2 * this->T + __T;                                           \
+    int _nt = _t % this->nt;                                                 \
+    int _ht = _nt / this->wt;                                                \
+    int _wt = _nt % this->wt;                                                \
+    __n = _t / this->nt;                                                     \
+    __ih = _ht * (A - K + 1) - this->lp;                                     \
+    __iw = _wt * (A - K + 1) - this->tp;                                     \
+    __hA_start = (_ht > 0) ? 0 : this->lp;                                   \
+    __wA_start = (_wt > 0) ? 0 : this->tp;                                   \
+    __hA_end = (_ht < this->ht - 1) ? A - 1 : hA_end_;                       \
+    __wA_end = (_wt < this->wt - 1) ? A - 1 : wA_end_;                       \
+  } while (0)
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::trans_weights(
