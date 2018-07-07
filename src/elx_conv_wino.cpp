@@ -121,8 +121,8 @@ elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
   inference_acc_ = this->prop_kind == forward_inference;
 
   // TODO: add tailing?
-  //this->oc4 = 1;
-  //this->ic4 = 1;
+  this->oc4 = this->oc4 == 0 ? 1 : this->oc4;
+  this->ic4 = this->ic4 == 0 ? 1 : this->ic4;
   this->oc3 = this->oc / (this->O2 * V);
   this->ic3 = this->ic / (this->I2 * V);
   this->t2 = (this->t + this->T - 1) / this->T;
@@ -145,9 +145,9 @@ elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
 template <typename Type, const int A, const int K, const int V, const int I>
 int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
 {
-  size_t tweights_size, tinput_size, toutput_size;
-  size_t in_ndup = 1, wei_ndup = 1;
-  size_t num_t = 0, num_i = this->ic, num_o = this->oc;
+  size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
+  size_t routput_size = 0, toutputa_size = 0;
+  size_t l1_usage = 0, l2_usage = 0;
 
   auto divide_tasks_ttm = [this](size_t tasks) {
     size_t ntasks_base = tasks / this->nteams;
@@ -188,85 +188,129 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
       this->nthreads = mthr_;
       this->nteams = 1;
     } else {
+      // igore user --pat-o=oc4
       this->oc3 /= this->nteams;
       this->oc4 = this->nteams;
     }
   }
-
-  if (!(xopt_ & FUS_MSK)) {
-    num_t = this->t2;
-  }
-  if (xopt_ & FUS_T) {
-    num_t = this->nteams * this->nthreads;
-  }
   if (xopt_ & FUS_O) {
     this->oc3 /= this->oc4;
-    num_o = this->oc / this->oc4;
-    // TODO: move this check outside
     if (V * this->O2 * this->oc3 * this->oc4 != this->oc) {
       el_error("Config error!");
       return -1;
     }
-  } else {
-    this->oc4 = 1;
   }
-
   if (xopt_ & FUS_I) {
     this->ic3 /= this->ic4;
-    num_i = this->ic / this->ic4;
     if (V * this->I2 * this->ic3 * this->ic4 != this->ic) {
       el_error("Config error!");
       return -1;
     }
-  } else {
-    this->ic4 = 1;
   }
 
-  if (xopt_ & DUP_I) {
-    if (!(xopt_ & FUS_T))
-      in_ndup = this->nteams;
-  }
-  if (xopt_ & DUP_O) {
-    size_t routput_size = sizeof(Type) * this->n * this->oc * this-> oh * this->ow * (this->ic4 - 1);
-    MEMALIGN64(&routput_, routput_size);
+  tweights_ = nullptr;
+  tinput_ = nullptr;
+  toutput_ = nullptr;
+  toutputa_ = nullptr;
+  routput_ = nullptr;
+  routput_cntr_ = nullptr;
+  l1_usage = sizeof(Type)
+      * (this->O2 * this->I2 * V * V + this->T * V * (this->I2 + this->O2));
+
+  switch (xopt_) {
+  case 0xa000:
+    tweights_size = A * A * this->ic * this->oc;
+    tinput_size = A * A * this->ic * this->t;
+    toutput_size = A * A * this->oc * this->t;
+    l2_usage = this->ic * this->oc / this->oc3
+        + this->T * (this->ic + this->oc / this->oc3);
+    break;
+  case 0xa040:
+    tweights_size = A * A * this->ic * this->oc;
+    tinput_size = A * A * this->ic * this->T * mthr_;
+    toutput_size = A * A * this->oc * this->T * mthr_;
+    l2_usage = tweights_size + A * A * this->T * (this->ic + this->oc);
+    break;
+  case 0xa061:
+    tweights_size = A * A * this->ic * this->oc;
+    tinput_size = A * A * this->ic * this->T * mthr_;
+    toutput_size = A * A * (this->oc / this->oc4) * this->T * mthr_;
+    l2_usage = tweights_size / this->oc4
+        + A * A * this->T * (this->ic + this->oc / this->oc4);
+    break;
+  case 0xa073:
+    tweights_size = A * A * this->ic * this->oc;
+    tinput_size = A * A * (this->ic / this->ic4) * this->T * mthr_;
+    toutput_size = A * A * (this->oc / this->oc4) * this->T * mthr_;
+    routput_size = this->n * this->oc * this->oh * this->ow * (this->ic4 - 1);
     routput_cntr_ = (unsigned char *)malloc(this->t2 * this->oc4);
-  } else {
-    routput_ = nullptr;
-    routput_cntr_ = nullptr;
-  }
-  if (xopt_ & DUP_W) {
-    if (xopt_ & TTM_MSK)
-      wei_ndup = this->nteams;
-    else
-      wei_ndup = this->nthreads;
+    l2_usage = tweights_size / this->ic4 / this->oc4
+        + A * A * this->T * (this->ic / this->ic4 + this->oc / this->oc4);
+    break;
+  case 0xa0e0:
+    tweights_size = A * A * this->ic * this->oc;
+    tinput_size = A * A * this->ic * this->t;
+    toutput_size = A * (this->oc / this->oc4) * this->T * mthr_;
+    toutputa_size = A * (A - K + 1) * this->oc * this->t;
+    l2_usage = tweights_size / this->oc4 / A
+        + A * this->T * (this->ic + this->oc / this->oc4);
+    break;
+  case 0xa0e1:
+    tweights_size = A * A * this->ic * this->oc;
+    tinput_size = A * this->ic * this->T * mthr_;
+    toutput_size = A * (this->oc / this->oc4) * this->T * mthr_;
+    toutputa_size = A * (A - K + 1) * this->oc * this->t;
+    l2_usage = tweights_size / this->oc4 / A
+        + A * this->T * (this->ic + this->oc / this->oc4);
+    break;
+  case 0xa201:
+    tweights_size = A * A * this->ic * this->oc;
+    tinput_size = A * A * this->ic * this->T * this->t2 * this->nteams;
+    toutput_size = A * A * this->oc * this->T * this->t2;
+    l2_usage = this->ic * this->oc / this->oc3 / this->oc4
+        + this->T * (this->ic + this->oc / this->oc3 / this->oc4);
+    break;
+  case 0xa241:
+    tweights_size = A * A * this->ic * this->oc;
+    tinput_size = A * A * this->ic * this->T * mthr_;
+    toutput_size = A * A * this->oc * this->T * mthr_;
+    l2_usage = tweights_size / this->oc4
+        + A * A * this->T * (this->ic + this->oc / this->oc4);
+    break;
+  case 0xa448:
+    tweights_size = A * A * this->ic * this->oc * this->nteams;
+    tinput_size = A * A * this->ic * this->T * mthr_;
+    toutput_size = A * A * this->oc * this->T * mthr_;
+    l2_usage = tweights_size / this->nteams
+        + A * A * this->T * (this->ic + this->oc);
+    break;
+  default:
+      el_error("Config error!");
+      return -1;
+    break;
   }
 
-  tweights_size = sizeof(Type) * A * A * this->ic * this->oc * wei_ndup;
-  tinput_size  = sizeof(Type) * A * A * this->T * num_t * num_i * in_ndup;
-  toutput_size = sizeof(Type) * A * A * this->T * num_t * num_o;
+  l2_usage *= sizeof(Type);
 
-  // TODO
-  if (xopt_ == 0xa0e1 || xopt_ == 0xa0e0) {
-    if (xopt_ == 0xa0e1)
-      tinput_size = mthr_ * A * this->ic * this->T * sizeof(Type);
-    else
-      tinput_size = this->t2 * A * A * this->ic * this->T * sizeof(Type);
-    toutput_size = mthr_ * A * this->oc3 * this->O2 * this->T * V * sizeof(Type);
-    size_t toutputa_size = sizeof(Type) * this->t2 * this->oc * A * (A - K + 1) * this->T;
-    MEMALIGN64(&toutputa_, toutputa_size);
-  } else {
-    toutputa_ = nullptr;
+  if (tweights_size > 0) {
+    MEMALIGN64(&tweights_, tweights_size * sizeof(Type));
   }
-
-  MEMALIGN64(&tweights_, tweights_size);
-  MEMALIGN64(&tinput_, tinput_size);
-  MEMALIGN64(&toutput_, toutput_size);
+  if (tinput_size > 0) {
+    MEMALIGN64(&tinput_, tinput_size * sizeof(Type));
+  }
+  if (toutput_size > 0) {
+    MEMALIGN64(&toutput_, toutput_size * sizeof(Type));
+  }
+  if (routput_size > 0) {
+    MEMALIGN64(&routput_, routput_size * sizeof(Type));
+  }
+  if (toutputa_size > 0) {
+    MEMALIGN64(&toutputa_, toutputa_size * sizeof(Type));
+  }
 
   // dbg
   printf("nteams=%d, nthreads=%d, mthr_=%ld\n", this->nteams, this->nthreads, mthr_);
-  size_t l2_usage = tweights_size / this->nteams + sizeof(Type) * A * A * this->T * (this->ic + this->oc);
-  size_t l1_usage = sizeof(Type) * this->O2 * this->I2 * V * V + sizeof(Type) * this->T * V * (this->I2 + this->O2);
-  printf("l2_usage=%ld, l1_usage=%ld, tinput_size=%ld, tweights_size=%ld\n", l2_usage, l1_usage, tinput_size, tweights_size);
+  printf("l2_usage=%ld, l1_usage=%ld\n", l2_usage, l1_usage);
 
   return 0;
 }
