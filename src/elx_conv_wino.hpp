@@ -29,16 +29,22 @@ class elx_conv_wino_t : public elx_conv_t<Type> {
   void __execute_a241(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a448(Type *output, Type *input, Type *weights, Type *bias);
 
-  inline void __trans_input(Type *tinput, Type *input, int _t2, int Tz);
+  inline void __trans_input_plain(Type *tinput, Type *input, int _t2, int Tz);
+  inline void __trans_input_blocked(Type *tinput, Type *input, int _t2, int Tz);
   void trans_input(Type *tinput, Type *input, int _t2, int Tz);
   void trans_input(Type *tinput, Type *input);
 
-  inline void __trans_output(
+  inline void __trans_output_plain(
+      Type *output, Type *toutput, Type *bias, int _t2, int Tz);
+  inline void __trans_output_blocked(
       Type *output, Type *toutput, Type *bias, int _t2, int Tz);
   void trans_output(Type *output, Type *toutput, Type *bias, int _t2, int Tz);
   void trans_output(Type *res, Type *output, Type *toutput, Type *bias,
       int _t2, int Tz, int ic4, int oc4, bool inline_reduce);
   void trans_output(Type *output, Type *toutput, Type *bias);
+
+  inline void __trans_weights_plain(Type *tweights, Type *weights, int oc4);
+  inline void __trans_weights_blocked(Type *tweights, Type *weights, int oc4);
   void trans_weights(Type *tweights, Type *weights, int oc4 = 1);
 
   void gemm(
@@ -93,6 +99,7 @@ class elx_conv_wino_t : public elx_conv_t<Type> {
   bool stream_in_;
   bool stream_out_;
   bool stream_wei_;
+  bool is_blocked_fmt_;
   size_t mthr_;
   Type *tweights_;
   Type *tinput_;

@@ -52,6 +52,12 @@ namespace test {
     return -1;
   }
 
+  template <typename Type>
+  int compare_conv_results(eld_conv_t<Type> &, Type *, Type *)
+  {
+    return -1;
+  }
+
   template <>
   int compare_conv_results_block16<float>(
       eld_conv_t<float> &desc, float *out, float *ref)
@@ -62,7 +68,7 @@ namespace test {
     Array *aref = (Array *)ref;
 
 #define MAX_PRINT_ERRORS (20)
-    int errors = 0;
+    size_t errors = 0;
 
 #pragma omp parallel for collapse(3)
     for_each (_n, dims.n) {
@@ -89,12 +95,55 @@ namespace test {
     }
 
     if (errors > 0) {
-      printf("Error: number of errors: %d/%d, percentage: %f%%\n", errors,
+      printf("Error: number of errors: %ld/%ld, percentage: %f%%\n", errors,
           desc.sizes.output, ((errors * 1.0) / desc.sizes.output) * 100.0);
       return -1;
     }
     return 0;
   }
+
+  template <>
+  int compare_conv_results<float>(
+      eld_conv_t<float> &desc, float *out, float *ref)
+  {
+    auto dims = desc.dims.output;
+    using Array = float[dims.n][dims.c][dims.h][dims.w];
+    Array *aout = (Array *)out;
+    Array *aref = (Array *)ref;
+
+#define MAX_PRINT_ERRORS (20)
+    size_t errors = 0;
+
+#pragma omp parallel for collapse(3)
+    for_each (_n, dims.n) {
+      for_each (_c, dims.c) {
+        for_each (_h, dims.h) {
+          for_each (_w, dims.w) {
+            double delta = fabs(
+                (*aout)[_n][_c][_h][_w] - (*aref)[_n][_c][_h][_w]);
+            double rel_diff = delta / fabs((*aref)[_n][_c][_h][_w]);
+            if (rel_diff > 1e-6) {
+              if (errors < MAX_PRINT_ERRORS) {
+                printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
+                       "delta=%g, rel_diff=%g\n",
+                    _n, _c, _h, _w, (*aout)[_n][_c][_h][_w],
+                    (*aref)[_n][_c][_h][_w], delta, rel_diff);
+              }
+              errors++;
+            }
+          }
+        }
+      }
+    }
+
+    if (errors > 0) {
+      printf("Error: number of errors: %ld/%ld, percentage: %f%%\n", errors,
+          desc.sizes.output, ((errors * 1.0) / desc.sizes.output) * 100.0);
+      return -1;
+    }
+    return 0;
+  }
+
 
   size_t cal_ops(eld_conv_t<float> &desc)
   {

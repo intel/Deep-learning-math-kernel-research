@@ -126,12 +126,18 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
   __m512 z6 = _mm512_set_ps(IMM_BCAST16(6.0f));
 
   auto f_cb = [&](int _h, int _w) {
-    MD(float, ainput, [xc.ih][xc.iw][16], input);
-    if (is_border_
-        && (_h < _hT_start || _w < _wT_start || _h > _hT_end || _w > _wT_end))
-      return z0;
-    else
+    if (_wT_end == -1) {
+      MD(float, ainput, [A][A][16], input);
       return _mm512_load_ps(ainput[_h][_w]);
+    } else {
+      MD(float, ainput, [xc.ih][xc.iw][16], input);
+      if (is_border_
+          && (_h < _hT_start || _w < _wT_start || _h > _hT_end
+                 || _w > _wT_end))
+        return z0;
+      else
+        return _mm512_load_ps(ainput[_h][_w]);
+    }
   };
 
 #undef F

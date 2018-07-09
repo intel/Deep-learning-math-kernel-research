@@ -17,6 +17,7 @@ int mb = 0, ic = 0, ih = 0, iw = 0, oc = 0, oh = 0, ow = 0, kh = 3, kw = 3;
 int ph = 1, pw = 1, sh = 1, sw = 1, dh = 1, dw = 1;
 bool with_bias = true, with_relu = false;
 int prop_kind = forward_inference, alg = CONV_WINOGRAD;
+int input_fmt = nChw16c, weights_fmt = OIhw16i16o, output_fmt = nChw16c;
 int nteams = 0, nthreads = 0;
 int execution_mode = 0;
 int blk_i = 0, blk_o = 0, blk_t = 0;
@@ -37,7 +38,7 @@ int main(int argc, char **argv)
                 .weights = { oc, ic, kh, kw },
                 .output  = { mb, oc, oh, ow },
                 .bias    = { oc } };
-  desc.formats = { .input = nChw16c, .weights = OIhw16i16o, .output = nChw16c };
+  desc.formats = { .input = input_fmt, .weights = weights_fmt, .output = output_fmt };
   desc.pads = { ph, ph, pw, pw };
   desc.with_bias = with_bias;
   desc.with_relu = with_relu;
@@ -76,13 +77,24 @@ int main(int argc, char **argv)
   if (validate_results) {
     printf("Validation: ");
     float *ref_output = (float *)memalign(64, desc.byte_sizes.output);
-    if (test::ref_convolution2d_block16<float>(
-            desc, ref_output, input, weights, bias))
-      printf("Fail: Convolution ref execution error!\n");
-    else if (test::compare_conv_results_block16(desc, output, ref_output))
-      printf("Fail: Convolution results not correct!\n");
-    else
-      printf("Convolution Pass!\n");
+    if (input_fmt == nChw16c) {
+      if (test::ref_convolution2d_block16<float>(
+              desc, ref_output, input, weights, bias))
+        printf("Fail: Convolution ref execution error!\n");
+      else if (test::compare_conv_results_block16(desc, output, ref_output))
+        printf("Fail: Convolution results not correct!\n");
+      else
+        printf("Convolution Pass!\n");
+    } else if (input_fmt == nchw) {
+      if (test::ref_convolution2d<float>(
+              desc, ref_output, input, weights, bias))
+        printf("Fail: Convolution ref execution error!\n");
+      else if (test::compare_conv_results(desc, output, ref_output))
+        printf("Fail: Convolution results not correct!\n");
+      else
+        printf("Convolution Pass!\n");
+
+    }
     free(ref_output);
   }
   test::teardown_conv_data(input, weights, output, bias);
@@ -124,7 +136,9 @@ int parse_cmd_options(int argc, char **argv) {
     ("pat-o", po::value<int>(&pat_o), "Partition on oc")
     ("streaming-weights", po::value<int>(&streaming_weights), "Streaming hint for winograd transformed weights")
     ("streaming-input", po::value<int>(&streaming_input), "Streaming hint for winograd transformed input")
-    ("streaming-output", po::value<int>(&streaming_output), "Streaming hint for winograd transformed output");
+    ("streaming-output", po::value<int>(&streaming_output), "Streaming hint for winograd transformed output")
+    ("data-fmt", po::value<std::string>(), "Data format. plain | block16. Default: block16");
+
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -152,6 +166,21 @@ int parse_cmd_options(int argc, char **argv) {
     interpreter << std::hex << vm["execution-mode"].as<std::string>();
     interpreter >> execution_mode;
   }
+  if (vm.count("data-fmt")) {
+    std::string fmt_str = vm["data-fmt"].as<std::string>();
+    if (fmt_str == "plain") {
+      input_fmt = nchw;
+      weights_fmt = oihw;
+      output_fmt = nchw;
+    } else if (fmt_str == "block16"){
+      input_fmt = nChw16c;
+      weights_fmt = OIhw16i16o;
+      output_fmt = nChw16c;
+    } else {
+      printf("Error: convolution options: data-format should be plain | block16\n");
+      return -1;
+    }
+  }
 
   iw = iw == 0 ? ih : iw;
   ow = ow == 0 ? oh : ow;
@@ -169,19 +198,27 @@ int parse_cmd_options(int argc, char **argv) {
       streaming_weights, streaming_input, streaming_output,
       nteams, nthreads, execution_mode);
 
-  if (prop_kind == forward_inference)
-    printf("prop_kind:forward_inference\n");
-  else if (prop_kind == forward_training)
-    printf("prop_kind:forward_training\n");
-  else if (prop_kind == backward_data)
-    printf("prop_kind:backward_data\n");
-  else if (prop_kind == backward_weights)
-    printf("prop_kind:backward_weights\n");
+  const char *prop_kind_str[] = {
+    [forward_inference] = "forward_inference",
+    [forward_training] = "forward_training",
+    [backward_data] = "backward_data",
+    [backward_weights] = "backward_weights"
+  };
+  printf("prop_kind:%s\n", prop_kind_str[prop_kind]);
 
-  if (alg == CONV_DIRECT)
-    printf("alg:CONV_DIRECT\n");
-  else
-    printf("alg:CONV_WINOGRAD, tile-size=%d\n", tile_size);
+  const char *alg_str[] = {
+    [CONV_DIRECT] = "CONV_DIRECT",
+    [CONV_WINOGRAD] = "CONV_WINOGRAD"
+  };
+  printf("alg:%s, tile-size=%d\n", alg_str[alg], tile_size);
+
+  const char *fmt_str[] = { [nchw] = "nchw",
+    [oihw] = "oihw",
+    [nChw16c] = "nChw16c",
+    [OIhw16i16o] = "OIhw16i16o"
+  };
+  printf("input-fmt:%s, weights-fmt:%s, output-fmt:%s\n", fmt_str[input_fmt],
+      fmt_str[weights_fmt], fmt_str[output_fmt]);
 
   if (mb <= 0 || ic <= 0 || ih <= 0 || iw <= 0 || oc <= 0 || oh <= 0
       || ow <= 0 || kh <= 0 || kw <= 0) {
