@@ -137,7 +137,7 @@ int parse_cmd_options(int argc, char **argv) {
     ("streaming-weights", po::value<int>(&streaming_weights), "Streaming hint for winograd transformed weights")
     ("streaming-input", po::value<int>(&streaming_input), "Streaming hint for winograd transformed input")
     ("streaming-output", po::value<int>(&streaming_output), "Streaming hint for winograd transformed output")
-    ("data-fmt", po::value<std::string>(), "Data format. plain | block16. Default: block16");
+    ("data-fmt", po::value<std::string>(), "plain|block16. Data format. Default: block16");
 
 
   po::variables_map vm;
