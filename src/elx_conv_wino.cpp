@@ -470,8 +470,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
 
   int s = this->ic * this->kh * this->kw;
   const __m512i vindex
-      = _mm512_set_epi32(0, s, 2 * s, 3 * s, 4 * s, 5 * s, 6 * s, 7 * s,
-          8 * s, 9 * s, 10 * s, 11 * s, 12 * s, 13 * s, 14 * s, 15 * s);
+      = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
+          9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
 
 #pragma omp for nowait collapse(6) schedule(static)
   for_each (_oc4, oc4) {
@@ -480,25 +480,23 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
   for_each (_ic3, this->ic3) {
   for_each (_O2, this->O2) {
   for_each (_I2, this->I2) {
+
     Type ain[K][K][V][V];
     Type aout[A][A][V][V];
-
     for_each (_hK, K) {
-      for_each (_wK, K) {
-        for_each (_iV, V) {
-          if (I == ISA_SKX_AVX512) {
-            __m512 t = _mm512_i32gather_ps(vindex,
-                (void *)&aweights[_oc4][_oc3][_O2][0][_ic4][_ic3][_I2][_iV][_hK][_wK],
-                4);
-            _mm512_store_ps(ain[_hK][_wK][_iV], t);
-          } else {
-            for_each (_oV, V)
-              ain[_hK][_wK][_iV][_oV] = aweights[_oc4][_oc3][_O2][_oV][_ic4]
-                                                [_ic3][_I2][_iV][_hK][_wK];
-          }
-        }
+    for_each (_wK, K) {
+    for_each (_iV, V) {
+      if (I == ISA_SKX_AVX512) {
+        auto t = _mm512_i32gather_ps(vindex,
+            (void *)&aweights[_oc4][_oc3][_O2][0][_ic4][_ic3][_I2][_iV][_hK]
+                             [_wK], 4);
+        _mm512_store_ps(ain[_hK][_wK][_iV], t);
+      } else {
+        for_each (_oV, V)
+          ain[_hK][_wK][_iV][_oV] = aweights[_oc4][_oc3][_O2][_oV][_ic4][_ic3]
+                                            [_I2][_iV][_hK][_wK];
       }
-    }
+    }}}
 
     ker_trans_weights_(aout, ain);
     for_each (_wA, A) {
@@ -514,7 +512,6 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
               atweights[_oc4][_ic4][_oc3][_ic3][_wA][_hA][_O2][_I2][_iV],
               *((__m512 *)&aout[_wA][_hA][_iV][0]));
       } else {
-
 #pragma omp simd
         for_each (_oV, V)
           atweights[_oc4][_ic4][_oc3][_ic3][_wA][_hA][_O2][_I2][_iV][_oV]
@@ -629,8 +626,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
   alignas(64) Type ain[A][A][V];
   int s = this->ih * this->iw;
   const __m512i vindex
-      = _mm512_set_epi32(0, s, 2 * s, 3 * s, 4 * s, 5 * s, 6 * s, 7 * s,
-          8 * s, 9 * s, 10 * s, 11 * s, 12 * s, 13 * s, 14 * s, 15 * s);
+      = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
+          9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
 
   for_each (_T, Tz) {
     int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
@@ -902,8 +899,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
 
   int s = this->oh * this->ow;
   const __m512i vindex
-      = _mm512_set_epi32(0, s, 2 * s, 3 * s, 4 * s, 5 * s, 6 * s, 7 * s,
-          8 * s, 9 * s, 10 * s, 11 * s, 12 * s, 13 * s, 14 * s, 15 * s);
+      = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
+          9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
 
   for_each (_T, Tz) {
     for_each (_wA, A) {
