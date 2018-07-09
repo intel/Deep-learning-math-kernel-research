@@ -60,9 +60,10 @@ int eld_conv_t<F>::setup() {
   byte_sizes.bias = sizeof(F) * sizes.bias;
 
   // TODO: Check output dimensions
-  // TODO: Check formats
-  if (formats.input != nChw16c || formats.output != nChw16c ||
-      formats.weights != OIhw16i16o) {
+  if (!((formats.input == nChw16c && formats.output == nChw16c
+            && formats.weights == OIhw16i16o)
+          || (formats.input == nchw && formats.output == nchw
+                 && formats.weights == oihw))) {
     el_error("Unimplemented");
     return ELD_UNIMPLEMENTED;
   }

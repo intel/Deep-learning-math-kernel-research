@@ -66,7 +66,9 @@ struct eld_conv_t {
     struct { int h, w; } strides;
     struct { int h, w; } dilations;
 
-    // Data layout
+    // Data layout supported:
+    // - plain: nchw, oihw, nchw
+    // - blocked: nChw16c, OIhw16i16o, nChw16c
     struct { int input, weights, output; } formats;
 
     // propagation kind

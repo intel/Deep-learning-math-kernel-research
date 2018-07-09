@@ -30,6 +30,7 @@ function conv_test() {
   b=1; r=0; v=1; a=wino; blk_i=0; blk_o=0; blk_t=0; pat_i=1; pat_o=1
   tile_size=5; nteams=0; nthreads=0; execution_mode=0
   streaming_weights=0; streaming_input=0; streaming_output=0
+  data_fmt=block16
 
   OPTIND=1
   while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:a:-:" opt; do
@@ -101,6 +102,10 @@ function conv_test() {
             ;;
           streaming-output=*) streaming_output=${OPTARG#*=}
             ;;
+          data-fmt) data_fmt="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          data-fmt=*) data_fmt=${OPTARG#*=}
+            ;;
        esac
        ;;
     esac
@@ -113,7 +118,7 @@ function conv_test() {
     --nteams=$nteams --nthreads=$nthreads --execution-mode=$execution_mode \
     --streaming-weights=$streaming_weights \
     --streaming-input=$streaming_input \
-    --streaming-output=$streaming_output 
+    --streaming-output=$streaming_output --data-fmt=$data_fmt
 
 }
 
