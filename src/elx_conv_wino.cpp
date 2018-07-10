@@ -188,7 +188,7 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
       this->nthreads = mthr_;
       this->nteams = 1;
     } else {
-      // igore user --pat-o=oc4
+      // ignore user --pat-o=oc4
       this->oc3 /= this->nteams;
       this->oc4 = this->nteams;
     }
@@ -486,10 +486,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
     for_each (_hK, K) {
     for_each (_wK, K) {
     for_each (_iV, V) {
-      if (I == ISA_SKX_AVX512) {
+      if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
         auto t = _mm512_i32gather_ps(vindex,
             (void *)&aweights[_oc4][_oc3][_O2][0][_ic4][_ic3][_I2][_iV][_hK]
-                             [_wK], 4);
+                             [_wK], sizeof(Type));
         _mm512_store_ps(ain[_hK][_wK][_iV], t);
       } else {
         for_each (_oV, V)
@@ -502,7 +502,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
     for_each (_wA, A) {
     for_each (_hA, A) {
     for_each (_iV, V) {
-      if (I == ISA_SKX_AVX512) {
+      if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
         if (stream_wei_)
           _mm512_stream_ps(
               atweights[_oc4][_ic4][_oc3][_ic3][_wA][_hA][_O2][_I2][_iV],
@@ -543,7 +543,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_blocked(
     for_each (_wA, A) {
     for_each (_hA, A) {
     for_each (_iV, V) {
-      if (I == ISA_SKX_AVX512) {
+      if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
         if (stream_wei_)
           _mm512_stream_ps(
               atweights[_oc4][_ic4][_oc3][_ic3][_wA][_hA][_O2][_I2][_iV],
@@ -595,7 +595,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_weightsa(
     for_each (_wA, A) {
     for_each (_hA, A) {
     for_each (_iV, V) {
-      if (I == ISA_SKX_AVX512) {
+      if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
         if (stream_wei_)
           _mm512_stream_ps(
               atweights[_oc4][_ic4][_wA][_hA][_oc3][_ic3][_O2][_I2][_iV],
@@ -641,9 +641,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
           for_each (_V, V)
             ain[_hA][_wA][_V] = 0.0f;
         } else {
-          if (I == ISA_SKX_AVX512) {
-            __m512 t = _mm512_i32gather_ps(
-                vindex, (void *)&ainput[_n][0][0][_ih + _hA][_iw + _wA], 4);
+          if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+            __m512 t = _mm512_i32gather_ps(vindex,
+                (void *)&ainput[_n][0][0][_ih + _hA][_iw + _wA],
+                sizeof(Type));
             _mm512_store_ps(ain[_hA][_wA], t);
           } else {
 #pragma omp simd
@@ -657,7 +658,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
 
     for_each (_wA, A) {
       for_each (_hA, A) {
-        if (I == ISA_SKX_AVX512) {
+        if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
           if (stream_in_)
             _mm512_stream_ps(
                 atinput[_wA][_hA][0][0][_T], *((__m512 *)&aout[_wA][_hA][0]));
@@ -699,7 +700,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_blocked(
 
     for_each (_wA, A) {
       for_each (_hA, A) {
-        if (I == ISA_SKX_AVX512) {
+        if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
           if (stream_in_)
             _mm512_stream_ps(
                 atinput[_wA][_hA][0][0][_T], *((__m512 *)&aout[_wA][_hA][0]));
@@ -788,7 +789,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_inputa(
     }
 
     for_each (_hA, A) {
-      if (I == ISA_SKX_AVX512) {
+      if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
         if (stream_in_)
           _mm512_stream_ps(
               atinput[_hA][_ic3][_I2][_T], *((__m512 *)&aout[_hA][_wA][0]));
@@ -919,11 +920,11 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
     for_each (_hA, A - K + 1) {
       for_each (_wA, A - K + 1) {
         if (_hA <= _hOA_end && _wA <= _wOA_end) {
-          if (I == ISA_SKX_AVX512) {
+          if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
             __m512 t = _mm512_load_ps(aout[_hA][_wA]);
             _mm512_i32scatter_ps(
                 (void *)&aoutput[_n][0][0][_oh + _hA][_ow + _wA], vindex, t,
-                4);
+                sizeof(Type));
           } else {
 #pragma omp simd
             for_each (_V, V)
