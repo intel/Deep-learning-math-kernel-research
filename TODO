@@ -28,4 +28,4 @@ Plain format (nchw/oihw) support (2018-7-11)
 - fused reorder
 - scatter/gather
 - add format as template argument
-- streamline
+- double buffer

@@ -473,6 +473,23 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
       = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
           9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
 
+  auto readin = [&](Type ain[K][K][V][V], Type *wei) {
+    MD(Type, awei, [V][this->ic2][V][K][K], wei);
+
+    for_each (_hK, K) {
+    for_each (_wK, K) {
+    for_each (_iV, V) {
+      if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+        auto t = _mm512_i32gather_ps(vindex,
+            (void *)&awei[0][0][_iV][_hK][_wK], sizeof(Type));
+        _mm512_store_ps(ain[_hK][_wK][_iV], t);
+      } else {
+        for_each (_oV, V)
+          ain[_hK][_wK][_iV][_oV] = awei[_oV][0][_iV][_hK][_wK];
+      }
+    }}}
+  };
+
 #pragma omp for nowait collapse(6) schedule(static)
   for_each (_oc4, oc4) {
   for_each (_ic4, this->ic4) {
@@ -483,20 +500,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
 
     Type ain[K][K][V][V];
     Type aout[A][A][V][V];
-    for_each (_hK, K) {
-    for_each (_wK, K) {
-    for_each (_iV, V) {
-      if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
-        auto t = _mm512_i32gather_ps(vindex,
-            (void *)&aweights[_oc4][_oc3][_O2][0][_ic4][_ic3][_I2][_iV][_hK]
-                             [_wK], sizeof(Type));
-        _mm512_store_ps(ain[_hK][_wK][_iV], t);
-      } else {
-        for_each (_oV, V)
-          ain[_hK][_wK][_iV][_oV] = aweights[_oc4][_oc3][_O2][_oV][_ic4][_ic3]
-                                            [_I2][_iV][_hK][_wK];
-      }
-    }}}
+
+    readin(ain, (Type *)aweights[_oc4][_oc3][_O2][0][_ic4][_ic3][_I2]);
 
     ker_trans_weights_(aout, ain);
     for_each (_wA, A) {
@@ -619,7 +624,6 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
     Type *tinput, Type *input, int _t2, int Tz)
 {
   // n, ic, ih, iw => t2 | wA, hA, ic3, I2, T, V
-  MD(Type, ainput, [this->n][this->ic2][V][this->ih][this->iw], input);
   MD(Type, atinput,[A][A][this->ic3][this->I2][Tz][V], tinput);
 
   alignas(64) Type aout[A][A][V];
@@ -629,7 +633,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
       = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
           9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
 
-  for_each (_T, Tz) {
+  auto readin = [&](int _T, Type ain[A][A][V]) {
+    MD(Type, ainput, [this->n][this->ic2][V][this->ih][this->iw], input);
     int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
     t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
 
@@ -654,6 +659,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
         }
       }
     }
+  };
+
+  for_each (_T, Tz) {
+    readin(_T, ain);
     ker_trans_input_(*this, aout, (Type *)ain, 0, 0, 0, -1);
 
     for_each (_wA, A) {
@@ -893,7 +902,6 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
 {
   // A, A, oc3, O2, T, V -> n, oc, oh, ow
   MD(Type, atoutput, [A][A][this->oc3][this->O2][Tz][V], toutput);
-  MD(Type, aoutput, [this->n][this->oc2][V][this->oh][this->ow], output);
 
   Type ain[A][A][V];
   Type aout[A - K + 1][A - K + 1][V];
@@ -903,20 +911,11 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
       = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
           9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
 
-  for_each (_T, Tz) {
-    for_each (_wA, A) {
-      for_each (_hA, A) {
-#pragma omp simd
-        for_each (_V, V) {
-          ain[_wA][_hA][_V] = atoutput[_wA][_hA][0][0][_T][_V];
-        }
-      }
-    }
-
+  auto writeout = [&](int _T, Type aout[A - K + 1][A - K + 1][V]) {
+    MD(Type, aoutput, [this->n][this->oc2][V][this->oh][this->ow], output);
     int _n, _oh, _ow, _hOA_end, _wOA_end;
     t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
 
-    ker_trans_output_(*this, (Type *)aout, ain, bias, 0, -1);
     for_each (_hA, A - K + 1) {
       for_each (_wA, A - K + 1) {
         if (_hA <= _hOA_end && _wA <= _wOA_end) {
@@ -933,6 +932,21 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
         }
       }
     }
+  };
+
+  for_each (_T, Tz) {
+    for_each (_wA, A) {
+      for_each (_hA, A) {
+#pragma omp simd
+        for_each (_V, V) {
+          ain[_wA][_hA][_V] = atoutput[_wA][_hA][0][0][_T][_V];
+        }
+      }
+    }
+
+    ker_trans_output_(*this, (Type *)aout, ain, bias, 0, -1);
+
+    writeout(_T, aout);
   }
 }
 
