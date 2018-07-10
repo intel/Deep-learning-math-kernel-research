@@ -66,7 +66,7 @@ int main(int argc, char **argv)
   time_start(conv);
   for (int n = 0; n < iterations; ++n) {
     if (ELX_OK != elx_conv<float>(desc, output, input, weights, bias)) {
-      printf("Fail: Convolution execlution error!\n");
+      printf("Fail: Convolution execution error!\n");
       test::teardown_conv_data(input, weights, output, bias);
       return -1;
     }
