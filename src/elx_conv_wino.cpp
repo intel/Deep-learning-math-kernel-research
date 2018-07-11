@@ -913,12 +913,27 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
 
   auto writeout = [&](int _T, Type aout[A - K + 1][A - K + 1][V]) {
     MD(Type, aoutput, [this->n][this->oc2][V][this->oh][this->ow], output);
-    int _n, _oh, _ow, _hOA_end, _wOA_end;
-    t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
 
-    for_each (_hA, A - K + 1) {
-      for_each (_wA, A - K + 1) {
-        if (_hA <= _hOA_end && _wA <= _wOA_end) {
+    if (this->ow > 128) {
+      int _n, _oh, _ow, _hOA_end, _wOA_end;
+      t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
+
+      // XXX: weird behavior on SKX8180
+      for (int _hA = 0; _hA < (A - K + 1); ++_hA) {
+        for (int _wA = 0; _wA <= (A - K + 1); ++_wA) {
+          if (_wA <= _wOA_end && _hA <= _hOA_end) {
+            for (int _V = 0; _V < V; ++_V) {
+              aoutput[_n][0][_V][_oh + _hA][_ow + _wA] = aout[_hA][_wA][_V];
+            }
+          }
+        }
+      }
+    } else {
+      int _n, _oh, _ow, _hOA_end, _wOA_end;
+      t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
+
+      for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
+        for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
           if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
             __m512 t = _mm512_load_ps(aout[_hA][_wA]);
             _mm512_i32scatter_ps(
