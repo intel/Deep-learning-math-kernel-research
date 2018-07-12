@@ -89,7 +89,7 @@ namespace test {
     }
 
     if (errors > 0) {
-      printf("Error: number of errors: %d/%d, percentage: %f%%\n", errors,
+      printf("Error: number of errors: %d/%lu, percentage: %f%%\n", errors,
           desc.sizes.output, ((errors * 1.0) / desc.sizes.output) * 100.0);
       return -1;
     }

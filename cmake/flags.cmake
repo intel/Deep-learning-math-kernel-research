@@ -2,7 +2,7 @@ if (__flags_included)
   return ()
 endif()
 
-set(__basic_flags "-fopenmp -Wall -Werror -Wextra -Wno-unused-parameter")
+set(__basic_flags "-fopenmp -Wall -Werror -Wextra -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-maybe-uninitialized")
 set(__cxx_flags "-std=c++11")
 
 if (__debug)

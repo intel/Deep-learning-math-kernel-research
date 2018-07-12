@@ -4,7 +4,7 @@
 #include "euler.hpp"
 #include "elt_unitests.hpp"
 #include "lest.hpp"
-#include "test/elt_utils.hpp"
+#include "tests/elt_utils.hpp"
 #include "src/elx_conv.hpp"
 #include "src/elk_conv_wino.hpp"
 

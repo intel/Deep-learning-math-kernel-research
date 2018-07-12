@@ -27,10 +27,6 @@ typedef std::chrono::duration<float, std::milli> Duration;
     }                                                                        \
   } while (0)
 
-#define for_each(i, lim) for (int(i) = 0; (i) < (lim); ++(i))
-
-#define MD(type, array, dims, ptr)                                           \
-  type(&array) dims = *reinterpret_cast<type(*) dims>(ptr)
 
 #define MEMALIGN64(ptr, size) posix_memalign((void **)ptr, 64, size);
 
