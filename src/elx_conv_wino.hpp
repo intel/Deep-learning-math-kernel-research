@@ -53,9 +53,14 @@ class elx_conv_wino_t : public elx_conv_t<Type> {
   inline void __trans_outputa_bh_blocked(Type *output, Type *toutputa, Type *bias);
   void trans_outputa_bh(Type *output, Type *toutputa, Type *bias);
 
-  void trans_outputa_th(Type *toutputa, Type *toutput, int Tz);
+  inline void __trans_output_plain(Type *res, Type *output, Type *toutput,
+      Type *bias, int _t2, int Tz, int ic4, int oc4, bool inline_reduce);
+  inline void __trans_output_blocked(Type *res, Type *output, Type *toutput,
+      Type *bias, int _t2, int Tz, int ic4, int oc4, bool inline_reduce);
   void trans_output(Type *res, Type *output, Type *toutput, Type *bias,
       int _t2, int Tz, int ic4, int oc4, bool inline_reduce);
+
+  void trans_outputa_th(Type *toutputa, Type *toutput, int Tz);
 
   inline void __trans_weights_plain(Type *tweights, Type *weights, int oc4);
   inline void __trans_weights_blocked(Type *tweights, Type *weights, int oc4);
@@ -68,7 +73,6 @@ class elx_conv_wino_t : public elx_conv_t<Type> {
   void gemm(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
   void gemm(Type *toutput, Type *tinput, Type *tweights);
   void gemma(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
-
 
   int prepare_execute_opt();
   void bind_execute_functions();
