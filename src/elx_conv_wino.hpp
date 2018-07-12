@@ -37,16 +37,23 @@ class elx_conv_wino_t : public elx_conv_t<Type> {
   inline void __trans_input_blocked(Type *tinput, Type *input);
   void trans_input(Type *tinput, Type *input);
 
-  inline void __trans_output_plain(
-      Type *output, Type *toutput, Type *bias, int _t2, int Tz);
-  inline void __trans_output_blocked(
-      Type *output, Type *toutput, Type *bias, int _t2, int Tz);
+  inline void __trans_inputa_plain(Type *tinput, Type *input, int _t2, int _wA, int Tz);
+  inline void __trans_inputa_blocked(Type *tinput, Type *input, int _t2, int _wA, int Tz);
+  void trans_inputa(Type *tinput, Type *input, int _t2, int _wA, int Tz);
+
+  inline void __trans_output_plain(Type *output, Type *toutput, Type *bias, int _t2, int Tz);
+  inline void __trans_output_blocked(Type *output, Type *toutput, Type *bias, int _t2, int Tz);
   void trans_output(Type *output, Type *toutput, Type *bias, int _t2, int Tz);
 
   inline void __trans_output_plain(Type *output, Type *toutput, Type *bias);
   inline void __trans_output_blocked(Type *output, Type *toutput, Type *bias);
   void trans_output(Type *output, Type *toutput, Type *bias);
 
+  inline void __trans_outputa_bh_plain(Type *output, Type *toutputa, Type *bias);
+  inline void __trans_outputa_bh_blocked(Type *output, Type *toutputa, Type *bias);
+  void trans_outputa_bh(Type *output, Type *toutputa, Type *bias);
+
+  void trans_outputa_th(Type *toutputa, Type *toutput, int Tz);
   void trans_output(Type *res, Type *output, Type *toutput, Type *bias,
       int _t2, int Tz, int ic4, int oc4, bool inline_reduce);
 
@@ -54,16 +61,14 @@ class elx_conv_wino_t : public elx_conv_t<Type> {
   inline void __trans_weights_blocked(Type *tweights, Type *weights, int oc4);
   void trans_weights(Type *tweights, Type *weights, int oc4 = 1);
 
-  void gemm(
-      Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
-  void gemm(Type *toutput, Type *tinput, Type *tweights);
-
-  // Fusion along a (wA)
-  void trans_inputa(Type *tinput, Type *input, int _t2, int _wA, int Tz);
+  inline void __trans_weightsa_plain(Type *tweights, Type *weights);
+  inline void __trans_weightsa_blocked(Type *tweights, Type *weights);
   void trans_weightsa(Type *tweights, Type *weights);
+
+  void gemm(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
+  void gemm(Type *toutput, Type *tinput, Type *tweights);
   void gemma(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
-  void trans_outputa_th(Type *toutputa, Type *toutput, int Tz);
-  void trans_outputa_bh(Type *output, Type *toutputa, Type *bias);
+
 
   int prepare_execute_opt();
   void bind_execute_functions();
