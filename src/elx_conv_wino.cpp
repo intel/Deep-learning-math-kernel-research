@@ -1003,7 +1003,6 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_inputa_plain(
     int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
     t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
 
-    // TODO
     for_each (__wA, A) {
     for_each (__hA, A) {
       if (__hA < _hA_start || __hA > _hA_end || __wA < _wA_start
@@ -1255,7 +1254,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_output(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::trans_output(Type *output,
+void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_blocked(Type *output,
     Type *output_tmp, Type *toutput, Type *bias, int _t2, int Tz, int ic4,
     int oc4, bool inline_reduce)
 {
@@ -1329,6 +1328,80 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_output(Type *output,
       }}}}
     }}
   }
+}
+
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(Type *output,
+    Type *output_tmp, Type *toutput, Type *bias, int _t2, int Tz, int ic4,
+    int oc4, bool inline_reduce)
+{
+  MD(Type, atoutput, [A][A][this->ic4][this->oc3 * this->O2 / this->ic4][Tz][V], toutput);
+  MD(Type, aroutput, [this->ic4][this->n][this->oc4][this->ic4][this->oc3 * this->O2 / this->ic4][this->oh][this->ow][V], routput_);
+  MD(Type, abias, [this->oc4][this->ic4][this->oc3 * this->O2 / this->ic4][V], bias);
+
+  alignas(64) Type ain[A][A][V];
+  alignas(64) Type aout[A - K + 1][A - K + 1][V];
+
+  int s = this->oh * this->ow;
+  const __m512i vindex
+      = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
+          9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
+
+  auto writeout = [&](int _ic4, int _oc, int _T,
+                      Type aout[A - K + 1][A - K + 1][V]) {
+    MD(Type, aoutput, [this->n][this->oc4][this->ic4][this->oc3 * this->O2 / this->ic4][V][this->oh][this->ow], output_tmp);
+
+    int _n, _oh, _ow, _hOA_end, _wOA_end;
+    t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
+
+    for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
+      for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
+        if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+          __m512 t = _mm512_load_ps(aout[_hA][_wA]);
+          _mm512_i32scatter_ps(
+              (void *)&aoutput[_n][oc4][_ic4][_oc][0][_oh + _hA][_ow + _wA],
+              vindex, t, sizeof(Type));
+        } else {
+#pragma omp simd
+          for_each (_V, V)
+            aoutput[_n][oc4][_ic4][_oc][_V][_oh + _hA][_ow + _wA]
+                = aout[_hA][_wA][_V];
+        }
+      }
+    }
+  };
+
+  for_each (_ic4, this->ic4) {
+  for_each (_oc, this->oc3 * this->O2/this->ic4) {
+  for_each (_T, Tz) {
+    for_each (_wA, A) {
+    for_each (_hA, A) {
+#pragma omp simd
+    for_each (_V, V) {
+      ain[_wA][_hA][_V] = atoutput[_wA][_hA][_ic4][_oc][_T][_V];
+    }}}
+
+    if (bias == nullptr)
+      ker_trans_output_nobias_(*this, (Type *)aout, ain, nullptr, 0, -1);
+    else
+      ker_trans_output_(
+          *this, (Type *)aout, ain, (Type *)abias[oc4][_ic4][_oc], 0, -1);
+
+    writeout(_ic4, _oc, _T, aout);
+  }}}
+}
+
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_t<Type, A, K, V, I>::trans_output(Type *output,
+    Type *output_tmp, Type *toutput, Type *bias, int _t2, int Tz, int ic4,
+    int oc4, bool inline_reduce)
+{
+  if (is_blocked_fmt_)
+    __trans_output_blocked(
+        output, output_tmp, toutput, bias, _t2, Tz, ic4, oc4, inline_reduce);
+  else
+    __trans_output_plain(
+        output, output_tmp, toutput, bias, _t2, Tz, ic4, oc4, false);
 }
 
 // toutput:  mthr | hA/A, oc3, O2, T, V
@@ -1719,7 +1792,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a073(
   MD(Type, aoutput, [this->n][this->oc4][this->oh * this->ow * this->oc3 * this->O2][V], output);
   MD(Type, abias, [this->oc4][this->oc3 * this->O2 * V], bias);
 
-  bool inline_reduce = this->ic4 > 1 && ((this->O2 * this->oc3) % 2 == 0)
+  bool inline_reduce = is_blocked_fmt_ && (this->ic4 > 1)
+      && ((this->O2 * this->oc3) % 2 == 0)
       && (mthr_ >= this->t2 * this->oc4 * this->ic4);
 
   memset(routput_cntr_, 0, this->t2 * this->oc4);
