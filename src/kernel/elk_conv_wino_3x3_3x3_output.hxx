@@ -241,7 +241,7 @@ void convolution_winograd_kernel<R_OUTPUT(
 #define T(_h, _w) atoutput[_w][_h]
 #define P(_h, _w) p_cb(_h, _w)
 
-  __m512 c0, c1, c2, c3, c4;
+  // __m512 c0, c1, c2, c3, c4;
   __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
   __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
 
