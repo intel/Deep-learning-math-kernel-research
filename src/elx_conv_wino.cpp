@@ -498,8 +498,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
   for_each (_O2, this->O2) {
   for_each (_I2, this->I2) {
 
-    Type ain[K][K][V][V];
-    Type aout[A][A][V][V];
+    alignas(64) Type ain[K][K][V][V];
+    alignas(64) Type aout[A][A][V][V];
 
     readin(ain, (Type *)aweights[_oc4][_oc3][_O2][0][_ic4][_ic3][_I2]);
 
@@ -541,7 +541,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_blocked(
   for_each (_ic3, this->ic3) {
   for_each (_O2, this->O2) {
   for_each (_I2, this->I2) {
-    Type aout[A][A][V][V];
+    alignas(64) Type aout[A][A][V][V];
     Type *in = (Type *)aweights[_oc4][_oc3][_O2][_ic4][_ic3][_I2];
     using Array = Type[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
@@ -593,7 +593,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_weightsa(
   for_each (_ic3, this->ic3) {
   for_each (_O2, this->O2) {
   for_each (_I2, this->I2) {
-    Type aout[A][A][V][V];
+    alignas(64) Type aout[A][A][V][V];
     Type *in = (Type *)aweights[_oc4][_oc3][_O2][_ic4][_ic3][_I2];
     using Array = Type[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
@@ -633,55 +633,56 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
       = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
           9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
 
-  auto readin = [&](int _T, Type ain[A][A][V]) {
-    MD(Type, ainput, [this->n][this->ic2][V][this->ih][this->iw], input);
+  auto readin = [&](int _ic3, int _I2, int _T, Type ain[A][A][V]) {
+    MD(Type, ainput, [this->n][this->ic4][this->ic3][this->I2][V][this->ih][this->iw], input);
     int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
     t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
 
     for_each (_hA, A) {
-      for_each (_wA, A) {
-        if (_hA < _hA_start || _hA > _hA_end || _wA < _wA_start
-            || _wA > _wA_end) {
+    for_each (_wA, A) {
+      if (_hA < _hA_start || _hA > _hA_end || _wA < _wA_start
+          || _wA > _wA_end) {
+#pragma omp simd
+        for_each (_V, V)
+          ain[_hA][_wA][_V] = 0.0f;
+      } else {
+        if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+          __m512 t = _mm512_i32gather_ps(vindex,
+              (void *)&ainput[_n][0][_ic3][_I2][0][_ih + _hA][_iw + _wA],
+              sizeof(Type));
+          _mm512_store_ps(ain[_hA][_wA], t);
+        } else {
 #pragma omp simd
           for_each (_V, V)
-            ain[_hA][_wA][_V] = 0.0f;
-        } else {
-          if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
-            __m512 t = _mm512_i32gather_ps(vindex,
-                (void *)&ainput[_n][0][0][_ih + _hA][_iw + _wA],
-                sizeof(Type));
-            _mm512_store_ps(ain[_hA][_wA], t);
-          } else {
-#pragma omp simd
-            for_each (_V, V)
-              ain[_hA][_wA][_V] = ainput[_n][0][_V][_ih + _hA][_iw + _wA];
-          }
+            ain[_hA][_wA][_V]
+                = ainput[_n][0][_ic3][_I2][_V][_ih + _hA][_iw + _wA];
         }
       }
-    }
+    }}
   };
 
+  for_each (_ic3, this->ic3) {
+  for_each (_I2, this->I2) {
   for_each (_T, Tz) {
-    readin(_T, ain);
+    readin(_ic3, _I2, _T, ain);
     ker_trans_input_(*this, aout, (Type *)ain, 0, 0, 0, -1);
 
     for_each (_wA, A) {
-      for_each (_hA, A) {
-        if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
-          if (stream_in_)
-            _mm512_stream_ps(
-                atinput[_wA][_hA][0][0][_T], *((__m512 *)&aout[_wA][_hA][0]));
-          else
-            _mm512_store_ps(
-                atinput[_wA][_hA][0][0][_T], *((__m512 *)&aout[_wA][_hA][0]));
-        } else {
+    for_each (_hA, A) {
+      if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+        if (stream_in_)
+          _mm512_stream_ps(atinput[_wA][_hA][_ic3][_I2][_T],
+              *((__m512 *)&aout[_wA][_hA][0]));
+        else
+          _mm512_store_ps(atinput[_wA][_hA][_ic3][_I2][_T],
+              *((__m512 *)&aout[_wA][_hA][0]));
+      } else {
 #pragma omp simd
-          for_each (_V, V)
-            atinput[_wA][_hA][0][0][_T][_V] = aout[_wA][_hA][_V];
-        }
+        for_each (_V, V)
+          atinput[_wA][_hA][_ic3][_I2][_T][_V] = aout[_wA][_hA][_V];
       }
-    }
-  }
+    }}
+  }}}
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
@@ -689,66 +690,55 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_blocked(
     Type *tinput, Type *input, int _t2, int Tz)
 {
   // n, ic2, ih, iw, V => t2 | wA, hA, ic3, I2, T, V
-  MD(Type, ainput, [this->n][this->ic2][this->ih][this->iw][V], input);
-  MD(Type, atinput,[A][A][this->ic3][this->I2][Tz][V], tinput);
+  MD(Type, ainput, [this->n][this->ic4][this->ic3][this->I2][this->ih][this->iw][V], input);
+  MD(Type, atinput, [A][A][this->ic3][this->I2][Tz][V], tinput);
 
   alignas(64) Type aout[A][A][V];
 
+  for_each (_ic3, this->ic3) {
+  for_each (_I2, this->I2) {
   for_each (_T, Tz) {
     int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
     t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
 
-    Type *in = ainput[_n][0][_ih][_iw];
+    Type *in = ainput[_n][0][_ic3][_I2][_ih][_iw];
     if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
-        && _wA_end == A - 1) {
+        && _wA_end == A - 1)
       ker_trans_input_(*this, aout, in, 0, A - 1, 0, A - 1);
-    } else {
+    else
       ker_trans_input0_(
           *this, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
-    }
 
     for_each (_wA, A) {
-      for_each (_hA, A) {
-        if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
-          if (stream_in_)
-            _mm512_stream_ps(
-                atinput[_wA][_hA][0][0][_T], *((__m512 *)&aout[_wA][_hA][0]));
-          else
-            _mm512_store_ps(
-                atinput[_wA][_hA][0][0][_T], *((__m512 *)&aout[_wA][_hA][0]));
-        } else {
+    for_each (_hA, A) {
+      if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+        if (stream_in_)
+          _mm512_stream_ps(atinput[_wA][_hA][_ic3][_I2][_T],
+              *((__m512 *)&aout[_wA][_hA][0]));
+        else
+          _mm512_store_ps(atinput[_wA][_hA][_ic3][_I2][_T],
+              *((__m512 *)&aout[_wA][_hA][0]));
+      } else {
 #pragma omp simd
-          for_each (_V, V)
-            atinput[_wA][_hA][0][0][_T][_V] = aout[_wA][_hA][_V];
-        }
+        for_each (_V, V)
+          atinput[_wA][_hA][_ic3][_I2][_T][_V] = aout[_wA][_hA][_V];
       }
-    }
-  }
+    }}
+  }}}
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::trans_input(
     Type *tinput, Type *input, int _t2, int Tz)
 {
-  // n, ic2, ih, iw, V => t2 | wA, hA, ic3, I2, T, V
-  MD(Type, ainput, [this->n][this->ic4][this->ic3][this->I2][this->ih][this->iw][V], input);
-  MD(Type, atinput, [A][A][this->ic3][this->I2][Tz][V], tinput);
-
-  for_each (_ic3, this->ic3) {
-    for_each (_I2, this->I2) {
-      if (is_blocked_fmt_)
-        __trans_input_blocked((Type *)atinput[0][0][_ic3][_I2],
-            (Type *)ainput[0][0][_ic3][_I2], _t2, Tz);
-      else
-        __trans_input_plain((Type *)atinput[0][0][_ic3][_I2],
-            (Type *)ainput[0][0][_ic3][_I2], _t2, Tz);
-    }
-  }
+  if (is_blocked_fmt_)
+    __trans_input_blocked(tinput, input, _t2, Tz);
+  else
+    __trans_input_plain(tinput, input, _t2, Tz);
 }
 
-
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::trans_input(
+void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_blocked(
     Type *tinput, Type *input)
 {
   // n, ic2, ih, iw, V => t2, wA, hA, ic3, I2, T, V
@@ -757,20 +747,125 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_input(
 
 #pragma omp for nowait collapse(3)
   for_each (_t2, this->t2) {
-    for_each (_ic3, this->ic3) {
-      for_each (_I2, this->I2) {
-        int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-        MD(Type, atinput6, [A][A][this->ic3][this->I2][Tz][V], atinput2[_t2]);
-        if (is_blocked_fmt_)
-          __trans_input_blocked((Type *)atinput6[0][0][_ic3][_I2],
-              (Type *)ainput[0][0][_ic3][_I2], _t2, Tz);
-        else
-          __trans_input_plain((Type *)atinput6[0][0][_ic3][_I2],
-              (Type *)ainput[0][0][_ic3][_I2], _t2, Tz);
-      }
+  for_each (_ic3, this->ic3) {
+  for_each (_I2, this->I2) {
+    int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+    MD(Type, atinput6, [A][A][this->ic3][this->I2][Tz][V], atinput2[_t2]);
+    alignas(64) Type aout[A][A][V];
+
+    for_each (_T, Tz) {
+      int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
+      t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
+
+      Type *in = ainput[_n][0][_ic3][_I2][_ih][_iw];
+      if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
+          && _wA_end == A - 1)
+        ker_trans_input_(*this, aout, in, 0, A - 1, 0, A - 1);
+      else
+        ker_trans_input0_(
+            *this, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
+
+      for_each (_wA, A) {
+        for_each (_hA, A) {
+          if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+            if (stream_in_)
+              _mm512_stream_ps(atinput6[_wA][_hA][_ic3][_I2][_T],
+                               *((__m512 *)&aout[_wA][_hA][0]));
+            else
+              _mm512_store_ps(atinput6[_wA][_hA][_ic3][_I2][_T],
+                              *((__m512 *)&aout[_wA][_hA][0]));
+          } else {
+#pragma omp simd
+            for_each (_V, V)
+              atinput6[_wA][_hA][_ic3][_I2][_T][_V] = aout[_wA][_hA][_V];
+          }
+        }}
     }
-  }
+  }}}
 }
+
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
+    Type *tinput, Type *input)
+{
+  // n, ic2, ih, iw, V => t2, wA, hA, ic3, I2, T, V
+  MD(Type, atinput2, [this->t2][A * A * this->T * this->ic], tinput);
+
+  int s = this->ih * this->iw;
+  const __m512i vindex
+      = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
+          9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
+
+  auto readin = [&](int _t2, int _ic3, int _I2, int _T, Type ain[A][A][V]) {
+    MD(Type, ainput, [this->n][this->ic4][this->ic3][this->I2][V][this->ih][this->iw], input);
+    int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
+    t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
+
+    for_each (_hA, A) {
+    for_each (_wA, A) {
+      if (_hA < _hA_start || _hA > _hA_end || _wA < _wA_start
+          || _wA > _wA_end) {
+#pragma omp simd
+        for_each (_V, V)
+          ain[_hA][_wA][_V] = 0.0f;
+      } else {
+        if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+          __m512 t = _mm512_i32gather_ps(vindex,
+              (void *)&ainput[_n][0][_ic3][_I2][0][_ih + _hA][_iw + _wA],
+              sizeof(Type));
+          _mm512_store_ps(ain[_hA][_wA], t);
+        } else {
+#pragma omp simd
+          for_each (_V, V)
+            ain[_hA][_wA][_V]
+                = ainput[_n][0][_ic3][_I2][_V][_ih + _hA][_iw + _wA];
+        }
+      }
+    }}
+  };
+
+#pragma omp for nowait collapse(3)
+  for_each (_t2, this->t2) {
+  for_each (_ic3, this->ic3) {
+  for_each (_I2, this->I2) {
+    int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+    MD(Type, atinput6, [A][A][this->ic3][this->I2][Tz][V], atinput2[_t2]);
+    alignas(64) Type aout[A][A][V];
+    alignas(64) Type ain[A][A][V];
+
+    for_each (_T, Tz) {
+      readin(_t2, _ic3, _I2, _T, ain);
+      ker_trans_input_(*this, aout, (Type *)ain, 0, 0, 0, -1);
+
+      for_each (_wA, A) {
+      for_each (_hA, A) {
+        if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+          if (stream_in_)
+            _mm512_stream_ps(atinput6[_wA][_hA][_ic3][_I2][_T],
+                *((__m512 *)&aout[_wA][_hA][0]));
+          else
+            _mm512_store_ps(atinput6[_wA][_hA][_ic3][_I2][_T],
+                *((__m512 *)&aout[_wA][_hA][0]));
+        } else {
+#pragma omp simd
+          for_each (_V, V)
+            atinput6[_wA][_hA][_ic3][_I2][_T][_V] = aout[_wA][_hA][_V];
+        }
+      }}
+    }
+  }}}
+}
+
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_t<Type, A, K, V, I>::trans_input(
+    Type *tinput, Type *input)
+{
+  if (is_blocked_fmt_)
+    __trans_input_blocked(tinput, input);
+  else
+    __trans_input_plain(tinput, input);
+}
+
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::trans_inputa(
@@ -902,17 +997,18 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
 {
   // A, A, oc3, O2, T, V -> n, oc, oh, ow
   MD(Type, atoutput, [A][A][this->oc3][this->O2][Tz][V], toutput);
+  MD(Type, abias, [this->oc3][this->O2][V], bias);
 
-  Type ain[A][A][V];
-  Type aout[A - K + 1][A - K + 1][V];
+  alignas(64) Type ain[A][A][V];
+  alignas(64) Type aout[A - K + 1][A - K + 1][V];
 
   int s = this->oh * this->ow;
   const __m512i vindex
       = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
           9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
 
-  auto writeout = [&](int _T, Type aout[A - K + 1][A - K + 1][V]) {
-    MD(Type, aoutput, [this->n][this->oc2][V][this->oh][this->ow], output);
+  auto writeout = [&](int _oc3, int _O2, int _T, Type aout[A - K + 1][A - K + 1][V]) {
+    MD(Type, aoutput, [this->n][this->oc4][this->oc3][this->O2][V][this->oh][this->ow], output);
 
     if (this->ow > 128) {
       int _n, _oh, _ow, _hOA_end, _wOA_end;
@@ -923,7 +1019,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
         for (int _wA = 0; _wA <= (A - K + 1); ++_wA) {
           if (_wA <= _wOA_end && _hA <= _hOA_end) {
             for (int _V = 0; _V < V; ++_V) {
-              aoutput[_n][0][_V][_oh + _hA][_ow + _wA] = aout[_hA][_wA][_V];
+              aoutput[_n][0][_oc3][_O2][_V][_oh + _hA][_ow + _wA] = aout[_hA][_wA][_V];
             }
           }
         }
@@ -937,32 +1033,32 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
           if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
             __m512 t = _mm512_load_ps(aout[_hA][_wA]);
             _mm512_i32scatter_ps(
-                (void *)&aoutput[_n][0][0][_oh + _hA][_ow + _wA], vindex, t,
+                (void *)&aoutput[_n][0][_oc3][_O2][0][_oh + _hA][_ow + _wA], vindex, t,
                 sizeof(Type));
           } else {
 #pragma omp simd
             for_each (_V, V)
-              aoutput[_n][0][_V][_oh + _hA][_ow + _wA] = aout[_hA][_wA][_V];
+              aoutput[_n][0][_oc3][_O2][_V][_oh + _hA][_ow + _wA] = aout[_hA][_wA][_V];
           }
         }
       }
     }
   };
 
+  for_each (_oc3, this->oc3) {
+  for_each (_O2, this->O2) {
   for_each (_T, Tz) {
     for_each (_wA, A) {
-      for_each (_hA, A) {
+    for_each (_hA, A) {
 #pragma omp simd
-        for_each (_V, V) {
-          ain[_wA][_hA][_V] = atoutput[_wA][_hA][0][0][_T][_V];
-        }
-      }
-    }
+    for_each (_V, V) {
+      ain[_wA][_hA][_V] = atoutput[_wA][_hA][_oc3][_O2][_T][_V];
+    }}}
 
-    ker_trans_output_(*this, (Type *)aout, ain, bias, 0, -1);
+    ker_trans_output_(*this, (Type *)aout, ain, abias[_oc3][_O2], 0, -1);
 
-    writeout(_T, aout);
-  }
+    writeout(_oc3, _O2, _T, aout);
+  }}}
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
@@ -971,53 +1067,40 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_blocked(
 {
   // A, A, oc3, O2, T, V -> n, oc2, oh, ow, V
   MD(Type, atoutput, [A][A][this->oc3][this->O2][Tz][V], toutput);
-  MD(Type, aoutput, [this->n][this->oc2][this->oh][this->ow][V], output);
+  MD(Type, aoutput, [this->n][this->oc4][this->oc3][this->O2][this->oh][this->ow][V], output);
+  MD(Type, abias, [this->oc3][this->O2][V], bias);
 
-  Type ain[A][A][V];
+  alignas(64) Type ain[A][A][V];
 
+  for_each (_oc3, this->oc3) {
+  for_each (_O2, this->O2) {
   for_each (_T, Tz) {
     for_each (_wA, A) {
-      for_each (_hA, A) {
+    for_each (_hA, A) {
 #pragma omp simd
-        for_each (_V, V) {
-          ain[_wA][_hA][_V] = atoutput[_wA][_hA][0][0][_T][_V];
-        }
-      }
-    }
+    for_each (_V, V) {
+      ain[_wA][_hA][_V] = atoutput[_wA][_hA][_oc3][_O2][_T][_V];
+    }}}
 
     int _n, _oh, _ow, _hOA_end, _wOA_end;
     t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
-    Type *out = aoutput[_n][0][_oh][_ow];
+    Type *out = aoutput[_n][0][_oc3][_O2][_oh][_ow];
 
-    if (_hOA_end < A - K || _wOA_end < A - K) {
-      ker_trans_output0_(*this, out, ain, bias, _hOA_end, _wOA_end);
-    } else {
-      ker_trans_output_(*this, out, ain, bias, A - K, A - K);
-    }
-  }
+    if (_hOA_end < A - K || _wOA_end < A - K)
+      ker_trans_output0_(*this, out, ain, abias[_oc3][_O2], _hOA_end, _wOA_end);
+    else
+      ker_trans_output_(*this, out, ain, abias[_oc3][_O2], A - K, A - K);
+  }}}
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::trans_output(
     Type *output, Type *toutput, Type *bias, int _t2, int Tz)
 {
-  // A, A, oc3, O2, T, V -> n, oc2, oh, ow, V
-  MD(Type, aoutput, [this->n][this->oc4][this->oc3][this->O2][this->oh][this->ow][V], output);
-  MD(Type, atoutput, [A][A][this->oc3][this->O2][Tz][V], toutput);
-  MD(Type, abias, [this->oc3][this->O2][V], bias);
-
-  for_each (_oc3, this->oc3) {
-    for_each (_O2, this->O2) {
-      if (is_blocked_fmt_)
-        __trans_output_blocked((Type *)aoutput[0][0][_oc3][_O2],
-            (Type *)atoutput[0][0][_oc3][_O2], (Type *)abias[_oc3][_O2], _t2,
-            Tz);
-      else
-        __trans_output_plain((Type *)aoutput[0][0][_oc3][_O2],
-            (Type *)atoutput[0][0][_oc3][_O2], (Type *)abias[_oc3][_O2], _t2,
-            Tz);
-    }
-  }
+  if (is_blocked_fmt_)
+    __trans_output_blocked(output, toutput, bias, _t2, Tz);
+  else
+    __trans_output_plain(output, toutput, bias, _t2, Tz);
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
@@ -1046,7 +1129,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_output(Type *output,
     }
   };
 
-  Type ain[A][A][V];
+  alignas(64) Type ain[A][A][V];
 
   for_each (_ic4, this->ic4) {
     for_each (_oc, this->oc3 * this->O2/this->ic4) {
@@ -1146,31 +1229,111 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_outputa_bh(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::trans_output(
+void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_blocked(
     Type *output, Type *toutput, Type *bias)
 {
+  // A, A, oc3, O2, T, V -> n, oc2, oh, ow, V
   MD(Type, aoutput, [this->n][this->oc4][this->oc3][this->O2][this->oh][this->ow][V], output);
-  MD(Type, abias, [this->oc3][this->O2][V], bias);
   MD(Type, atoutput2, [this->t2][A * A * this->T * this->oc3 * this->O2 * V], toutput);
+  MD(Type, abias, [this->oc3][this->O2][V], bias);
 
 #pragma omp for nowait collapse(3)
   for_each (_t2, this->t2) {
-    for_each (_oc3, this->oc3) {
-      for_each (_O2, this->O2) {
-        int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-        MD(Type, atoutput6, [A][A][this->oc3][this->O2][Tz][V],
-            atoutput2[_t2]);
-        if (is_blocked_fmt_)
-          __trans_output_blocked((Type *)aoutput[0][0][_oc3][_O2],
-              (Type *)atoutput6[0][0][_oc3][_O2], (Type *)abias[_oc3][_O2],
-              _t2, Tz);
-        else
-          __trans_output_plain((Type *)aoutput[0][0][_oc3][_O2],
-              (Type *)atoutput6[0][0][_oc3][_O2], (Type *)abias[_oc3][_O2],
-              _t2, Tz);
+  for_each (_oc3, this->oc3) {
+  for_each (_O2, this->O2) {
+    int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+    MD(Type, atoutput, [A][A][this->oc3][this->O2][Tz][V], atoutput2[_t2]);
+    alignas(64) Type ain[A][A][V];
+
+    for_each (_T, Tz) {
+      for_each (_wA, A) {
+      for_each (_hA, A) {
+#pragma omp simd
+      for_each (_V, V) {
+        ain[_wA][_hA][_V] = atoutput[_wA][_hA][_oc3][_O2][_T][_V];
+      }}}
+
+      int _n, _oh, _ow, _hOA_end, _wOA_end;
+      t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
+      Type *out = aoutput[_n][0][_oc3][_O2][_oh][_ow];
+
+      if (_hOA_end < A - K || _wOA_end < A - K)
+        ker_trans_output0_(*this, out, ain, abias[_oc3][_O2], _hOA_end, _wOA_end);
+      else
+        ker_trans_output_(*this, out, ain, abias[_oc3][_O2], A - K, A - K);
+    }
+  }}}
+}
+
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
+    Type *output, Type *toutput, Type *bias)
+{
+  // A, A, oc3, O2, T, V -> n, oc, oh, ow
+  MD(Type, abias, [this->oc3][this->O2][V], bias);
+  MD(Type, atoutput2, [this->t2][A * A * this->T * this->oc3 * this->O2 * V], toutput);
+
+  int s = this->oh * this->ow;
+  const __m512i vindex
+      = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
+          9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
+
+  auto writeout = [&](int _t2, int _oc3, int _O2, int _T,
+                      Type aout[A - K + 1][A - K + 1][V]) {
+    MD(Type, aoutput, [this->n][this->oc4][this->oc3][this->O2][V][this->oh][this->ow], output);
+
+    int _n, _oh, _ow, _hOA_end, _wOA_end;
+    t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
+
+    for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
+      for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
+        if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+          __m512 t = _mm512_load_ps(aout[_hA][_wA]);
+          _mm512_i32scatter_ps(
+              (void *)&aoutput[_n][0][_oc3][_O2][0][_oh + _hA][_ow + _wA],
+              vindex, t, sizeof(Type));
+        } else {
+#pragma omp simd
+          for_each (_V, V)
+            aoutput[_n][0][_oc3][_O2][_V][_oh + _hA][_ow + _wA]
+                = aout[_hA][_wA][_V];
+        }
       }
     }
-  }
+  };
+
+#pragma omp for nowait collapse(3)
+  for_each (_t2, this->t2) {
+  for_each (_oc3, this->oc3) {
+  for_each (_O2, this->O2) {
+    int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+    MD(Type, atoutput6, [A][A][this->oc3][this->O2][Tz][V], atoutput2[_t2]);
+    alignas(64) Type ain[A][A][V];
+    alignas(64) Type aout[A - K + 1][A - K + 1][V];
+
+    for_each (_T, Tz) {
+      for_each (_wA, A) {
+      for_each (_hA, A) {
+#pragma omp simd
+      for_each (_V, V) {
+        ain[_wA][_hA][_V] = atoutput6[_wA][_hA][_oc3][_O2][_T][_V];
+      }}}
+
+      ker_trans_output_(*this, (Type *)aout, ain, abias[_oc3][_O2], 0, -1);
+
+      writeout(_t2, _oc3, _O2, _T, aout);
+    }
+  }}}
+}
+
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_t<Type, A, K, V, I>::trans_output(
+    Type *output, Type *toutput, Type *bias)
+{
+  if (is_blocked_fmt_)
+    __trans_output_blocked(output, toutput, bias);
+  else
+    __trans_output_plain(output, toutput, bias);
 }
 
 // tweights: oc3, ic3, A, A, O2, I2, V, V

@@ -27,5 +27,7 @@ Modularity (2018-07-05): Done
 Plain format (nchw/oihw) support (2018-7-11)
 - fused reorder
 - scatter/gather
-- add format as template argument
-- double buffer
+- double buffer (drop as no effect)
+- enable plain fmt for 0xa0e0/0xa0e1
+- enable plain fmt for 0xa073
+- fix performance regression in block16: format as template parameter
