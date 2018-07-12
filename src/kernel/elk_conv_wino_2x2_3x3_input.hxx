@@ -22,12 +22,18 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
     int _hT_end, int _wT_start, int _wT_end)
 {
   auto f_cb = [&](int _h, int _w, int _V) {
-    MD(float, ainput, [xc.ih][xc.iw][16], input);
-    if (is_border_
-        && (_h < _hT_start || _w < _wT_start || _h > _hT_end || _w > _wT_end))
-      return 0.0f;
-    else
+    if (_wT_end == -1) {
+      MD(float, ainput, [A][A][16], input);
       return ainput[_h][_w][_V];
+    } else {
+      MD(float, ainput, [xc.ih][xc.iw][16], input);
+      if (is_border_
+          && (_h < _hT_start || _w < _wT_start || _h > _hT_end
+                 || _w > _wT_end))
+        return 0.0f;
+      else
+        return ainput[_h][_w][_V];
+    }
   };
 
 #undef F
@@ -89,12 +95,18 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
 
   __m512 z0 = _mm512_setzero_ps();
   auto f_cb = [&](int _h, int _w) {
-    MD(float, ainput, [xc.ih][xc.iw][16], input);
-    if (is_border_
-        && (_h < _hT_start || _w < _wT_start || _h > _hT_end || _w > _wT_end))
-      return z0;
-    else
+    if (_wT_end == -1) {
+      MD(float, ainput, [A][A][16], input);
       return _mm512_load_ps(ainput[_h][_w]);
+    } else {
+      MD(float, ainput, [xc.ih][xc.iw][16], input);
+      if (is_border_
+          && (_h < _hT_start || _w < _wT_start || _h > _hT_end
+                 || _w > _wT_end))
+        return z0;
+      else
+        return _mm512_load_ps(ainput[_h][_w]);
+    }
   };
 
 #undef F
