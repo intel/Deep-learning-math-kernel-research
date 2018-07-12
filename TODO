@@ -24,7 +24,7 @@ Modularity (2018-07-05): Done
 - Memory size calculation for different xopt
 
 
-Plain format (nchw/oihw) support (2018-7-11)
+Plain format (nchw/oihw) support (2018-7-11): Done
 - fused reorder
 - scatter/gather
 - double buffer (drop as no effect)
