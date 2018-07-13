@@ -5,7 +5,7 @@ ROOT_DIR="$(dirname $(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd))"
 # correctness
 function __val_conv() {
   echo ====== Test execution-mode: $1 $2 $3 ======
-  $ROOT_DIR/script/run.sh -c -v1 -n 3 -i 128 -o 256 -h 56 -w 56 -H 56 -W 56 \
+  $ROOT_DIR/scripts/run.sh -c -v1 -n 3 -i 128 -o 256 -h 56 -w 56 -H 56 -W 56 \
     --execution-mode=$1 \
     --nteams=$2 --nthreads=$3
   if [ $? != 0 ]; then
@@ -15,7 +15,7 @@ function __val_conv() {
 }
 
 function bench_conv() {
-  $ROOT_DIR/script/run.sh -c -v1 -n 3 -i 128 -o 256 -h 56 -w 56 -H 56 -W 56 \
+  $ROOT_DIR/scripts/run.sh -c -v1 -n 3 -i 128 -o 256 -h 56 -w 56 -H 56 -W 56 \
     --execution-mode=$1 \
     --nteams=$2 --nthreads=$3
 
@@ -64,7 +64,7 @@ set -x
 
 val_conv
 
-$ROOT_DIR/script/run.sh -c $resnet50_res5a_branch2b -v1 -n1 \
+$ROOT_DIR/scripts/run.sh -c $resnet50_res5a_branch2b -v1 -n1 \
   --execution-mode=0xa000 \
   --nteams=1 --nthreads=18 \
   --blk-i=2 --blk-o=2 --blk-t=18 --tile-size=4
