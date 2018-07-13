@@ -1157,39 +1157,25 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
       = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
           9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
 
-  auto writeout = [&](int _oc3, int _O2, int _T, Type aout[A - K + 1][A - K + 1][V]) {
+  auto writeout = [&](int _oc3, int _O2, int _T,
+                      Type aout[A - K + 1][A - K + 1][V]) {
     MD(Type, aoutput, [this->n][this->oc4][this->oc3][this->O2][V][this->oh][this->ow], output);
 
-    if (this->ow > 128) {
-      int _n, _oh, _ow, _hOA_end, _wOA_end;
-      t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
+    int _n, _oh, _ow, _hOA_end, _wOA_end;
+    t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
 
-      // XXX: weird behavior on SKX8180
-      for (int _hA = 0; _hA < (A - K + 1); ++_hA) {
-        for (int _wA = 0; _wA <= (A - K + 1); ++_wA) {
-          if (_wA <= _wOA_end && _hA <= _hOA_end) {
-            for (int _V = 0; _V < V; ++_V) {
-              aoutput[_n][0][_oc3][_O2][_V][_oh + _hA][_ow + _wA] = aout[_hA][_wA][_V];
-            }
-          }
-        }
-      }
-    } else {
-      int _n, _oh, _ow, _hOA_end, _wOA_end;
-      t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
-
-      for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
-        for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
-          if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
-            __m512 t = _mm512_load_ps(aout[_hA][_wA]);
-            _mm512_i32scatter_ps(
-                (void *)&aoutput[_n][0][_oc3][_O2][0][_oh + _hA][_ow + _wA], vindex, t,
-                sizeof(Type));
-          } else {
+    for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
+      for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
+        if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+          __m512 t = _mm512_load_ps(aout[_hA][_wA]);
+          _mm512_i32scatter_ps(
+              (void *)&aoutput[_n][0][_oc3][_O2][0][_oh + _hA][_ow + _wA],
+              vindex, t, sizeof(Type));
+        } else {
 #pragma omp simd
-            for_each (_V, V)
-              aoutput[_n][0][_oc3][_O2][_V][_oh + _hA][_ow + _wA] = aout[_hA][_wA][_V];
-          }
+          for_each (_V, V)
+            aoutput[_n][0][_oc3][_O2][_V][_oh + _hA][_ow + _wA]
+                = aout[_hA][_wA][_V];
         }
       }
     }
