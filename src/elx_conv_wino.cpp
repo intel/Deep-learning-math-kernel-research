@@ -473,7 +473,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_weights(
   for_each (_ic3, this->ic3) {
   for_each (_O2, this->O2) {
   for_each (_I2, this->I2) {
-    Type aout[A][A][V][V];
+    alignas(64) Type aout[A][A][V][V];
     Type *in = (Type *)aweights[_oc4][_oc3][_O2][_ic4][_ic3][_I2];
     using Array = Type[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
@@ -515,7 +515,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_weightsa(
   for_each (_ic3, this->ic3) {
   for_each (_O2, this->O2) {
   for_each (_I2, this->I2) {
-    Type aout[A][A][V][V];
+    alignas (64) Type aout[A][A][V][V];
     Type *in = (Type *)aweights[_oc4][_oc3][_O2][_ic4][_ic3][_I2];
     using Array = Type[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
