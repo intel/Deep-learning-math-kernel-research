@@ -49,6 +49,10 @@ elx_conv_t<Type>::elx_conv_t(eld_conv_t<Type> &dc) {
   this->streaming_weights = dc.streaming_hint.weights;
   this->streaming_input = dc.streaming_hint.input;
   this->streaming_output = dc.streaming_hint.output;
+
+  this->input_as_blocked = dc.format_as_blocked.input;
+  this->weights_as_blocked = dc.format_as_blocked.weights;
+  this->output_as_blocked = dc.format_as_blocked.output;
 }
 
 template <typename T>

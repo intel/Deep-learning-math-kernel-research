@@ -17,13 +17,14 @@ int mb = 0, ic = 0, ih = 0, iw = 0, oc = 0, oh = 0, ow = 0, kh = 3, kw = 3;
 int ph = 1, pw = 1, sh = 1, sw = 1, dh = 1, dw = 1;
 bool with_bias = true, with_relu = false;
 int prop_kind = forward_inference, alg = CONV_WINOGRAD;
-int input_fmt = nChw16c, weights_fmt = OIhw16i16o, output_fmt = nChw16c;
+int input_format = nChw16c, weights_format = OIhw16i16o, output_format = nChw16c;
 int nteams = 0, nthreads = 0;
 int execution_mode = 0;
 int blk_i = 0, blk_o = 0, blk_t = 0;
 int pat_i = 1, pat_o = 1;
 int tile_size = 5;
 int streaming_weights = 0, streaming_input = 0, streaming_output = 0;
+bool input_as_blocked = false, weights_as_blocked = false, output_as_blocked = false;
 
 bool validate_results = false;
 
@@ -34,11 +35,13 @@ int main(int argc, char **argv)
 
   // 1, create convolution desc
   eld_conv_t<float> desc;
-  desc.dims = { .input   = { mb, ic, ih, iw },
-                .weights = { oc, ic, kh, kw },
-                .output  = { mb, oc, oh, ow },
-                .bias    = { oc } };
-  desc.formats = { .input = input_fmt, .weights = weights_fmt, .output = output_fmt };
+  desc.dims = { .input = { mb, ic, ih, iw },
+    .weights = { oc, ic, kh, kw },
+    .output = { mb, oc, oh, ow },
+    .bias = { oc } };
+  desc.formats = {
+    .input = input_format, .weights = weights_format, .output = output_format
+  };
   desc.pads = { ph, ph, pw, pw };
   desc.with_bias = with_bias;
   desc.with_relu = with_relu;
@@ -49,7 +52,10 @@ int main(int argc, char **argv)
   desc.execution_mode = execution_mode;
   desc.blocking = { blk_i, blk_o, blk_t };
   desc.partition = { pat_i, pat_o };
-  desc.streaming_hint = { streaming_weights, streaming_input, streaming_output };
+  desc.streaming_hint
+      = { streaming_weights, streaming_input, streaming_output };
+  desc.format_as_blocked
+      = { input_as_blocked, weights_as_blocked, output_as_blocked };
 
   if (desc.setup() != ELD_OK) {
     printf("Fail: Convolution setup error!\n");
@@ -76,25 +82,15 @@ int main(int argc, char **argv)
   // 4. cosim, setdown
   if (validate_results) {
     printf("Validation: ");
-    float *ref_output = (float *)memalign(64, desc.byte_sizes.output);
-    if (input_fmt == nChw16c) {
-      if (test::ref_convolution2d_block16<float>(
-              desc, ref_output, input, weights, bias))
-        printf("Fail: Convolution ref execution error!\n");
-      else if (test::compare_conv_results_block16(desc, output, ref_output))
-        printf("Fail: Convolution results not correct!\n");
-      else
-        printf("Convolution Pass!\n");
-    } else if (input_fmt == nchw) {
-      if (test::ref_convolution2d<float>(
-              desc, ref_output, input, weights, bias))
-        printf("Fail: Convolution ref execution error!\n");
-      else if (test::compare_conv_results(desc, output, ref_output))
-        printf("Fail: Convolution results not correct!\n");
-      else
-        printf("Convolution Pass!\n");
+    float *ref_output = (float *)malloc(desc.byte_sizes.output);
+    if (test::ref_convolution2d<float>(
+            desc, ref_output, input, weights, bias))
+      printf("Fail: Convolution ref execution error!\n");
+    else if (test::compare_conv_results(desc, output, ref_output))
+      printf("Fail: Convolution results not correct!\n");
+    else
+      printf("Convolution Pass!\n");
 
-    }
     free(ref_output);
   }
   test::teardown_conv_data(input, weights, output, bias);
@@ -137,8 +133,12 @@ int parse_cmd_options(int argc, char **argv) {
     ("streaming-weights", po::value<int>(&streaming_weights), "Streaming hint for winograd transformed weights")
     ("streaming-input", po::value<int>(&streaming_input), "Streaming hint for winograd transformed input")
     ("streaming-output", po::value<int>(&streaming_output), "Streaming hint for winograd transformed output")
-    ("data-fmt", po::value<std::string>(), "plain|block16. Data format. Default: block16");
-
+    ("input-format", po::value<std::string>(), "nchw|nChw16c. Input data format. Default: nChw16c")
+    ("weights-format", po::value<std::string>(), "oihw|OIhw16i16o. Weights data format. Default: OIhw16i16o")
+    ("output-format", po::value<std::string>(), "nchw|nChw16c. Output data format. Default: nChw16c")
+    ("input-as-blocked", po::value<bool>(&input_as_blocked), "on|off. Format input as blocked. Default: off")
+    ("weights-as-blocked", po::value<bool>(&weights_as_blocked), "on|off. Format weighs as blocked. Default: off")
+    ("output-as-blocked", po::value<bool>(&output_as_blocked), "on|off. Format output as blocked. Default: off");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -166,18 +166,39 @@ int parse_cmd_options(int argc, char **argv) {
     interpreter << std::hex << vm["execution-mode"].as<std::string>();
     interpreter >> execution_mode;
   }
-  if (vm.count("data-fmt")) {
-    std::string fmt_str = vm["data-fmt"].as<std::string>();
-    if (fmt_str == "plain") {
-      input_fmt = nchw;
-      weights_fmt = oihw;
-      output_fmt = nchw;
-    } else if (fmt_str == "block16"){
-      input_fmt = nChw16c;
-      weights_fmt = OIhw16i16o;
-      output_fmt = nChw16c;
-    } else {
-      printf("Error: convolution options: data-format should be plain | block16\n");
+  if (vm.count("input-format")) {
+    std::string fmt_str = vm["input-format"].as<std::string>();
+    if (fmt_str == "nchw")
+      input_format = nchw;
+    else if (fmt_str == "nChw16c")
+      input_format = nChw16c;
+    else {
+      printf("Error: convolution options: input-format should be "
+             "nchw|nChw16c\n");
+      return -1;
+    }
+  }
+  if (vm.count("weights-format")) {
+    std::string fmt_str = vm["weights-format"].as<std::string>();
+    if (fmt_str == "oihw")
+      weights_format = oihw;
+    else if (fmt_str == "OIhw16i16o")
+      weights_format = OIhw16i16o;
+    else {
+      printf("Error: convolution options: weights-format should be "
+             "oihw|OIhw16i16o\n");
+      return -1;
+    }
+  }
+  if (vm.count("output-format")) {
+    std::string fmt_str = vm["output-format"].as<std::string>();
+    if (fmt_str == "nchw")
+      output_format = nchw;
+    else if (fmt_str == "nChw16c")
+      output_format = nChw16c;
+    else {
+      printf("Error: convolution options: output-format should be "
+             "nchw|nChw16c\n");
       return -1;
     }
   }
@@ -215,10 +236,11 @@ int parse_cmd_options(int argc, char **argv) {
   const char *fmt_str[] = { [nchw] = "nchw",
     [oihw] = "oihw",
     [nChw16c] = "nChw16c",
-    [OIhw16i16o] = "OIhw16i16o"
-  };
-  printf("input-fmt:%s, weights-fmt:%s, output-fmt:%s\n", fmt_str[input_fmt],
-      fmt_str[weights_fmt], fmt_str[output_fmt]);
+    [OIhw16i16o] = "OIhw16i16o" };
+  printf("input-fmt:%s, weights-fmt:%s, output-fmt:%s\n",
+      fmt_str[input_format], fmt_str[weights_format], fmt_str[output_format]);
+  printf("input-as-blocked:%d, weights_as_blocked:%d, output_as_blocked:%d\n",
+      input_as_blocked, weights_as_blocked, output_as_blocked);
 
   if (mb <= 0 || ic <= 0 || ih <= 0 || iw <= 0 || oc <= 0 || oh <= 0
       || ow <= 0 || kh <= 0 || kw <= 0) {

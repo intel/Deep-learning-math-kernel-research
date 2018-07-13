@@ -56,6 +56,11 @@ struct elx_conv_t {
   int streaming_input;
   int streaming_output;
 
+  // Use blocked format internally
+  bool input_as_blocked;
+  bool weights_as_blocked;
+  bool output_as_blocked;
+
   // threading
   int nteams, nthreads;
   int execution_mode;

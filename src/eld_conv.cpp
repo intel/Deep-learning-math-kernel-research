@@ -24,6 +24,7 @@ eld_conv_t<F>::eld_conv_t() {
   execution_mode = 0;
   partition = {1, 1};
   streaming_hint = {0, 0, 0};
+  format_as_blocked = {false, false, false};
 }
 
 template <typename F>
@@ -60,10 +61,9 @@ int eld_conv_t<F>::setup() {
   byte_sizes.bias = sizeof(F) * sizes.bias;
 
   // TODO: Check output dimensions
-  if (!((formats.input == nChw16c && formats.output == nChw16c
-            && formats.weights == OIhw16i16o)
-          || (formats.input == nchw && formats.output == nchw
-                 && formats.weights == oihw))) {
+  if (!(formats.input == nchw || formats.input == nChw16c)
+      || !(formats.weights == oihw || formats.weights == OIhw16i16o)
+      || !(formats.output == nchw || formats.output == nChw16c)) {
     el_error("Unimplemented");
     return ELD_UNIMPLEMENTED;
   }

@@ -115,13 +115,22 @@ class elx_conv_wino_t : public elx_conv_t<Type> {
   bool stream_in_;
   bool stream_out_;
   bool stream_wei_;
-  bool is_blocked_fmt_;
+  bool is_bfmt_;
+  bool input_is_bfmt_;
+  bool weights_is_bfmt_;
+  bool output_is_bfmt_;
+  bool input_as_bfmt_;
+  bool weights_as_bfmt_;
+  bool output_as_bfmt_;
   size_t mthr_;
   Type *tweights_;
   Type *tinput_;
   Type *toutput_;
   Type *routput_; // reduce output
   Type *toutputa_;
+  Type *binput_; // blocked input
+  Type *bweights_;
+  Type *boutput_;
   unsigned char *routput_cntr_;
 
   int hOA_end_;
