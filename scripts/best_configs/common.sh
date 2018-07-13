@@ -11,7 +11,7 @@ cat <<!
 v=0
 input_format=nChw16c
 weights_format=OIhw16i16o
-output_format=nchw
+output_format=nChw16c
 
 while getopts "vph" opt; do
   case $opt in
