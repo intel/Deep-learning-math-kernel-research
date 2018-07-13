@@ -568,12 +568,13 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input(
     for_each (_wA, A) {
       for_each (_hA, A) {
         if (I == ISA_SKX_AVX512) {
+          auto p_target = atinput[_wA][_hA][0][0][_T];
           if (stream_in_)
             _mm512_stream_ps(
-                atinput[_wA][_hA][0][0][_T], *((__m512 *)&aout[_wA][_hA][0]));
+                p_target, *((__m512 *)&aout[_wA][_hA][0]));
           else
             _mm512_store_ps(
-                atinput[_wA][_hA][0][0][_T], *((__m512 *)&aout[_wA][_hA][0]));
+                p_target, *((__m512 *)&aout[_wA][_hA][0]));
         } else {
 #pragma omp simd
           for_each (_V, V)
@@ -754,7 +755,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output(
   MD(Type, atoutput, [A][A][this->oc3][this->O2][Tz][V], toutput);
   MD(Type, aoutput, [this->n][this->oc2][this->oh][this->ow][V], output);
 
-  Type ain[A][A][V];
+  alignas(64) Type ain[A][A][V];
 
   for_each (_T, Tz) {
     for_each (_wA, A) {
