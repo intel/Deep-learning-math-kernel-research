@@ -22,6 +22,8 @@ namespace test {
 
   template <typename Type>
   int compare_conv_results_block16(eld_conv_t<Type> &, Type *out, Type *ref);
+  template <typename Type>
+  int compare_conv_results(eld_conv_t<Type> &, Type *out, Type *ref);
 
   size_t cal_ops(eld_conv_t<float> &desc);
 

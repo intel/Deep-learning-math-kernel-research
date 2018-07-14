@@ -19,6 +19,15 @@ OMP:
 Modularity (2018-07-05): Done
 - trans_input/trans_output: common function for offset computing
 - code reorg, break transform kernels into small kernel files:
-  elk_trans_3x3_3x3.cpp
-  elk_trans_4x4_3x3.cpp
+  elk_conv_wino_4x4_3x3_input.hxx
   ...
+- Memory size calculation for different xopt
+
+
+Plain format (nchw/oihw) support (2018-7-11): Done
+- fused reorder
+- scatter/gather
+- double buffer (drop as no effect)
+- enable plain fmt for 0xa0e0/0xa0e1
+- enable plain fmt for 0xa073
+- fix performance regression in block16: format as template parameter
