@@ -19,9 +19,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(lib_name "el")
 
 # set build type
-if(NOT CMAKE_BUILD_TYPE)
-  message(STATUS "Build type is Release by default")
-  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Set the build type from: Debug Release." FORCE)
+if(CMAKE_BUILD_TYPE)
+  string(TOUPPER ${CMAKE_BUILD_TYPE} __build_type)
+  set (CMAKE_CXX_FLAGS_${__build_type} "")
 endif()
 
 # set build flags
