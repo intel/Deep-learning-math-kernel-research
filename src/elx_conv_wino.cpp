@@ -481,13 +481,15 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_weights(
     for_each (_hA, A) {
     for_each (_iV, V) {
       if (I == ISA_SKX_AVX512) {
+        auto *ptarget
+          = atweights[_oc4][_ic4][_oc3][_ic3][_wA][_hA][_O2][_I2][_iV];
         if (stream_wei_)
           _mm512_stream_ps(
-              atweights[_oc4][_ic4][_oc3][_ic3][_wA][_hA][_O2][_I2][_iV],
+              ptarget,
               *((__m512 *)&aout[_wA][_hA][_iV][0]));
         else
           _mm512_store_ps(
-              atweights[_oc4][_ic4][_oc3][_ic3][_wA][_hA][_O2][_I2][_iV],
+              ptarget,
               *((__m512 *)&aout[_wA][_hA][_iV][0]));
       } else {
 
@@ -523,13 +525,14 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_weightsa(
     for_each (_hA, A) {
     for_each (_iV, V) {
       if (I == ISA_SKX_AVX512) {
+        auto *ptarget = atweights[_oc4][_ic4][_wA][_hA][_oc3][_ic3][_O2][_I2][_iV];
         if (stream_wei_)
           _mm512_stream_ps(
-              atweights[_oc4][_ic4][_wA][_hA][_oc3][_ic3][_O2][_I2][_iV],
+              ptarget,
               *((__m512 *)&aout[_wA][_hA][_iV][0]));
         else
           _mm512_store_ps(
-              atweights[_oc4][_ic4][_wA][_hA][_oc3][_ic3][_O2][_I2][_iV],
+              ptarget,
               *((__m512 *)&aout[_wA][_hA][_iV][0]));
       } else {
 #pragma omp simd
@@ -650,12 +653,13 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_inputa(
 
     for_each (_hA, A) {
       if (I == ISA_SKX_AVX512) {
+        auto *ptarget = atinput[_hA][_ic3][_I2][_T];
         if (stream_in_)
           _mm512_stream_ps(
-              atinput[_hA][_ic3][_I2][_T], *((__m512 *)&aout[_hA][_wA][0]));
+              ptarget, *((__m512 *)&aout[_hA][_wA][0]));
         else
           _mm512_store_ps(
-              atinput[_hA][_ic3][_I2][_T], *((__m512 *)&aout[_hA][_wA][0]));
+              ptarget, *((__m512 *)&aout[_hA][_wA][0]));
       } else {
 #pragma omp simd
         for_each (_V, V)
