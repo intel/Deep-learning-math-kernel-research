@@ -2,8 +2,8 @@
 
 function usage() {
 cat <<!
-  -v   Validation on|off.
-  -p   Plain format or blocked format.
+  -v   Validation on.
+  -p   Use plain format.
   -h   This page.
 !
 }

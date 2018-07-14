@@ -31,3 +31,4 @@ Plain format (nchw/oihw) support (2018-7-11): Done
 - enable plain fmt for 0xa0e0/0xa0e1
 - enable plain fmt for 0xa073
 - fix performance regression in block16: format as template parameter
+- format-as-blocked (esp. to avoid false sharing in fused output reorder)

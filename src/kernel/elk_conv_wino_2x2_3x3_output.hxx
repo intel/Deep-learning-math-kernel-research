@@ -131,6 +131,7 @@ __TRANS_OUTPUTA_TH( float, 4, 3, 16, ISA_SKX_AVX512)
 }
 
 
+// template <const bool is_border_, const bool with_bias_>
 // Params:
 //   elx_conv_t<float> &xc,
 //   float *output, float atoutput[A][A - K + 1][V], float *bias,
@@ -140,6 +141,7 @@ __TRANS_OUTPUTA_BH(float, 4, 3, 16, ISA_GENERIC)
   // TODO
 }
 
+// template <const bool is_border_, const bool with_bias_>
 // Params:
 //   elx_conv_t<float> &xc,
 //   float *output, float atoutput[A][A - K + 1][V], float *bias,
