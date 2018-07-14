@@ -125,6 +125,46 @@ struct convolution_winograd_kernel {
   TRANS_KERNEL(float, 5, 3, 16, ISA_GENERIC);
   TRANS_KERNEL(float, 5, 3, 16, ISA_SKX_AVX512);
 
+  TRANS_KERNEL(float, 7, 3, 16, ISA_GENERIC);
+  TRANS_KERNEL(float, 7, 3, 16, ISA_SKX_AVX512);
+
+  template <const bool is_border_>
+  static inline void __trans_input(winograd_template_parameter_t<S_INPUT(float,
+                                       7, 3, 16, ISA_GENERIC, is_border_)>,
+      elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
+      int _hT_start, int _hT_end, int _wT_start, int _wT_end);
+
+  template <const bool is_border_>
+  static inline void __trans_inputa(winograd_template_parameter_t<S_INPUT(float,
+                                       7, 3, 16, ISA_GENERIC, is_border_)>,
+      elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
+      int _wA, int _hT_start, int _hT_end, int _wT_start, int _wT_end);
+
+  template <const bool is_border_, const bool with_bias_>
+  static inline void __trans_output(
+      winograd_template_parameter_t<S_OUTPUT(
+          float, 7, 3, 16, ISA_GENERIC, is_border_, with_bias_)>,
+      elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
+      float *bias, int _hOA_end, int _wOA_end);
+
+  static inline void __trans_outputa_th(
+      winograd_template_parameter_t<S_OUTPUT(
+          float, 7, 3, 16, ISA_GENERIC, false, false)>,
+      elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz,
+      bool stream_out);
+
+  template <const bool is_border_, const bool with_bias_>
+  static inline void __trans_outputa_bh(
+      winograd_template_parameter_t<S_OUTPUT(
+          float, 7, 3, 16, ISA_GENERIC, is_border_, with_bias_)>,
+      elx_conv_t<float> &xc, float *output, float atoutputa[A][A - K + 1][V],
+      float *bias, int _hOA_end, int _wOA_end);
+
+
+  static inline void __trans_weights(
+      winograd_template_parameter_t<S_WEIGHTS(float, 7, 3, 16, ISA_GENERIC)>,
+      Type atweights[A][A][V][V], Type aweights[K][K][V][V]);
+
   template <const int T_>
   static inline void __gemm(
       winograd_template_parameter_t<S_GEMM(float, T_, 16, ISA_GENERIC)>,
