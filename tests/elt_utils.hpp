@@ -28,6 +28,6 @@ typedef std::chrono::duration<float, std::milli> Duration;
   } while (0)
 
 
-#define MEMALIGN64(ptr, size) posix_memalign((void **)ptr, 64, size)
+#define MEMALIGN64(ptr, size) posix_memalign((void **)(ptr), 64, size)
 
 #endif  // __ELT_UTILS_HPP__

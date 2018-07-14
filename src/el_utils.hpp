@@ -29,9 +29,9 @@ template <typename T, typename... Args> inline T accumulate(T a, Args... args)
 }
 
 #define MD(type, array, dims, ptr)                                             \
-  auto &array = *reinterpret_cast<float (*) dims>(ptr)
+  auto &array = *reinterpret_cast<type (*) dims>(ptr)
 
-#define MEMALIGN64(ptr, size) posix_memalign((void **)ptr, 64, size)
+#define MEMALIGN64(ptr, size) posix_memalign((void **)(ptr), 64, size)
 
 } // namespace euler
 
