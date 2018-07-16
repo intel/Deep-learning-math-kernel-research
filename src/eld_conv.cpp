@@ -104,7 +104,7 @@ int eld_conv_t<F>::setup() {
         xc = new elx_conv_wino_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       case 7:
-        xc = new elx_conv_wino_t<F, 7, 3, 16, ISA_GENERIC>(*this);
+        xc = new elx_conv_wino_t<F, 7, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       default:
         el_error("Unimplemented tile size");
