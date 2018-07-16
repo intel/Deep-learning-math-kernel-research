@@ -7,6 +7,7 @@
 #include "elt_conv_utils.hpp"
 #include "euler.hpp"
 #include <iostream>
+#include <unordered_map>
 
 using namespace euler;
 namespace po = boost::program_options;
@@ -198,24 +199,22 @@ int parse_cmd_options(int argc, char **argv) {
       streaming_weights, streaming_input, streaming_output,
       nteams, nthreads, execution_mode);
 
-  const char *prop_kind_str[] = {
-    [forward_inference] = "forward_inference",
-    [forward_training] = "forward_training",
-    [backward_data] = "backward_data",
-    [backward_weights] = "backward_weights"
+  std::unordered_map<int, const char *>prop_kind_str {
+    { forward_training, "forward_training"},
+    { forward_inference, "forward_inference"},
+    { backward_data, "backward_data"},
+    { backward_weights, "backward_weights"}
   };
   printf("prop_kind:%s\n", prop_kind_str[prop_kind]);
 
-  const char *alg_str[] = {
-    [CONV_DIRECT] = "CONV_DIRECT",
-    [CONV_WINOGRAD] = "CONV_WINOGRAD"
+  std::unordered_map<int, const char *> alg_str {
+    {CONV_DIRECT, "CONV_DIRECT"},
+    {CONV_WINOGRAD, "CONV_WINOGRAD"}
   };
   printf("alg:%s, tile-size=%d\n", alg_str[alg], tile_size);
 
-  const char *fmt_str[] = { [nchw] = "nchw",
-    [oihw] = "oihw",
-    [nChw16c] = "nChw16c",
-    [OIhw16i16o] = "OIhw16i16o"
+  std::unordered_map<int, const char *> fmt_str { {nchw, "nchw"},
+    {oihw, "oihw"}, {nChw16c, "nChw16c"}, {OIhw16i16o, "OIhw16i16o"}
   };
   printf("input-fmt:%s, weights-fmt:%s, output-fmt:%s\n", fmt_str[input_fmt],
       fmt_str[weights_fmt], fmt_str[output_fmt]);

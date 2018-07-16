@@ -481,7 +481,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
     for_each (_iV, V) {
       if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
         auto t = _mm512_i32gather_ps(vindex,
-            (void *)&awei[0][0][_iV][_hK][_wK], sizeof(Type));
+            (float *)&awei[0][0][_iV][_hK][_wK], sizeof(Type));
         _mm512_store_ps(ain[_hK][_wK][_iV], t);
       } else {
         for_each (_oV, V)
@@ -643,7 +643,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsa_plain(
     for_each (_iV, V) {
       if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
         auto t = _mm512_i32gather_ps(vindex,
-            (void *)&awei[0][0][_iV][_hK][_wK], sizeof(Type));
+            (float *)&awei[0][0][_iV][_hK][_wK], sizeof(Type));
         _mm512_store_ps(ain[_hK][_wK][_iV], t);
       } else {
         for_each (_oV, V)
@@ -727,7 +727,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
       } else {
         if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
           __m512 t = _mm512_i32gather_ps(vindex,
-              (void *)&ainput[_n][0][_ic3][_I2][0][_ih + _hA][_iw + _wA],
+              (float *)&ainput[_n][0][_ic3][_I2][0][_ih + _hA][_iw + _wA],
               sizeof(Type));
           _mm512_store_ps(ain[_hA][_wA], t);
         } else {
@@ -891,7 +891,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
       } else {
         if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
           __m512 t = _mm512_i32gather_ps(vindex,
-              (void *)&ainput[_n][0][_ic3][_I2][0][_ih + _hA][_iw + _wA],
+              (float *)&ainput[_n][0][_ic3][_I2][0][_ih + _hA][_iw + _wA],
               sizeof(Type));
           _mm512_store_ps(ain[_hA][_wA], t);
         } else {
@@ -1018,7 +1018,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_inputa_plain(
       } else {
         if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
           __m512 t = _mm512_i32gather_ps(vindex,
-              (void *)&ainput[_n][0][_ic3][_I2][0][_ih + __hA][_iw + __wA],
+              (float *)&ainput[_n][0][_ic3][_I2][0][_ih + __hA][_iw + __wA],
               sizeof(Type));
           _mm512_store_ps(ain[__hA][__wA], t);
         } else {
@@ -1174,7 +1174,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
         if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
           __m512 t = _mm512_load_ps(aout[_hA][_wA]);
           _mm512_i32scatter_ps(
-              (void *)&aoutput[_n][0][_oc3][_O2][0][_oh + _hA][_ow + _wA],
+              (float *)&aoutput[_n][0][_oc3][_O2][0][_oh + _hA][_ow + _wA],
               vindex, t, sizeof(Type));
         } else {
 #pragma omp simd
@@ -1350,7 +1350,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(Type *output,
         if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
           __m512 t = _mm512_load_ps(aout[_hA][_wA]);
           _mm512_i32scatter_ps(
-              (void *)&aoutput[_n][oc4][_ic4][_oc][0][_oh + _hA][_ow + _wA],
+              (float *)&aoutput[_n][oc4][_ic4][_oc][0][_oh + _hA][_ow + _wA],
               vindex, t, sizeof(Type));
         } else {
 #pragma omp simd
@@ -1469,7 +1469,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_outputa_bh_plain(
         if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
           __m512 t = _mm512_load_ps(aout[_hA][_wA]);
           _mm512_i32scatter_ps(
-              (void *)&aoutput[_n][_oc2][0][_oh + _hA][_ow + _wA],
+              (float *)&aoutput[_n][_oc2][0][_oh + _hA][_ow + _wA],
               vindex, t, sizeof(Type));
         } else {
 #pragma omp simd
@@ -1572,7 +1572,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
         if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
           __m512 t = _mm512_load_ps(aout[_hA][_wA]);
           _mm512_i32scatter_ps(
-              (void *)&aoutput[_n][0][_oc3][_O2][0][_oh + _hA][_ow + _wA],
+              (float *)&aoutput[_n][0][_oc3][_O2][0][_oh + _hA][_ow + _wA],
               vindex, t, sizeof(Type));
         } else {
 #pragma omp simd
