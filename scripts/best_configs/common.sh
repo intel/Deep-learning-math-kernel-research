@@ -13,6 +13,7 @@ input_format=nChw16c
 weights_format=OIhw16i16o
 output_format=nChw16c
 
+OPTIND=1
 while getopts "vph" opt; do
   case $opt in
     v)
