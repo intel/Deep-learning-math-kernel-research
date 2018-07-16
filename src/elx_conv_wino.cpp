@@ -462,7 +462,7 @@ elx_conv_wino_t<Type, A, K, V, I>::~elx_conv_wino_t()
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
-    Type *tweights, Type *weights, int oc4)
+    Type * __restrict tweights, Type * __restrict weights, int oc4)
 {
   // oc2, ic2, hK, wK, V, V => oc4, ic4, oc3, ic3, wA, hA, O2, I2, V, V
   MD(Type, aweights, [oc4][this->oc3][this->O2][V][this->ic4][this->ic3][this->I2][V][K][K], weights);
@@ -480,8 +480,9 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
     for_each (_wK, K) {
     for_each (_iV, V) {
       if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+        constexpr auto scale = sizeof(Type);
         auto t = _mm512_i32gather_ps(vindex,
-            (float *)&awei[0][0][_iV][_hK][_wK], sizeof(Type));
+            (float *)&awei[0][0][_iV][_hK][_wK], scale);
         _mm512_store_ps(ain[_hK][_wK][_iV], t);
       } else {
         for_each (_oV, V)
@@ -624,7 +625,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsa_blocked(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsa_plain(
-    Type *tweights, Type *weights)
+    Type * __restrict tweights, Type * __restrict weights)
 {
   // oc2, ic2, hK, wK, V, V => oc4, ic4, wA, hA, oc3, ic3, O2, I2, V, V
   MD(Type, aweights, [this->oc4][this->oc3][this->O2][V][this->ic4][this->ic3][this->I2][V][K][K], weights);
@@ -642,8 +643,9 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsa_plain(
     for_each (_wK, K) {
     for_each (_iV, V) {
       if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+        constexpr auto scale = sizeof(Type);
         auto t = _mm512_i32gather_ps(vindex,
-            (float *)&awei[0][0][_iV][_hK][_wK], sizeof(Type));
+            (float *)&awei[0][0][_iV][_hK][_wK], scale);
         _mm512_store_ps(ain[_hK][_wK][_iV], t);
       } else {
         for_each (_oV, V)
@@ -700,7 +702,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_weightsa(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
-    Type *tinput, Type *input, int _t2, int Tz)
+    Type * __restrict tinput, Type * __restrict input, int _t2, int Tz)
 {
   // n, ic, ih, iw => t2 | wA, hA, ic3, I2, T, V
   MD(Type, atinput,[A][A][this->ic3][this->I2][Tz][V], tinput);
@@ -726,9 +728,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
           ain[_hA][_wA][_V] = 0.0f;
       } else {
         if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+          constexpr int scale = sizeof(Type);
           __m512 t = _mm512_i32gather_ps(vindex,
               (float *)&ainput[_n][0][_ic3][_I2][0][_ih + _hA][_iw + _wA],
-              sizeof(Type));
+              scale);
           _mm512_store_ps(ain[_hA][_wA], t);
         } else {
 #pragma omp simd
@@ -766,7 +769,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_blocked(
-    Type *tinput, Type *input, int _t2, int Tz)
+    Type * __restrict tinput, Type * __restrict input, int _t2, int Tz)
 {
   // n, ic2, ih, iw, V => t2 | wA, hA, ic3, I2, T, V
   MD(Type, ainput, [this->n][this->ic4][this->ic3][this->I2][this->ih][this->iw][V], input);
@@ -809,7 +812,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_blocked(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::trans_input(
-    Type *tinput, Type *input, int _t2, int Tz)
+    Type * __restrict tinput, Type * __restrict input, int _t2, int Tz)
 {
   if (is_blocked_fmt_)
     __trans_input_blocked(tinput, input, _t2, Tz);
@@ -819,7 +822,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_input(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_blocked(
-    Type *tinput, Type *input)
+    Type * __restrict tinput, Type * __restrict input)
 {
   // n, ic2, ih, iw, V => t2, wA, hA, ic3, I2, T, V
   MD(Type, ainput, [this->n][this->ic4][this->ic3][this->I2][this->ih][this->iw][V], input);
@@ -866,7 +869,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_blocked(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
-    Type *tinput, Type *input)
+    Type * __restrict tinput, Type * __restrict input)
 {
   // n, ic2, ih, iw, V => t2, wA, hA, ic3, I2, T, V
   MD(Type, atinput2, [this->t2][A * A * this->T * this->ic], tinput);
@@ -890,9 +893,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
           ain[_hA][_wA][_V] = 0.0f;
       } else {
         if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+          constexpr int scale = sizeof(Type);
           __m512 t = _mm512_i32gather_ps(vindex,
               (float *)&ainput[_n][0][_ic3][_I2][0][_ih + _hA][_iw + _wA],
-              sizeof(Type));
+              scale);
           _mm512_store_ps(ain[_hA][_wA], t);
         } else {
 #pragma omp simd
@@ -991,7 +995,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_inputa_blocked(
  
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__trans_inputa_plain(
-    Type *tinput, Type *input, int _t2, int _wA, int Tz)
+    Type * __restrict tinput, Type * __restrict input, int _t2, int _wA, int Tz)
 {
   // n, ic2, ih, iw, V => t2, wA | hA, ic3, I2, T, V
   MD(Type, atinput, [A][this->ic3][this->I2][Tz][V], tinput);
@@ -1017,9 +1021,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_inputa_plain(
           ain[__hA][__wA][_V] = 0.0f;
       } else {
         if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+          constexpr int scale = sizeof(Type);
           __m512 t = _mm512_i32gather_ps(vindex,
               (float *)&ainput[_n][0][_ic3][_I2][0][_ih + __hA][_iw + __wA],
-              sizeof(Type));
+              scale);
           _mm512_store_ps(ain[__hA][__wA], t);
         } else {
 #pragma omp simd
@@ -1096,7 +1101,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
 // toutput:  t2, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::gemm(
-    Type *toutput, Type *tinput, Type *tweights)
+    Type * __restrict toutput, Type * __restrict tinput, Type * __restrict tweights)
 {
   MD(Type, atinput2, [this->t2][A * A * this->T * this->ic], tinput);
   MD(Type, atoutput2, [this->t2][A * A * this->T * this->oc3 * this->O2 * V], toutput);
@@ -1130,7 +1135,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
 // toutput: t2, oc4, A | A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::gemma(
-    Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz)
+    Type * __restrict toutput, Type * __restrict tinput, Type *tweights, int _t2, int Tz)
 {
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
 
@@ -1148,7 +1153,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemma(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
-    Type *output, Type *toutput, Type *bias, int _t2, int Tz)
+    Type * __restrict output, Type * __restrict toutput, Type * __restrict bias
+    , int _t2, int Tz)
 {
   // A, A, oc3, O2, T, V -> n, oc, oh, ow
   MD(Type, atoutput, [A][A][this->oc3][this->O2][Tz][V], toutput);
@@ -1173,9 +1179,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
       for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
         if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
           __m512 t = _mm512_load_ps(aout[_hA][_wA]);
+          constexpr int scale = sizeof(Type);
           _mm512_i32scatter_ps(
               (float *)&aoutput[_n][0][_oc3][_O2][0][_oh + _hA][_ow + _wA],
-              vindex, t, sizeof(Type));
+              vindex, t, scale);
         } else {
 #pragma omp simd
           for_each (_V, V)
@@ -1323,7 +1330,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_blocked(Type *output,
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(Type *output,
-    Type *output_tmp, Type *toutput, Type *bias, int _t2, int Tz, int ic4,
+    Type * __restrict output_tmp, Type * __restrict toutput, Type *bias, int _t2, int Tz, int ic4,
     int oc4, bool inline_reduce)
 {
   MD(Type, atoutput, [A][A][this->ic4][this->oc3 * this->O2 / this->ic4][Tz][V], toutput);
@@ -1349,9 +1356,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(Type *output,
       for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
         if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
           __m512 t = _mm512_load_ps(aout[_hA][_wA]);
+          constexpr auto scale = sizeof(Type);
           _mm512_i32scatter_ps(
               (float *)&aoutput[_n][oc4][_ic4][_oc][0][_oh + _hA][_ow + _wA],
-              vindex, t, sizeof(Type));
+              vindex, t, scale);
         } else {
 #pragma omp simd
           for_each (_V, V)
@@ -1447,7 +1455,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_outputa_bh_blocked(
 // toutputa: t2, oc2, T, wA/A | hA/A-K+1, V
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__trans_outputa_bh_plain(
-    Type *output, Type *toutputa, Type *bias)
+    Type * __restrict output, Type * __restrict toutputa, Type *bias)
 {
   MD(Type, abias, [this->oc2][V], bias);
   MD(Type, atoutputa2, [this->t2][A * (A - K + 1) * this->T * this->oc], toutputa);
@@ -1468,9 +1476,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_outputa_bh_plain(
       for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
         if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
           __m512 t = _mm512_load_ps(aout[_hA][_wA]);
+          constexpr auto scale = sizeof(Type);
           _mm512_i32scatter_ps(
               (float *)&aoutput[_n][_oc2][0][_oh + _hA][_ow + _wA],
-              vindex, t, sizeof(Type));
+              vindex, t, scale);
         } else {
 #pragma omp simd
           for_each (_V, V)
@@ -1549,7 +1558,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_blocked(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
-    Type *output, Type *toutput, Type *bias)
+    Type * __restrict output, Type * __restrict toutput, Type *bias)
 {
   // A, A, oc3, O2, T, V -> n, oc, oh, ow
   MD(Type, abias, [this->oc3][this->O2][V], bias);
@@ -1571,9 +1580,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
       for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
         if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
           __m512 t = _mm512_load_ps(aout[_hA][_wA]);
+          constexpr auto scale = sizeof(Type);
           _mm512_i32scatter_ps(
               (float *)&aoutput[_n][0][_oc3][_O2][0][_oh + _hA][_ow + _wA],
-              vindex, t, sizeof(Type));
+              vindex, t, scale);
         } else {
 #pragma omp simd
           for_each (_V, V)
@@ -1652,7 +1662,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a040(
 // toutput:  t2, oc4 | A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__execute_a061(
-    Type *output, Type *input, Type *weights, Type *bias)
+    Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
   MD(Type, atinput2, [mthr_][A * A * this->T * this->ic], tinput_);
   MD(Type, atoutput2, [mthr_][A * A * this->T * this->oc3 * this->O2 * V], toutput_);
@@ -1688,7 +1698,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a061(
 // toutputa: t2, oc4, oc3, O2, T, wA, hA, V
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__execute_a0e1(
-    Type *output, Type *input, Type *weights, Type *bias)
+    Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
   MD(Type, atinputa2, [mthr_][A * this->T * this->ic], tinput_);
   MD(Type, atoutput2, [mthr_][A * this->T * this->oc3 * this->O2 * V], toutput_);
@@ -1729,7 +1739,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a0e1(
 // toutputa: t2, oc4, oc3, O2, T, wA, hA, V
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__execute_a0e0(
-    Type *output, Type *input, Type *weights, Type *bias)
+    Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
   MD(Type, atinput2, [this->t2][A * A * this->T * this->ic], tinput_);
   MD(Type, atoutput2, [mthr_][A * this->T * this->oc3 * this->O2 * V], toutput_);
@@ -1772,7 +1782,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a0e0(
 // toutput:  t2, oc4      | A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__execute_a073(
-    Type *output, Type *input, Type *weights, Type *bias)
+    Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
   MD(Type, atinput2, [mthr_][A * A * this->T * this->ic3 * this->I2 * V], tinput_);
   MD(Type, atoutput2, [mthr_][A * A * this->T * this->oc3 * this->O2 * V], toutput_);
@@ -1839,7 +1849,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a073(
 // Fuse trans-input, gemm and trans-output along 't' dimension
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__execute_a448(
-    Type *output, Type *input, Type *weights, Type *bias)
+    Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
   MD(Type, atinput3, [this->nteams][this->nthreads][A * A * this->T * this->ic], tinput_);
   MD(Type, atoutput3, [this->nteams][this->nthreads][A * A * this->T * this->oc], toutput_);
@@ -1871,7 +1881,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a448(
 // Flat mode
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__execute_a000(
-    Type *output, Type *input, Type *weights, Type *bias)
+    Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
@@ -1894,7 +1904,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a000(
 // toutput:  nteams | t2, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__execute_a201(
-    Type *output, Type *input, Type *weights, Type *bias)
+    Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
   MD(Type, aoutput3, [this->n][this->nteams][this->oc * this->oh * this->ow / this->nteams], output);
   MD(Type, aweights2, [this->nteams][this->oc * this->ic * K * K / this->nteams], weights);
@@ -1922,7 +1932,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a201(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__execute_a241(
-    Type *output, Type *input, Type *weights, Type *bias)
+    Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
   MD(Type, aoutput3, [this->n][this->nteams][this->oc * this->oh * this->ow / this->nteams], output);
   MD(Type, aweights2, [this->nteams][this->oc * this->ic * K * K / this->nteams], weights);
@@ -1956,7 +1966,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a241(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::execute(
-    Type *output, Type *input, Type *weights, Type *bias)
+    Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
   (this->*execute_opt_)(output, input, weights, bias);
 }
