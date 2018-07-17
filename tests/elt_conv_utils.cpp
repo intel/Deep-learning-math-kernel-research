@@ -47,23 +47,33 @@ namespace test {
   }
 
   template <typename Type>
-  int compare_conv_results_block16(eld_conv_t<Type> &, Type *, Type *)
+  int __compare_conv_results_plain(eld_conv_t<Type> &, Type *, Type *)
   {
     return -1;
   }
 
   template <typename Type>
-  int compare_conv_results(eld_conv_t<Type> &, Type *, Type *)
+  int __compare_conv_results_blocked(eld_conv_t<Type> &, Type *, Type *)
   {
     return -1;
   }
 
+  template <typename Type>
+  int compare_conv_results(eld_conv_t<Type> &desc, Type *out, Type *ref)
+  {
+    if (desc.formats.output == nchw)
+      return __compare_conv_results_plain(desc, out, ref);
+    else
+      return __compare_conv_results_blocked(desc, out, ref);
+  }
+
   template <>
-  int compare_conv_results_block16<float>(
+  int __compare_conv_results_blocked<float>(
       eld_conv_t<float> &desc, float *out, float *ref)
   {
+    const int V = 16;
     auto dims = desc.dims.output;
-    using Array = float[dims.n][dims.c / 16][dims.h][dims.w][16];
+    using Array = float[dims.n][dims.c / V][dims.h][dims.w][V];
     Array *aout = (Array *)out;
     Array *aref = (Array *)ref;
 
@@ -72,10 +82,10 @@ namespace test {
 
 #pragma omp parallel for collapse(3)
     for_each (_n, dims.n) {
-      for_each (_C, dims.c / 16) {
+      for_each (_C, dims.c / V) {
         for_each (_h, dims.h) {
           for_each (_w, dims.w) {
-            for_each (_v, 16) {
+            for_each (_v, V) {
               double delta = fabs(
                   (*aout)[_n][_C][_h][_w][_v] - (*aref)[_n][_C][_h][_w][_v]);
               double rel_diff = delta / fabs((*aref)[_n][_C][_h][_w][_v]);
@@ -103,7 +113,7 @@ namespace test {
   }
 
   template <>
-  int compare_conv_results<float>(
+  int __compare_conv_results_plain<float>(
       eld_conv_t<float> &desc, float *out, float *ref)
   {
     auto dims = desc.dims.output;
@@ -288,14 +298,6 @@ namespace test {
     int dh = desc.dilations.h;
     int dw = desc.dilations.w;
 
-    using Array1 = Type[n][ic][ih][iw];
-    using Array2 = Type[oc][ic][kh][kw];
-    using Array3 = Type[n][oc][oh][ow];
-
-    Array1 *ainput = (Array1 *)input;
-    Array2 *aweights = (Array2 *)weights;
-    Array3 *aoutput = (Array3 *)output;
-
     if (desc.dims.input.n != desc.dims.output.n
         || desc.dims.input.c != desc.dims.weights.i
         || desc.dims.output.c != desc.dims.weights.o
@@ -303,6 +305,30 @@ namespace test {
       printf("Dimension error!");
       return -1;
     }
+
+    Type *tinput = nullptr, *tweights = nullptr, *toutput = nullptr;
+    if (desc.formats.input == nChw16c) {
+      tinput = (Type *)malloc(desc.byte_sizes.input);
+      reorder<Type, nchw, nChw16c>(tinput, input, n, ic, ih, iw);
+    }
+    if (desc.formats.weights == OIhw16i16o) {
+      tweights = (Type *)malloc(desc.byte_sizes.weights);
+      reorder<Type, oihw, OIhw16i16o>(tweights, weights, oc, ic, kh, kw);
+    }
+    if (desc.formats.output == nChw16c) {
+      toutput = (Type *)malloc(desc.byte_sizes.output);
+    }
+
+    using Array1 = Type[n][ic][ih][iw];
+    using Array2 = Type[oc][ic][kh][kw];
+    using Array3 = Type[n][oc][oh][ow];
+
+    Array1 *ainput
+        = desc.formats.input == nchw ? (Array1 *)input : (Array1 *)tinput;
+    Array2 *aweights
+        = desc.formats.weights == oihw ? (Array2 *)weights : (Array2 *)tweights;
+    Array3 *aoutput
+        = desc.formats.output == nchw ? (Array3 *)output : (Array3 *)toutput;
 
 #pragma omp parallel for collapse(4)
     for_each (_n, n) {
@@ -329,6 +355,17 @@ namespace test {
         }
       }
     }
+
+    if (desc.formats.output == nChw16c)
+      reorder<Type, nChw16c, nchw>(output, toutput, n, oc, oh, ow);
+
+    if (tinput != nullptr)
+      free(tinput);
+    if (tweights != nullptr)
+      free(tweights);
+    if (toutput != nullptr)
+      free(toutput);
+
     return 0;
   }
 
@@ -400,6 +437,9 @@ namespace test {
     }
     return 0;
   }
+
+  template int compare_conv_results<float>(
+      eld_conv_t<float> &, float *, float *);
 
   template int ref_convolution2d<float>(
       eld_conv_t<float> &, float *, float *, float *, float *);

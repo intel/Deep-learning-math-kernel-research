@@ -30,7 +30,8 @@ function conv_test() {
   b=1; r=0; v=1; a=wino; blk_i=0; blk_o=0; blk_t=0; pat_i=1; pat_o=1
   tile_size=5; nteams=0; nthreads=0; execution_mode=0
   streaming_weights=0; streaming_input=0; streaming_output=0
-  data_fmt=block16
+  input_format=nChw16c; weights_format=OIhw16i16o; output_format=nChw16c
+  input_as_blocked=0; weights_as_blocked=0; output_as_blocked=0
 
   OPTIND=1
   while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:a:-:" opt; do
@@ -102,9 +103,29 @@ function conv_test() {
             ;;
           streaming-output=*) streaming_output=${OPTARG#*=}
             ;;
-          data-fmt) data_fmt="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+          input-format) input_format="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
             ;;
-          data-fmt=*) data_fmt=${OPTARG#*=}
+          input-format=*) input_format=${OPTARG#*=}
+            ;;
+          weights-format) weights_format="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          weights-format=*) weights_format=${OPTARG#*=}
+            ;;
+          output-format) output_format="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          output-format=*) output_format=${OPTARG#*=}
+            ;;
+          input-as-blocked) input_as_blocked="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          input-as-blocked=*) input_as_blocked=${OPTARG#*=}
+            ;;
+          weights-as-blocked) weights_as_blocked="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          weights-as-blocked=*) weights_as_blocked=${OPTARG#*=}
+            ;;
+          output-as-blocked) output_as_blocked="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          output-as-blocked=*) output_as_blocked=${OPTARG#*=}
             ;;
        esac
        ;;
@@ -118,7 +139,13 @@ function conv_test() {
     --nteams=$nteams --nthreads=$nthreads --execution-mode=$execution_mode \
     --streaming-weights=$streaming_weights \
     --streaming-input=$streaming_input \
-    --streaming-output=$streaming_output --data-fmt=$data_fmt
+    --streaming-output=$streaming_output \
+    --input-format=$input_format \
+    --weights-format=$weights_format \
+    --output-format=$output_format \
+    --input-as-blocked=$input_as_blocked \
+    --weights-as-blocked=$weights_as_blocked \
+    --output-as-blocked=$output_as_blocked
 
 }
 

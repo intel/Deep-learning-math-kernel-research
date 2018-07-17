@@ -147,6 +147,7 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
 {
   size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
   size_t routput_size = 0, toutputa_size = 0;
+  size_t binput_size = 0, bweights_size = 0, boutput_size = 0;
   size_t l1_usage = 0, l2_usage = 0;
 
   auto divide_tasks_ttm = [this](size_t tasks) {
@@ -208,7 +209,20 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
     }
   }
 
-  is_blocked_fmt_ = this->input_fmt == nChw16c ? true : false;
+  input_is_bfmt_ = this->input_fmt == nchw ? false : true;
+  weights_is_bfmt_ = this->weights_fmt == oihw ? false : true;
+  output_is_bfmt_ = this->output_fmt == nchw ? false : true;
+  input_as_bfmt_ = !input_is_bfmt_ && this->input_as_blocked;
+  weights_as_bfmt_ = !weights_is_bfmt_ && this->weights_as_blocked;
+  output_as_bfmt_ = !output_is_bfmt_ && this->output_as_blocked;
+  is_bfmt_ = input_is_bfmt_ && weights_is_bfmt_ && output_is_bfmt_;
+
+  if (input_as_bfmt_)
+    binput_size = this->n * this->ic * this->ih * this->iw;
+  if (weights_as_bfmt_)
+    bweights_size = this->oc * this->ic * this->kh * this->kw;
+  if (output_as_bfmt_)
+    boutput_size = this->n * this->oc * this->oh * this->ow;
 
   tweights_ = nullptr;
   tinput_ = nullptr;
@@ -216,8 +230,13 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
   toutputa_ = nullptr;
   routput_ = nullptr;
   routput_cntr_ = nullptr;
+  binput_ = nullptr;
+  bweights_ = nullptr;
+  boutput_ = nullptr;
+
   l1_usage = sizeof(Type)
       * (this->O2 * this->I2 * V * V + this->T * V * (this->I2 + this->O2));
+MEMALIGN64(&boutput_, this->n * this->oc * this->oh * this->ow);
 
   switch (xopt_) {
   case 0xa000:
@@ -294,21 +313,22 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
 
   l2_usage *= sizeof(Type);
 
-  if (tweights_size > 0) {
+  if (tweights_size > 0)
     MEMALIGN64(&tweights_, tweights_size * sizeof(Type));
-  }
-  if (tinput_size > 0) {
+  if (tinput_size > 0)
     MEMALIGN64(&tinput_, tinput_size * sizeof(Type));
-  }
-  if (toutput_size > 0) {
+  if (toutput_size > 0)
     MEMALIGN64(&toutput_, toutput_size * sizeof(Type));
-  }
-  if (routput_size > 0) {
+  if (routput_size > 0)
     MEMALIGN64(&routput_, routput_size * sizeof(Type));
-  }
-  if (toutputa_size > 0) {
+  if (toutputa_size > 0)
     MEMALIGN64(&toutputa_, toutputa_size * sizeof(Type));
-  }
+  if (binput_size > 0)
+    MEMALIGN64(&binput_, binput_size * sizeof(Type));
+  if (bweights_size > 0)
+    MEMALIGN64(&bweights_, bweights_size * sizeof(Type));
+  if (boutput_size > 0)
+    MEMALIGN64(&boutput_, boutput_size * sizeof(Type));
 
   // dbg
   printf("nteams=%d, nthreads=%d, mthr_=%ld\n", this->nteams, this->nthreads, mthr_);
@@ -428,6 +448,18 @@ elx_conv_wino_t<Type, A, K, V, I>::~elx_conv_wino_t()
   if (toutputa_ != nullptr) {
     free(toutputa_);
     toutputa_ = nullptr;
+  }
+  if (binput_ != nullptr) {
+    free(binput_);
+    binput_ = nullptr;
+  }
+  if (bweights_ != nullptr) {
+    free(bweights_);
+    bweights_ = nullptr;
+  }
+  if (boutput_ != nullptr) {
+    free(boutput_);
+    boutput_ = nullptr;
   }
 }
 
@@ -575,7 +607,7 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::trans_weights(
     Type *tweights, Type *weights, int oc4)
 {
-  if (is_blocked_fmt_)
+  if (weights_is_bfmt_ || weights_as_bfmt_)
     __trans_weights_blocked(tweights, weights, oc4);
   else
     __trans_weights_plain(tweights, weights, oc4);
@@ -693,7 +725,7 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::trans_weightsa(
     Type *tweights, Type *weights)
 {
-  if (is_blocked_fmt_)
+  if (weights_is_bfmt_ || weights_as_bfmt_)
     __trans_weightsa_blocked(tweights, weights);
   else
     __trans_weightsa_plain(tweights, weights);
@@ -814,7 +846,7 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::trans_input(
     Type * __restrict tinput, Type * __restrict input, int _t2, int Tz)
 {
-  if (is_blocked_fmt_)
+  if (input_is_bfmt_ || input_as_bfmt_)
     __trans_input_blocked(tinput, input, _t2, Tz);
   else
     __trans_input_plain(tinput, input, _t2, Tz);
@@ -944,7 +976,7 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::trans_input(
     Type *tinput, Type *input)
 {
-  if (is_blocked_fmt_)
+  if (input_is_bfmt_ || input_as_bfmt_)
     __trans_input_blocked(tinput, input);
   else
     __trans_input_plain(tinput, input);
@@ -1063,7 +1095,7 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::trans_inputa(
     Type *tinput, Type *input, int _t2, int _wA, int Tz)
 {
-  if(is_blocked_fmt_)
+  if(input_is_bfmt_ || input_as_bfmt_)
     __trans_inputa_blocked(tinput, input, _t2, _wA, Tz);
   else
     __trans_inputa_plain(tinput, input, _t2, _wA, Tz);
@@ -1245,7 +1277,7 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::trans_output(
     Type *output, Type *toutput, Type *bias, int _t2, int Tz)
 {
-  if (is_blocked_fmt_)
+  if (output_is_bfmt_ || output_as_bfmt_)
     __trans_output_blocked(output, toutput, bias, _t2, Tz);
   else
     __trans_output_plain(output, toutput, bias, _t2, Tz);
@@ -1395,7 +1427,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_output(Type *output,
     Type *output_tmp, Type *toutput, Type *bias, int _t2, int Tz, int ic4,
     int oc4, bool inline_reduce)
 {
-  if (is_blocked_fmt_)
+  if (output_is_bfmt_ || output_as_bfmt_)
     __trans_output_blocked(
         output, output_tmp, toutput, bias, _t2, Tz, ic4, oc4, inline_reduce);
   else
@@ -1512,7 +1544,7 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::trans_outputa_bh(
     Type *output, Type *toutputa, Type *bias)
 {
-  if (is_blocked_fmt_)
+  if (output_is_bfmt_ || output_as_bfmt_)
     __trans_outputa_bh_blocked(output, toutputa, bias);
   else
     __trans_outputa_bh_plain(output, toutputa, bias);
@@ -1622,7 +1654,7 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::trans_output(
     Type *output, Type *toutput, Type *bias)
 {
-  if (is_blocked_fmt_)
+  if (output_is_bfmt_ || output_as_bfmt_)
     __trans_output_blocked(output, toutput, bias);
   else
     __trans_output_plain(output, toutput, bias);
@@ -1793,7 +1825,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a073(
   MD(Type, aoutput, [this->n][this->oc4][this->oh * this->ow * this->oc3 * this->O2][V], output);
   MD(Type, abias, [this->oc4][this->oc3 * this->O2 * V], bias);
 
-  bool inline_reduce = is_blocked_fmt_ && (this->ic4 > 1)
+  bool inline_reduce = (output_is_bfmt_ || output_as_bfmt_) && (this->ic4 > 1)
       && ((this->O2 * this->oc3) % 2 == 0)
       && (mthr_ >= this->t2 * this->oc4 * this->ic4);
 
@@ -1968,7 +2000,63 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::execute(
     Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
-  (this->*execute_opt_)(output, input, weights, bias);
+  if (is_bfmt_)
+    return (this->*execute_opt_)(output, input, weights, bias);
+  else {
+    Type *in = input;
+    Type *wei = weights;
+    Type *out = output_as_bfmt_ ? boutput_ : output;
+
+    if (input_as_bfmt_) {
+      MD(Type, abinput, [this->n][this->ic2][this->ih][this->iw][V], binput_);
+      MD(Type, ainput, [this->n][this->ic][this->ih][this->iw], input);
+
+#pragma omp parallel for collapse(3)
+      for_each (_n, this->n) {
+      for_each (_ic2, this->ic2) {
+      for_each (_ih, this->ih) {
+      for_each (_iw, this->iw) {
+#pragma omp simd
+      for_each (_V, V) {
+        abinput[_n][_ic2][_ih][_iw][_V] = ainput[_n][_ic2 * V + _V][_ih][_iw];
+      }}}}}
+      in = binput_;
+    }
+
+    if (weights_as_bfmt_) {
+      MD(Type, abweights, [this->oc2][this->ic2][this->kh][this->kw][V][V], bweights_);
+      MD(Type, aweights, [this->oc][this->ic][this->kh][this->kw], weights);
+
+#pragma omp parallel for collapse(3)
+      for_each (_oc2, this->oc2) {
+      for_each (_ic2, this->ic2) {
+      for_each (_kh, this->kh) {
+      for_each (_kw, this->kw) {
+      for_each (_iV, V) {
+#pragma omp simd
+      for_each (_oV, V) {
+        abweights[_oc2][_ic2][_kh][_kw][_iV][_oV]
+          = aweights[_oc2 * V + _oV][_ic2 * V + _iV][_kh][_kw];
+      }}}}}}
+      wei = bweights_;
+    }
+
+    (this->*execute_opt_)(out, in, wei, bias);
+
+    if (output_as_bfmt_) {
+      MD(Type, aboutput, [this->n][this->oc2][this->oh][this->ow][V], boutput_);
+      MD(Type, aoutput, [this->n][this->oc][this->oh][this->ow], output);
+
+#pragma omp parallel for collapse(3)
+      for_each (_n, this->n) {
+      for_each (_oc2, this->oc2) {
+      for_each (_oh, this->oh) {
+      for_each (_V, V) {
+      for_each (_ow, this->ow) {
+        aoutput[_n][_oc2 * V + _V][_oh][_ow] = aboutput[_n][_oc2][_oh][_ow][_V];
+      }}}}}
+    }
+  }
 }
 
 } // namespace euler

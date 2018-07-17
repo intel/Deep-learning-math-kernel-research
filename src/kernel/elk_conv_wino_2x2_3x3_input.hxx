@@ -12,14 +12,11 @@
 
 namespace euler {
 
-template <D_INPUT(typename Type, const int A, const int K, const int V,
-    const int I, const bool is_border)>
-template <const bool is_border_>
-void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
-    is_border)>::__trans_input(winograd_template_parameter_t<S_INPUT(float, 4,
-                                   3, 16, ISA_GENERIC, is_border_)>,
-    elx_conv_t<float> &xc, float atinput[A][A][V], float *input, int _hT_start,
-    int _hT_end, int _wT_start, int _wT_end)
+// template <const bool is_border_>
+// Params:
+//    elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
+//    int _hT_start, int _hT_end, int _wT_start, int _wT_end
+__TRANS_INPUT(float, 4, 3, 16, ISA_GENERIC)
 {
   auto f_cb = [&](int _h, int _w, int _V) {
     if (_wT_end == -1) {
@@ -76,14 +73,11 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
   }
 }
 
-template <D_INPUT(typename Type, const int A, const int K, const int V,
-    const int I, const bool is_border)>
-template <const bool is_border_>
-void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
-    is_border)>::__trans_input(winograd_template_parameter_t<S_INPUT(float, 4,
-                                    3, 16, ISA_SKX_AVX512, is_border_)>,
-    elx_conv_t<float> &xc, float atinput[A][A][V], float *input, int _hT_start,
-    int _hT_end, int _wT_start, int _wT_end)
+// template <const bool is_border_>
+// Params:
+//    elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
+//    int _hT_start, int _hT_end, int _wT_start, int _wT_end
+__TRANS_INPUT(float, 4, 3, 16, ISA_SKX_AVX512)
 {
   ENABLE_AVX512F();
 
@@ -164,60 +158,27 @@ void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
   _mm512_store_ps(T(3, 3), t33);
 }
 
-template <D_INPUT(typename Type, const int A, const int K, const int V,
-    const int I, const bool is_border)>
-template <const bool is_border_>
-void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
-    is_border)>::__trans_inputa(winograd_template_parameter_t<S_INPUT(float, 4,
-                                    3, 16, ISA_SKX_AVX512, is_border_)>,
-    elx_conv_t<float> &xc, float atinput[A][A][V], float *input, int _wA, int _hT_start,
-    int _hT_end, int _wT_start, int _wT_end)
+// template <const bool is_border_>
+// Params:
+//   elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
+//   int _wA, int _hT_start, int _hT_end, int _wT_start, int _wT_end)
+__TRANS_INPUTA(float, 4, 3, 16, ISA_GENERIC)
 {
   // TODO
 }
 
-template <D_INPUT(typename Type, const int A, const int K, const int V,
-    const int I, const bool is_border)>
-template <const bool is_border_>
-void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
-    is_border)>::__trans_inputa(winograd_template_parameter_t<S_INPUT(float, 4,
-                                    3, 16, ISA_GENERIC, is_border_)>,
-    elx_conv_t<float> &xc, float atinput[A][A][V], float *input, int _wA, int _hT_start,
-    int _hT_end, int _wT_start, int _wT_end)
+// template <const bool is_border_>
+// Params:
+//   elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
+//   int _wA, int _hT_start, int _hT_end, int _wT_start, int _wT_end)
+__TRANS_INPUTA(float, 4, 3, 16, ISA_SKX_AVX512)
 {
   // TODO
 }
 
-template void convolution_winograd_kernel<S_INPUT(float, 4, 3, 16, ISA_GENERIC,
-    BORDER(false))>::trans_input(elx_conv_t<float> &, float[4][4][16], float *,
-    int, int, int, int);
-
-template void convolution_winograd_kernel<S_INPUT(float, 4, 3, 16, ISA_GENERIC,
-    BORDER(true))>::trans_input(elx_conv_t<float> &, float[4][4][16], float *,
-    int, int, int, int);
-
-template void convolution_winograd_kernel<S_INPUT(float, 4, 3, 16,
-    ISA_SKX_AVX512, BORDER(false))>::trans_input(elx_conv_t<float> &,
-    float[4][4][16], float *, int, int, int, int);
-
-template void convolution_winograd_kernel<S_INPUT(float, 4, 3, 16,
-    ISA_SKX_AVX512, BORDER(true))>::trans_input(elx_conv_t<float> &,
-    float[4][4][16], float *, int, int, int, int);
-
-template void convolution_winograd_kernel<S_INPUT(float, 4, 3, 16,
-    ISA_GENERIC, BORDER(false))>::trans_inputa(elx_conv_t<float> &,
-    float[4][4][16], float *, int, int, int, int, int);
-
-template void convolution_winograd_kernel<S_INPUT(float, 4, 3, 16,
-    ISA_GENERIC, BORDER(true))>::trans_inputa(elx_conv_t<float> &,
-    float[4][4][16], float *, int, int, int, int, int);
-
-template void convolution_winograd_kernel<S_INPUT(float, 4, 3, 16,
-    ISA_SKX_AVX512, BORDER(false))>::trans_inputa(elx_conv_t<float> &,
-    float[4][4][16], float *, int, int, int, int, int);
-
-template void convolution_winograd_kernel<S_INPUT(float, 4, 3, 16,
-    ISA_SKX_AVX512, BORDER(true))>::trans_inputa(elx_conv_t<float> &,
-    float[4][4][16], float *, int, int, int, int, int);
+TRANS_INPUT(float, 4, 3, 16, ISA_GENERIC);
+TRANS_INPUT(float, 4, 3, 16, ISA_SKX_AVX512);
+TRANS_INPUTA(float, 4, 3, 16, ISA_GENERIC);
+TRANS_INPUTA(float, 4, 3, 16, ISA_SKX_AVX512);
 
 }
