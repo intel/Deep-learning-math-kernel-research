@@ -7,7 +7,7 @@
 source ./scripts/best_configs/common.sh $@
 
 # vgg19_conv1_2, 12.8T
-NSOCKETS=2 ./scripts/run.sh -c -i64 -h224 -o64 -H224 -n1 --blk-i=4 --blk-o=4 --blk-t=17 --execution-mode=0xa040 $COMMON
+NSOCKETS=2 ./scripts/run.sh -c -i64 -h224 -o64 -H224 -n1 --blk-i=4 --blk-o=4 --blk-t=17 --execution-mode=0xa040 --output-as-blocked=true $COMMON
 sleep 1
 # vgg19_conv2_1, 13.5T
 NSOCKETS=2 ./scripts/run.sh -c -i64 -h112 -o128 -H112 -n1 --blk-i=4 --blk-o=8 --blk-t=26 --execution-mode=0xa040 $COMMON
