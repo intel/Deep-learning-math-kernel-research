@@ -237,8 +237,8 @@ int parse_cmd_options(int argc, char **argv) {
   std::unordered_map<int, const char *> fmt_str { {nchw, "nchw"},
     {oihw, "oihw"}, {nChw16c, "nChw16c"}, {OIhw16i16o, "OIhw16i16o"}
   };
-  printf("input-fmt:%s, weights-fmt:%s, output-fmt:%s\n", fmt_str[input_fmt],
-      fmt_str[weights_fmt], fmt_str[output_fmt]);
+  printf("input-fmt:%s, weights-fmt:%s, output-fmt:%s\n", fmt_str[input_format],
+      fmt_str[weights_format], fmt_str[output_format]);
   printf("input-as-blocked:%d, weights_as_blocked:%d, output_as_blocked:%d\n",
       input_as_blocked, weights_as_blocked, output_as_blocked);
 
