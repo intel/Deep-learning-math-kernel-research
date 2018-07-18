@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <boost/program_options.hpp>
 #include "elt_utils.hpp"
 #include "elt_conv_utils.hpp"
