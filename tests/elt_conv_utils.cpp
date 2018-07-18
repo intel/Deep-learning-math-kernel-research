@@ -20,15 +20,15 @@ namespace test {
     MEMALIGN64(bias, desc.byte_sizes.bias);
 
 #pragma omp parallel for
-    for (int i = 0; i < desc.sizes.input; i++) {
+    for (size_t i = 0; i < desc.sizes.input; i++) {
       (*input)[i] = i % 15;
     }
 #pragma omp parallel for
-    for (int i = 0; i < desc.sizes.weights; i++) {
+    for (size_t i = 0; i < desc.sizes.weights; i++) {
       (*weights)[i] = i % 31;
     }
 #pragma omp parallel for
-    for (int i = 0; i < desc.sizes.bias; i++) {
+    for (size_t i = 0; i < desc.sizes.bias; i++) {
       (*bias)[i] = i % 13;
     }
   }
