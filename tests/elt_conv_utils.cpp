@@ -73,9 +73,8 @@ namespace test {
   {
     const int V = 16;
     auto dims = desc.dims.output;
-    using Array = float[dims.n][dims.c / V][dims.h][dims.w][V];
-    Array *aout = (Array *)out;
-    Array *aref = (Array *)ref;
+    auto *aout = reinterpret_cast<float (*)[dims.c/V][dims.h][dims.w][V]>(out);
+    auto *aref = reinterpret_cast<float (*)[dims.c/V][dims.h][dims.w][V]>(ref);
 
 #define MAX_PRINT_ERRORS (20)
     size_t errors = 0;
@@ -87,14 +86,14 @@ namespace test {
           for_each (_w, dims.w) {
             for_each (_v, V) {
               double delta = fabs(
-                  (*aout)[_n][_C][_h][_w][_v] - (*aref)[_n][_C][_h][_w][_v]);
-              double rel_diff = delta / fabs((*aref)[_n][_C][_h][_w][_v]);
+                  aout[_n][_C][_h][_w][_v] - aref[_n][_C][_h][_w][_v]);
+              double rel_diff = delta / fabs(aref[_n][_C][_h][_w][_v]);
               if (rel_diff > 1e-6) {
                 if (errors < MAX_PRINT_ERRORS) {
                   printf("Not equal!: [%d][%d][%d][%d][%d]: %f != %f (ref), "
                          "delta=%g, rel_diff=%g\n",
-                      _n, _C, _h, _w, _v, (*aout)[_n][_C][_h][_w][_v],
-                      (*aref)[_n][_C][_h][_w][_v], delta, rel_diff);
+                      _n, _C, _h, _w, _v, aout[_n][_C][_h][_w][_v],
+                      aref[_n][_C][_h][_w][_v], delta, rel_diff);
                 }
                 errors++;
               }
@@ -117,9 +116,8 @@ namespace test {
       eld_conv_t<float> &desc, float *out, float *ref)
   {
     auto dims = desc.dims.output;
-    using Array = float[dims.n][dims.c][dims.h][dims.w];
-    Array *aout = (Array *)out;
-    Array *aref = (Array *)ref;
+    auto *aout = reinterpret_cast<float (*)[dims.c][dims.h][dims.w]>(out);
+    auto *aref = reinterpret_cast<float (*)[dims.c][dims.h][dims.w]>(ref);
 
 #define MAX_PRINT_ERRORS (20)
     size_t errors = 0;
@@ -130,14 +128,14 @@ namespace test {
         for_each (_h, dims.h) {
           for_each (_w, dims.w) {
             double delta = fabs(
-                (*aout)[_n][_c][_h][_w] - (*aref)[_n][_c][_h][_w]);
-            double rel_diff = delta / fabs((*aref)[_n][_c][_h][_w]);
+                aout[_n][_c][_h][_w] - aref[_n][_c][_h][_w]);
+            double rel_diff = delta / fabs(aref[_n][_c][_h][_w]);
             if (rel_diff > 1e-6) {
               if (errors < MAX_PRINT_ERRORS) {
                 printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
                        "delta=%g, rel_diff=%g\n",
-                    _n, _c, _h, _w, (*aout)[_n][_c][_h][_w],
-                    (*aref)[_n][_c][_h][_w], delta, rel_diff);
+                    _n, _c, _h, _w, aout[_n][_c][_h][_w],
+                    aref[_n][_c][_h][_w], delta, rel_diff);
               }
               errors++;
             }
@@ -184,10 +182,8 @@ namespace test {
   reorder<Type, nchw, nChw16c>::reorder(
       Type *dst, Type *src, int n, int c, int h, int w)
   {
-    using Array1 = Type[n][c / 16][h][w][16];
-    using Array2 = Type[n][c][h][w];
-    Array1 *asrc = (Array1 *)src;
-    Array2 *adst = (Array2 *)dst;
+    auto *asrc = reinterpret_cast<Type (*)[c/16][h][w][16]>(src);
+    auto *adst = reinterpret_cast<Type (*)[c][h][w]>(dst);
 
 #pragma omp parallel for collapse(3)
     for_each (_n, n) {
@@ -195,7 +191,7 @@ namespace test {
         for_each (_h, h) {
           for_each (_w, w) {
             for_each (_v, 16) {
-              (*adst)[_n][_C * 16 + _v][_h][_w] = (*asrc)[_n][_C][_h][_w][_v];
+              adst[_n][_C * 16 + _v][_h][_w] = asrc[_n][_C][_h][_w][_v];
             }
           }
         }
@@ -207,10 +203,8 @@ namespace test {
   reorder<Type, nChw16c, nchw>::reorder(
       Type *dst, Type *src, int n, int c, int h, int w)
   {
-    using Array1 = Type[n][c][h][w];
-    using Array2 = Type[n][c / 16][h][w][16];
-    Array1 *asrc = (Array1 *)src;
-    Array2 *adst = (Array2 *)dst;
+    auto *asrc = reinterpret_cast<Type (*)[c][h][w]>(src);
+    auto *adst = reinterpret_cast<Type (*)[c/16][h][w][16]>(dst);
 
 #pragma omp parallel for collapse(3)
     for_each (_n, n) {
@@ -218,7 +212,7 @@ namespace test {
         for_each (_h, h) {
           for_each (_w, w) {
             for_each (_v, 16) {
-              (*adst)[_n][_C][_h][_w][_v] = (*asrc)[_n][_C * 16 + _v][_h][_w];
+              adst[_n][_C][_h][_w][_v] = asrc[_n][_C * 16 + _v][_h][_w];
             }
           }
         }
@@ -230,10 +224,8 @@ namespace test {
   reorder<Type, OIhw16i16o, oihw>::reorder(
       Type *dst, Type *src, int o, int i, int h, int w)
   {
-    using Array1 = Type[o][i][h][w];
-    using Array2 = Type[o / 16][i / 16][h][w][16][16];
-    Array1 *asrc = (Array1 *)src;
-    Array2 *adst = (Array2 *)dst;
+    auto *asrc = reinterpret_cast<Type (*)[i][h][w]>(src);
+    auto *adst = reinterpret_cast<Type (*)[i/16][h][w][16][16]>(dst);
 
 #pragma omp parallel for collapse(3)
     for_each (_O, o / 16) {
@@ -242,8 +234,8 @@ namespace test {
           for_each (_w, w) {
             for_each (_iv, 16) {
               for_each (_ov, 16) {
-                (*adst)[_O][_I][_h][_w][_iv][_ov]
-                    = (*asrc)[_O * 16 + _ov][_I * 16 + _iv][_h][_w];
+                adst[_O][_I][_h][_w][_iv][_ov]
+                    = asrc[_O * 16 + _ov][_I * 16 + _iv][_h][_w];
               }
             }
           }
@@ -256,10 +248,8 @@ namespace test {
   reorder<Type, oihw, OIhw16i16o>::reorder(
       Type *dst, Type *src, int o, int i, int h, int w)
   {
-    using Array1 = Type[o / 16][i / 16][h][w][16][16];
-    using Array2 = Type[o][i][h][w];
-    Array1 *asrc = (Array1 *)src;
-    Array2 *adst = (Array2 *)dst;
+    auto *asrc = reinterpret_cast<Type (*)[i/16][h][w][16][16]>(src);
+    auto *adst = reinterpret_cast<Type (*)[i][h][w]>(dst);
 
 #pragma omp parallel for collapse(3)
     for_each (_O, o / 16) {
@@ -268,8 +258,8 @@ namespace test {
           for_each (_w, w) {
             for_each (_iv, 16) {
               for_each (_ov, 16) {
-                (*adst)[_O * 16 + _ov][_I * 16 + _iv][_h][_w]
-                    = (*asrc)[_O][_I][_h][_w][_iv][_ov];
+                adst[_O * 16 + _ov][_I * 16 + _iv][_h][_w]
+                    = asrc[_O][_I][_h][_w][_iv][_ov];
               }
             }
           }
@@ -319,23 +309,22 @@ namespace test {
       toutput = (Type *)malloc(desc.byte_sizes.output);
     }
 
-    using Array1 = Type[n][ic][ih][iw];
-    using Array2 = Type[oc][ic][kh][kw];
-    using Array3 = Type[n][oc][oh][ow];
-
-    Array1 *ainput
-        = desc.formats.input == nchw ? (Array1 *)input : (Array1 *)tinput;
-    Array2 *aweights
-        = desc.formats.weights == oihw ? (Array2 *)weights : (Array2 *)tweights;
-    Array3 *aoutput
-        = desc.formats.output == nchw ? (Array3 *)output : (Array3 *)toutput;
+    Type (*ainput)[ic][ih][iw]
+        = desc.formats.input == nchw ? reinterpret_cast<decltype(ainput)>(input)
+        : reinterpret_cast<decltype(ainput)>(tinput);
+    Type (*aweights)[ic][kh][kw]
+        = desc.formats.weights == oihw ? reinterpret_cast<decltype(aweights)>(weights)
+        : reinterpret_cast<decltype(aweights)>(tweights);
+    Type (*aoutput)[oc][oh][ow]
+        = desc.formats.output == nchw ? reinterpret_cast<decltype(aoutput)>(output)
+        : reinterpret_cast<decltype(aoutput)>(toutput);
 
 #pragma omp parallel for collapse(4)
     for_each (_n, n) {
       for_each (_oc, oc) {
         for_each (_oh, oh) {
           for_each (_ow, ow) {
-            (*aoutput)[_n][_oc][_oh][_ow] = desc.with_bias ? bias[_oc] : 0.0f;
+            aoutput[_n][_oc][_oh][_ow] = desc.with_bias ? bias[_oc] : 0.0f;
             for_each (_ic, ic) {
               for_each (_kh, kh) {
                 int _ih = _oh * sh - pt + _kh * dh;
@@ -345,9 +334,9 @@ namespace test {
                   int _iw = _ow * sw - pl + _kw * dw;
                   if (_iw < 0 || _iw >= iw)
                     continue;
-                  (*aoutput)[_n][_oc][_oh][_ow]
-                      += (*ainput)[_n][_ic][_ih][_iw]
-                      * (*aweights)[_oc][_ic][_kh][_kw];
+                  aoutput[_n][_oc][_oh][_ow]
+                      += ainput[_n][_ic][_ih][_iw]
+                      * aweights[_oc][_ic][_kh][_kw];
                 }
               }
             }
