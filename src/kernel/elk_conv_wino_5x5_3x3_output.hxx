@@ -194,7 +194,7 @@ __TRANS_OUTPUT(float, 7, 3, 16, ISA_SKX_AVX512)
 #undef OP
 #define t(m, n) t##m##n
 #define OP(m,n) __m512 t(m,n) = _mm512_load_ps(T(m, n))
-  MATRIX_DEF(7, 7);
+  MATRIX_DEF(7, 6);
 
   BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_0, nil)
   AVX512_CALCULATE_O(0);
@@ -220,6 +220,13 @@ __TRANS_OUTPUT(float, 7, 3, 16, ISA_SKX_AVX512)
       FMADD(z1_8, SUB(t64, t65), SUB(t60, t61))));
   AVX512_ADD_B(3)
 
+  __m512 t06 = _mm512_load_ps(T(0, 6));
+  __m512 t16 = _mm512_load_ps(T(1, 6));
+  __m512 t26 = _mm512_load_ps(T(2, 6));
+  __m512 t36 = _mm512_load_ps(T(3, 6));
+  __m512 t46 = _mm512_load_ps(T(4, 6));
+  __m512 t56 = _mm512_load_ps(T(5, 6));
+  __m512 t66 = _mm512_load_ps(T(6, 6));
   BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_4, nil)
   AVX512_CALCULATE_O(4);
   p44 = ADD(p44, FMADD(z16, ADD(t62, t63), FMADD(z1_16,
