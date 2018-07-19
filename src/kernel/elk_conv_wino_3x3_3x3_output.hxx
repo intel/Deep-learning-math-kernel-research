@@ -158,7 +158,20 @@ __TRANS_OUTPUT(float, 5, 3, 16, ISA_SKX_AVX512)
 //   bool stream_out
 __TRANS_OUTPUTA_TH( float, 5, 3, 16, ISA_GENERIC)
 {
-  // TODO
+  MD(float, atoutput, [A][xc.oc3 * xc.O2][Tz][V], toutput);
+  MD(float, atoutputa, [A - K + 1][V], toutputa);
+
+#undef P
+#undef T
+#define T(_h) atoutput[_h][0][0][_V]
+#define P(_h) atoutputa[_h][_V]
+
+#pragma omp simd
+  for (int _V = 0; _V < 16; ++_V) {
+    P(0) = T(0) + T(1) + T(2) + T(3);
+    P(1) = - T(1) + T(2) + 2.0f * T(3);
+    P(2) = T(1) + T(2) + 4.0f * T(3) + T(4);
+  }
 }
 
 // Params:
@@ -200,6 +213,14 @@ __TRANS_OUTPUTA_TH( float, 5, 3, 16, ISA_SKX_AVX512)
   }
 }
 
+#define GENERIC_CALCULATE_TILE_5(z, n, nil)                    \
+  P(n, 0) = T(n, 0) + T(n, 1) + T(n, 2) + T(n, 3);             \
+  if (with_bias_) P(n, 0) += B;                                \
+  P(n, 1) = T(n, 2) - T(n, 1) + z2 * T(n, 3);                  \
+  if (with_bias_) P(n, 1) += B;                                \
+  P(n, 2) = T(n, 1) + T(n, 2) + z4 * T(n, 3) + T(n, 4);        \
+  if (with_bias_) P(n, 2) += B;
+
 // template <const bool is_border_, const bool with_bias_>
 // Params:
 //   elx_conv_t<float> &xc,
@@ -207,7 +228,35 @@ __TRANS_OUTPUTA_TH( float, 5, 3, 16, ISA_SKX_AVX512)
 //   int _hOA_end, int _wOA_end
 __TRANS_OUTPUTA_BH(float, 5, 3, 16, ISA_GENERIC)
 {
-  // TODO
+  const float z2 = 2.0f;
+  const float z4 = 4.0f;
+
+  float dummy[16];
+  auto p_cb = [&](int _h, int _w, int _V) {
+    if (_wOA_end == -1) {
+      MD(float, aoutput, [A - K + 1][A - K + 1][16], output);
+      return &aoutput[_h][_w][_V];
+    } else {
+      MD(float, aoutput, [xc.oh][xc.ow][16], output);
+      if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
+        return &dummy[_V];
+      else
+        return &aoutput[_h][_w][_V];
+    }
+  };
+
+#undef T
+#undef C
+#undef P
+#undef B
+#define T(_hA, _wA) atoutput[_wA][_hA][_V]
+#define P(_h, _w) *p_cb(_h, _w, _V)
+#define B bias[_V]
+
+#pragma omp simd
+  for (int _V = 0; _V < 16; ++_V) {
+    BOOST_PP_REPEAT(3, GENERIC_CALCULATE_TILE_5, nil)
+  }
 }
 
 // template <const bool is_border_, const bool with_bias_>
