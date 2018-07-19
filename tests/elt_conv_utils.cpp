@@ -309,14 +309,14 @@ namespace test {
       toutput = (Type *)malloc(desc.byte_sizes.output);
     }
 
-    Type (*ainput)[ic][ih][iw]
-        = desc.formats.input == nchw ? reinterpret_cast<decltype(ainput)>(input)
+    Type (*ainput)[ic][ih][iw];
+        ainput = desc.formats.input == nchw ? reinterpret_cast<decltype(ainput)>(input)
         : reinterpret_cast<decltype(ainput)>(tinput);
-    Type (*aweights)[ic][kh][kw]
-        = desc.formats.weights == oihw ? reinterpret_cast<decltype(aweights)>(weights)
+    Type (*aweights)[ic][kh][kw];
+        aweights = desc.formats.weights == oihw ? reinterpret_cast<decltype(aweights)>(weights)
         : reinterpret_cast<decltype(aweights)>(tweights);
-    Type (*aoutput)[oc][oh][ow]
-        = desc.formats.output == nchw ? reinterpret_cast<decltype(aoutput)>(output)
+    Type (*aoutput)[oc][oh][ow];
+        aoutput = desc.formats.output == nchw ? reinterpret_cast<decltype(aoutput)>(output)
         : reinterpret_cast<decltype(aoutput)>(toutput);
 
 #pragma omp parallel for collapse(4)
