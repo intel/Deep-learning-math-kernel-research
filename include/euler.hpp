@@ -33,7 +33,7 @@ enum {
 };
 
 // Data formats
-enum {
+enum formats{
     nchw,
     nhwc,
     nChw16c,
@@ -43,7 +43,7 @@ enum {
 };
 
 // Propagation kind
-enum {
+enum prop_kinds {
     forward_training,
     forward_inference,
     backward_data,
