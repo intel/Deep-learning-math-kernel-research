@@ -47,26 +47,37 @@ int eld_conv_t<F>::setup() {
     return ELD_GENERAL_ERROR;
   }
 
-  sizes.input =
-      accumulate(dims.input.n, dims.input.c, dims.input.h, dims.input.w);
-  sizes.weights = accumulate(dims.weights.o, dims.weights.i, dims.weights.h,
-                             dims.weights.w);
-  sizes.output =
-      accumulate(dims.output.n, dims.output.c, dims.output.h, dims.output.w);
-  sizes.bias = dims.bias.c;
+  const int V = 16; // TODO: AVX2
+  const int fmt_blocked_data = nChw16c;
+  const int fmt_blocked_weights = OIhw16i16o;
+
+  bool format_okay
+      = (formats.input == nchw || formats.input == fmt_blocked_data)
+      && (formats.weights == oihw || formats.weights == fmt_blocked_weights)
+      && (formats.output == nchw || formats.output == fmt_blocked_data);
+
+  if (!format_okay) {
+    el_error("Data format error");
+    return ELD_UNIMPLEMENTED;
+  }
+
+  int ic = dims.input.c, IC = ALIGNUP(ic, V);
+  int oc = dims.output.c, OC = ALIGNUP(oc, V);
+
+  sizes.input = dims.input.n * dims.input.h * dims.input.w;
+  sizes.weights = dims.weights.h * dims.weights.w;
+  sizes.output = dims.output.n * dims.output.h * dims.output.w;
+
+  sizes.input *= (formats.input == fmt_blocked_data) ? IC : ic;
+  sizes.weights
+      *= (formats.weights == fmt_blocked_weights) ? OC * IC : oc * ic;
+  sizes.output *= (formats.output == fmt_blocked_data) ? OC : oc;
+  sizes.bias = (formats.output == fmt_blocked_data) ? OC : oc;
 
   byte_sizes.input = sizeof(F) * sizes.input;
   byte_sizes.weights = sizeof(F) * sizes.weights;
   byte_sizes.output = sizeof(F) * sizes.output;
   byte_sizes.bias = sizeof(F) * sizes.bias;
-
-  // TODO: Check output dimensions
-  if (!(formats.input == nchw || formats.input == nChw16c)
-      || !(formats.weights == oihw || formats.weights == OIhw16i16o)
-      || !(formats.output == nchw || formats.output == nChw16c)) {
-    el_error("Unimplemented");
-    return ELD_UNIMPLEMENTED;
-  }
 
   // TODO: Check CPUID
   xc = nullptr;
