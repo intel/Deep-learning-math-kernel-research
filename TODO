@@ -32,3 +32,14 @@ Plain format (nchw/oihw) support (2018-7-11): Done
 - enable plain fmt for 0xa073
 - fix performance regression in block16: format as template parameter
 - format-as-blocked (esp. to avoid false sharing in fused output reorder)
+
+
+IC/OC != 16x (2018-7-16):
+- Support DNN first layer (drop as it can not achieve good performance with Winograd)
+  IC < 16, OC = 16x, nchw + Oihw16o => nChw16o
+- Support blocked format with padded tensor
+  IC|OC != 16x, nChw16c + OIhw16i16o => nChw16c
+- Support plain format in format-as path
+  IC|OC != 16x, nchw + oihw => nchw
+- Support plain format in format-is path
+  IC|OC != 16x, nchw + oihw => nchw
