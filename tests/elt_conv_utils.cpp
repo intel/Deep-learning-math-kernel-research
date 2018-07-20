@@ -20,15 +20,15 @@ namespace test {
     MEMALIGN64(bias, desc.byte_sizes.bias);
 
 #pragma omp parallel for
-    for (int i = 0; i < desc.sizes.input; i++) {
+    for (size_t i = 0; i < desc.sizes.input; i++) {
       (*input)[i] = i % 15;
     }
 #pragma omp parallel for
-    for (int i = 0; i < desc.sizes.weights; i++) {
+    for (size_t i = 0; i < desc.sizes.weights; i++) {
       (*weights)[i] = i % 31;
     }
 #pragma omp parallel for
-    for (int i = 0; i < desc.sizes.bias; i++) {
+    for (size_t i = 0; i < desc.sizes.bias; i++) {
       (*bias)[i] = i % 13;
     }
   }
@@ -73,7 +73,10 @@ namespace test {
   {
     const int V = 16;
     auto dims = desc.dims.output;
-    using Array = float[dims.n][dims.c / V][dims.h][dims.w][V];
+    int C = ALIGNUP(dims.c, V) / V;
+    int Or = dims.c % V ? dims.c % V: V;
+
+    using Array = float[dims.n][C][dims.h][dims.w][V];
     Array *aout = (Array *)out;
     Array *aref = (Array *)ref;
 
@@ -82,10 +85,11 @@ namespace test {
 
 #pragma omp parallel for collapse(3)
     for_each (_n, dims.n) {
-      for_each (_C, dims.c / V) {
+      for_each (_C, C) {
         for_each (_h, dims.h) {
           for_each (_w, dims.w) {
-            for_each (_v, V) {
+            int v = _C == C - 1 ? Or : V;
+            for_each (_v, v) {
               double delta = fabs(
                   (*aout)[_n][_C][_h][_w][_v] - (*aref)[_n][_C][_h][_w][_v]);
               double rel_diff = delta / fabs((*aref)[_n][_C][_h][_w][_v]);
@@ -184,17 +188,21 @@ namespace test {
   reorder<Type, nchw, nChw16c>::reorder(
       Type *dst, Type *src, int n, int c, int h, int w)
   {
-    using Array1 = Type[n][c / 16][h][w][16];
+    int C = ALIGNUP(c, 16) / 16; // padding
+    int Vr = c % 16 ? c % 16 : 16;
+
+    using Array1 = Type[n][C][h][w][16];
     using Array2 = Type[n][c][h][w];
     Array1 *asrc = (Array1 *)src;
     Array2 *adst = (Array2 *)dst;
 
 #pragma omp parallel for collapse(3)
     for_each (_n, n) {
-      for_each (_C, c / 16) {
+      for_each (_C, C) {
         for_each (_h, h) {
           for_each (_w, w) {
-            for_each (_v, 16) {
+            int v = (_C == C - 1) ? Vr : 16;
+            for_each (_v, v) {
               (*adst)[_n][_C * 16 + _v][_h][_w] = (*asrc)[_n][_C][_h][_w][_v];
             }
           }
@@ -207,18 +215,26 @@ namespace test {
   reorder<Type, nChw16c, nchw>::reorder(
       Type *dst, Type *src, int n, int c, int h, int w)
   {
+    int C = ALIGNUP(c, 16) / 16; // padding
+    int Vr = c % 16 ? c % 16 : 16;
+
     using Array1 = Type[n][c][h][w];
-    using Array2 = Type[n][c / 16][h][w][16];
+    using Array2 = Type[n][C][h][w][16];
     Array1 *asrc = (Array1 *)src;
     Array2 *adst = (Array2 *)dst;
 
 #pragma omp parallel for collapse(3)
     for_each (_n, n) {
-      for_each (_C, c / 16) {
+      for_each (_C, C) {
         for_each (_h, h) {
           for_each (_w, w) {
+            int v = (_C == C - 1) ? Vr : 16;
             for_each (_v, 16) {
-              (*adst)[_n][_C][_h][_w][_v] = (*asrc)[_n][_C * 16 + _v][_h][_w];
+              if (_v < v)
+                (*adst)[_n][_C][_h][_w][_v]
+                    = (*asrc)[_n][_C * 16 + _v][_h][_w];
+              else
+                (*adst)[_n][_C][_h][_w][_v] = 0;
             }
           }
         }
@@ -230,20 +246,30 @@ namespace test {
   reorder<Type, OIhw16i16o, oihw>::reorder(
       Type *dst, Type *src, int o, int i, int h, int w)
   {
+    int O = ALIGNUP(o, 16) / 16; // padding
+    int I = ALIGNUP(i, 16) / 16; // padding
+    int Or = o % 16 ? o % 16 : 16;
+    int Ir = i % 16 ? i % 16 : 16;
+
     using Array1 = Type[o][i][h][w];
-    using Array2 = Type[o / 16][i / 16][h][w][16][16];
+    using Array2 = Type[O][I][h][w][16][16];
     Array1 *asrc = (Array1 *)src;
     Array2 *adst = (Array2 *)dst;
 
 #pragma omp parallel for collapse(3)
-    for_each (_O, o / 16) {
-      for_each (_I, i / 16) {
+    for_each (_O, O) {
+      for_each (_I, I) {
         for_each (_h, h) {
           for_each (_w, w) {
+            int ov = (_O == O - 1) ? Or : 16;
+            int iv = (_I == I - 1) ? Ir : 16;
             for_each (_iv, 16) {
               for_each (_ov, 16) {
-                (*adst)[_O][_I][_h][_w][_iv][_ov]
-                    = (*asrc)[_O * 16 + _ov][_I * 16 + _iv][_h][_w];
+                if (_iv < iv && _ov < ov)
+                  (*adst)[_O][_I][_h][_w][_iv][_ov]
+                      = (*asrc)[_O * 16 + _ov][_I * 16 + _iv][_h][_w];
+                else
+                  (*adst)[_O][_I][_h][_w][_iv][_ov] = 0;
               }
             }
           }
@@ -256,18 +282,25 @@ namespace test {
   reorder<Type, oihw, OIhw16i16o>::reorder(
       Type *dst, Type *src, int o, int i, int h, int w)
   {
-    using Array1 = Type[o / 16][i / 16][h][w][16][16];
+    int O = ALIGNUP(o, 16) / 16; // padding
+    int I = ALIGNUP(i, 16) / 16; // padding
+    int Or = o % 16 ? o % 16 : 16;
+    int Ir = i % 16 ? i % 16 : 16;
+
+    using Array1 = Type[O][I][h][w][16][16];
     using Array2 = Type[o][i][h][w];
     Array1 *asrc = (Array1 *)src;
     Array2 *adst = (Array2 *)dst;
 
 #pragma omp parallel for collapse(3)
-    for_each (_O, o / 16) {
-      for_each (_I, i / 16) {
+    for_each (_O, O) {
+      for_each (_I, I) {
         for_each (_h, h) {
           for_each (_w, w) {
-            for_each (_iv, 16) {
-              for_each (_ov, 16) {
+            int ov = _O == O - 1 ? Or : 16;
+            int iv = _I == I - 1 ? Ir : 16;
+            for_each (_iv, iv) {
+              for_each (_ov, ov) {
                 (*adst)[_O * 16 + _ov][_I * 16 + _iv][_h][_w]
                     = (*asrc)[_O][_I][_h][_w][_iv][_ov];
               }
@@ -374,8 +407,8 @@ namespace test {
       Type *input, Type *weights, Type *bias)
   {
     int n = desc.dims.input.n;
-    int IC = desc.dims.input.c / 16;
-    int OC = desc.dims.output.c / 16;
+    int IC = ALIGNUP(desc.dims.input.c, 16) / 16;
+    int OC = ALIGNUP(desc.dims.output.c, 16) / 16;
     int ih = desc.dims.input.h;
     int iw = desc.dims.input.w;
     int oh = desc.dims.output.h;
@@ -405,16 +438,26 @@ namespace test {
       return -1;
     }
 
+    if (desc.formats.input != nChw16c || desc.formats.weights != OIhw16i16o
+        || desc.formats.output != nChw16c) {
+      printf("Format error!");
+      return -1;
+    }
+    int Or = desc.dims.output.c % 16 ?  desc.dims.output.c % 16 : 16;
+    int Ir = desc.dims.input.c % 16 ? desc.dims.input.c % 16 : 16;
+
 #pragma omp parallel for collapse(4)
     for_each (_n, n) {
       for_each (_OC, OC) {
         for_each (_oh, oh) {
           for_each (_ow, ow) {
-            for_each (_ov, 16) {
+            int ov = _OC == OC - 1 ? Or : 16;
+            for_each (_ov, ov) {
               (*aoutput)[_n][_OC][_oh][_ow][_ov]
                   = desc.with_bias ? bias[_OC * 16 + _ov] : 0.0f;
               for_each (_IC, IC) {
-                for_each (_iv, 16) {
+                int iv = _IC == IC - 1 ? Ir : 16;
+                for_each (_iv, iv) {
                   for_each (_kh, kh) {
                     int _ih = _oh * sh - pt + _kh * dh;
                     if (_ih < 0 || _ih >= ih)
