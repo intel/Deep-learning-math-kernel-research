@@ -403,10 +403,41 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
     break;
   }
 
+  if (this->Ir != V) {
+#define GEMM_TAIL_CASE(z, n, data)                                           \
+  case n:                                                                    \
+    ker_gemm_tail_                                                           \
+        = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm_tail;     \
+    break;
+
+    switch (this->T) {
+      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_TAIL_CASE, nil)
+    default:
+      el_error("Unimplemented");
+      break;
+    }
+
+#define GEMM_CASE0_TAIL(z, n, data)                                          \
+  case n:                                                                    \
+    ker_gemm0_tail_                                                          \
+        = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm_tail;     \
+    break;
+
+    switch (this->Tr) {
+      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE0_TAIL, nil);
+    default:
+      el_error("Unimplemented");
+      break;
+    }
+  } else {
+    ker_gemm_tail_ = ker_gemm_;
+    ker_gemm0_tail_ = ker_gemm0_;
+  }
+
 #define EXECUTE_CASE(n)                                                      \
   case 0x##n:                                                                \
-    printf("execute_opt=" #n "\n");\
-    execute_opt_ = &elx_conv_wino_t<Type, A, K, V, I>::__execute_##n;   \
+    printf("execute_opt=" #n "\n");                                          \
+    execute_opt_ = &elx_conv_wino_t<Type, A, K, V, I>::__execute_##n;        \
     break
 
   switch (xopt_) {
@@ -1258,17 +1289,23 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
     for_each (_wA, A) {
       for_each (_hA, A) {
         for_each (_oc3, this->oc3) {
-          for_each (_ic3, this->ic3) {
-            int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-            auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
-            MD(Type, atinput6, [A][A][this->ic3][this->I2][Tz][V],
-                atinput2[_t2]);
-            MD(Type, atoutput6, [A][A][this->oc3][this->O2][Tz][V],
-                atoutput2[_t2]);
+          int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+          auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
+          auto ker_gemm_tail
+              = (_t2 == this->t2 - 1) ? ker_gemm0_tail_ : ker_gemm_tail_;
+          MD(Type, atinput6, [A][A][this->ic3][this->I2][Tz][V],
+              atinput2[_t2]);
+          MD(Type, atoutput6, [A][A][this->oc3][this->O2][Tz][V],
+              atoutput2[_t2]);
+
+          for_each (_ic3, this->ic3 - 1) {
             ker_gemm(*this, (Type *)atoutput6[_wA][_hA][_oc3],
                 (Type *)atinput6[_wA][_hA][_ic3],
                 (Type *)atweights[_oc3][_ic3][_wA][_hA], _ic3 == 0);
           }
+          ker_gemm_tail(*this, (Type *)atoutput6[_wA][_hA][_oc3],
+              (Type *)atinput6[_wA][_hA][this->ic3 - 1],
+              (Type *)atweights[_oc3][this->ic3 - 1][_wA][_hA], this->ic3 == 1);
         }
       }
     }
@@ -1283,17 +1320,24 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemma(
     Type * __restrict toutput, Type * __restrict tinput, Type *tweights, int _t2, int Tz)
 {
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
+  auto ker_gemm_tail = (_t2 == this->t2 - 1) ? ker_gemm0_tail_ : ker_gemm_tail_;
 
   MD(Type, atinput,  [A][this->ic3][this->I2][Tz][V], tinput);
   MD(Type, atoutput, [A][this->oc3][this->O2][Tz][V], toutput);
   MD(Type, atweights, [A][this->oc3][this->ic3][this->O2][this->I2][V][V], tweights);
 
   for_each (_hA, A) {
-  for_each (_oc3, this->oc3) {
-  for_each (_ic3, this->ic3) {
-      ker_gemm(*this, (Type *)atoutput[_hA][_oc3], (Type *)atinput[_hA][_ic3],
-          (Type *)atweights[_hA][_oc3][_ic3], _ic3 == 0);
-  }}}
+    for_each (_oc3, this->oc3) {
+      for_each (_ic3, this->ic3 - 1) {
+        ker_gemm(*this, (Type *)atoutput[_hA][_oc3],
+            (Type *)atinput[_hA][_ic3], (Type *)atweights[_hA][_oc3][_ic3],
+            _ic3 == 0);
+      }
+      ker_gemm_tail(*this, (Type *)atoutput[_hA][_oc3],
+          (Type *)atinput[_hA][this->ic3 - 1],
+          (Type *)atweights[_hA][_oc3][this->ic3 - 1], this->ic3 == 1);
+    }
+  }
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
