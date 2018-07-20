@@ -34,7 +34,7 @@ Plain format (nchw/oihw) support (2018-7-11): Done
 - format-as-blocked (esp. to avoid false sharing in fused output reorder)
 
 
-IC/OC != 16x (2018-7-16):
+IC/OC != 16x (2018-7-16): Done
 - Support DNN first layer (drop as it can not achieve good performance with Winograd)
   IC < 16, OC = 16x, nchw + Oihw16o => nChw16o
 - Support blocked format with padded tensor
