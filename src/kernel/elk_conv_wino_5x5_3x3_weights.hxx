@@ -12,20 +12,20 @@
 
 namespace euler {
 
-#define AVX2_CALCULATE_W_0(z, n, nil)                                        \
+#define GENERIC_CALCULATE_W_5_0(z, n, nil)                                        \
   C(n) = r4_81 * (F(n, 0) + F(n, 1) + F(n, 2));
-#define AVX2_CALCULATE_W_1(z, n, nil)                                        \
+#define GENERIC_CALCULATE_W_5_1(z, n, nil)                                        \
   C(n) = r4_81 * (F(n, 0) - F(n, 1) + F(n, 2));
-#define AVX2_CALCULATE_W_2(z, n, nil)                                        \
+#define GENERIC_CALCULATE_W_5_2(z, n, nil)                                        \
   C(n) = r2_405 * F(n, 0) + r4_405 * F(n, 1) + r8_405 * F(n, 2);
-#define AVX2_CALCULATE_W_3(z, n, nil)                                        \
+#define GENERIC_CALCULATE_W_5_3(z, n, nil)                                        \
   C(n) = - r2_405 * F(n, 0) + r4_405 * F(n, 1) - r8_405 * F(n, 2);
-#define AVX2_CALCULATE_W_4(z, n, nil)                                        \
+#define GENERIC_CALCULATE_W_5_4(z, n, nil)                                        \
   C(n) = r32_405 * F(n, 0) + r16_405 * F(n, 1) + r8_405 * F(n, 2);
-#define AVX2_CALCULATE_W_5(z, n, nil)                                        \
+#define GENERIC_CALCULATE_W_5_5(z, n, nil)                                        \
   C(n) = - r32_405 * F(n, 0) + r16_405 * F(n, 1) - r8_405 * F(n, 2);
 
-#define AVX2_CALCULATE_W(n)                                                  \
+#define GENERIC_CALCULATE_W_5(n)                                             \
   T(0, n) = C(0) + C(1) + C(2);                                              \
   T(1, n) = C(0) - C(1) + C(2);                                              \
   T(2, n) = r1_10 * C(0) + r1_5 * C(1) + r2_5 * C(2);                        \
@@ -55,35 +55,35 @@ __TRANS_WEIGHTS(float, 7, 3, 16, ISA_GENERIC)
   for (int _IV = 0; _IV < 16; ++_IV) {
 #pragma omp simd
     for (int _OV = 0; _OV < 16; ++_OV) {
-      BOOST_PP_REPEAT(3, AVX2_CALCULATE_W_0, nil)
-      AVX2_CALCULATE_W(0)
+      BOOST_PP_REPEAT(3, GENERIC_CALCULATE_W_5_0, nil)
+      GENERIC_CALCULATE_W_5(0)
 
 
-      BOOST_PP_REPEAT(3, AVX2_CALCULATE_W_1, nil)
-      AVX2_CALCULATE_W(1)
+      BOOST_PP_REPEAT(3, GENERIC_CALCULATE_W_5_1, nil)
+      GENERIC_CALCULATE_W_5(1)
 
 
       const float r2_405 = 2.0f / 405.0f;
       const float r4_405 = 4.0f / 405.0f;
       const float r8_405 = 8.0f / 405.0f;
 
-      BOOST_PP_REPEAT(3, AVX2_CALCULATE_W_2, nil)
-      AVX2_CALCULATE_W(2)
+      BOOST_PP_REPEAT(3, GENERIC_CALCULATE_W_5_2, nil)
+      GENERIC_CALCULATE_W_5(2)
 
 
-      BOOST_PP_REPEAT(3, AVX2_CALCULATE_W_3, nil)
-      AVX2_CALCULATE_W(3)
+      BOOST_PP_REPEAT(3, GENERIC_CALCULATE_W_5_3, nil)
+      GENERIC_CALCULATE_W_5(3)
 
 
       const float r16_405 = 16.0f / 405.0f;
       const float r32_405 = 32.0f / 405.0f;
 
-      BOOST_PP_REPEAT(3, AVX2_CALCULATE_W_4, nil)
-      AVX2_CALCULATE_W(4)
+      BOOST_PP_REPEAT(3, GENERIC_CALCULATE_W_5_4, nil)
+      GENERIC_CALCULATE_W_5(4)
 
 
-      BOOST_PP_REPEAT(3, AVX2_CALCULATE_W_5, nil)
-      AVX2_CALCULATE_W(5)
+      BOOST_PP_REPEAT(3, GENERIC_CALCULATE_W_5_5, nil)
+      GENERIC_CALCULATE_W_5(5)
 
 
       const float r2_9 = 2.0f / 9.0f;
@@ -107,20 +107,20 @@ __TRANS_WEIGHTS(float, 7, 3, 16, ISA_GENERIC)
   }
 }
 
-#define AVX512_CALCULATE_W_0(z, n, nil)                                        \
+#define AVX512_CALCULATE_W_5_0(z, n, nil)                                        \
   c##n = MUL(r4_81, ADD(ADD(f##n##0, f##n##1), f##n##2));
-#define AVX512_CALCULATE_W_1(z, n, nil)                                        \
+#define AVX512_CALCULATE_W_5_1(z, n, nil)                                        \
   c##n = MUL(r4_81, ADD(SUB(f##n##0, f##n##1), f##n##2));
-#define AVX512_CALCULATE_W_2(z, n, nil)                                        \
+#define AVX512_CALCULATE_W_5_2(z, n, nil)                                        \
   c##n = FMADD(r2_405, f##n##0, FMADD(r4_405, f##n##1, MUL(r8_405, f##n##2)));
-#define AVX512_CALCULATE_W_3(z, n, nil)                                        \
+#define AVX512_CALCULATE_W_5_3(z, n, nil)                                        \
   c##n = FMSUB(r4_405, f##n##1, FMADD(r2_405, f##n##0, MUL(r8_405, f##n##2)));
-#define AVX512_CALCULATE_W_4(z, n, nil)                                        \
+#define AVX512_CALCULATE_W_5_4(z, n, nil)                                        \
   c##n = FMADD(r32_405, f##n##0, FMADD(r16_405, f##n##1, MUL(r8_405, f##n##2)));
-#define AVX512_CALCULATE_W_5(z, n, nil)                                        \
+#define AVX512_CALCULATE_W_5_5(z, n, nil)                                        \
   c##n = FMSUB(r16_405, f##n##1, FMADD(r32_405, f##n##0, MUL(r8_405, f##n##2)));
 
-#define AVX512_CALCULATE_W(n)                                                  \
+#define AVX512_CALCULATE_W_5(n)                                                \
   t0##n = ADD(ADD(c0, c1), c2);                                                \
   _mm512_store_ps(T(0, n), t0##n);                                             \
   t1##n = ADD(SUB(c0, c1), c2);                                                \
@@ -174,38 +174,38 @@ __TRANS_WEIGHTS(float, 7, 3, 16, ISA_SKX_AVX512)
     MATRIX_DEF(3, 3);
 
     // col 1
-    BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_0, nil)
-    AVX512_CALCULATE_W(0)
+    BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_5_0, nil)
+    AVX512_CALCULATE_W_5(0)
 
 
     // col 2
-    BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_1, nil)
-    AVX512_CALCULATE_W(1)
+    BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_5_1, nil)
+    AVX512_CALCULATE_W_5(1)
 
 
     // col 3
     __m512 r2_405 = _mm512_set_ps(IMM_BCAST16(2.0f / 405.0f));
     __m512 r4_405 = _mm512_set_ps(IMM_BCAST16(4.0f / 405.0f));
     __m512 r8_405 = _mm512_set_ps(IMM_BCAST16(8.0f / 405.0f));
-    BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_2, nil)
-    AVX512_CALCULATE_W(2)
+    BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_5_2, nil)
+    AVX512_CALCULATE_W_5(2)
 
 
     // col 4
-    BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_3, nil)
-    AVX512_CALCULATE_W(3)
+    BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_5_3, nil)
+    AVX512_CALCULATE_W_5(3)
 
 
     // col 5
     __m512 r16_405 = _mm512_set_ps(IMM_BCAST16(16.0f / 405.0f));
     __m512 r32_405 = _mm512_set_ps(IMM_BCAST16(32.0f / 405.0f));
-    BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_4, nil)
-    AVX512_CALCULATE_W(4)
+    BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_5_4, nil)
+    AVX512_CALCULATE_W_5(4)
 
 
     // col 6
-    BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_5, nil)
-    AVX512_CALCULATE_W(5)
+    BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_5_5, nil)
+    AVX512_CALCULATE_W_5(5)
 
 
     // col 7
