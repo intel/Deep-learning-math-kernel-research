@@ -17,7 +17,7 @@ sleep 1
 NSOCKETS=1 ./scripts/run.sh -c -i128 -h112 -o128 -H112 -n1 --blk-i=8 --blk-o=8 --blk-t=26 --execution-mode=0xa040 $COMMON
 sleep 1
 # vgg19_conv3_1, 7.3T
-NSOCKETS=1 ./scripts/run.sh -c -i128 -h56 -o256 -H56 -n1 --blk-i=8 --blk-o=8 --blk-t=26 --pat-o=2 --execution-mode=0xa061 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -i128 -h56 -o256 -H56 -n1 --blk-i=8 --blk-o=8 --blk-t=26 --pat-o=2 --execution-mode=0xa061 --output-as-blocked=true $COMMON
 sleep 1
 # vgg19_conv3_2, 7.3T
 NSOCKETS=1 ./scripts/run.sh -c -i256 -h56 -o256 -H56 -n1 --blk-i=8 --blk-o=8 --blk-t=26 --pat-o=2 --execution-mode=0xa061 $COMMON
