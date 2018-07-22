@@ -23,7 +23,7 @@ int nteams = 0, nthreads = 0;
 int execution_mode = 0;
 int blk_i = 0, blk_o = 0, blk_t = 0;
 int pat_i = 1, pat_o = 1;
-int tile_size = 5;
+int tile_size = 7;
 int streaming_weights = 0, streaming_input = 0, streaming_output = 0;
 bool input_as_blocked = false, weights_as_blocked = false, output_as_blocked = false;
 

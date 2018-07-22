@@ -125,6 +125,9 @@ struct convolution_winograd_kernel {
   TRANS_KERNEL(float, 5, 3, 16, ISA_GENERIC);
   TRANS_KERNEL(float, 5, 3, 16, ISA_SKX_AVX512);
 
+  TRANS_KERNEL(float, 7, 3, 16, ISA_GENERIC);
+  TRANS_KERNEL(float, 7, 3, 16, ISA_SKX_AVX512);
+
   template <const int T_>
   static inline void __gemm(
       winograd_template_parameter_t<S_GEMM(float, T_, 16, ISA_GENERIC)>,
