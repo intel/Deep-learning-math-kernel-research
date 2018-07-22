@@ -33,10 +33,6 @@ template <typename T, typename... Args> inline T accumulate(T a, Args... args)
 // Note: 'align' must be power of 2
 #define ALIGNUP(value, align) (((value) + (align) - 1) & ~((align) - 1))
 
-// TODO: remove MD until all changes done
-#define MD(type, array, dims, ptr)                                             \
-  auto &array = *reinterpret_cast<type(*) dims>(ptr)
-
 template <typename F, const int N> class mdarray {
   public:
   template <typename... Args>
