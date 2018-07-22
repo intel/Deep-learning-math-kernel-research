@@ -9,7 +9,6 @@
 #ifndef INCLUDE_WINOGRAD_CONVOLUTION_KERNEL
 #error "Don't include this file directly"
 #endif
-
 namespace euler {
 
 #define AVX2_CALCULATE_O_0(z, n, nil)                                        \
@@ -64,11 +63,16 @@ __TRANS_OUTPUT(float, 7, 3, 16, ISA_GENERIC)
 
   float dummy[16];
   auto p_cb = [&](int _h, int _w, int _V) {
-    MD(float, aoutput, [xc.oh][xc.ow][16], output);
-    if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
-      return &dummy[_V];
-    else
+    if (_wOA_end == -1) {
+      MD(float, aoutput, [A - K + 1][A - K + 1][16], output);
       return &aoutput[_h][_w][_V];
+    } else {
+      MD(float, aoutput, [xc.oh][xc.ow][16], output);
+      if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
+        return &dummy[_V];
+      else
+        return &aoutput[_h][_w][_V];
+    }
   };
 
 #undef T
@@ -167,11 +171,16 @@ __TRANS_OUTPUT(float, 7, 3, 16, ISA_SKX_AVX512)
 
   alignas(64) float dummy[16];
   auto p_cb = [&](int _h, int _w) {
-    MD(float, aoutput,[xc.oh][xc.ow][16], output);
-    if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
-      return dummy;
-    else
+    if (_wOA_end == -1) {
+      MD(float, aoutput, [A - K + 1][A - K + 1][16], output);
       return aoutput[_h][_w];
+    } else {
+      MD(float, aoutput, [xc.oh][xc.ow][16], output);
+      if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
+        return dummy;
+      else
+        return aoutput[_h][_w];
+    }
   };
 
 #undef P
@@ -239,7 +248,30 @@ __TRANS_OUTPUT(float, 7, 3, 16, ISA_SKX_AVX512)
 //   bool stream_out
 __TRANS_OUTPUTA_TH( float, 7, 3, 16, ISA_GENERIC)
 {
-  // TODO
+  MD(float, atoutput, [A][xc.oc3 * xc.O2][Tz][V], toutput);
+  MD(float, atoutputa, [A - K + 1][V], toutputa);
+
+#undef P
+#undef T
+#define T(_h) atoutput[_h][0][0][_V]
+#define P(_h) atoutputa[_h][_V]
+
+  const float z2 = 2.0f;
+  const float z4 = 4.0f;
+  const float z8 = 8.0f;
+  const float z16 = 16.0f;
+  const float z1_2 = 1.0f / 2.0f;
+  const float z1_4 = 1.0f / 4.0f;
+  const float z1_8 = 1.0f / 8.0f;
+  const float z1_16 = 1.0f / 16.0f;
+#pragma omp simd
+  for (int _V = 0; _V < 16; ++_V) {
+    P(0) = T(0) + T(1) + T(2) + T(3) + T(4) + T(5);
+    P(1) = T(0) - T(1) + z2 * (T(2) - T(3)) + z1_2 * (T(4) - T(5));
+    P(2) = T(0) + T(1) + z4 * (T(2) + T(3)) + z1_4 * (T(4) + T(5));
+    P(3) = T(0) - T(1) + z8 * (T(2) - T(3)) + z1_8 * (T(4) - T(5));
+    P(4) = T(0) + T(1) + z16 * (T(2) + T(3)) + z1_16 * (T(4) + T(5)) + T(6);
+  }
 }
 
 // Params:
@@ -247,8 +279,70 @@ __TRANS_OUTPUTA_TH( float, 7, 3, 16, ISA_GENERIC)
 //   bool stream_out
 __TRANS_OUTPUTA_TH( float, 7, 3, 16, ISA_SKX_AVX512)
 {
-  // TODO
+  ENABLE_AVX512F();
+
+  MD(float, atoutput, [A][xc.oc3 * xc.O2][Tz][V], toutput);
+  MD(float, atoutputa, [A - K + 1][V], toutputa);
+
+#undef P
+#undef T
+#define T(_h) atoutput[_h][0][0]
+#define P(_h) atoutputa[_h]
+
+  __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
+  __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
+  __m512 z8 = _mm512_set_ps(IMM_BCAST16(8.0f));
+  __m512 z16 = _mm512_set_ps(IMM_BCAST16(16.0f));
+  __m512 z1_2 = _mm512_set_ps(IMM_BCAST16(1.0f / 2.0f));
+  __m512 z1_4 = _mm512_set_ps(IMM_BCAST16(1.0f / 4.0f));
+  __m512 z1_8 = _mm512_set_ps(IMM_BCAST16(1.0f / 8.0f));
+  __m512 z1_16 = _mm512_set_ps(IMM_BCAST16(1.0f / 16.0f));
+
+  __m512 t0 = _mm512_load_ps(T(0));
+  __m512 t1 = _mm512_load_ps(T(1));
+  __m512 t2 = _mm512_load_ps(T(2));
+  __m512 t3 = _mm512_load_ps(T(3));
+  __m512 t4 = _mm512_load_ps(T(4));
+  __m512 t5 = _mm512_load_ps(T(5));
+  __m512 t6 = _mm512_load_ps(T(6));
+
+  __m512 p0 = ADD(ADD(ADD(ADD(ADD(t0, t1), t2), t3), t4), t5);
+  __m512 p1 = ADD(FMADD(z2, SUB(t2, t3), t0), FMSUB(z1_2, SUB(t4, t5), t1));
+  __m512 p2 = ADD(FMADD(z4, ADD(t2, t3), t0), FMADD(z1_4, ADD(t4, t5), t1));
+  __m512 p3 = ADD(FMADD(z8, SUB(t2, t3), t0), FMSUB(z1_8, SUB(t4, t5), t1));
+  __m512 p4 = ADD(FMADD(z16, ADD(t2, t3), ADD(t0, t1)), FMADD(z1_16, ADD(t4, t5), t6));
+
+  if (stream_out) {
+    _mm512_stream_ps(P(0), p0);
+    _mm512_stream_ps(P(1), p1);
+    _mm512_stream_ps(P(2), p2);
+    _mm512_stream_ps(P(3), p3);
+    _mm512_stream_ps(P(4), p4);
+  } else {
+    _mm512_store_ps(P(0), p0);
+    _mm512_store_ps(P(1), p1);
+    _mm512_store_ps(P(2), p2);
+    _mm512_store_ps(P(3), p3);
+    _mm512_store_ps(P(4), p4);
+  }
 }
+
+#define GENERIC_CALCULATE_TILE_7(z, n, nil)                       \
+  P(n, 0) = T(n, 0) + T(n, 1) + T(n, 2) + T(n, 3) + T(n, 4)       \
+      + T(n, 5);                                                  \
+  if (with_bias_) P(n, 0) += B;                                   \
+  P(n, 1) = T(n, 0) - T(n, 1) + z2 * (T(n, 2) - T(n, 3))          \
+      + z1_2 * (T(n, 4) - T(n,5));                                \
+  if (with_bias_) P(n, 1) += B;                                   \
+  P(n, 2) = T(n, 0) + T(n, 1) + z4 * (T(n, 2) + T(n, 3))          \
+      + z1_4 * (T(n, 4) + T(n,5));                                \
+  if (with_bias_) P(n, 2) += B;                                   \
+  P(n, 3) = T(n, 0) - T(n, 1) + z8 * (T(n, 2) - T(n, 3))          \
+      + z1_8 * (T(n, 4) - T(n,5));                                \
+  if (with_bias_) P(n, 3) += B;                                   \
+  P(n, 4) = T(n, 0) + T(n, 1) + z16 * (T(n, 2) + T(n, 3))         \
+      + z1_16 * (T(n, 4) + T(n,5)) + T(n, 6);                     \
+  if (with_bias_) P(n, 4) += B;
 
 // template <const bool is_border_, const bool with_bias_>
 // Params:
@@ -257,8 +351,68 @@ __TRANS_OUTPUTA_TH( float, 7, 3, 16, ISA_SKX_AVX512)
 //   int _hOA_end, int _wOA_end
 __TRANS_OUTPUTA_BH(float, 7, 3, 16, ISA_GENERIC)
 {
-  // TODO
+  float dummy[16];
+  auto p_cb = [&](int _h, int _w, int _V) {
+    if (_wOA_end == -1) {
+      MD(float, aoutput, [A - K + 1][A - K + 1][16], output);
+      return &aoutput[_h][_w][_V];
+    } else {
+      MD(float, aoutput, [xc.oh][xc.ow][16], output);
+      if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
+        return &dummy[_V];
+      else
+        return &aoutput[_h][_w][_V];
+    }
+  };
+
+#undef T
+#undef C
+#undef P
+#undef B
+#define T(_hA, _wA) atoutput[_wA][_hA][_V]
+#define P(_h, _w) *p_cb(_h, _w, _V)
+#define B bias[_V]
+
+  const float z2 = 2.0f;
+  const float z4 = 4.0f;
+  const float z8 = 8.0f;
+  const float z16 = 16.0f;
+  const float z1_2 = 1.0f / 2.0f;
+  const float z1_4 = 1.0f / 4.0f;
+  const float z1_8 = 1.0f / 8.0f;
+  const float z1_16 = 1.0f / 16.0f;
+
+#pragma omp simd
+  for (int _V = 0; _V < 16; ++_V) {
+    BOOST_PP_REPEAT(5, GENERIC_CALCULATE_TILE_7, nil)
+  }
 }
+
+#define AVX512_BH_CALCULATE_TILE_7(z, n, nil)                       \
+  t0 = _mm512_load_ps(T(n, 0));                                     \
+  t1 = _mm512_load_ps(T(n, 1));                                     \
+  t2 = _mm512_load_ps(T(n, 2));                                     \
+  t3 = _mm512_load_ps(T(n, 3));                                     \
+  t4 = _mm512_load_ps(T(n, 4));                                     \
+  t5 = _mm512_load_ps(T(n, 5));                                     \
+  t6 = _mm512_load_ps(T(n, 6));                                     \
+                                                                    \
+  p0 = ADD(ADD(ADD(ADD(ADD(t0, t1), t2), t3), t4), t5);             \
+  if (with_bias_) p0 = ADD(p0, *(__m512*)bias);                     \
+  p1 = ADD(FMADD(z2, SUB(t2, t3), t0), FMSUB(z1_2, SUB(t4, t5), t1)); \
+  if (with_bias_) p1 = ADD(p1, *(__m512*)bias);                       \
+  p2 = ADD(FMADD(z4, ADD(t2, t3), t0), FMADD(z1_4, ADD(t4, t5), t1)); \
+  if (with_bias_) p2 = ADD(p2, *(__m512*)bias);                       \
+  p3 = ADD(FMADD(z8, SUB(t2, t3), t0), FMSUB(z1_8, SUB(t4, t5), t1)); \
+  if (with_bias_) p3 = ADD(p3, *(__m512*)bias);                       \
+  p4 = ADD(FMADD(z16, ADD(t2, t3), ADD(t0, t1)), FMADD(z1_16, ADD(t4, t5), t6)); \
+  if (with_bias_) p4 = ADD(p4, *(__m512*)bias);                       \
+                                                                      \
+  _mm512_store_ps(P(n,0), p0);                                        \
+  _mm512_store_ps(P(n,1), p1);                                        \
+  _mm512_store_ps(P(n,2), p2);                                        \
+  _mm512_store_ps(P(n,3), p3);                                        \
+  _mm512_store_ps(P(n,4), p4);
 
 // template <const bool is_border_, const bool with_bias_>
 // Params:
@@ -267,7 +421,39 @@ __TRANS_OUTPUTA_BH(float, 7, 3, 16, ISA_GENERIC)
 //   int _hOA_end, int _wOA_end
 __TRANS_OUTPUTA_BH(float, 7, 3, 16, ISA_SKX_AVX512)
 {
-  // TODO
+  ENABLE_AVX512F();
+
+  alignas(64) float dummy[16];
+  auto p_cb = [&](int _h, int _w) {
+    if (_wOA_end == -1) {
+      MD(float, aoutput, [A - K + 1][A - K + 1][16], output);
+      return aoutput[_h][_w];
+    } else {
+      MD(float, aoutput, [xc.oh][xc.ow][16], output);
+      if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
+        return dummy;
+      else
+        return aoutput[_h][_w];
+    }
+  };
+
+#undef P
+#undef T
+#define T(_h, _w) atoutput[_w][_h]
+#define P(_h, _w) p_cb(_h, _w)
+
+  __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
+  __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
+  __m512 z8 = _mm512_set_ps(IMM_BCAST16(8.0f));
+  __m512 z16 = _mm512_set_ps(IMM_BCAST16(16.0f));
+  __m512 z1_2 = _mm512_set_ps(IMM_BCAST16(1.0f / 2.0f));
+  __m512 z1_4 = _mm512_set_ps(IMM_BCAST16(1.0f / 4.0f));
+  __m512 z1_8 = _mm512_set_ps(IMM_BCAST16(1.0f / 8.0f));
+  __m512 z1_16 = _mm512_set_ps(IMM_BCAST16(1.0f / 16.0f));
+
+  __m512 t0, t1, t2, t3, t4, t5, t6, p0, p1, p2, p3, p4;
+
+  BOOST_PP_REPEAT(5, AVX512_BH_CALCULATE_TILE_7, nil)
 }
 
 

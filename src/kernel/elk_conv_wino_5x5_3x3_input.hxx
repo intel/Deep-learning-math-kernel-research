@@ -450,7 +450,7 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_GENERIC)
 #undef T
 #define F(_h, _w) f_cb(_h, _w, _V)
 #define C(n) C##n[_V]
-#define T(_h, _w) atinput[_w][_h][_V]
+#define T(_h, _w) atinput[_h][_w][_V]
 
   float C1[16], C2[16], C3[16], C4[16], C5[16], C6[16];
   switch (_wA) {
@@ -663,6 +663,9 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_SKX_AVX512)
   __m512 z85_8 = _mm512_set_ps(IMM_BCAST16(85.0f / 8.0f));
   __m512 z85_16 = _mm512_set_ps(IMM_BCAST16(85.0f / 16.0f));
 
+  // lazy initialize
+  __m512 z5, z5_8, z5_16, z25_4, z25_8, z25_16, z10, z25_2;
+
   auto f_cb = [&](int _h, int _w) {
     if (_wT_end == -1) {
       MD(float, ainput, [A][A][16], input);
@@ -681,7 +684,7 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_SKX_AVX512)
 #undef C
 #undef T
 #define F(_h, _w) f_cb(_h, _w)
-#define T(h, w) atinput[w][h]
+#define T(h, w) atinput[h][w]
 
 #undef f
 #undef OP
@@ -718,12 +721,12 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_SKX_AVX512)
 
     break;
   case 2:
-    __m512 z5 = _mm512_set_ps(IMM_BCAST16(5.0f));
-    __m512 z5_8 = _mm512_set_ps(IMM_BCAST16(5.0f / 8.0f));
-    __m512 z5_16 = _mm512_set_ps(IMM_BCAST16(5.0f / 16.0f));
-    __m512 z25_4 = _mm512_set_ps(IMM_BCAST16(25.0f / 4.0f));
-    __m512 z25_8 = _mm512_set_ps(IMM_BCAST16(25.0f / 8.0f));
-    __m512 z25_16 = _mm512_set_ps(IMM_BCAST16(25.0f / 16.0f));
+    z5 = _mm512_set_ps(IMM_BCAST16(5.0f));
+    z5_8 = _mm512_set_ps(IMM_BCAST16(5.0f / 8.0f));
+    z5_16 = _mm512_set_ps(IMM_BCAST16(5.0f / 16.0f));
+    z25_4 = _mm512_set_ps(IMM_BCAST16(25.0f / 4.0f));
+    z25_8 = _mm512_set_ps(IMM_BCAST16(25.0f / 8.0f));
+    z25_16 = _mm512_set_ps(IMM_BCAST16(25.0f / 16.0f));
 
     c1 = FMADD(z5_2, f02, FMSUB(z5_4, f03, FMADD(z1_2, f00, FMADD(z1_4, f01,
         FMADD(z2, f04, f05)))));
@@ -744,12 +747,12 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_SKX_AVX512)
 
     break;
   case 3:
-    /*__m512 z5 = _mm512_set_ps(IMM_BCAST16(5.0f));
-    __m512 z5_8 = _mm512_set_ps(IMM_BCAST16(5.0f / 8.0f));
-    __m512 z5_16 = _mm512_set_ps(IMM_BCAST16(5.0f / 16.0f));
-    __m512 z25_4 = _mm512_set_ps(IMM_BCAST16(25.0f / 4.0f));
-    __m512 z25_8 = _mm512_set_ps(IMM_BCAST16(25.0f / 8.0f));
-    __m512 z25_16 = _mm512_set_ps(IMM_BCAST16(25.0f / 16.0f));*/
+    z5 = _mm512_set_ps(IMM_BCAST16(5.0f));
+    z5_8 = _mm512_set_ps(IMM_BCAST16(5.0f / 8.0f));
+    z5_16 = _mm512_set_ps(IMM_BCAST16(5.0f / 16.0f));
+    z25_4 = _mm512_set_ps(IMM_BCAST16(25.0f / 4.0f));
+    z25_8 = _mm512_set_ps(IMM_BCAST16(25.0f / 8.0f));
+    z25_16 = _mm512_set_ps(IMM_BCAST16(25.0f / 16.0f));
 
     c1 = FMADD(z1_2, f00, FMADD(z5_4, f03, FMSUB(z2, f04, FMADD(z1_4, f01,
         FMADD(z5_2, f02, f05)))));
@@ -770,8 +773,12 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_SKX_AVX512)
 
     break;
   case 4:
-    __m512 z10 = _mm512_set_ps(IMM_BCAST16(10.0f));
-    __m512 z25_2 = _mm512_set_ps(IMM_BCAST16(25.0f / 2.0f));
+    z5 = _mm512_set_ps(IMM_BCAST16(5.0f));
+    z10 = _mm512_set_ps(IMM_BCAST16(10.0f));
+    z5_8 = _mm512_set_ps(IMM_BCAST16(5.0f / 8.0f));
+    z25_2 = _mm512_set_ps(IMM_BCAST16(25.0f / 2.0f));
+    z25_4 = _mm512_set_ps(IMM_BCAST16(25.0f / 4.0f));
+    z25_8 = _mm512_set_ps(IMM_BCAST16(25.0f / 8.0f));
 
     c1 = FMADD(z5_2, f02, FMSUB(z5, f03, FMADD(z2, f00, FMADD(z4, f01,
         FMADD(z1_2, f04, f05)))));
@@ -792,6 +799,13 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_SKX_AVX512)
 
     break;
   case 5:
+    z5 = _mm512_set_ps(IMM_BCAST16(5.0f));
+    z10 = _mm512_set_ps(IMM_BCAST16(10.0f));
+    z5_8 = _mm512_set_ps(IMM_BCAST16(5.0f / 8.0f));
+    z25_2 = _mm512_set_ps(IMM_BCAST16(25.0f / 2.0f));
+    z25_4 = _mm512_set_ps(IMM_BCAST16(25.0f / 4.0f));
+    z25_8 = _mm512_set_ps(IMM_BCAST16(25.0f / 8.0f));
+
     c1 = FMADD(z2, f00, FMADD(z5, f03, FMSUB(z1_2, f04, FMADD(z4, f01,
         FMADD(z5_2, f02, f05)))));
     c2 = FMADD(z2, f10, FMADD(z5, f13, FMSUB(z1_2, f14, FMADD(z4, f11,
