@@ -98,8 +98,12 @@ BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, INST_C_gemm_tail, nil);
 #define AVX512_STORE(z, n, nil)                                                \
   _mm512_store_ps(&md3(atoutput, _O2, n, 0), t##n);
 #define AVX512_FMA(z, n, nil)                                                  \
-  x = _mm512_set1_ps(*(x_ptr + n * 16));                                       \
+  x = _mm512_set1_ps(md3(atinput, _I2, n, _V));                                \
   t##n = _mm512_fmadd_ps(w, x, t##n);
+#define AVX512_FMA_Ir(z, n, nil)                                               \
+  x = _mm512_set1_ps(md3(atinput, xc.I2 - 1, n, _V));                          \
+  t##n = _mm512_fmadd_ps(w, x, t##n);
+
 
 #define DEF_function_gemm(z, n, nil)                                         \
   template <D_GEMM(typename Type, const int T, const int V, const int I)>    \
@@ -127,7 +131,6 @@ BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, INST_C_gemm_tail, nil);
         for (int _V = 0; _V < 16; ++_V) {                                    \
           __m512 x;                                                          \
           __m512 w = _mm512_load_ps(&md4(atweights, _O2, _I2, _V, 0));       \
-          float *x_ptr = &md3(atinput, _I2, 0, _V);                          \
           BOOST_PP_REPEAT(n, AVX512_FMA, nil);                               \
         }                                                                    \
       }                                                                      \
@@ -170,15 +173,13 @@ BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, INST_V_gemm, nil);
         for (int _V = 0; _V < 16; ++_V) {                                    \
           __m512 x;                                                          \
           __m512 w = _mm512_load_ps(&md4(atweights, _O2, _I2, _V, 0));       \
-          float *x_ptr = &md3(atinput, _I2, 0, _V);                          \
           BOOST_PP_REPEAT(n, AVX512_FMA, nil);                               \
         }                                                                    \
       }                                                                      \
       for (int _V = 0; _V < xc.Ir; ++_V) {                                   \
         __m512 x;                                                            \
         __m512 w = _mm512_load_ps(&md4(atweights, _O2, xc.I2 - 1, _V, 0));   \
-        float *x_ptr = &md3(atinput, xc.I2 - 1, 0, _V);                      \
-        BOOST_PP_REPEAT(n, AVX512_FMA, nil);                                 \
+        BOOST_PP_REPEAT(n, AVX512_FMA_Ir, nil);                              \
       }                                                                      \
       BOOST_PP_REPEAT(n, AVX512_STORE, nil);                                 \
     }                                                                        \
