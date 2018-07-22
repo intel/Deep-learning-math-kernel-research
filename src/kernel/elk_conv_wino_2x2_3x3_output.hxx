@@ -22,14 +22,14 @@ __TRANS_OUTPUT(float, 4, 3, 16, ISA_GENERIC)
   float dummy[16];
   auto p_cb = [&](int _h, int _w, int _V) {
     if (_wOA_end == -1) {
-      MD(float, aoutput, [A - K + 1][A - K + 1][16], output);
-      return &aoutput[_h][_w][_V];
+      MD3(float, aoutput, output, A - K + 1, A - K + 1, 16);
+      return &md3(aoutput, _h, _w, _V);
     } else {
-      MD(float, aoutput, [xc.oh][xc.ow][16], output);
+      MD3(float, aoutput, output, xc.oh, xc.ow, 16);
       if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
         return &dummy[_V];
       else
-        return &aoutput[_h][_w][_V];
+        return &md3(aoutput, _h, _w, _V);
     }
   };
 
@@ -72,14 +72,14 @@ __TRANS_OUTPUT(float, 4, 3, 16, ISA_SKX_AVX512)
   alignas(64) float dummy[16];
   auto p_cb = [&](int _h, int _w) {
     if (_wOA_end == -1) {
-      MD(float, aoutput, [A - K + 1][A - K + 1][16], output);
-      return aoutput[_h][_w];
+      MD3(float, aoutput, output, A - K + 1, A - K + 1, 16);
+      return &md3(aoutput, _h, _w, 0);
     } else {
-      MD(float, aoutput, [xc.oh][xc.ow][16], output);
+      MD3(float, aoutput, output, xc.oh, xc.ow, 16);
       if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
         return dummy;
       else
-        return aoutput[_h][_w];
+        return &md3(aoutput, _h, _w, 0);
     }
   };
 
