@@ -92,7 +92,7 @@ namespace test {
               double delta = fabs(
                   aout[_n][_C][_h][_w][_v] - aref[_n][_C][_h][_w][_v]);
               double rel_diff = delta / fabs(aref[_n][_C][_h][_w][_v]);
-              if (rel_diff > 5e-6) {
+              if (rel_diff > 1e-5) {
                 if (errors < MAX_PRINT_ERRORS) {
                   printf("Not equal!: [%d][%d][%d][%d][%d]: %f != %f (ref), "
                          "delta=%g, rel_diff=%g\n",
@@ -134,7 +134,7 @@ namespace test {
             double delta = fabs(
                 aout[_n][_c][_h][_w] - aref[_n][_c][_h][_w]);
             double rel_diff = delta / fabs(aref[_n][_c][_h][_w]);
-            if (rel_diff > 5e-6) {
+            if (rel_diff > 1e-5) {
               if (errors < MAX_PRINT_ERRORS) {
                 printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
                        "delta=%g, rel_diff=%g\n",
