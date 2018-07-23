@@ -561,21 +561,29 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
                       int _ic4, int _ic3, int _I2, bool is_Ir, bool is_Or) {
     MD4(Type, awei, weights, this->oc, this->ic, K, K);
 
+    assert(this->ic4 == 1 && this->oc4 == 1);
     int _oc2 = _oc4 * this->oc3 * this->O2 + _oc3 * this->O2 + _O2;
     int _ic2 = _ic4 * this->ic3 * this->I2 + _ic3 * this->I2 + _I2;
     int iV = is_Ir ? this->Ir : V;
-    int oV = is_Or ? this->Or : V;
 
-    for_each (_hK, K) {
+    if (is_Or) {
+      for_each (_hK, K) {
       for_each (_wK, K) {
-        for_each (_iV, iV) {
+      for_each (_iV, iV) {
 #pragma omp simd
-          for_each (_oV, oV) {
-            ain[_hK][_wK][_iV][_oV]
-                = md4(awei, _oc2 * V + _oV, _ic2 * V + _iV, _hK, _wK);
-          }
-        }
-      }
+      for_each (_oV, this->Or) {
+        ain[_hK][_wK][_iV][_oV]
+            = md4(awei, _oc2 * V + _oV, _ic2 * V + _iV, _hK, _wK);
+      }}}}
+    } else {
+      for_each (_hK, K) {
+      for_each (_wK, K) {
+      for_each (_iV, iV) {
+#pragma omp simd
+      for_each (_oV, V) {
+        ain[_hK][_wK][_iV][_oV]
+            = md4(awei, _oc2 * V + _oV, _ic2 * V + _iV, _hK, _wK);
+      }}}}
     }
   };
 
@@ -758,7 +766,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsa_plain(
       = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
           9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
 
-  auto readin = [&](Type ain[K][K][V][V], Type *wei) {
+  auto readin_v = [&](Type ain[K][K][V][V], Type *wei) {
     MD5(Type, awei, wei, V, this->ic2, V, K, K);
 
     for_each (_hK, K) {
@@ -776,6 +784,26 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsa_plain(
     }}}
   };
 
+  auto readin_r = [&](Type ain[K][K][V][V], int _oc4, int _oc3, int _O2,
+                      int _ic4, int _ic3, int _I2, bool is_Ir, bool is_Or) {
+    MD4(Type, awei, weights, this->oc, this->ic, K, K);
+
+    int _oc2 = _oc4 * this->oc3 * this->O2 + _oc3 * this->O2 + _O2;
+    int _ic2 = _ic4 * this->ic3 * this->I2 + _ic3 * this->I2 + _I2;
+    int iV = is_Ir ? this->Ir : V;
+    int oV = is_Or ? this->Or : V;
+
+    for_each (_hK, K) {
+    for_each (_wK, K) {
+    for_each (_iV, iV) {
+#pragma omp simd
+    for_each (_oV, oV) {
+      ain[_hK][_wK][_iV][_oV]
+              = md4(awei, _oc2 * V + _oV, _ic2 * V + _iV, _hK, _wK);
+    }}}}
+  };
+
+
 #pragma omp for nowait collapse(6) schedule(static)
   for_each (_oc4, this->oc4) {
   for_each (_ic4, this->ic4) {
@@ -783,9 +811,20 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsa_plain(
   for_each (_ic3, this->ic3) {
   for_each (_O2, this->O2) {
   for_each (_I2, this->I2) {
+
+    bool is_Ir = this->Ir != V && _ic4 == this->ic4 - 1
+        && _ic3 == this->ic3 - 1 && _I2 == this->I2 - 1;
+    bool is_Or = this->Or != V && _oc4 == this->oc4 - 1
+        && _oc3 == this->oc3 - 1 && _O2 == this->O2 - 1;
+
     alignas(64) Type ain[K][K][V][V];
     alignas(64) Type aout[A][A][V][V];
-    readin(ain, &md10(aweights, _oc4, _oc3, _O2, 0, _ic4, _ic3, _I2, 0, 0, 0));
+
+    if (this->Ir != V || is_Ir || is_Or)
+      readin_r(ain, _oc4, _oc3, _O2, _ic4, _ic3, _I2, is_Ir, is_Or);
+    else
+      readin_v(
+          ain, &md10(aweights, _oc4, _oc3, _O2, 0, _ic4, _ic3, _I2, 0, 0, 0));
 
     ker_trans_weights_(aout, ain);
 
@@ -875,33 +914,51 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
   };
 
   auto readin_r = [&](int _ic3, int _I2, int _T, Type ain[A][A][V]) {
-    MD6(Type, ainput, input, this->n, this->ic3, this->I2, V, this->ih, this->iw);
+    MD4(Type, ainput, input, this->n, this->ic, this->ih, this->iw);
     int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
     t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
-   
-    for_each (_hA, A) {
-    for_each (_wA, A) {
-      if (_hA < _hA_start || _hA > _hA_end || _wA < _wA_start
-          || _wA > _wA_end) {
+    bool is_Ir = _ic3 == this->ic3 - 1 && _I2 == this->I2 - 1;
+
+    assert(this->ic4 == 1);
+    if (is_Ir) {
+      for_each (_hA, A) {
+      for_each (_wA, A) {
+        if (_hA < _hA_start || _hA > _hA_end || _wA < _wA_start
+            || _wA > _wA_end) {
 #pragma omp simd
-        for_each (_V, V)
-          ain[_hA][_wA][_V] = 0.0f;
-      } else {
+          for_each (_V, V)
+            ain[_hA][_wA][_V] = 0.0f;
+        } else {
 #pragma omp simd
-        for_each (_v, this->Ir)
-          ain[_hA][_wA][_v]
-              = md6(ainput, _n, _ic3, _I2, _v, _ih + _hA, _iw + _wA);
-      }
-    }}
+          for_each (_v, this->Ir)
+            ain[_hA][_wA][_v] = md4(ainput, _n,
+                (this->ic2 - 1) * V + _v, _ih + _hA, _iw + _wA);
+        }
+      }}
+    } else {
+      for_each (_hA, A) {
+      for_each (_wA, A) {
+        if (_hA < _hA_start || _hA > _hA_end || _wA < _wA_start
+            || _wA > _wA_end) {
+#pragma omp simd
+          for_each (_V, V)
+            ain[_hA][_wA][_V] = 0.0f;
+        } else {
+#pragma omp simd
+          for_each (_v, V)
+            ain[_hA][_wA][_v] = md4(ainput, _n,
+                (_ic3 * this->I2 + _I2) * V + _v, _ih + _hA, _iw + _wA);
+        }
+      }}
+    }
   };
 
   for_each (_ic3, this->ic3) {
   for_each (_I2, this->I2) {
-    bool is_Ir = this->Ir != V && _ic3 == this->ic3 - 1 && _I2 == this->I2 - 1;
     for_each (_T, Tz) {
-      if (is_Ir)
+      if (this->Ir != V) {
         readin_r(_ic3, _I2, _T, ain);
-      else
+      } else
         readin_v(_ic3, _I2, _T, ain);
 
       ker_trans_input_(*this, aout, (Type *)ain, 0, 0, 0, -1);
@@ -1087,24 +1144,47 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
   };
 
   auto readin_r = [&](int _t2, int _ic3, int _I2, int _T, Type ain[A][A][V]) {
-    MD6(Type, ainput, input, this->n, this->ic3, this->I2, V, this->ih, this->iw);
+    MD4(Type, ainput, input, this->n, this->ic, this->ih, this->iw);
     int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
     t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
 
-    for_each (_hA, A) {
-    for_each (_wA, A) {
-      if (_hA < _hA_start || _hA > _hA_end || _wA < _wA_start
-          || _wA > _wA_end) {
+    assert(this->ic4 == 1);
+    bool is_Ir = _ic3 == this->ic3 - 1 && _I2 == this->I2 - 1;
+
+    if (is_Ir) {
+      for_each (_hA, A) {
+        for_each (_wA, A) {
+          if (_hA < _hA_start || _hA > _hA_end || _wA < _wA_start
+              || _wA > _wA_end) {
 #pragma omp simd
-        for_each (_V, V)
-          ain[_hA][_wA][_V] = 0.0f;
-      } else {
+            for_each (_V, V)
+              ain[_hA][_wA][_V] = 0.0f;
+          } else {
 #pragma omp simd
-        for_each (_v, this->Ir)
-          ain[_hA][_wA][_v]
-          = md6(ainput, _n, _ic3, _I2, _v, _ih + _hA, _iw + _wA);
+            for_each (_v, this->Ir)
+              ain[_hA][_wA][_v] = md4(ainput, _n,
+                  (this->ic2 - 1) * V + _v, _ih + _hA, _iw + _wA);
+          }
+        }
       }
-    }}
+    } else {
+      for_each (_hA, A) {
+        for_each (_wA, A) {
+          if (_hA < _hA_start || _hA > _hA_end || _wA < _wA_start
+              || _wA > _wA_end) {
+#pragma omp simd
+            for_each (_V, V)
+              ain[_hA][_wA][_V] = 0.0f;
+          } else {
+#pragma omp simd
+            for_each (_v, V)
+              ain[_hA][_wA][_v] = md4(ainput, _n,
+                  (_ic3 * this->I2 + _I2) * V + _v, _ih + _hA, _iw + _wA);
+          }
+        }
+      }
+
+    }
   };
 
 #pragma omp for nowait collapse(3)
@@ -1113,12 +1193,11 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
   for_each (_I2, this->I2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
     MD6(Type, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2, Tz, V);
-    bool is_Ir = this->Ir != V && _ic3 == this->ic3 - 1 && _I2 == this->I2 - 1;
     alignas(64) Type aout[A][A][V];
     alignas(64) Type ain[A][A][V];
 
     for_each (_T, Tz) {
-      if (is_Ir)
+      if (this->Ir != V)
         readin_r(_t2, _ic3, _I2, _T, ain);
       else
         readin_v(_t2, _ic3, _I2, _T, ain);
@@ -1251,31 +1330,52 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_inputa_plain(
   };
 
   auto readin_r = [&](int _ic3, int _I2, int _T, Type ain[A][A][V]) {
-    MD7(Type, ainput, input, this->n, this->ic4, this->ic3, this->I2, V, this->ih, this->iw);
+    MD4(Type, ainput, input, this->n, this->ic, this->ih, this->iw);
     int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
     t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
 
-    for_each (__wA, A) {
-    for_each (__hA, A) {
-      if (__hA < _hA_start || __hA > _hA_end || __wA < _wA_start
-          || __wA > _wA_end) {
+    assert(this->ic4 == 1);
+    bool is_Ir = _ic3 == this->ic3 - 1 && _I2 == this->I2 - 1;
+
+    if (is_Ir) {
+      for_each (__wA, A) {
+        for_each (__hA, A) {
+          if (__hA < _hA_start || __hA > _hA_end || __wA < _wA_start
+              || __wA > _wA_end) {
 #pragma omp simd
-        for_each (_V, V)
-          ain[__hA][__wA][_V] = 0.0f;
-      } else {
+            for_each (_V, V)
+              ain[__hA][__wA][_V] = 0.0f;
+          } else {
 #pragma omp simd
-        for_each (_V, this->Ir)
-          ain[__hA][__wA][_V]
-            = md7(ainput, _n, 0, _ic3, _I2, _V, _ih + __hA, _iw + __wA);
+            for_each (_V, this->Ir)
+              ain[__hA][__wA][_V] = md4(ainput, _n,
+                  (_ic3 * this->I2 + _I2) * V + _V, _ih + __hA, _iw + __wA);
+          }
+        }
       }
-    }}
+    } else {
+      for_each (__wA, A) {
+        for_each (__hA, A) {
+          if (__hA < _hA_start || __hA > _hA_end || __wA < _wA_start
+              || __wA > _wA_end) {
+#pragma omp simd
+            for_each (_V, V)
+              ain[__hA][__wA][_V] = 0.0f;
+          } else {
+#pragma omp simd
+            for_each (_V, V)
+              ain[__hA][__wA][_V] = md4(ainput, _n,
+                  (_ic3 * this->I2 + _I2) * V + _V, _ih + __hA, _iw + __wA);
+          }
+        }
+      }
+    }
   };
 
   for_each (_ic3, this->ic3) {
   for_each (_I2, this->I2) {
-    bool is_Ir = this->Ir != V && _ic3 == this->ic3 - 1 && _I2 == this->I2 - 1;
   for_each (_T, Tz) {
-    if (is_Ir)
+    if (this->Ir != V)
       readin_r(_ic3, _I2, _T, ain);
     else
       readin_v(_ic3, _I2, _T, ain);
@@ -1453,24 +1553,34 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
 
   auto writeout_r = [&](int _oc3, int _O2, int _T,
                         Type aout[A - K + 1][A - K + 1][V]) {
-    MD7(Type, aoutput, output, this->n, this->oc4, this->oc3, this->O2, V, this->oh, this->ow);
+    MD4(Type, aoutput, output, this->n, this->oc, this->oh, this->ow);
 
+    assert(this->oc4 == 1);
+    int is_Or = _oc3 == this->oc3 - 1 && _O2 == this->O2 - 1;
     int _n, _oh, _ow, _hOA_end, _wOA_end;
     t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
 
     for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
       for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
+        if (is_Or) {
 #pragma omp simd
         for_each (_V, this->Or)
-          md7(aoutput, _n, 0, _oc3, _O2, _V, _oh + _hA, _ow + _wA)
+          md4(aoutput, _n, (this->oc2 - 1) * V + _V, _oh + _hA, _ow + _wA)
               = aout[_hA][_wA][_V];
+        } else {
+#pragma omp simd
+        for_each (_V, V)
+          md4(aoutput, _n, (_oc3 * this->O2 + _O2) * V + _V, _oh + _hA,
+              _ow + _wA)
+              = aout[_hA][_wA][_V];
+
+        }
       }
     }
   };
 
   for_each (_oc3, this->oc3) {
   for_each (_O2, this->O2) {
-    int is_Or = this->Or != V && _oc3 == this->oc3 - 1 && _O2 == this->O2 - 1;
     for_each (_T, Tz) {
       for_each (_wA, A) {
       for_each (_hA, A) {
@@ -1482,7 +1592,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
       ker_trans_output_(
           *this, (Type *)aout, ain, &md3(abias, _oc3, _O2, 0), 0, -1);
 
-      if (is_Or)
+      if (this->Or != V)
         writeout_r(_oc3, _O2, _T, aout);
       else
         writeout_v(_oc3, _O2, _T, aout);
@@ -1651,27 +1761,35 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(Type *output,
     }
   };
 
-  auto writeout_r = [&](int _ic4, int _oc, int _T,
-                        Type aout[A - K + 1][A - K + 1][V]) {
-    MD7(Type, aoutput, output_tmp, this->n, this->oc4, this->ic4, this->oc3 * this->O2 / this->ic4, V, this->oh, this->ow);
+  auto writeout_r = [&](int _oc, int _T, Type aout[A - K + 1][A - K + 1][V]) {
+    MD4(Type, aoutput, output_tmp, this->n, this->oc, this->oh, this->ow);
+
+    assert(this->ic4 == 1 && this->oc4 == 1);
 
     int _n, _oh, _ow, _hOA_end, _wOA_end;
     t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
 
+    bool is_Or =  _oc == this->oc2  - 1;
+
     for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
       for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
+        if (is_Or) {
 #pragma omp simd
-        for_each (_V, this->Or)
-          md7(aoutput, _n, oc4, _ic4, _oc, _V, _oh + _hA, _ow + _wA)
-              = aout[_hA][_wA][_V];
+          for_each (_V, this->Or)
+            md4(aoutput, _n, _oc * V + _V, _oh + _hA, _ow + _wA)
+                = aout[_hA][_wA][_V];
+        } else {
+#pragma omp simd
+          for_each (_V, V)
+            md4(aoutput, _n, _oc * V + _V, _oh + _hA, _ow + _wA)
+                = aout[_hA][_wA][_V];
+        }
       }
     }
   };
 
   for_each (_ic4, this->ic4) {
   for_each (_oc, this->oc3 * this->O2/this->ic4) {
-    bool is_Or = this->Or != V && _ic4 == this->ic4 - 1
-        && _oc == this->oc3 * this->O2 / this->ic4 - 1;
     for_each (_T, Tz) {
       for_each (_wA, A) {
       for_each (_hA, A) {
@@ -1686,8 +1804,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(Type *output,
         ker_trans_output_(
             *this, (Type *)aout, ain, &md4(abias, oc4, _ic4, _oc, 0), 0, -1);
 
-      if (is_Or)
-        writeout_r(_ic4, _oc, _T, aout);
+      if (this->Or != V)
+        writeout_r(_oc, _T, aout);
       else
         writeout_v(_ic4, _oc, _T, aout);
     }
@@ -1771,7 +1889,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_outputa_bh_plain(
       = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
           9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
 
-  auto writeout = [&](int _t2, int _oc2, int _T,
+  auto writeout_v = [&](int _t2, int _oc2, int _T,
                       Type aout[A - K + 1][A - K + 1][V]) {
     MD5(Type, aoutput, output, this->n, this->oc2, V, this->oh, this->ow);
 
@@ -1796,6 +1914,32 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_outputa_bh_plain(
     }
   };
 
+  auto writeout_r = [&](int _t2, int _oc2, int _T,
+                      Type aout[A - K + 1][A - K + 1][V]) {
+    MD4(Type, aoutput, output, this->n, this->oc, this->oh, this->ow);
+
+    int _n, _oh, _ow, _hOA_end, _wOA_end;
+    t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
+
+    assert(this->oc4 == 1);
+    bool is_Or = _oc2 == this->oc2 - 1;
+    for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
+      for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
+        if (is_Or) {
+#pragma omp simd
+          for_each (_V, this->Or)
+            md4(aoutput, _n, _oc2 * V + _V, _oh + _hA, _ow + _wA)
+                = aout[_hA][_wA][_V];
+        } else {
+#pragma omp simd
+          for_each (_V, V)
+            md4(aoutput, _n, _oc2 * V + _V, _oh + _hA, _ow + _wA)
+                = aout[_hA][_wA][_V];
+        }
+      }
+    }
+  };
+
 #pragma omp for nowait collapse(2)
   for_each (_t2, this->t2) {
   for_each (_oc2, this->oc2) {
@@ -1810,7 +1954,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_outputa_bh_plain(
       ker_trans_outputa_bh_(
           *this, (Type *)aout, *in, &md2(abias, _oc2, 0), 0, -1);
 
-      writeout(_t2, _oc2, _T, aout);
+      if (this->Or != V)
+        writeout_r(_t2, _oc2, _T, aout);
+      else
+        writeout_v(_t2, _oc2, _T, aout);
     }
   }}
 }
@@ -1905,17 +2052,28 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
 
   auto writeout_r = [&](int _t2, int _oc3, int _O2, int _T,
                         Type aout[A - K + 1][A - K + 1][V]) {
-    MD7(Type, aoutput, output, this->n, this->oc4, this->oc3, this->O2, V, this->oh, this->ow);
+    MD4(Type, aoutput, output, this->n, this->oc, this->oh, this->ow);
 
     int _n, _oh, _ow, _hOA_end, _wOA_end;
     t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
 
+    assert(this->oc4 == 1);
+    bool is_Or = _oc3 == this->oc3 - 1 && _O2 == this->O2 - 1;
+
     for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
       for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
+        if (is_Or) {
 #pragma omp simd
-        for_each (_V, this->Or)
-          md7(aoutput, _n, 0, _oc3, _O2, _V, _oh + _hA, _ow + _wA)
-              = aout[_hA][_wA][_V];
+          for_each (_V, this->Or)
+            md4(aoutput, _n, (this->oc2 - 1) * V + _V, _oh + _hA, _ow + _wA)
+                = aout[_hA][_wA][_V];
+        } else {
+#pragma omp simd
+          for_each (_V, V)
+            md4(aoutput, _n, (_oc3 * this->O2 + _O2) * V + _V, _oh + _hA,
+                _ow + _wA)
+                = aout[_hA][_wA][_V];
+        }
       }
     }
   };
@@ -1926,7 +2084,6 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
   for_each (_O2, this->O2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
     MD6(Type, atoutput6, &md2(atoutput2, _t2, 0), A, A, this->oc3, this->O2, Tz, V);
-    bool is_Or = this->Or != V && _oc3 == this->oc3 - 1 && _O2 == this->O2 - 1;
     alignas(64) Type ain[A][A][V];
     alignas(64) Type aout[A - K + 1][A - K + 1][V];
 
@@ -1941,7 +2098,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
       ker_trans_output_(
           *this, (Type *)aout, ain, &md3(abias, _oc3, _O2, 0), 0, -1);
 
-      if (is_Or)
+      if (this->Or != V)
         writeout_r(_t2, _oc3, _O2, _T, aout);
       else
         writeout_v(_t2, _oc3, _O2, _T, aout);
