@@ -2,7 +2,6 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include "el_utils.hpp"
 #include "elt_utils.hpp"
 #include "euler.hpp"

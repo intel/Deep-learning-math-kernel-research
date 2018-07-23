@@ -9,6 +9,7 @@ nsockets=$NSOCKETS
 ncores_per_socket=
 nthreads_per_core=1
 nthreads=
+build_dir=build_gcc
 
 nsockets=${nsockets:=$( lscpu | grep 'Socket(s)' | cut -d: -f2 )}
 ncores_per_socket=${ncores_per_socket:=$( lscpu | grep 'Core(s) per socket' | cut -d: -f2 )}
@@ -132,7 +133,21 @@ function conv_test() {
     esac
   done
   shift $((OPTIND-1))
-  eval $OMP_ENV $ROOT_DIR/build/tests/elt_conv \
+  echo "$OMP_ENV $ROOT_DIR/$build_dir/tests/elt_conv \
+    -n$n -i$i -o$o -h$h -w$w -H$H -W$W -k$k -K$K -p$p -P$P -s$s -S$S \
+    -b$b -r$r -v$v -a$a --blk-i=$blk_i --blk-o=$blk_o --blk-t=$blk_t \
+    --pat-i=$pat_i --pat-o=$pat_o --tile-size=$tile_size \
+    --nteams=$nteams --nthreads=$nthreads --execution-mode=$execution_mode \
+    --streaming-weights=$streaming_weights \
+    --streaming-input=$streaming_input \
+    --streaming-output=$streaming_output \
+    --input-format=$input_format \
+    --weights-format=$weights_format \
+    --output-format=$output_format \
+    --input-as-blocked=$input_as_blocked \
+    --weights-as-blocked=$weights_as_blocked \
+    --output-as-blocked=$output_as_blocked"
+  eval $OMP_ENV $ROOT_DIR/$build_dir/tests/elt_conv \
     -n$n -i$i -o$o -h$h -w$w -H$H -W$W -k$k -K$K -p$p -P$P -s$s -S$S \
     -b$b -r$r -v$v -a$a --blk-i=$blk_i --blk-o=$blk_o --blk-t=$blk_t \
     --pat-i=$pat_i --pat-o=$pat_o --tile-size=$tile_size \
@@ -150,7 +165,7 @@ function conv_test() {
 }
 
 function unit_test() {
-  eval $OMP_ENV $ROOT_DIR/build/tests/elt_unitests -t
+  eval $OMP_ENV $ROOT_DIR/$build_dir/tests/elt_unitests -t
 }
 
 function show_help() {
