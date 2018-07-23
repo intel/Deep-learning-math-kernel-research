@@ -411,13 +411,9 @@ namespace test {
     int dh = desc.dilations.h;
     int dw = desc.dilations.w;
 
-    using Array1 = Type[n][IC][ih][iw][16];
-    using Array2 = Type[OC][IC][kh][kw][16][16];
-    using Array3 = Type[n][OC][oh][ow][16];
-
-    Array1 *ainput = (Array1 *)input;
-    Array2 *aweights = (Array2 *)weights;
-    Array3 *aoutput = (Array3 *)output;
+    auto *ainput = reinterpret_cast<Type (*)[IC][ih][iw][16]>(input);
+    auto *aweights = reinterpret_cast<Type (*)[IC][kh][kw][16][16]>(weights);
+    auto *aoutput = reinterpret_cast<Type (*)[OC][oh][ow][16]>(output);
 
     if (desc.dims.input.n != desc.dims.output.n
         || desc.dims.input.c != desc.dims.weights.i
@@ -442,7 +438,7 @@ namespace test {
           for_each (_ow, ow) {
             int ov = _OC == OC - 1 ? Or : 16;
             for_each (_ov, ov) {
-              (*aoutput)[_n][_OC][_oh][_ow][_ov]
+              aoutput[_n][_OC][_oh][_ow][_ov]
                   = desc.with_bias ? bias[_OC * 16 + _ov] : 0.0f;
               for_each (_IC, IC) {
                 int iv = _IC == IC - 1 ? Ir : 16;
@@ -455,9 +451,9 @@ namespace test {
                       int _iw = _ow * sw - pl + _kw * dw;
                       if (_iw < 0 || _iw >= iw)
                         continue;
-                      (*aoutput)[_n][_OC][_oh][_ow][_ov]
-                          += (*ainput)[_n][_IC][_ih][_iw][_iv]
-                          * (*aweights)[_OC][_IC][_kh][_kw][_iv][_ov];
+                      aoutput[_n][_OC][_oh][_ow][_ov]
+                          += ainput[_n][_IC][_ih][_iw][_iv]
+                          * aweights[_OC][_IC][_kh][_kw][_iv][_ov];
                     }
                   }
                 }
