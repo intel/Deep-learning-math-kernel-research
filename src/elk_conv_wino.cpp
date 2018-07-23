@@ -15,6 +15,15 @@ void convolution_winograd_kernel<R_GEMM(Type, T, V, I)>::gemm(
       tinput, tweights, zero_out);
 }
 
+template <D_GEMM(typename Type, const int T, const int V, const int I)>
+void convolution_winograd_kernel<R_GEMM(Type, T, V, I)>::gemm_tail(
+    elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights,
+    bool zero_out)
+{
+  __gemm_tail(winograd_template_parameter_t<R_GEMM(Type, T, V, I)>(), xc,
+      toutput, tinput, tweights, zero_out);
+}
+
 template <D_INPUT(typename Type, const int A, const int K, const int V,
     const int I, const bool is_border)>
 void convolution_winograd_kernel<R_INPUT(Type, A, K, V, I,
@@ -97,3 +106,8 @@ void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::trans_weights(
 #include "kernel/elk_conv_wino_3x3_3x3_input.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_output.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_weights.hxx"
+
+// F(5x5, 3x3)
+#include "kernel/elk_conv_wino_5x5_3x3_input.hxx"
+#include "kernel/elk_conv_wino_5x5_3x3_output.hxx"
+#include "kernel/elk_conv_wino_5x5_3x3_weights.hxx"

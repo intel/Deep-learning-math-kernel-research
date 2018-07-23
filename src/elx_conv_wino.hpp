@@ -81,6 +81,10 @@ class elx_conv_wino_t : public elx_conv_t<Type> {
       convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_;
   decltype(
       convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm0_;
+  decltype(
+      convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_tail_;
+  decltype(
+      convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm0_tail_;
   decltype(convolution_winograd_kernel<S_INPUT(
           Type, A, K, V, I, BORDER(false))>::trans_input) *ker_trans_input_;
   decltype(convolution_winograd_kernel<S_INPUT(
@@ -147,6 +151,8 @@ template class elx_conv_wino_t<float, 4, 3, 16, ISA_GENERIC>;
 template class elx_conv_wino_t<float, 4, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<float, 5, 3, 16, ISA_GENERIC>;
 template class elx_conv_wino_t<float, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<float, 7, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_t<float, 7, 3, 16, ISA_SKX_AVX512>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_WINO_GEMM_HPP__

@@ -29,8 +29,8 @@ struct elx_conv_t {
   int nt, ht, wt;
   // blocking unit: vector-size, tile-size, tile-blocking-size
   int V, A, T;
-  // tailing dimensions: IC, OC, T
-  int Ir, Or, Tr;
+  // padding (IC/OC) & tailing dimensions: Ir, Or, Tr
+  int IC, OC, Ir, Or, Tr;
   // 2nd/r3d level blocking unit: ic, oc
   int I2, O2, I3, O3;
   // padding

@@ -33,6 +33,9 @@ template <typename T, typename... Args> inline T accumulate(T a, Args... args)
 
 #define MEMALIGN64(ptr, size) posix_memalign((void **)(ptr), 64, size)
 
+// Note: 'align' must be power of 2
+#define ALIGNUP(value, align) (((value) + (align) - 1) & ~((align) - 1))
+
 } // namespace euler
 
 #endif // __EL_UTILS_HPP__

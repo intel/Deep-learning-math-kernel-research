@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include <omp.h>
 
@@ -20,9 +21,16 @@ enum {
 #define pragma_opt_core_avx512
 #endif
 
-inline void el_error(const char* msg) { printf("Euler:Error: %s\n", msg); }
+inline void el_error(const char *msg)
+{
+  printf("Euler:Error: %s\n", msg);
+  abort();
+}
 
-inline void el_warn(const char* msg) { printf("Euler:Warning: %s\n", msg); }
+inline void el_warn(const char *msg)
+{
+  printf("Euler:Warning: %s\n", msg);
+}
 
 } // namespace euler
 

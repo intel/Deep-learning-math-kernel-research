@@ -81,6 +81,9 @@ struct convolution_winograd_kernel {
   static void gemm(elx_conv_t<Type> &xc, Type *toutput, Type *tinput,
       Type *tweights, bool zero_out);
 
+  static void gemm_tail(elx_conv_t<Type> &xc, Type *toutput, Type *tinput,
+      Type *tweights, bool zero_out);
+
 #define TRANS_KERNEL(Type_, _A, _K, _V, _I)                                  \
   template <const bool is_border_>                                           \
   static inline void __trans_input(winograd_template_parameter_t<S_INPUT(    \
@@ -125,8 +128,17 @@ struct convolution_winograd_kernel {
   TRANS_KERNEL(float, 5, 3, 16, ISA_GENERIC);
   TRANS_KERNEL(float, 5, 3, 16, ISA_SKX_AVX512);
 
+  TRANS_KERNEL(float, 7, 3, 16, ISA_GENERIC);
+  TRANS_KERNEL(float, 7, 3, 16, ISA_SKX_AVX512);
+
   template <const int T_>
   static inline void __gemm(
+      winograd_template_parameter_t<S_GEMM(float, T_, 16, ISA_GENERIC)>,
+      elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights,
+      bool zero_out);
+
+  template <const int T_>
+  static inline void __gemm_tail(
       winograd_template_parameter_t<S_GEMM(float, T_, 16, ISA_GENERIC)>,
       elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights,
       bool zero_out);
@@ -136,7 +148,14 @@ struct convolution_winograd_kernel {
       winograd_template_parameter_t<S_GEMM(float, n, 16, ISA_SKX_AVX512)>,     \
       elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights,   \
       bool zero_out);
+#define DEF_gemm_tail(z, n, nil)                                               \
+  static inline void __gemm_tail(                                              \
+      winograd_template_parameter_t<S_GEMM(float, n, 16, ISA_SKX_AVX512)>,     \
+      elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights,   \
+      bool zero_out);
+
   BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, DEF_gemm, nil);
+  BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, DEF_gemm_tail, nil);
 
   // Generic
   template <typename Type_, const int T_, const int A_, const int K_,
@@ -198,6 +217,15 @@ struct convolution_winograd_kernel {
       const int V_, const int I_, const bool is_border_, const bool with_bias_>
   static inline void __gemm(winograd_template_parameter_t<Type_, T_, A_, K_, V_,
                                 I_, is_border_, with_bias_>,
+      elx_conv_t<Type> &, Type *, Type *, Type *, bool)
+  {
+  }
+
+  template <typename Type_, const int T_, const int A_, const int K_,
+      const int V_, const int I_, const bool is_border_,
+      const bool with_bias_>
+  static inline void __gemm_tail(winograd_template_parameter_t<Type_, T_, A_,
+                                     K_, V_, I_, is_border_, with_bias_>,
       elx_conv_t<Type> &, Type *, Type *, Type *, bool)
   {
   }
