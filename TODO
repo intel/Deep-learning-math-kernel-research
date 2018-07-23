@@ -44,6 +44,6 @@ IC/OC != 16x (2018-7-16): Done
 - Support plain format in format-is path
   IC|OC != 16x, nchw + oihw => nchw
 
-MD-Array (2018-7-22):
+MD-Array (2018-7-22): Done
 - Cross platform/compiler MD-array
 - Improve MD-Array performance for ICC
