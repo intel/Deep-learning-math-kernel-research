@@ -226,7 +226,7 @@ namespace test {
             for_each (_v, 16) {
               if (_v < v)
                 adst[_n][_C][_h][_w][_v]
-                    = (*asrc)[_n][_C * 16 + _v][_h][_w];
+                    = asrc[_n][_C * 16 + _v][_h][_w];
               else
                 adst[_n][_C][_h][_w][_v] = 0;
             }

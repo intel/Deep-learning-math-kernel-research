@@ -17,21 +17,25 @@ namespace euler {
 template <typename Type>
 struct elx_conv_t {
  public:
-  // dims
+  // dimensions
   int ic, oc, ih, iw, oh, ow, n, t, kh, kw;
-  // dims by block
+  // dimensions in packed unit
   int ic2, oc2, ih2, iw2, oh2, ow2, t2;
-  // dims by double block
+  // dimensions in pack-in-pack unit
   int ic3, oc3, ih3, iw3, oh3, ow3, t3;
-  // dims by tripple block
+  // dimensions in tripple level packed unit
   int ic4, oc4;
-  // dims by tiles: tiles per (image, line, column)
+  // dimensions in tiles: tiles per (image, line, column)
   int nt, ht, wt;
-  // blocking unit: vector-size, tile-size, tile-blocking-size
-  int V, A, T;
+  // pack size
+  int V;
+  // tile-size
+  int A;
+  // register working set
+  int T;
   // padding (IC/OC) & tailing dimensions: Ir, Or, Tr
   int IC, OC, Ir, Or, Tr;
-  // 2nd/r3d level blocking unit: ic, oc
+  // 2nd/r3d level cache blocking unit(in pack) to ic, oc
   int I2, O2, I3, O3;
   // padding
   int lp, rp, tp, bp;
