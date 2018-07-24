@@ -115,8 +115,11 @@ elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
 
   this->oc4 = this->oc4 == 0 ? 1 : this->oc4;
   this->ic4 = this->ic4 == 0 ? 1 : this->ic4;
-  this->oc3 = this->OC / (this->O2 * V);
-  this->ic3 = this->IC / (this->I2 * V);
+
+  // further divide packed oc/ic
+  this->oc3 = this->oc2 / this->O2;
+  this->ic3 = this->ic2 / this->I2;
+
   this->t2 = (this->t + this->T - 1) / this->T;
 
   // In case of Ir != V && blocked-format, assume bias also
@@ -1919,12 +1922,13 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__execute_a061(
     Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
-  MD(Type, atinput2, [mthr_][A * A * this->T * this->IC], tinput_);
-  MD(Type, atoutput2, [mthr_][A * A * this->T * this->oc3 * this->O2 * V], toutput_);
-  MD(Type, atweights2, [this->oc4][A * A * this->IC * this->oc3 * this->O2 * V], tweights_);
+  // Mark intermediate shape
+  MDP(Type, atinput2, (*)[A * A * this->T * this->IC], tinput_);
+  MDP(Type, atweights2, (*)[A * A * this->IC * this->oc3 * this->O2 * V], tweights_);
+  MDP(Type, atoutput2, (*)[A * A * this->T * this->oc3 * this->O2 * V], toutput_);
 
-  MD(Type, aoutput, [this->n][this->oc4][this->oh * this->ow * this->oc3 * this->O2 * V], output);
-  MD(Type, abias, [this->oc4][this->oc3 * this->O2 * V], bias);
+  MDP(Type, aoutput, (*)[this->oc4][this->oh * this->ow * this->oc3 * this->O2 * V], output);
+  MDP(Type, abias, (*)[this->oc3 * this->O2 * V], bias);
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
