@@ -630,14 +630,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_blocked(
     Type *tweights, Type *weights, int oc4)
 {
   // oc2, ic2, hK, wK, V, V => oc4, ic4, oc3, ic3, wA, hA, O2, I2, V, V
-  MDP(Type, aweights,
-      /*[oc4]*/
-      (*)[this->oc3][this->O2][this->ic4][this->ic3][this->I2][K][K][V][V],
-      weights);
-  MDP(Type, atweights,
-      /*[oc4]*/
-      (*)[this->ic4][this->oc3][this->ic3][A][A][this->O2][this->I2][V][V],
-      tweights);
+  MD(Type, aweights, [oc4][this->oc3][this->O2][this->ic4][this->ic3][this->I2][K][K][V][V], weights);
+  MD(Type, atweights, [oc4][this->ic4][this->oc3][this->ic3][A][A][this->O2][this->I2][V][V], tweights);
 
 #pragma omp for nowait collapse(6) schedule(static)
   for_each (_oc4, oc4) {
@@ -648,7 +642,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_blocked(
   for_each (_I2, this->I2) {
     alignas(64) Type aout[A][A][V][V];
     Type *in = (Type *)aweights[_oc4][_oc3][_O2][_ic4][_ic3][_I2];
-    using Array = Type [K][K][V][V];
+    using Array = Type[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
     for_each (_wA, A) {
     for_each (_hA, A) {
