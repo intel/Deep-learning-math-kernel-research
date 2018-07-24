@@ -9,7 +9,7 @@ nsockets=$NSOCKETS
 ncores_per_socket=
 nthreads_per_core=1
 nthreads=
-build_dir=build_gcc
+build_dir=build
 
 nsockets=${nsockets:=$( lscpu | grep 'Socket(s)' | cut -d: -f2 )}
 ncores_per_socket=${ncores_per_socket:=$( lscpu | grep 'Core(s) per socket' | cut -d: -f2 )}
