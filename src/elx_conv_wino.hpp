@@ -126,7 +126,7 @@ class elx_conv_wino_t : public elx_conv_t<Type> {
   bool input_as_bfmt_;
   bool weights_as_bfmt_;
   bool output_as_bfmt_;
-  size_t mthr_;
+  int mthr_;
   Type *tweights_;
   Type *tinput_;
   Type *toutput_;

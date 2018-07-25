@@ -76,8 +76,8 @@ namespace test {
     int C = ALIGNUP(dims.c, V) / V;
     int Or = dims.c % V ? dims.c % V: V;
 
-    auto *aout = reinterpret_cast<float (*)[C][dims.h][dims.w][V]>(out);
-    auto *aref = reinterpret_cast<float (*)[C][dims.h][dims.w][V]>(ref);
+    MD5(float, aout, out, dims.n, C, dims.h, dims.w, V);
+    MD5(float, aref, ref, dims.n, C, dims.h, dims.w, V);
 
 #define MAX_PRINT_ERRORS (20)
     size_t errors = 0;
@@ -90,14 +90,14 @@ namespace test {
             int v = _C == C - 1 ? Or : V;
             for_each (_v, v) {
               double delta = fabs(
-                  aout[_n][_C][_h][_w][_v] - aref[_n][_C][_h][_w][_v]);
-              double rel_diff = delta / fabs(aref[_n][_C][_h][_w][_v]);
-              if (rel_diff > 5e-6) {
+                  md5(aout, _n, _C, _h, _w, _v) - md5(aref, _n, _C, _h, _w, _v));
+              double rel_diff = delta / fabs(md5(aref, _n, _C, _h, _w, _v));
+              if (rel_diff > 1e-5) {
                 if (errors < MAX_PRINT_ERRORS) {
                   printf("Not equal!: [%d][%d][%d][%d][%d]: %f != %f (ref), "
                          "delta=%g, rel_diff=%g\n",
-                      _n, _C, _h, _w, _v, aout[_n][_C][_h][_w][_v],
-                      aref[_n][_C][_h][_w][_v], delta, rel_diff);
+                      _n, _C, _h, _w, _v, md5(aout, _n, _C, _h, _w, _v),
+                      md5(aref, _n, _C, _h, _w, _v), delta, rel_diff);
                 }
                 errors++;
               }
@@ -120,8 +120,8 @@ namespace test {
       eld_conv_t<float> &desc, float *out, float *ref)
   {
     auto dims = desc.dims.output;
-    auto *aout = reinterpret_cast<float (*)[dims.c][dims.h][dims.w]>(out);
-    auto *aref = reinterpret_cast<float (*)[dims.c][dims.h][dims.w]>(ref);
+    MD4(float, aout, out, dims.n, dims.c, dims.h, dims.w);
+    MD4(float, aref, ref, dims.n, dims.c, dims.h, dims.w);
 
 #define MAX_PRINT_ERRORS (20)
     size_t errors = 0;
@@ -132,14 +132,14 @@ namespace test {
         for_each (_h, dims.h) {
           for_each (_w, dims.w) {
             double delta = fabs(
-                aout[_n][_c][_h][_w] - aref[_n][_c][_h][_w]);
-            double rel_diff = delta / fabs(aref[_n][_c][_h][_w]);
+                md4(aout, _n, _c, _h, _w) - md4(aref, _n, _c, _h, _w));
+            double rel_diff = delta / fabs(md4(aref, _n, _c, _h, _w));
             if (rel_diff > 5e-6) {
               if (errors < MAX_PRINT_ERRORS) {
                 printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
                        "delta=%g, rel_diff=%g\n",
-                    _n, _c, _h, _w, aout[_n][_c][_h][_w],
-                    aref[_n][_c][_h][_w], delta, rel_diff);
+                    _n, _c, _h, _w, md4(aout, _n, _c, _h, _w),
+                    md4(aref, _n, _c, _h, _w), delta, rel_diff);
               }
               errors++;
             }
@@ -189,8 +189,8 @@ namespace test {
     int C = ALIGNUP(c, 16) / 16; // padding
     int Vr = c % 16 ? c % 16 : 16;
 
-    auto *asrc = reinterpret_cast<Type (*)[C][h][w][16]>(src);
-    auto *adst = reinterpret_cast<Type (*)[c][h][w]>(dst);
+    MD5(Type, asrc, src, n, C, h, w, 16);
+    MD4(Type, adst, dst, n, c, h, w);
 
 #pragma omp parallel for collapse(3)
     for_each (_n, n) {
@@ -199,7 +199,8 @@ namespace test {
           for_each (_w, w) {
             int v = (_C == C - 1) ? Vr : 16;
             for_each (_v, v) {
-              adst[_n][_C * 16 + _v][_h][_w] = asrc[_n][_C][_h][_w][_v];
+              md4(adst, _n, _C * 16 + _v, _h, _w)
+                  = md5(asrc, _n, _C, _h, _w, _v);
             }
           }
         }
@@ -214,8 +215,8 @@ namespace test {
     int C = ALIGNUP(c, 16) / 16; // padding
     int Vr = c % 16 ? c % 16 : 16;
 
-    auto *asrc = reinterpret_cast<Type (*)[c][h][w]>(src);
-    auto *adst = reinterpret_cast<Type (*)[C][h][w][16]>(dst);
+    MD4(Type, asrc, src, n, c, h, w);
+    MD5(Type, adst, dst, n, C, h, w, 16);
 
 #pragma omp parallel for collapse(3)
     for_each (_n, n) {
@@ -225,10 +226,10 @@ namespace test {
             int v = (_C == C - 1) ? Vr : 16;
             for_each (_v, 16) {
               if (_v < v)
-                adst[_n][_C][_h][_w][_v]
-                    = asrc[_n][_C * 16 + _v][_h][_w];
+                md5(adst, _n, _C, _h, _w, _v)
+                    = md4(asrc, _n, _C * 16 + _v, _h, _w);
               else
-                adst[_n][_C][_h][_w][_v] = 0;
+                md5(adst, _n, _C, _h, _w, _v) = 0;
             }
           }
         }
@@ -245,8 +246,8 @@ namespace test {
     int Or = o % 16 ? o % 16 : 16;
     int Ir = i % 16 ? i % 16 : 16;
 
-    auto *asrc = reinterpret_cast<Type (*)[i][h][w]>(src);
-    auto *adst = reinterpret_cast<Type (*)[I][h][w][16][16]>(dst);
+    MD4(Type, asrc, src, o, i, h, w);
+    MD6(Type, adst, dst, O, I, h, w, 16, 16);
 
 #pragma omp parallel for collapse(3)
     for_each (_O, O) {
@@ -258,10 +259,10 @@ namespace test {
             for_each (_iv, 16) {
               for_each (_ov, 16) {
                 if (_iv < iv && _ov < ov)
-                  adst[_O][_I][_h][_w][_iv][_ov]
-                      = asrc[_O * 16 + _ov][_I * 16 + _iv][_h][_w];
+                  md6(adst, _O, _I, _h, _w, _iv, _ov)
+                      = md4(asrc, _O * 16 + _ov, _I * 16 + _iv, _h, _w);
                 else
-                  adst[_O][_I][_h][_w][_iv][_ov] = 0;
+                  md6(adst, _O, _I, _h, _w, _iv, _ov) = 0;
               }
             }
           }
@@ -279,8 +280,8 @@ namespace test {
     int Or = o % 16 ? o % 16 : 16;
     int Ir = i % 16 ? i % 16 : 16;
 
-    auto *asrc = reinterpret_cast<Type (*)[I][h][w][16][16]>(src);
-    auto *adst = reinterpret_cast<Type (*)[i][h][w]>(dst);
+    MD6(Type, asrc, src, O, I, h, w, 16, 16);
+    MD4(Type, adst, dst, o, i, h, w);
 
 #pragma omp parallel for collapse(3)
     for_each (_O, O) {
@@ -291,8 +292,8 @@ namespace test {
             int iv = _I == I - 1 ? Ir : 16;
             for_each (_iv, iv) {
               for_each (_ov, ov) {
-                adst[_O * 16 + _ov][_I * 16 + _iv][_h][_w]
-                    = asrc[_O][_I][_h][_w][_iv][_ov];
+                md4(adst, _O * 16 + _ov, _I * 16 + _iv, _h, _w)
+                    = md6(asrc, _O, _I, _h, _w, _iv, _ov);
               }
             }
           }
@@ -342,22 +343,16 @@ namespace test {
       toutput = (Type *)malloc(desc.byte_sizes.output);
     }
 
-    Type (*ainput)[ic][ih][iw];
-        ainput = desc.formats.input == nchw ? reinterpret_cast<decltype(ainput)>(input)
-        : reinterpret_cast<decltype(ainput)>(tinput);
-    Type (*aweights)[ic][kh][kw];
-        aweights = desc.formats.weights == oihw ? reinterpret_cast<decltype(aweights)>(weights)
-        : reinterpret_cast<decltype(aweights)>(tweights);
-    Type (*aoutput)[oc][oh][ow];
-        aoutput = desc.formats.output == nchw ? reinterpret_cast<decltype(aoutput)>(output)
-        : reinterpret_cast<decltype(aoutput)>(toutput);
+    MD4(Type, ainput, desc.formats.input == nchw ? input : tinput, n, ic, ih, iw);
+    MD4(Type, aweights, desc.formats.weights == oihw ? weights : tweights, oc, ic, kh, kw);
+    MD4(Type, aoutput, desc.formats.output == nchw ? output : toutput, n, oc, oh, ow);
 
 #pragma omp parallel for collapse(4)
     for_each (_n, n) {
       for_each (_oc, oc) {
         for_each (_oh, oh) {
           for_each (_ow, ow) {
-            aoutput[_n][_oc][_oh][_ow] = desc.with_bias ? bias[_oc] : 0.0f;
+            md4(aoutput, _n, _oc, _oh, _ow) = desc.with_bias ? bias[_oc] : 0.0f;
             for_each (_ic, ic) {
               for_each (_kh, kh) {
                 int _ih = _oh * sh - pt + _kh * dh;
@@ -367,9 +362,9 @@ namespace test {
                   int _iw = _ow * sw - pl + _kw * dw;
                   if (_iw < 0 || _iw >= iw)
                     continue;
-                  aoutput[_n][_oc][_oh][_ow]
-                      += ainput[_n][_ic][_ih][_iw]
-                      * aweights[_oc][_ic][_kh][_kw];
+                  md4(aoutput, _n, _oc, _oh, _ow)
+                      += md4(ainput, _n, _ic, _ih, _iw)
+                      * md4(aweights, _oc, _ic, _kh, _kw);
                 }
               }
             }
@@ -411,9 +406,9 @@ namespace test {
     int dh = desc.dilations.h;
     int dw = desc.dilations.w;
 
-    auto *ainput = reinterpret_cast<Type (*)[IC][ih][iw][16]>(input);
-    auto *aweights = reinterpret_cast<Type (*)[IC][kh][kw][16][16]>(weights);
-    auto *aoutput = reinterpret_cast<Type (*)[OC][oh][ow][16]>(output);
+    MD5(Type, ainput, input, n, IC, ih, iw, 16);
+    MD6(Type, aweights, weights, OC, IC, kh, kw, 16, 16);
+    MD5(Type, aoutput, output, n, OC, oh, ow, 16);
 
     if (desc.dims.input.n != desc.dims.output.n
         || desc.dims.input.c != desc.dims.weights.i
@@ -438,7 +433,7 @@ namespace test {
           for_each (_ow, ow) {
             int ov = _OC == OC - 1 ? Or : 16;
             for_each (_ov, ov) {
-              aoutput[_n][_OC][_oh][_ow][_ov]
+              md5(aoutput, _n, _OC, _oh, _ow, _ov)
                   = desc.with_bias ? bias[_OC * 16 + _ov] : 0.0f;
               for_each (_IC, IC) {
                 int iv = _IC == IC - 1 ? Ir : 16;
@@ -451,9 +446,9 @@ namespace test {
                       int _iw = _ow * sw - pl + _kw * dw;
                       if (_iw < 0 || _iw >= iw)
                         continue;
-                      aoutput[_n][_OC][_oh][_ow][_ov]
-                          += ainput[_n][_IC][_ih][_iw][_iv]
-                          * aweights[_OC][_IC][_kh][_kw][_iv][_ov];
+                      md5(aoutput, _n, _OC, _oh, _ow, _ov)
+                          += md5(ainput, _n, _IC, _ih, _iw, _iv)
+                          * md6(aweights, _OC, _IC, _kh, _kw, _iv, _ov);
                     }
                   }
                 }

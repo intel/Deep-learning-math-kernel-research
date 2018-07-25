@@ -20,16 +20,16 @@ __TRANS_INPUT(float, 4, 3, 16, ISA_GENERIC)
 {
   auto f_cb = [&](int _h, int _w, int _V) {
     if (_wT_end == -1) {
-      MD(float, ainput, [A][A][16], input);
-      return ainput[_h][_w][_V];
+      MD3(float, ainput, input, A, A, 16);
+      return md3(ainput, _h, _w, _V);
     } else {
-      MD(float, ainput, [xc.ih][xc.iw][16], input);
+      MD3(float, ainput, input, xc.ih, xc.iw, 16);
       if (is_border_
           && (_h < _hT_start || _w < _wT_start || _h > _hT_end
                  || _w > _wT_end))
         return 0.0f;
       else
-        return ainput[_h][_w][_V];
+        return md3(ainput, _h, _w, _V);
     }
   };
 
@@ -90,16 +90,16 @@ __TRANS_INPUT(float, 4, 3, 16, ISA_SKX_AVX512)
   __m512 z0 = _mm512_setzero_ps();
   auto f_cb = [&](int _h, int _w) {
     if (_wT_end == -1) {
-      MD(float, ainput, [A][A][16], input);
-      return _mm512_load_ps(ainput[_h][_w]);
+      MD3(float, ainput, input, A, A, 16);
+      return _mm512_load_ps(&md3(ainput, _h, _w, 0));
     } else {
-      MD(float, ainput, [xc.ih][xc.iw][16], input);
+      MD3(float, ainput, input, xc.ih, xc.iw, 16);
       if (is_border_
           && (_h < _hT_start || _w < _wT_start || _h > _hT_end
                  || _w > _wT_end))
         return z0;
       else
-        return _mm512_load_ps(ainput[_h][_w]);
+        return _mm512_load_ps(&md3(ainput, _h, _w, 0));
     }
   };
 

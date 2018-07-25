@@ -2,12 +2,52 @@
 
 ROOT_DIR="$(dirname $(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd))"
 
+function usage() {
+cat <<!
+  -p   Use plain format.
+  -t   Tile size
+  -h   This page.
+!
+}
+
+input_format=nChw16c
+weights_format=OIhw16i16o
+output_format=nChw16c
+tile_size=5
+
+OPTIND=1
+while getopts "pt:h" opt; do
+  case $opt in
+    p)
+      input_format=nchw
+      weights_format=oihw
+      output_format=nchw
+      ;;
+    t)
+      tile_size=$OPTARG
+      ;;
+    h)
+      usage
+      ;;
+    ?)
+      usage
+      ;;
+  esac
+done
+shift $((OPTIND-1))
+
+
 # correctness
 function __val_conv() {
   echo ====== Test execution-mode: $1 $2 $3 ======
   $ROOT_DIR/scripts/run.sh -c -v1 -n 3 -i 128 -o 256 -h 56 -w 56 -H 56 -W 56 \
     --execution-mode=$1 \
-    --nteams=$2 --nthreads=$3
+    --nteams=$2 --nthreads=$3 \
+    --input-format=$input_format \
+    --weights-format=$weights_format \
+    --output-format=$output_format \
+    --tile-size=$tile_size 
+
   if [ $? != 0 ]; then
     echo "XXXXX FAILURE: XXXXX"
     exit -1
@@ -17,8 +57,11 @@ function __val_conv() {
 function bench_conv() {
   $ROOT_DIR/scripts/run.sh -c -v1 -n 3 -i 128 -o 256 -h 56 -w 56 -H 56 -W 56 \
     --execution-mode=$1 \
-    --nteams=$2 --nthreads=$3
-
+    --nteams=$2 --nthreads=$3 \
+    --input-format=$input_format \
+    --weights-format=$weights_format \
+    --output-format=$output_format \
+    --tile-size=$tile_size
 }
 
 function val_conv() {
@@ -68,3 +111,5 @@ $ROOT_DIR/scripts/run.sh -c $resnet50_res5a_branch2b -v1 -n1 \
   --execution-mode=0xa000 \
   --nteams=1 --nthreads=18 \
   --blk-i=2 --blk-o=2 --blk-t=18 --tile-size=4
+
+set +x
