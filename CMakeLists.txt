@@ -38,6 +38,10 @@ file (GLOB __euler_source
   src/eld_conv.cpp
   src/elk_conv_wino.cpp
   src/elx_conv.cpp
+  src/elx_transform_input.cpp
+  src/elx_transform_output.cpp
+  src/elx_transform_weights.cpp
+  src/elx_gemm.cpp
   src/elx_conv_wino.cpp)
 
 include_directories(AFTER . include src)
