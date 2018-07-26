@@ -57,6 +57,10 @@ template <typename F, const int N> class mdarray {
   {
     return _dims[index] * off + dim;
   }
+  inline size_t offset(size_t index, size_t dim)
+  {
+    return dim;
+  }
 
   F *_p;
   const int _dims[N];
