@@ -21,6 +21,7 @@ class elx_conv_wino_t : public elx_conv_t<Type> {
 
   void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a040(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a060(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a061(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a0e1(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a0e0(Type *output, Type *input, Type *weights, Type *bias);

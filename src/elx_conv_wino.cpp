@@ -18,7 +18,7 @@ namespace euler {
 // -------------+-------------------+--------------+---------------
 //     A048*    |        _          |      t       |    W
 // -------------+-------------------+--------------+---------------
-//     A060*    |        _          |    t + o     |    _
+//     A060     |        _          |    t + o     |    _
 // -------------+-------------------+--------------+---------------
 //     A061     |        _          |    t + o     |    I
 // -------------+-------------------+--------------+---------------
@@ -258,6 +258,13 @@ MEMALIGN64(&boutput_, this->n * this->OC * this->oh * this->ow);
     toutput_size = A * A * this->OC * this->T * mthr_;
     l2_usage = tweights_size + A * A * this->T * (this->IC + this->OC);
     break;
+  case 0xa060:
+    tweights_size = A * A * this->IC * this->OC;
+    tinput_size = A * A * this->IC * this->t;
+    toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_;
+    l2_usage = tweights_size / this->oc4
+        + A * A * this->T * (this->IC + this->OC / this->oc4);
+    break;
   case 0xa061:
     tweights_size = A * A * this->IC * this->OC;
     tinput_size = A * A * this->IC * this->T * mthr_;
@@ -448,6 +455,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
   EXECUTE_CASE(a201);
   EXECUTE_CASE(a448);
   EXECUTE_CASE(a040);
+  EXECUTE_CASE(a060);
   EXECUTE_CASE(a061);
   EXECUTE_CASE(a0e1);
   EXECUTE_CASE(a0e0);
@@ -2278,6 +2286,45 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a0e1(
     }
 #pragma omp barrier
     trans_outputa_bh(output, toutputa_, bias);
+  }
+  if (inference_acc_)
+    is_first_run_ = false;
+}
+
+// tweights:     oc4 | oc3, ic3, A, A, O2, I2, V, V
+// tinputs:  t2      | A, A, ic3, I2, T, V
+// toutput:  t2, oc4 | A, A, oc3, O2, T, V
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_a060(
+    Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
+{
+  MD2(Type, atinput2, tinput_, this->t2, A * A * this->T * this->IC);
+  MD2(Type, atoutput2, toutput_, mthr_, A * A * this->T * this->oc3 * this->O2 * V);
+  MD2(Type, atweights2, tweights_, this->oc4, A * A * this->IC * this->oc3 * this->O2 * V);
+
+  MD3(Type, aoutput, output, this->n, this->oc4, this->oh * this->ow * this->oc3 * this->O2 * V);
+  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+  {
+    if (is_first_run_) {
+      trans_weights(tweights_, weights, this->oc4);
+    }
+    trans_input(tinput_, input);
+#pragma omp barrier
+
+#pragma omp for nowait collapse(2)
+    for_each (_t2, this->t2) {
+      for_each (_oc4, this->oc4) {
+        int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+        size_t ithr = omp_get_thread_num();
+
+        gemm(&md2(atoutput2, ithr, 0), &md2(atinput2, _t2, 0),
+            &md2(atweights2, _oc4, 0), _t2, Tz);
+        trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
+            &md2(abias, _oc4, 0), _t2, Tz);
+      }
+    }
   }
   if (inference_acc_)
     is_first_run_ = false;
