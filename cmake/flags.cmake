@@ -20,7 +20,7 @@ if (CMAKE_CXX_COMPILER MATCHES "icpc")
   set(__opt_flags "${__opt_flags} -qopt-report=5 -xHost -qopt-zmm-usage=high")
 
   # FIXME: Workaround ICC 18.0.2 inline bug. Remove this if ICC bug fixed.
-  if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 18.0.1)
+  if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 18.0.2)
     set_source_files_properties(src/elx_conv_wino.cpp PROPERTIES COMPILE_FLAGS -finline-limit=80)
   endif ()
 else ()
