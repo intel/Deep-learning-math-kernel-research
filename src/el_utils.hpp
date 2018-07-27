@@ -33,6 +33,11 @@ template <typename T, typename... Args> inline T accumulate(T a, Args... args)
 // Note: 'align' must be power of 2
 #define ALIGNUP(value, align) (((value) + (align) - 1) & ~((align) - 1))
 
+#define SET_EPI32(s)                                                        \
+  const __m512i vindex = _mm512_set_epi32(15 * (s), 14 * (s), 13 * (s),     \
+      12 * (s), 11 * (s), 10 * (s), 9 * (s), 8 * (s), 7 * (s), 6 * (s),     \
+      5 * (s), 4 * (s), 3 * (s), 2 * (s), (s), 0);
+
 template <typename F, const int N> class mdarray {
   public:
   template <typename... Args>

@@ -537,10 +537,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
   MD10(Type, aweights_v, weights, oc4, this->oc3, this->O2, V, this->ic4, this->ic3, this->I2, V, K, K);
   MD10(Type, atweights, tweights, oc4, this->ic4, this->oc3, this->ic3, A, A, this->O2, this->I2, V, V);
 
-  int s = this->ic * this->kh * this->kw;
-  const __m512i vindex
-      = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
-          9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
+  SET_EPI32(this->ic * this->kh * this->kw)
 
   auto readin_v = [&](Type ain[K][K][V][V], Type *wei) {
     MD5(Type, awei, wei, V, this->ic2, V, K, K);
@@ -772,10 +769,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsa_plain(
   MD10(Type, aweights, weights, this->oc4, this->oc3, this->O2, V, this->ic4, this->ic3, this->I2, V, K, K);
   MD10(Type, atweights, tweights, this->oc4, this->ic4, A, A, this->oc3, this->ic3, this->O2, this->I2, V, V);
 
-  int s = this->ic * this->kh * this->kw;
-  const __m512i vindex
-      = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
-          9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
+  SET_EPI32(this->ic * this->kh * this->kw)
 
   auto readin_v = [&](Type ain[K][K][V][V], Type *wei) {
     MD5(Type, awei, wei, V, this->ic2, V, K, K);
@@ -907,10 +901,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
 
   alignas(64) Type aout[A][A][V];
   alignas(64) Type ain[A][A][V];
-  int s = this->ih * this->iw;
-  const __m512i vindex
-      = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
-          9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
+  SET_EPI32(this->ih * this->iw)
 
   auto readin_v = [&](int _ic3, int _I2, int _T, Type ain[A][A][V]) {
     MD7(Type, ainput, input, this->n, this->ic4, this->ic3, this->I2, V, this->ih, this->iw);
@@ -1145,10 +1136,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
   // n, ic2, ih, iw, V => t2, wA, hA, ic3, I2, T, V
   MD2(Type, atinput2, tinput, this->t2, A * A * this->T * this->IC);
 
-  int s = this->ih * this->iw;
-  const __m512i vindex
-      = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
-          9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
+  SET_EPI32(this->ih * this->iw)
 
   auto readin_v = [&](int _t2, int _ic3, int _I2, int _T, Type ain[A][A][V]) {
     MD7(Type, ainput, input, this->n, this->ic4, this->ic3, this->I2, V, this->ih, this->iw);
@@ -1339,10 +1327,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_inputa_plain(
 
   alignas(64) Type aout[A][A][V];
   alignas(64) Type ain[A][A][V];
-  int s = this->ih * this->iw;
-  const __m512i vindex
-      = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
-          9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
+  SET_EPI32(this->ih * this->iw)
 
   auto readin_v = [&](int _ic3, int _I2, int _T, Type ain[A][A][V]) {
     MD7(Type, ainput, input, this->n, this->ic4, this->ic3, this->I2, V, this->ih, this->iw);
@@ -1572,11 +1557,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
 
   alignas(64) Type ain[A][A][V];
   alignas(64) Type aout[A - K + 1][A - K + 1][V];
-
-  int s = this->oh * this->ow;
-  const __m512i vindex
-      = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
-          9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
+  SET_EPI32(this->oh * this->ow)
 
   auto writeout_v = [&](int _oc3, int _O2, int _T,
                       Type aout[A - K + 1][A - K + 1][V]) {
@@ -1789,11 +1770,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(Type *output,
 
   alignas(64) Type ain[A][A][V];
   alignas(64) Type aout[A - K + 1][A - K + 1][V];
-
-  int s = this->oh * this->ow;
-  const __m512i vindex
-      = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
-          9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
+  SET_EPI32(this->oh * this->ow)
 
   auto writeout_v = [&](int _ic4, int _oc, int _T,
                       Type aout[A - K + 1][A - K + 1][V]) {
@@ -1951,10 +1928,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_outputa_bh_plain(
   MD2(Type, abias, bias, this->oc2, V);
   MD2(Type, atoutputa2, toutputa, this->t2, A * (A - K + 1) * this->T * this->OC);
 
-  int s = this->oh * this->ow;
-  const __m512i vindex
-      = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
-          9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
+  SET_EPI32(this->oh * this->ow)
 
   auto writeout_v = [&](int _t2, int _oc2, int _T,
                       Type aout[A - K + 1][A - K + 1][V]) {
@@ -2095,10 +2069,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
   MD3(Type, abias, bias, this->oc3, this->O2, V);
   MD2(Type, atoutput2, toutput, this->t2, A * A * this->T * this->oc3 * this->O2 * V);
 
-  int s = this->oh * this->ow;
-  const __m512i vindex
-      = _mm512_set_epi32(15 * s, 14 * s, 13 * s, 12 * s, 11 * s, 10 * s,
-          9 * s, 8 * s, 7 * s, 6 * s, 5 * s, 4 * s, 3 * s, 2 * s, s, 0);
+  SET_EPI32(this->oh * this->ow)
 
   auto writeout_v = [&](int _t2, int _oc3, int _O2, int _T,
                       Type aout[A - K + 1][A - K + 1][V]) {
