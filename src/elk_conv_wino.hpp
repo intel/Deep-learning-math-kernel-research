@@ -10,7 +10,7 @@
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
 
-#define MAX_FMA_PRL 33
+#define MAX_FMA_PRL 36
 
 namespace euler {
 
