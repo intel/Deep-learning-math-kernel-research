@@ -4,7 +4,6 @@ function usage() {
 cat <<!
   -v   Validation on.
   -p   Use plain format.
-  -t   Tile size
   -h   This page.
 !
 }
@@ -26,9 +25,6 @@ while getopts "vpt:h" opt; do
       weights_format=oihw
       output_format=nchw
       ;;
-    t)
-      tile_size=$OPTARG
-      ;;
     h)
       usage
       ;;
@@ -38,7 +34,7 @@ while getopts "vpt:h" opt; do
   esac
 done
 
-COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format --tile-size=$tile_size "
+COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format "
 
 echo "Common option:" $COMMON
 echo
