@@ -7,8 +7,10 @@ namespace euler {
 
 // Convolution algorithm
 enum {
-    CONV_DIRECT = 0,
-    CONV_WINOGRAD = 1
+    CONV_DEFAULT = 0,
+    CONV_DIRECT_1x1 = 1,
+    CONV_DIRECT = 2,
+    CONV_WINOGRAD = 3
 };
 
 // Desc setup error
