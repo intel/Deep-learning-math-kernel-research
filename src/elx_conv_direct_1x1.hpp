@@ -18,6 +18,37 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   virtual void execute(Type *output, Type *input, Type *weights, Type *bias);
 
   private:
+  void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
+
+  inline void __trans_input_plain(Type *tinput, Type *input);
+  inline void __trans_input_blocked(Type *tinput, Type *input);
+  void trans_input(Type *tinput, Type *input);
+
+  inline void __trans_output_plain(Type *output, Type *toutput, Type *bias);
+  inline void __trans_output_blocked(Type *output, Type *toutput, Type *bias);
+  void trans_output(Type *output, Type *toutput, Type *bias);
+
+  inline void __trans_weights_plain(Type *tweights, Type *weights);
+  inline void __trans_weights_blocked(Type *tweights, Type *weights);
+  void trans_weights(Type *tweights, Type *weights);
+
+  void gemm(Type *toutput, Type *tinput, Type *tweights);
+
+  int prepare_execute_opt();
+  void bind_execute_functions();
+
+  // TODO
+  decltype(
+      convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_;
+  decltype(
+      convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm0_;
+  decltype(
+      convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_tail_;
+  decltype(
+      convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm0_tail_;
+
+  void (elx_conv_direct_1x1_t::*execute_opt_)(Type *, Type *, Type *, Type *);
+
   bool is_first_run_;
   bool inference_acc_;
 
@@ -33,10 +64,14 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   bool weights_as_bfmt_;
   bool output_as_bfmt_;
 
+  Type *tweights_;
+  Type *tinput_;
+  Type *toutput_;
+
+  unsigned int xopt_;
   int mthr_;
 };
 
-template class elx_conv_direct_1x1_t<float, 16, ISA_GENERIC>;
 template class elx_conv_direct_1x1_t<float, 16, ISA_SKX_AVX512>;
 
 }  // namespace euler

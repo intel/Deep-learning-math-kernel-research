@@ -5,6 +5,7 @@
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
 #include "elx_conv_wino.hpp"
+#include "elx_conv_direct_1x1.hpp"
 
 namespace euler {
 
@@ -113,7 +114,7 @@ int eld_conv_t<F>::setup() {
       el_error("Algorithm CONV_DIRECT_1x1 not supported for this shape.");
       return ELD_GENERAL_ERROR;
     }
-    xc = new elx_conv_direct_1x1<F, 16, ISA_SKX_AVX512>(*this);
+    xc = new elx_conv_direct_1x1_t<F, 16, ISA_SKX_AVX512>(*this);
   } else if (algorithm == CONV_WINOGRAD) {
     // Winograd
     if (dilations.h > 1 || dilations.w > 1 ||

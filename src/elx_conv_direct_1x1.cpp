@@ -10,6 +10,23 @@
 
 namespace euler {
 
+const unsigned XOPT_MSK = 0xA000;
+
+const unsigned TTM_MSK = 0xF00;
+const unsigned TTM_I   = 0x100;
+const unsigned TTM_O   = 0x200;
+const unsigned TTM_T   = 0x400;
+
+const unsigned FUS_MSK = 0xF0;
+const unsigned FUS_I   = 0x10;
+const unsigned FUS_O   = 0x20;
+const unsigned FUS_T   = 0x40;
+const unsigned FUS_A   = 0x80;
+
+const unsigned DUP_MSK = 0xF;
+const unsigned DUP_I   = 0x1;
+const unsigned DUP_O   = 0x2;
+const unsigned DUP_W   = 0x8;
 
 template <typename Type, const int V, const int I>
 elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
@@ -25,18 +42,10 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   this->ic2 = this->IC / V;
   this->oc2 = this->OC / V;
 
-  this->A = A;
-  this->ht = (this->oh + A - K) / (A - K + 1);
-  this->wt = (this->ow + A - K) / (A - K + 1);
+  this->ht = this->oh;
+  this->wt = this->ow;
   this->nt = this->ht * this->wt;
   this->t = this->nt * this->n;
-
-  hOA_end_ = this->oh % (A - K + 1) - 1;
-  if (hOA_end_ == -1) hOA_end_ = A - K;
-  wOA_end_ = this->ow % (A - K + 1) - 1;
-  if (wOA_end_ == -1) wOA_end_ = A - K;
-  hA_end_ = (this->ih + this->tp) - (this->ht - 1) * (A - K + 1) - 1;
-  wA_end_ = (this->iw + this->lp) - (this->wt - 1) * (A - K + 1) - 1;
 
   // TODO: santize user settings
   if (this->I2 == 0) this->I2 = 4; // TODO: I2 selection
@@ -51,14 +60,7 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   is_first_run_ = true;
   inference_acc_ = false;
   mthr_ = omp_get_max_threads();
-  if (this->nteams == 0 || this->nthreads == 0
-      || this->nteams * this->nthreads > mthr_
-      || this->nteams > MAX_THREAD_TEAMS) {
-    this->nteams = 1;
-    this->nthreads = mthr_;
-  } else {
-    mthr_ = this->nteams * this->nthreads;
-  }
+
   inference_acc_ = this->prop_kind == forward_inference;
 
   this->oc4 = this->oc4 == 0 ? 1 : this->oc4;
@@ -79,94 +81,409 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
     xopt_ = TTM_O | FUS_T | DUP_I;
   }
 
+  prepare_execute_opt();
+  bind_execute_functions();
+
   // dbg
   printf("T=%d, Tr=%d, t2=%d, t=%d\n", this->T, this->Tr, this->t2, this->t);
   printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic4=%d, IC=%d\n", this->V, this->Ir, this->I2, this->ic3, this->ic4, this->IC);
   printf("V=%d, Or=%d, O2=%d, oc3=%d, oc4=%d, OC=%d\n", this->V, this->Or, this->O2, this->oc3, this->oc4, this->OC);
 }
 
+
 template <typename Type, const int V, const int I>
-void elx_conv_direct_1x1_t<Type, V, I>::__execute(Type *output, Type *input, Type *weights, Type *bias) {
-  // main alogirhtm frame
-  // input: n, ic2, hxw, V
-  // weights: oc2, oc2, V, V
-  // output:  n, oc2, hxw, V
+int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
+{
+  size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
+  size_t l1_usage = 0, l2_usage = 0;
+
+  stream_in_ = this->streaming_input
+      ? (this->streaming_input == STORE_STREAMING)
+      : !(xopt_ & FUS_MSK) ? true : false;
+  stream_wei_ = this->streaming_weights
+      ? (this->streaming_weights == STORE_STREAMING)
+      : !(xopt_ & FUS_MSK) ? true : false;
+  stream_out_ = this->streaming_output
+      ? (this->streaming_output == STORE_STREAMING)
+      : false;
+
+  if (!(xopt_ & TTM_MSK)) {
+    this->nthreads = mthr_;
+    this->nteams = 1;
+  }
+
+  if (xopt_ & TTM_O) {
+    if (this->oc3 % this->nteams != 0) {
+      // Force single nteams
+      this->nthreads = mthr_;
+      this->nteams = 1;
+    } else {
+      // ignore user --pat-o=oc4
+      this->oc3 /= this->nteams;
+      this->oc4 = this->nteams;
+    }
+  }
+  if (xopt_ & FUS_O) {
+    this->oc3 /= this->oc4;
+    if (V * this->O2 * this->oc3 * this->oc4 != this->OC) {
+      el_error("Config error!");
+      return -1;
+    }
+  }
+  if (xopt_ & FUS_I) {
+    this->ic3 /= this->ic4;
+    if (V * this->I2 * this->ic3 * this->ic4 != this->IC) {
+      el_error("Config error!");
+      return -1;
+    }
+  }
+
+  input_is_bfmt_ = this->input_fmt == nchw ? false : true;
+  weights_is_bfmt_ = this->weights_fmt == oihw ? false : true;
+  output_is_bfmt_ = this->output_fmt == nchw ? false : true;
+  input_as_bfmt_ = !input_is_bfmt_ && this->input_as_blocked;
+  weights_as_bfmt_ = !weights_is_bfmt_ && this->weights_as_blocked;
+  output_as_bfmt_ = !output_is_bfmt_ && this->output_as_blocked;
+  is_bfmt_ = input_is_bfmt_ && weights_is_bfmt_ && output_is_bfmt_;
+
+  if (this->ic4 > 1 && this->Ir != V) {
+    el_error("Unimplemented: ic4 > 1 for IC % V != 0");
+  }
+  if (this->oc4 > 1 && this->Or != V
+      && (!output_as_bfmt_ || !weights_as_bfmt_)) {
+    el_error("Unimplemented: oc4 > 1 for OC % V != 0");
+  }
+
+  tweights_ = nullptr;
+  tinput_ = nullptr;
+  toutput_ = nullptr;
+
+  l1_usage = sizeof(Type)
+      * (this->O2 * this->I2 * V * V + this->T * V * (this->I2 + this->O2));
+
+  switch (xopt_) {
+  case 0xa000:
+    tweights_size = this->IC * this->OC;
+    tinput_size = this->IC * this->t;
+    toutput_size = this->OC * this->t;
+    l2_usage = this->IC * this->OC / this->oc3
+        + this->T * (this->IC + this->OC / this->oc3);
+    break;
+  case 0xa060:
+    tweights_size = this->IC * this->OC;
+    tinput_size = this->IC * this->t;
+    toutput_size = (this->OC / this->oc4) * this->T * mthr_;
+    l2_usage = tweights_size / this->oc4
+        + this->T * (this->IC + this->OC / this->oc4);
+    break;
+  case 0xa061:
+    tweights_size = this->IC * this->OC;
+    tinput_size = this->IC * this->T * mthr_;
+    toutput_size = (this->OC / this->oc4) * this->T * mthr_;
+    l2_usage = tweights_size / this->oc4
+        + this->T * (this->IC + this->OC / this->oc4);
+    break;
+  case 0xa201:
+    tweights_size = this->IC * this->OC;
+    tinput_size = this->IC * this->T * this->t2 * this->nteams;
+    toutput_size = this->OC * this->T * this->t2;
+    l2_usage = this->IC * this->OC / this->oc3 / this->oc4
+        + this->T * (this->IC + this->OC / this->oc3 / this->oc4);
+    break;
+  case 0xa241:
+    tweights_size = this->IC * this->OC;
+    tinput_size = this->IC * this->T * mthr_;
+    toutput_size = this->OC * this->T * mthr_;
+    l2_usage = tweights_size / this->oc4
+        + this->T * (this->IC + this->OC / this->oc4);
+    break;
+  default:
+      el_error("Config error!");
+      return -1;
+    break;
+  }
+
+  l2_usage *= sizeof(Type);
+
+  if (tweights_size > 0)
+    MEMALIGN64(&tweights_, tweights_size * sizeof(Type));
+  if (tinput_size > 0)
+    MEMALIGN64(&tinput_, tinput_size * sizeof(Type));
+  if (toutput_size > 0)
+    MEMALIGN64(&toutput_, toutput_size * sizeof(Type));
+
+  // dbg
+  printf("nteams=%d, nthreads=%d, mthr_=%d\n", this->nteams, this->nthreads, mthr_);
+  printf("l2_usage=%ld, l1_usage=%ld\n", l2_usage, l1_usage);
+
+  return 0;
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
+{
+#define GEMM_CASE(z, n, data)                                                  \
+  case n:                                                                      \
+    ker_gemm_ = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm;      \
+    break;
+
+  switch (this->T) {
+    BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE, nil)
+  default:
+    el_error("Unimplemented");
+    break;
+  }
+
+#define GEMM_CASE0(z, n, data)                                                 \
+  case n:                                                                      \
+    ker_gemm0_ = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm;     \
+    break;
+
+  switch (this->Tr) {
+    BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE0, nil);
+  default:
+    el_error("Unimplemented");
+    break;
+  }
+
+  if (this->Ir != V) {
+#define GEMM_TAIL_CASE(z, n, data)                                             \
+  case n:                                                                      \
+    ker_gemm_tail_                                                             \
+        = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm_tail;       \
+    break;
+
+    switch (this->T) {
+      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_TAIL_CASE, nil)
+    default:
+      el_error("Unimplemented");
+      break;
+    }
+
+#define GEMM_CASE0_TAIL(z, n, data)                                            \
+  case n:                                                                      \
+    ker_gemm0_tail_                                                            \
+        = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm_tail;       \
+    break;
+
+    switch (this->Tr) {
+      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE0_TAIL, nil);
+    default:
+      el_error("Unimplemented");
+      break;
+    }
+  } else {
+    ker_gemm_tail_ = ker_gemm_;
+    ker_gemm0_tail_ = ker_gemm0_;
+  }
+
+#define EXECUTE_CASE(n)                                                        \
+  case 0x##n:                                                                  \
+    printf("execute_opt=" #n "\n");                                            \
+    execute_opt_ = &elx_conv_direct_1x1_t<Type, V, I>::__execute_##n;          \
+    break
+
+  switch (xopt_) {
+    EXECUTE_CASE(a000);
+  default:
+    el_error("Unimplemented");
+    break;
+  }
+}
+
+template <typename Type, const int V, const int I>
+elx_conv_direct_1x1_t<Type, V, I>::~elx_conv_direct_1x1_t()
+{
+  if (tweights_ != nullptr) {
+    free(tweights_);
+    tweights_ = nullptr;
+  }
+  if (tinput_ != nullptr) {
+    free(tinput_);
+    tinput_ = nullptr;
+  }
+  if (toutput_ != nullptr) {
+    free(toutput_);
+    toutput_ = nullptr;
+  }
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__trans_input_blocked(
+    Type *tinput, Type *input)
+{
+  MD5(Type, ainput, input, this->n, this->ic3, this->I2, this->ih * this->iw, V);
+  MD2(Type, atinput2, tinput, this->t2, this->ic3 * this->I2 * this->T * V);
+
+#pragma omp parallel for collapse(3)
+  for_each (_t2, this->t2) {
+    for_each (_ic3, this->ic3) {
+      for_each (_I2, this->I2) {
+        int Tz = _t2 == this->t2 - 1 ? this->Tr : this->T;
+        MD4(Type, atinput4, &md2(atinput2, _t2, 0), this->ic3, this->I2, Tz, V);
+        for_each (_T, this->T) {
+          int _n = (_t2 * this->T + _T) / (this->ih * this->iw);
+          int _hw = (_t2 * this->T + _T) % (this->ih * this->iw);
+          // TODO, streaming, avx512
+#pragma omp simd
+          for_each (_V, V) {
+            md4(atinput4, _ic3, _I2, _T, _V)
+                = md5(ainput, _n, _ic3, _I2, _hw, _V);
+          }
+        }
+      }
+    }
+  }
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__trans_input_plain(
+    Type *tinput, Type *input)
+{
+  // TODO
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::trans_input(Type *tinput, Type *input)
+{
+  if (input_is_bfmt_ || input_as_bfmt_)
+    __trans_input_blocked(tinput, input);
+  else
+    __trans_input_plain(tinput, input);
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_blocked(
+    Type *toutput, Type *output, Type *bias)
+{
+  MD5(Type, aoutput, output, this->n, this->oc3, this->O2, this->oh * this->ow, V);
+  MD2(Type, atoutput2, toutput, this->t2, this->oc3 * this->O2 * this->T * V);
+
+#pragma omp parallel for collapse(3)
+  for_each (_t2, this->t2) {
+    for_each (_oc3, this->oc3) {
+      for_each (_O2, this->O2) {
+        int Tz = _t2 == this->t2 - 1 ? this->Tr : this->T;
+        MD4(Type, atoutput4, &md2(atoutput2, _t2, 0), this->oc3, this->O2, this->T, V);
+        for_each (_T, this->T) {
+          int _n = (_t2 * this->T + _T) / (this->oh * this->ow);
+          int _hw = (_t2 * this->T + _T) % (this->oh * this->ow);
+          // TODO, streaming, avx512
+#pragma omp simd
+          for_each (_V, V) {
+            md5(aoutput, _n, _oc3, _O2, _hw, _V)
+                = md4(atoutput4, _oc3, _O2, _T, _V);
+          }
+        }
+      }
+    }
+  }
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_plain(
+    Type *toutput, Type *output, Type *bias)
+{
+  // TODO
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::trans_output(
+    Type *toutput, Type *output, Type *bias)
+{
+  if (output_is_bfmt_ || output_as_bfmt_)
+    __trans_output_blocked(toutput, output, bias);
+  else
+    __trans_output_plain(toutput, output, bias);
+}
+
+// input:   t2, ic3, I2, T, V
+// weights: oc3, ic3, O2, I2, V, V
+// output:  t2, oc3, O2, T, V
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::gemm(
+    Type *toutput, Type *tinput, Type *tweights)
+{
+  MD2(Type, atinput2, tinput, this->t2, this->ic3 * this->I2 * this->T * V);
+  MD3(Type, atweights, tweights, this->oc3, this->ic3, this->O2 * this->I2 * V * V);
+  MD2(Type, atoutput2, toutput, this->t2, this->oc3 * this->O2 * this->T * V);
+  //MD2(Type, abias, bias, this->oc3, this->O2 * V);
+
+#pragma omp parallel for collapse(2)
+  for_each (_t2, this->t2) {
+    for_each (_oc3, this->oc3) {
+      int Tz = _t2 == this->t2 - 1 ? this->Tr : this->T;
+      MD2(Type, atinput, &md2(atinput2, _t2, 0), this->ic3, this->I2 * Tz * V);
+      MD2(Type, atoutput, &md2(atoutput2, _t2, 0), this->oc3, this->O2 * Tz * V);
+      for_each (_ic3, this->ic3) {
+        // TODO
+        ker_gemm_(*this, &md2(atoutput, _oc3, 0), &md2(atinput, _ic3, 0),
+            &md3(atweights, _oc3, _ic3, 0), _ic3 == 0);
+      }
+    }
+  }
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_blocked(
+    Type *tweights, Type *weights)
+{
+  MD6(Type, aweights, weights, this->oc3, this->O2, this->ic3, this->I2, V, V);
+  MD6(Type, atweights, tweights, this->oc3, this->ic3, this->O2, this->I2, V,  V);
+
+#pragma omp parallel for collapse(2)
+  for_each (_oc3, this->oc3) {
+    for_each (_ic3, this->ic3) {
+      for_each (_O2, this->O2) {
+        for_each (_I2, this->I2) {
+          for_each (_iV, V) {
+#pragma omp simd
+            for_each (_oV, V) {
+              md6(atweights, _oc3, _ic3, _O2, _I2, _iV, _oV) =
+                md6(aweights, _oc3, _O2, _ic3, _I2, _iV, _oV);;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_plain(
+    Type *tweights, Type *weights)
+{
+  // TODO
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::trans_weights(
+    Type *tweights, Type *weights)
+{
+  if (weights_is_bfmt_ || weights_as_bfmt_)
+    __trans_weights_blocked(tweights, weights);
+  else
+    __trans_weights_plain(tweights, weights);
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__execute_a000(
+    Type *output, Type *input, Type *weights, Type *bias)
+{
+  trans_weights(tweights_, weights);
+  trans_input(tinput_, input);
+  gemm(toutput_, tinput_, tweights_);
+  trans_output(output, toutput_, bias);
 }
 
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::execute(
-    Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
+    Type *output, Type *input, Type *weights, Type *bias)
 {
   if (is_bfmt_)
     return (this->*execute_opt_)(output, input, weights, bias);
   else {
-    Type *in = input;
-    Type *wei = weights;
-    Type *out = output_as_bfmt_ ? boutput_ : output;
-
-    if (input_as_bfmt_) {
-      MD5(Type, abinput, binput_, this->n, this->ic2, this->ih, this->iw, V);
-      MD4(Type, ainput, input, this->n, this->ic, this->ih, this->iw);
-
-#pragma omp parallel for collapse(3)
-      for_each (_n, this->n) {
-      for_each (_ic2, this->ic2) {
-      for_each (_ih, this->ih) {
-        int v = _ic2 == this->ic2 - 1 ? this->Ir : V;
-        for_each (_iw, this->iw) {
-#pragma omp simd
-          for_each (_v, v)
-            md5(abinput, _n, _ic2, _ih, _iw, _v)
-                = md4(ainput, _n, _ic2 * V + _v, _ih, _iw);
-        }
-      }}}
-      in = binput_;
-    }
-
-    if (weights_as_bfmt_) {
-      MD6(Type, abweights, bweights_, this->oc2, this->ic2, this->kh, this->kw, V, V);
-      MD4(Type, aweights, weights, this->oc, this->ic, this->kh, this->kw);
-
-#pragma omp parallel for collapse(3)
-      for_each (_oc2, this->oc2) {
-      for_each (_ic2, this->ic2) {
-      for_each (_kh, this->kh) {
-        int iv = _ic2 == this->ic2 - 1 ? this->Ir : V;
-        int ov = _oc2 == this->oc2 - 1 ? this->Or : V;
-        for_each (_kw, this->kw) {
-          for_each (_iv, iv) {
-#pragma omp simd
-            for_each (_ov, ov) {
-              md6(abweights, _oc2, _ic2, _kh, _kw, _iv, _ov)
-                = md4(aweights, _oc2 * V + _ov, _ic2 * V + _iv, _kh, _kw);
-            }
-          }
-        }
-      }}}
-      wei = bweights_;
-    }
-
-    // TODO: padding bias
-
-    (this->*execute_opt_)(out, in, wei, bias);
-
-    if (output_as_bfmt_) {
-      MD5(Type, aboutput, boutput_, this->n, this->oc2, this->oh, this->ow, V);
-      MD4(Type, aoutput, output, this->n, this->oc, this->oh, this->ow);
-
-#pragma omp parallel for collapse(3)
-      for_each (_n, this->n) {
-      for_each (_oc2, this->oc2) {
-      for_each (_oh, this->oh) {
-        int v = _oc2 == this->oc2 - 1 ? this->Or : V;
-        for_each (_V, v) {
-          for_each (_ow, this->ow) {
-            md4(aoutput, _n, _oc2 * V + _V, _oh, _ow)
-              = md5(aboutput, _n, _oc2, _oh, _ow, _V);
-          }
-        }
-      }}}
-    }
+    // TODO
   }
 }
 
