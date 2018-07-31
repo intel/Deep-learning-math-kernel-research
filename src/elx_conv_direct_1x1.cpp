@@ -206,7 +206,7 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
   l2_usage *= sizeof(Type);
 
   if (tweights_size > 0)
-    MEMALIGN64(&tweights_, tweights_size * sizeof(Type));
+    MEMALIGN64(&tweights_, (tweights_size + 4 * V) * sizeof(Type)); // weights loading pipeline
   if (tinput_size > 0)
     MEMALIGN64(&tinput_, tinput_size * sizeof(Type));
   if (toutput_size > 0)
@@ -321,7 +321,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_input_blocked(
       for_each (_I2, this->I2) {
         int Tz = _t2 == this->t2 - 1 ? this->Tr : this->T;
         MD4(Type, atinput4, &md2(atinput2, _t2, 0), this->ic3, this->I2, Tz, V);
-        for_each (_T, this->T) {
+        for_each (_T, Tz) {
           int _n = (_t2 * this->T + _T) / (this->ih * this->iw);
           int _hw = (_t2 * this->T + _T) % (this->ih * this->iw);
           // TODO, streaming, avx512
@@ -354,7 +354,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::trans_input(Type *tinput, Type *input)
 
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_blocked(
-    Type *toutput, Type *output, Type *bias)
+    Type *output, Type *toutput, Type *bias)
 {
   MD5(Type, aoutput, output, this->n, this->oc3, this->O2, this->oh * this->ow, V);
   MD2(Type, atoutput2, toutput, this->t2, this->oc3 * this->O2 * this->T * V);
@@ -364,8 +364,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_blocked(
     for_each (_oc3, this->oc3) {
       for_each (_O2, this->O2) {
         int Tz = _t2 == this->t2 - 1 ? this->Tr : this->T;
-        MD4(Type, atoutput4, &md2(atoutput2, _t2, 0), this->oc3, this->O2, this->T, V);
-        for_each (_T, this->T) {
+        MD4(Type, atoutput4, &md2(atoutput2, _t2, 0), this->oc3, this->O2, Tz, V);
+        for_each (_T, Tz) {
           int _n = (_t2 * this->T + _T) / (this->oh * this->ow);
           int _hw = (_t2 * this->T + _T) % (this->oh * this->ow);
           // TODO, streaming, avx512
@@ -389,12 +389,12 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_plain(
 
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::trans_output(
-    Type *toutput, Type *output, Type *bias)
+    Type *output, Type *toutput, Type *bias)
 {
   if (output_is_bfmt_ || output_as_bfmt_)
-    __trans_output_blocked(toutput, output, bias);
+    __trans_output_blocked(output, toutput, bias);
   else
-    __trans_output_plain(toutput, output, bias);
+    __trans_output_plain(output, toutput, bias);
 }
 
 // input:   t2, ic3, I2, T, V
@@ -413,11 +413,12 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm(
   for_each (_t2, this->t2) {
     for_each (_oc3, this->oc3) {
       int Tz = _t2 == this->t2 - 1 ? this->Tr : this->T;
+      auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
       MD2(Type, atinput, &md2(atinput2, _t2, 0), this->ic3, this->I2 * Tz * V);
       MD2(Type, atoutput, &md2(atoutput2, _t2, 0), this->oc3, this->O2 * Tz * V);
       for_each (_ic3, this->ic3) {
         // TODO
-        ker_gemm_(*this, &md2(atoutput, _oc3, 0), &md2(atinput, _ic3, 0),
+        ker_gemm(*this, &md2(atoutput, _oc3, 0), &md2(atinput, _ic3, 0),
             &md3(atweights, _oc3, _ic3, 0), _ic3 == 0);
       }
     }

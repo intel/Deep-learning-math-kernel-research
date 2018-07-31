@@ -56,6 +56,10 @@ function conv_test() {
       a) a=$OPTARG ;;
       -)
         case "${OPTARG}" in
+          alg) a="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          alg=*) a=${OPTARG#*=}
+            ;;
           nteams) nteams="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
             ;;
           nteams=*) nteams=${OPTARG#*=}
