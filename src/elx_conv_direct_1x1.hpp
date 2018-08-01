@@ -19,6 +19,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
 
   private:
   void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a060(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a061(Type *output, Type *input, Type *weights, Type *bias);
 
   inline void __trans_input_plain(Type *tinput, Type *input);

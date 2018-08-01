@@ -285,6 +285,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 
   switch (xopt_) {
     EXECUTE_CASE(a000);
+    EXECUTE_CASE(a060);
     EXECUTE_CASE(a061);
   default:
     el_error("Unimplemented");
@@ -630,6 +631,42 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a000(
   trans_output(output, toutput_, bias);
 
   if (inference_acc_) is_first_run_ = false;
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__execute_a060(
+    Type *output, Type *input, Type *weights, Type *bias)
+{
+  MD2(Type, atinput2, tinput_, this->t2, this->T * this->IC);
+  MD2(Type, atoutput2, toutput_, mthr_, this->T * this->oc3 * this->O2 * V);
+  MD2(Type, atweights2, tweights_, this->oc4, this->IC * this->oc3 * this->O2 * V);
+
+  MD3(Type, aoutput, output, this->n, this->oc4, this->oh * this->ow * this->oc3 * this->O2 * V);
+  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+  {
+    if (is_first_run_) {
+      trans_weights(tweights_, weights);
+    }
+    trans_input(tinput_, input);
+#pragma omp barrier
+
+#pragma omp for nowait collapse(2)
+    for_each (_t2, this->t2) {
+      for_each (_oc4, this->oc4) {
+        int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+        size_t ithr = omp_get_thread_num();
+
+        gemm(&md2(atoutput2, ithr, 0), &md2(atinput2, _t2, 0),
+            &md2(atweights2, _oc4, 0), _t2, Tz);
+        trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
+            &md2(abias, _oc4, 0), _t2, Tz);
+      }
+    }
+  }
+  if (inference_acc_)
+    is_first_run_ = false;
 }
 
 template <typename Type, const int V, const int I>
