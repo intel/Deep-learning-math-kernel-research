@@ -325,7 +325,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_input_blocked(
   MD5(Type, ainput, input, this->n, this->ic3, this->I2, this->ih * this->iw, V);
   MD2(Type, atinput2, tinput, this->t2, this->ic3 * this->I2 * this->T * V);
 
-#pragma omp parallel for collapse(3)
+#pragma omp parallel
+#pragma omp for nowait collapse(3) schedule(static)
   for_each (_t2, this->t2) {
     for_each (_ic3, this->ic3) {
       for_each (_I2, this->I2) {
@@ -426,7 +427,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_blocked(
   MD5(Type, aoutput, output, this->n, this->oc3, this->O2, this->oh * this->ow, V);
   MD2(Type, atoutput2, toutput, this->t2, this->oc3 * this->O2 * this->T * V);
 
-#pragma omp parallel for collapse(3)
+#pragma omp parallel
+#pragma omp  for nowait collapse(3) schedule(static)
   for_each (_t2, this->t2) {
     for_each (_oc3, this->oc3) {
       for_each (_O2, this->O2) {
@@ -576,7 +578,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_blocked(
   MD7(Type, aweights, weights, this->oc4, this->oc3, this->O2, this->ic3, this->I2, V, V);
   MD7(Type, atweights, tweights, this->oc4, this->oc3, this->ic3, this->O2, this->I2, V,  V);
 
-#pragma omp parallel for collapse(4)
+#pragma omp parallel
+#pragma omp for nowait collapse(4) schedule(static)
   for_each (_oc4, this->oc4) {
     for_each (_oc3, this->oc3) {
       for_each (_ic3, this->ic3) {
@@ -707,14 +710,13 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a060(
   MD3(Type, aoutput, output, this->n, this->oc4, this->oh * this->ow * this->oc3 * this->O2 * V);
   MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
+  if (is_first_run_) {
+    trans_weights(tweights_, weights);
+  }
+  trans_input(tinput_, input);
+
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
-    if (is_first_run_) {
-      trans_weights(tweights_, weights);
-    }
-    trans_input(tinput_, input);
-#pragma omp barrier
-
 #pragma omp for nowait collapse(2)
     for_each (_t2, this->t2) {
       for_each (_oc4, this->oc4) {
@@ -743,12 +745,11 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a061(
   MD3(Type, aoutput, output, this->n, this->oc4, this->oh * this->ow * this->oc3 * this->O2 * V);
   MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
+  if (is_first_run_) {
+    trans_weights(tweights_, weights);
+  }
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
-    if (is_first_run_) {
-      trans_weights(tweights_, weights);
-#pragma omp barrier
-    }
 #pragma omp for nowait collapse(2)
     for_each (_t2, this->t2) {
       for_each (_oc4, this->oc4) {
