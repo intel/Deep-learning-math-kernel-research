@@ -49,42 +49,46 @@ void convolution_winograd_kernel<R_INPUT(
 
 template <D_OUTPUT(
     typename Type, const int A, const int K, const int V, const int I,
-    const bool is_border, const bool with_bias, const bool with_relu)>
+    const bool is_border, const bool with_bias,
+    const bool with_relu, const bool with_sum)>
 void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
-    with_bias, with_relu)>::trans_output(elx_conv_t<Type> &xc, Type *output,
+    with_bias, with_relu, with_sum)>::
+    trans_output(elx_conv_t<Type> &xc, Type *output,
     Type atoutput[A][A][V], Type *bias, int _hOA_end, int _wOA_end)
 {
   __trans_output(
       winograd_template_parameter_t<R_OUTPUT(
-      Type, A, K, V, I, is_border, with_bias, with_relu)>(),
+      Type, A, K, V, I, is_border, with_bias, with_relu, with_sum)>(),
       xc, output, atoutput, bias, _hOA_end, _wOA_end);
 }
 
 template <D_OUTPUT(
     typename Type, const int A, const int K, const int V, const int I,
-    const bool is_border, const bool with_bias, const bool with_relu)>
+    const bool is_border, const bool with_bias,
+    const bool with_relu, const bool with_sum)>
 void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
-    with_bias, with_relu)>::trans_outputa_th(
+    with_bias, with_relu, with_sum)>::trans_outputa_th(
     elx_conv_t<Type> &xc, Type *toutputa,
     Type *toutput, int Tz, bool stream_out)
 {
   __trans_outputa_th(
       winograd_template_parameter_t<R_OUTPUT(
-      Type, A, K, V, I, is_border, with_bias, with_relu)>(),
+      Type, A, K, V, I, is_border, with_bias, with_relu, with_sum)>(),
       xc, toutputa, toutput, Tz, stream_out);
 }
 
 template <D_OUTPUT(
     typename Type, const int A, const int K, const int V, const int I,
-    const bool is_border, const bool with_bias, const bool with_relu)>
+    const bool is_border, const bool with_bias,
+    const bool with_relu, const bool with_sum)>
 void convolution_winograd_kernel<R_OUTPUT(Type, A, K, V, I, is_border,
-    with_bias, with_relu)>::trans_outputa_bh(
+    with_bias, with_relu, with_sum)>::trans_outputa_bh(
     elx_conv_t<Type> &xc, Type *output,
     Type atoutputa[A][A - K + 1][V], Type *bias, int _hOA_end, int _wOA_end)
 {
   __trans_outputa_bh(
       winograd_template_parameter_t<R_OUTPUT(
-      Type, A, K, V, I, is_border, with_bias, with_relu)>(),
+      Type, A, K, V, I, is_border, with_bias, with_relu, with_sum)>(),
       xc, output, atoutputa, bias, _hOA_end, _wOA_end);
 }
 

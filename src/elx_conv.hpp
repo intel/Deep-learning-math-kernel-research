@@ -52,8 +52,8 @@ struct elx_conv_t {
   // propagation kind
   int prop_kind;
 
-  // relu, bias
-  bool with_relu, with_bias;
+  // relu, bias, sum
+  bool with_relu, with_bias, with_sum;
 
   // streaming hint
   int streaming_weights;
