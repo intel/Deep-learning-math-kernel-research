@@ -324,11 +324,20 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_input_blocked(
         for_each (_T, Tz) {
           int _n = (_t2 * this->T + _T) / (this->ih * this->iw);
           int _hw = (_t2 * this->T + _T) % (this->ih * this->iw);
-          // TODO, streaming, avx512
+          if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+            if (stream_in_)
+              _mm512_stream_ps(&md4(atinput4, _ic3, _I2, _T, 0),
+                *(__m512 *)&md5(ainput, _n, _ic3, _I2, _hw, 0));
+            else
+              _mm512_store_ps(&md4(atinput4, _ic3, _I2, _T, 0),
+                *(__m512 *)&md5(ainput, _n, _ic3, _I2, _hw, 0));
+
+          } else {
 #pragma omp simd
-          for_each (_V, V) {
-            md4(atinput4, _ic3, _I2, _T, _V)
+            for_each (_V, V) {
+              md4(atinput4, _ic3, _I2, _T, _V)
                 = md5(ainput, _n, _ic3, _I2, _hw, _V);
+            }
           }
         }
       }
@@ -368,11 +377,19 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_blocked(
         for_each (_T, Tz) {
           int _n = (_t2 * this->T + _T) / (this->oh * this->ow);
           int _hw = (_t2 * this->T + _T) % (this->oh * this->ow);
-          // TODO, streaming, avx512
+          if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+            if (stream_out_)
+              _mm512_stream_ps(&md5(aoutput, _n, _oc3, _O2, _hw, 0),
+                 *(__m512 *)&md4(atoutput4, _oc3, _O2, _T, 0));
+            else
+              _mm512_store_ps(&md5(aoutput, _n, _oc3, _O2, _hw, 0),
+                 *(__m512 *)&md4(atoutput4, _oc3, _O2, _T, 0));
+          } else {
 #pragma omp simd
-          for_each (_V, V) {
-            md5(aoutput, _n, _oc3, _O2, _hw, _V)
+            for_each (_V, V) {
+              md5(aoutput, _n, _oc3, _O2, _hw, _V)
                 = md4(atoutput4, _oc3, _O2, _T, _V);
+            }
           }
         }
       }
@@ -438,10 +455,20 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_blocked(
       for_each (_O2, this->O2) {
         for_each (_I2, this->I2) {
           for_each (_iV, V) {
+            if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+              if (stream_wei_)
+                _mm512_stream_ps(&md6(atweights, _oc3, _ic3, _O2, _I2, _iV, 0),
+                  *(__m512 *)&md6(aweights, _oc3, _O2, _ic3, _I2, _iV, 0));
+              else
+                _mm512_store_ps(&md6(atweights, _oc3, _ic3, _O2, _I2, _iV, 0),
+                  *(__m512 *)&md6(aweights, _oc3, _O2, _ic3, _I2, _iV, 0));
+
+            } else {
 #pragma omp simd
-            for_each (_oV, V) {
-              md6(atweights, _oc3, _ic3, _O2, _I2, _iV, _oV) =
-                md6(aweights, _oc3, _O2, _ic3, _I2, _iV, _oV);;
+              for_each (_oV, V) {
+                md6(atweights, _oc3, _ic3, _O2, _I2, _iV, _oV) =
+                  md6(aweights, _oc3, _O2, _ic3, _I2, _iV, _oV);;
+              }
             }
           }
         }
@@ -471,10 +498,13 @@ template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::__execute_a000(
     Type *output, Type *input, Type *weights, Type *bias)
 {
-  trans_weights(tweights_, weights);
+  if (is_first_run_)
+    trans_weights(tweights_, weights);
   trans_input(tinput_, input);
   gemm(toutput_, tinput_, tweights_);
   trans_output(output, toutput_, bias);
+
+  if (inference_acc_) is_first_run_ = false;
 }
 
 template <typename Type, const int V, const int I>
