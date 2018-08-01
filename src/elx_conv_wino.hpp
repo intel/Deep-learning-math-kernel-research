@@ -98,19 +98,26 @@ class elx_conv_wino_t : public elx_conv_t<Type> {
       convolution_winograd_kernel<S_WEIGHTS(Type, A, K, V, I)>::trans_weights)
       *ker_trans_weights_;
   decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
-          BORDER(false), BIAS(false))>::trans_output) *ker_trans_output_;
+      BORDER(false), BIAS(false), RELU(false))>::trans_output)
+      *ker_trans_output_;
   decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
-          BORDER(true), BIAS(false))>::trans_output) *ker_trans_output0_;
+      BORDER(true), BIAS(false), RELU(false))>::trans_output)
+      *ker_trans_output0_;
   decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
-          BORDER(false), BIAS(false))>::trans_output) *ker_trans_output_nobias_;
+      BORDER(false), BIAS(false), RELU(false))>::trans_output)
+      *ker_trans_output_nobias_;
   decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
-          BORDER(true), BIAS(false))>::trans_output) *ker_trans_output0_nobias_;
+      BORDER(true), BIAS(false), RELU(false))>::trans_output)
+      *ker_trans_output0_nobias_;
   decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
-          BORDER(false), BIAS(false))>::trans_outputa_th) *ker_trans_outputa_th_;
+      BORDER(false), BIAS(false), RELU(false))>::trans_outputa_th)
+      *ker_trans_outputa_th_;
   decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
-          BORDER(false), BIAS(false))>::trans_outputa_bh) *ker_trans_outputa_bh_;
+      BORDER(false), BIAS(false), RELU(false))>::trans_outputa_bh)
+      *ker_trans_outputa_bh_;
   decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
-          BORDER(true), BIAS(false))>::trans_outputa_bh) *ker_trans_outputa0_bh_;
+      BORDER(true), BIAS(false), RELU(false))>::trans_outputa_bh)
+      *ker_trans_outputa0_bh_;
 
   void (elx_conv_wino_t::*execute_opt_)(Type *, Type *, Type *, Type *);
 

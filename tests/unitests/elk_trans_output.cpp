@@ -48,13 +48,13 @@ int test_elk_trans_output(bool perf, bool show_diff)
 
   TT(elk_trans_output, iterations, perf,
       (convolution_winograd_kernel<S_OUTPUT(
-              Type, A, K, V, I, BORDER(false), BIAS(true))>::trans_output(xc,
-          (float *)&aoutput, atoutput, abias, A - K, A - K)));
+      Type, A, K, V, I, BORDER(false), BIAS(true), RELU(false))>::
+      trans_output(xc, (float *)&aoutput, atoutput, abias, A - K, A - K)));
 
   TT(elk_trans_input, iterations, perf,
-      (convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, ISA_GENERIC,
-              BORDER(false), BIAS(true))>::trans_output(xc,
-          (float *)ref_aoutput, atoutput, abias, A - K, A - K)));
+      (convolution_winograd_kernel<S_OUTPUT(
+      Type, A, K, V, ISA_GENERIC, BORDER(false), BIAS(true), RELU(false))>::
+      trans_output(xc, (float *)ref_aoutput, atoutput, abias, A - K, A - K)));
 
   for (int _oh = 0; _oh < xc.oh; ++_oh) {
     for (int _ow = 0; _ow < xc.ow; ++_ow) {
