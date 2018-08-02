@@ -233,7 +233,13 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 {
-  ker_bgemm_ = convolution_direct_1x1_kernel::gemm28<Type, V, I, false, false, false>;
+  if (this->with_bias) {
+    ker_bgemm_ = convolution_direct_1x1_kernel::gemm28<Type, V, I, BIAS(true),
+        RELU(false), SUM(false)>;
+  } else {
+    ker_bgemm_ = convolution_direct_1x1_kernel::gemm28<Type, V, I, BIAS(false),
+        RELU(false), SUM(false)>;
+  }
 
 #define GEMM_CASE(z, n, data)                                                  \
   case n:                                                                      \

@@ -28,10 +28,13 @@ namespace euler {
 #define SUM(x) x
 
 struct convolution_direct_1x1_kernel {
-  template <typename Type, const int V, const int I, const bool with_bias,
-      const bool with_relu, const bool with_sum>
-  static void gemm28(elx_conv_t<Type> &xc, Type *toutput, Type *tinput,
+#define DEF_DIRECT_1X1_gemm(z, T, nil)                                         \
+  template <typename Type, const int V, const int I, const bool with_bias,     \
+      const bool with_relu, const bool with_sum>                               \
+  static void gemm##T(elx_conv_t<Type> &xc, Type *toutput, Type *tinput,       \
       Type *tweights, Type *bias);
+
+  BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, DEF_DIRECT_1X1_gemm, nil);
 
   template <typename Type, const int V, const int I, const bool with_bias,
       const bool with_relu, const bool with_sum>
