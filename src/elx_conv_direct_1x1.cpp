@@ -251,7 +251,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 #undef GEMM_CASE
 #define GEMM_CASE(z, n, data)                                                  \
   case n:                                                                      \
-    ker_bgemm_ = convolution_direct_1x1_kernel::gemm28<Type, V, I,             \
+    ker_bgemm_ = convolution_direct_1x1_kernel::gemm##n<Type, V, I,            \
         BIAS(false), RELU(false), SUM(false)>;                                 \
     break;
 
