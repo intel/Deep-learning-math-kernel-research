@@ -234,13 +234,36 @@ template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 {
   if (this->with_bias) {
-    ker_bgemm_ = convolution_direct_1x1_kernel::gemm28<Type, V, I, BIAS(true),
-        RELU(false), SUM(false)>;
+#undef GEMM_CASE
+#define GEMM_CASE(z, n, data)                                                  \
+  case n:                                                                      \
+    ker_bgemm_ = convolution_direct_1x1_kernel::gemm##n<Type, V, I,            \
+        BIAS(true), RELU(false), SUM(false)>;                                  \
+    break;
+
+    switch (this->T) {
+      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE, nil)
+    default:
+      el_error("Convolution_direct_1x1: Unimplemented T");
+      break;
+    }
   } else {
-    ker_bgemm_ = convolution_direct_1x1_kernel::gemm28<Type, V, I, BIAS(false),
-        RELU(false), SUM(false)>;
+#undef GEMM_CASE
+#define GEMM_CASE(z, n, data)                                                  \
+  case n:                                                                      \
+    ker_bgemm_ = convolution_direct_1x1_kernel::gemm28<Type, V, I,             \
+        BIAS(false), RELU(false), SUM(false)>;                                 \
+    break;
+
+    switch (this->T) {
+      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE, nil)
+    default:
+      el_error("Convolution_direct_1x1: Unimplemented T");
+      break;
+    }
   }
 
+#undef GEMM_CASE
 #define GEMM_CASE(z, n, data)                                                  \
   case n:                                                                      \
     ker_gemm_ = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm;      \
