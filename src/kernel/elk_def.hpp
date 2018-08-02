@@ -30,5 +30,7 @@
 #define MUL   _mm512_mul_ps
 #define FMADD _mm512_fmadd_ps
 #define FMSUB _mm512_fmsub_ps
+#define MAX   _mm512_max_ps
+#define XOR   _mm512_xor_ps
 
 #endif // __ELK_DEF_HPP__

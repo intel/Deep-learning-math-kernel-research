@@ -51,10 +51,13 @@ __TRANS_OUTPUT(float, 5, 3, 16, ISA_GENERIC)
     C(4) = T(4, 0) + T(4, 1) + T(4, 2) + T(4, 3);
     P(0, 0) = C(0) + C(1) + C(2) + C(3);
     if (with_bias_) P(0, 0) += B;
+    if (with_relu_) P(0, 0) = P(0, 0) > 0 ? P(0, 0) : 0;
     P(1, 0) = C(2) - C(1) + 2 * C(3);
     if (with_bias_) P(1, 0) += B;
+    if (with_relu_) P(1, 0) = P(1, 0) > 0 ? P(1, 0) : 0;
     P(2, 0) = C(1) + C(2) + 4 * C(3) + C(4);
     if (with_bias_) P(2, 0) += B;
+    if (with_relu_) P(2, 0) = P(2, 0) > 0 ? P(2, 0) : 0;
 
     C(0) = T(0, 2) - T(0, 1) + 2 * T(0, 3);
     C(1) = T(1, 2) - T(1, 1) + 2 * T(1, 3);
@@ -63,10 +66,13 @@ __TRANS_OUTPUT(float, 5, 3, 16, ISA_GENERIC)
     C(4) = T(4, 2) - T(4, 1) + 2 * T(4, 3);
     P(0, 1) = C(0) + C(1) + C(2) + C(3);
     if (with_bias_) P(0, 1) += B;
+    if (with_relu_) P(0, 1) = P(0, 1) > 0 ? P(0, 1) : 0;
     P(1, 1) = C(2) - C(1) + 2 * C(3);
     if (with_bias_) P(1, 1) += B;
+    if (with_relu_) P(1, 1) = P(1, 1) > 0 ? P(1, 1) : 0;
     P(2, 1) = C(1) + C(2) + 4 * C(3) + C(4);
     if (with_bias_) P(2, 1) += B;
+    if (with_relu_) P(2, 1) = P(2, 1) > 0 ? P(2, 1) : 0;
 
     C(0) = T(0, 1) + T(0, 2) + 4 * T(0, 3) + T(0, 4);
     C(1) = T(1, 1) + T(1, 2) + 4 * T(1, 3) + T(1, 4);
@@ -75,10 +81,13 @@ __TRANS_OUTPUT(float, 5, 3, 16, ISA_GENERIC)
     C(4) = T(4, 1) + T(4, 2) + 4 * T(4, 3) + T(4, 4);
     P(0, 2) = C(0) + C(1) + C(2) + C(3);
     if (with_bias_) P(0, 2) += B;
+    if (with_relu_) P(0, 2) = P(0, 2) > 0 ? P(0, 2) : 0;
     P(1, 2) = C(2) - C(1) + 2 * C(3);
     if (with_bias_) P(1, 2) += B;
+    if (with_relu_) P(1, 2) = P(1, 2) > 0 ? P(1, 2) : 0;
     P(2, 2) = C(1) + C(2) + 4 * C(3) + C(4);
     if (with_bias_) P(2, 2) += B;
+    if (with_relu_) P(2, 2) = P(2, 2) > 0 ? P(2, 2) : 0;
   }
 }
 
@@ -92,12 +101,20 @@ __TRANS_OUTPUT(float, 5, 3, 16, ISA_GENERIC)
   __m512 p0##n = ADD(ADD(ADD(c0, c1), c2), c3);                                \
   if (with_bias_)                                                              \
     p0##n = ADD(p0##n, *(__m512*)bias);                                        \
+  if (with_relu_) {                                                            \
+    zero = XOR(zero, zero);                                                    \
+    p0##n = MAX(p0##n, zero);                                                  \
+  }                                                                            \
   __m512 p1##n = FMADD(z2, c3, SUB(c2, c1));                                   \
   if (with_bias_)                                                              \
     p1##n = ADD(p1##n, *(__m512*)bias);                                        \
+  if (with_relu_)                                                              \
+    p1##n = MAX(p1##n, zero);                                                  \
   __m512 p2##n = FMADD(z4, c3, ADD(ADD(c1, c2), c4));                          \
   if (with_bias_)                                                              \
-    p2##n = ADD(p2##n, *(__m512*)bias);
+    p2##n = ADD(p2##n, *(__m512*)bias);                                        \
+  if (with_relu_)                                                              \
+    p2##n = MAX(p2##n, zero);                                                  \
 
 // template <const bool is_border_, const bool with_bias_>
 // Params:
@@ -128,7 +145,7 @@ __TRANS_OUTPUT(float, 5, 3, 16, ISA_SKX_AVX512)
 #define T(_h, _w) atoutput[_w][_h]
 #define P(_h, _w) p_cb(_h, _w)
 
-  __m512 c0, c1, c2, c3, c4;
+  __m512 c0, c1, c2, c3, c4, zero;
   __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
   __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
 
@@ -216,10 +233,13 @@ __TRANS_OUTPUTA_TH( float, 5, 3, 16, ISA_SKX_AVX512)
 #define GENERIC_CALCULATE_TILE_5(z, n, nil)                    \
   P(n, 0) = T(n, 0) + T(n, 1) + T(n, 2) + T(n, 3);             \
   if (with_bias_) P(n, 0) += B;                                \
+  if (with_relu_) P(n, 0) = P(n, 0) > 0 ? P(n, 0) : 0;         \
   P(n, 1) = T(n, 2) - T(n, 1) + z2 * T(n, 3);                  \
   if (with_bias_) P(n, 1) += B;                                \
+  if (with_relu_) P(n, 1) = P(n, 1) > 0 ? P(n, 1) : 0;         \
   P(n, 2) = T(n, 1) + T(n, 2) + z4 * T(n, 3) + T(n, 4);        \
-  if (with_bias_) P(n, 2) += B;
+  if (with_bias_) P(n, 2) += B;                                \
+  if (with_relu_) P(n, 2) = P(n, 2) > 0 ? P(n, 2) : 0;
 
 // template <const bool is_border_, const bool with_bias_>
 // Params:
@@ -291,7 +311,7 @@ __TRANS_OUTPUTA_BH(float, 5, 3, 16, ISA_SKX_AVX512)
   __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
   __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
 
-  __m512 t0, t1, t2, t3, t4, p0, p1, p2;
+  __m512 t0, t1, t2, t3, t4, p0, p1, p2, zero;
   t0 = _mm512_load_ps(T(0,0));
   t1 = _mm512_load_ps(T(0,1));
   t2 = _mm512_load_ps(T(0,2));
@@ -300,10 +320,13 @@ __TRANS_OUTPUTA_BH(float, 5, 3, 16, ISA_SKX_AVX512)
 
   p0 = ADD(ADD(ADD(t0, t1), t2), t3);
   if (with_bias_) p0 = ADD(p0, *(__m512*)bias);
+  if (with_relu_) { zero = XOR(zero, zero); p0 = MAX(p0, zero); }
   p1 = SUB(ADD(MUL(z2, t3), t2), t1);
   if (with_bias_) p1 = ADD(p1, *(__m512*)bias);
+  if (with_relu_) p1 = MAX(p1, zero);
   p2 = ADD(ADD(ADD(MUL(z4, t3), t1), t2), t4);
   if (with_bias_) p2 = ADD(p2, *(__m512*)bias);
+  if (with_relu_) p2 = MAX(p2, zero);
 
   _mm512_store_ps(P(0,0), p0);
   _mm512_store_ps(P(0,1), p1);
@@ -317,10 +340,13 @@ __TRANS_OUTPUTA_BH(float, 5, 3, 16, ISA_SKX_AVX512)
 
   p0 = ADD(ADD(ADD(t0, t1), t2), t3);
   if (with_bias_) p0 = ADD(p0, *(__m512*)bias);
+  if (with_relu_) p0 = MAX(p0, zero);
   p1 = SUB(ADD(MUL(z2, t3), t2), t1);
   if (with_bias_) p1 = ADD(p1, *(__m512*)bias);
+  if (with_relu_) p1 = MAX(p1, zero);
   p2 = ADD(ADD(ADD(MUL(z4, t3), t1), t2), t4);
   if (with_bias_) p2 = ADD(p2, *(__m512*)bias);
+  if (with_relu_) p2 = MAX(p2, zero);
 
   _mm512_store_ps(P(1,0), p0);
   _mm512_store_ps(P(1,1), p1);
@@ -334,10 +360,13 @@ __TRANS_OUTPUTA_BH(float, 5, 3, 16, ISA_SKX_AVX512)
 
   p0 = ADD(ADD(ADD(t0, t1), t2), t3);
   if (with_bias_) p0 = ADD(p0, *(__m512*)bias);
+  if (with_relu_) p0 = MAX(p0, zero);
   p1 = SUB(ADD(MUL(z2, t3), t2), t1);
   if (with_bias_) p1 = ADD(p1, *(__m512*)bias);
+  if (with_relu_) p1 = MAX(p1, zero);
   p2 = ADD(ADD(ADD(MUL(z4, t3), t1), t2), t4);
   if (with_bias_) p2 = ADD(p2, *(__m512*)bias);
+  if (with_relu_) p2 = MAX(p2, zero);
 
   _mm512_store_ps(P(2,0), p0);
   _mm512_store_ps(P(2,1), p1);
