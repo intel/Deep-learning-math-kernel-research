@@ -27,10 +27,10 @@ namespace euler {
   t##n = _mm512_fmadd_ps(w1, x, t##n);
 #define GEMM1_AVX512_FMA2(z, n, nil)                                           \
   x = _mm512_set1_ps(md6(ainput, _ic3, _I2, 0, n, _V, 2));                     \
-  t##n = _mm512_fmadd_ps(w1, x, t##n);
+  t##n = _mm512_fmadd_ps(w2, x, t##n);
 #define GEMM1_AVX512_FMA3(z, n, nil)                                           \
   x = _mm512_set1_ps(md6(ainput, _ic3, _I2, 0, n, _V, 3));                     \
-  t##n = _mm512_fmadd_ps(w1, x, t##n);
+  t##n = _mm512_fmadd_ps(w3, x, t##n);
 
 #define DEF_function_gemm1(z, T, nil)                                          \
   template <typename Type, const int V, const int I, const bool with_bias,     \
