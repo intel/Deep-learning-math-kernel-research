@@ -6,6 +6,7 @@
 #include "elx_conv.hpp"
 #include "euler.hpp"
 #include "elk_conv_wino.hpp"
+#include "elk_conv_direct_1x1.hpp"
 
 namespace euler {
 
@@ -22,6 +23,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   void __execute_a060(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a061(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a069(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_b000(Type *output, Type *input, Type *weights, Type *bias);
 
   inline void __trans_input_plain(Type *tinput, Type *input);
   inline void __trans_input_blocked(Type *tinput, Type *input);
@@ -54,6 +56,9 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   void bind_execute_functions();
 
   // TODO
+  decltype(
+      convolution_direct_1x1_kernel::gemm28<Type, V, I, false, false, false>) *ker_bgemm_;
+
   decltype(
       convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_;
   decltype(

@@ -2,6 +2,7 @@
 #include <x86intrin.h>
 #include "el_utils.hpp"
 #include "elx_conv_direct_1x1.hpp"
+#include "elk_conv_direct_1x1.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elk_conv_wino.hpp"
@@ -204,6 +205,9 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
     l2_usage = tweights_size / this->oc4
         + this->T * (this->IC + this->OC / this->oc4);
     break;
+  case 0xb000:
+    this->t3 = this->n;
+    break;
   default:
       el_error("Config error!");
       return -1;
@@ -229,6 +233,8 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 {
+  ker_bgemm_ = convolution_direct_1x1_kernel::gemm28<Type, V, I, false, false, false>;
+
 #define GEMM_CASE(z, n, data)                                                  \
   case n:                                                                      \
     ker_gemm_ = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm;      \
@@ -240,7 +246,6 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
     el_error("Unimplemented");
     break;
   }
-
 #define GEMM_CASE0(z, n, data)                                                 \
   case n:                                                                      \
     ker_gemm0_ = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm;     \
@@ -292,6 +297,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 
   switch (xopt_) {
     EXECUTE_CASE(a000);
+    EXECUTE_CASE(b000);
     EXECUTE_CASE(a060);
     EXECUTE_CASE(a061);
     EXECUTE_CASE(a069);
@@ -793,6 +799,31 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a069(
             &md2(atweights2, ithr, 0), _t2, Tz);
         trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
             &md2(abias, _oc4, 0), _t2, Tz);
+      }
+    }
+  }
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__execute_b000(
+    Type *output, Type *input, Type *weights, Type *bias)
+{
+  // weights: oc3*, O2, ic3, I2, V, V
+  // input:   t3*, ic3, I2, t2*, T, V
+  // output:  t3*, oc3*, O2, t2*, T, V
+  MD2(Type, aweights, weights, this->oc3, this->O2 * this->IC * V);
+  MD4(Type, ainput, input, this->t3, this->ic2, this->t2, this->T * V); // TODO
+  MD5(Type, aoutput, output, this->t3, this->oc3, this->O2, this->t2, this->T * V); // TODO
+  MD2(Type, abias, bias, this->oc3, this->O2 * V);
+
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+#pragma omp for nowait collapse(3)
+  for_each (_t3, this->t3) {
+    for_each (_t2, this->t2) {
+      for_each (_oc3, this->oc3) {
+        ker_bgemm_(*this, &md5(aoutput, _t3, _oc3, 0, _t2, 0),
+            &md4(ainput, _t3, 0, _t2, 0), &md2(aweights, _oc3, 0),
+            &md2(abias, _oc3, 0));
       }
     }
   }
