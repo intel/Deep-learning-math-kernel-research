@@ -841,15 +841,15 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b000(
   // input:   t3*, ic3, I2, t2*, T, V
   // output:  t3*, oc3*, O2, t2*, T, V
   MD2(Type, aweights, weights, this->oc3, this->O2 * this->IC * V);
-  MD4(Type, ainput, input, this->t3, this->ic2, this->t2, this->T * V); // TODO
-  MD5(Type, aoutput, output, this->t3, this->oc3, this->O2, this->t2, this->T * V); // TODO
+  MD4(Type, ainput, input, this->t3, this->ic2, this->t2, this->T * V);
+  MD5(Type, aoutput, output, this->t3, this->oc3, this->O2, this->t2, this->T * V);
   MD2(Type, abias, bias, this->oc3, this->O2 * V);
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(3)
   for_each (_t3, this->t3) {
-    for_each (_t2, this->t2) {
-      for_each (_oc3, this->oc3) {
+    for_each (_oc3, this->oc3) {
+      for_each (_t2, this->t2) {
         ker_bgemm_(*this, &md5(aoutput, _t3, _oc3, 0, _t2, 0),
             &md4(ainput, _t3, 0, _t2, 0), &md2(aweights, _oc3, 0),
             &md2(abias, _oc3, 0));
