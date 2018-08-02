@@ -8,26 +8,27 @@
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::duration<float, std::milli> Duration;
 
+int test_elt_conv(int format, int tile_size, int execution_mode, int nteams,
+                  int blk_i, int blk_o, int blk_t);
 #define time_start(name) Time::time_point __s##name = Time::now();
-#define time_end(name, iterations, num_ops)                                  \
-  Time::time_point __e##name = Time::now();                                  \
-  double ms = Duration(__e##name - __s##name).count() / iterations;          \
-  double tflops = num_ops / ms / 1e9;                                        \
+#define time_end(name, iterations, num_ops)                                    \
+  Time::time_point __e##name = Time::now();                                    \
+  double ms = Duration(__e##name - __s##name).count() / iterations;            \
+  double tflops = num_ops / ms / 1e9;                                          \
   printf("%s: %.2f ms, tflops=%g\n", #name, ms, tflops);
 
 // Test timing
-#define TT(name, iters, perf, expr)                                          \
-  do {                                                                       \
-    time_start(name);                                                        \
-    for (int i = 0; i < iters; i++) {                                        \
-      (expr);                                                                \
-    }                                                                        \
-    if (perf) {                                                              \
-      time_end(name, iters, 0);                                              \
-    }                                                                        \
+#define TT(name, iters, perf, expr)                                            \
+  do {                                                                         \
+    time_start(name);                                                          \
+    for (int i = 0; i < iters; i++) {                                          \
+      (expr);                                                                  \
+    }                                                                          \
+    if (perf) {                                                                \
+      time_end(name, iters, 0);                                                \
+    }                                                                          \
   } while (0)
-
 
 #define MEMALIGN64(ptr, size) posix_memalign((void **)(ptr), 64, size)
 
-#endif  // __ELT_UTILS_HPP__
+#endif // __ELT_UTILS_HPP__
