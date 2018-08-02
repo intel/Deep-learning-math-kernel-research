@@ -242,7 +242,6 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
 
   l1_usage = sizeof(Type)
       * (this->O2 * this->I2 * V * V + this->T * V * (this->I2 + this->O2));
-MEMALIGN64(&boutput_, this->n * this->OC * this->oh * this->ow);
 
   switch (xopt_) {
   case 0xa000:
