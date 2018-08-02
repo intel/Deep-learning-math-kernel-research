@@ -242,8 +242,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 #undef GEMM_CASE
 #define GEMM_CASE(z, n, data)                                                  \
   case n:                                                                      \
-    ker_bgemm_ = convolution_direct_1x1_kernel::gemm##n<Type, V, I,            \
-        BIAS(true), RELU(false), SUM(false)>;                                  \
+    ker_bgemm_ = convolution_direct_1x1_kernel<Type, 1, n, V, I, BIAS(true),   \
+        RELU(false), SUM(false)>::gemm;                                        \
     break;
 
     switch (this->T) {
@@ -256,8 +256,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 #undef GEMM_CASE
 #define GEMM_CASE(z, n, data)                                                  \
   case n:                                                                      \
-    ker_bgemm_ = convolution_direct_1x1_kernel::gemm##n<Type, V, I,            \
-        BIAS(false), RELU(false), SUM(false)>;                                 \
+    ker_bgemm_ = convolution_direct_1x1_kernel<Type, 1, n, V, I, BIAS(false),  \
+        RELU(false), SUM(false)>::gemm;                                        \
     break;
 
     switch (this->T) {
@@ -838,6 +838,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a069(
   }
 }
 
+// hw = t2 * T
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::__execute_b000(
     Type *output, Type *input, Type *weights, Type *bias)
@@ -862,6 +863,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b000(
     }
   }
 }
+
+// hw = (t2 - 1) * T + Tr
 
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::execute(

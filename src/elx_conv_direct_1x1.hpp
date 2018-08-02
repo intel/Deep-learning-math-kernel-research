@@ -56,9 +56,8 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   void bind_execute_functions();
 
   // TODO
-  decltype(
-      convolution_direct_1x1_kernel::gemm1<Type, V, I, false, false, false>)
-      *ker_bgemm_;
+  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false,
+      false>::gemm) *ker_bgemm_;
 
   decltype(
       convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_;

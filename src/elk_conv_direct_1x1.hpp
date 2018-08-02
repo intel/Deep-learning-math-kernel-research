@@ -15,6 +15,7 @@
 namespace euler {
 
 // Type: data type
+// O2: OC blocking
 // T: tile blocking unit
 // V: vector size
 // I: ISA
@@ -27,20 +28,28 @@ namespace euler {
 #define RELU(x) x
 #define SUM(x) x
 
+template <typename Type, const int O2, const int T, const int V, const int I,
+    const bool with_bias, const bool with_relu, const bool with_sum>
 struct convolution_direct_1x1_kernel {
-#define DEF_DIRECT_1X1_gemm(z, T, nil)                                         \
+  static void gemm(elx_conv_t<Type> &xc, Type *output, Type *input,
+      Type *weights, Type *bias);
+  static void gemm_tail(elx_conv_t<Type> &xc, Type *output, Type *input,
+      Type *weights, Type *bias);
+};
+
+#define DEF_convolution_direct_1x1_kernel(z, T, nil)                           \
   template <typename Type, const int V, const int I, const bool with_bias,     \
       const bool with_relu, const bool with_sum>                               \
-  static void gemm##T(elx_conv_t<Type> &xc, Type *toutput, Type *tinput,       \
-      Type *tweights, Type *bias);
+  struct convolution_direct_1x1_kernel<Type, 1, T, V, I, with_bias, with_relu, \
+      with_sum> {                                                              \
+    static void gemm(elx_conv_t<Type> &xc, Type *output, Type *input,          \
+        Type *weights, Type *bias);                                            \
+    static void gemm_tail(elx_conv_t<Type> &xc, Type *output, Type *input,     \
+        Type *weights, Type *bias);                                            \
+  };
 
-  BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, DEF_DIRECT_1X1_gemm, nil);
+BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, DEF_convolution_direct_1x1_kernel, nil);
 
-  template <typename Type, const int V, const int I, const bool with_bias,
-      const bool with_relu, const bool with_sum>
-  static void gemm_tail(elx_conv_t<Type> &xc, Type *toutput, Type *tinput,
-      Type *tweights, Type *bias);
-};
 
 } // namespace euler
 
