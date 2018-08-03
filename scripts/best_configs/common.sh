@@ -5,6 +5,7 @@ cat <<!
   -v   Validation on.
   -p   Use plain format.
   -h   This page.
+  -r   ReLU fusion.
 !
 }
 
@@ -13,9 +14,10 @@ input_format=nChw16c
 weights_format=OIhw16i16o
 output_format=nChw16c
 tile_size=5
+r=0
 
 OPTIND=1
-while getopts "vpt:h" opt; do
+while getopts "vprt:h" opt; do
   case $opt in
     v)
       v=1
@@ -24,6 +26,9 @@ while getopts "vpt:h" opt; do
       input_format=nchw
       weights_format=oihw
       output_format=nchw
+      ;;
+    r)
+      r=1
       ;;
     h)
       usage
@@ -34,7 +39,7 @@ while getopts "vpt:h" opt; do
   esac
 done
 
-COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format "
+COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format -r$r"
 
 echo "Common option:" $COMMON
 echo
