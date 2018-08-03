@@ -238,7 +238,6 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 {
-  if (this->with_bias) {
 #undef GEMM_CASE
 #define GEMM_CASE(z, n, data)                                                  \
   case n:                                                                      \
@@ -246,11 +245,21 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
         RELU(false), SUM(false)>::gemm;                                        \
     break;
 
-    switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE, nil)
-    default:
-      el_error("Convolution_direct_1x1: Unimplemented T");
-      break;
+  if (this->with_bias) {
+    if (this->O2 == 8) {
+      if (this->T == 1)
+        ker_bgemm_ = convolution_direct_1x1_kernel<Type, 8, 1, V, I, BIAS(true),
+            RELU(false), SUM(false)>::gemm;
+      else if (this->T == 2)
+        ker_bgemm_ = convolution_direct_1x1_kernel<Type, 8, 2, V, I, BIAS(true),
+            RELU(false), SUM(false)>::gemm;
+    } else {
+      switch (this->T) {
+        BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE, nil)
+      default:
+        el_error("Convolution_direct_1x1: Unimplemented T");
+        break;
+      }
     }
   } else {
 #undef GEMM_CASE
@@ -260,11 +269,20 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
         RELU(false), SUM(false)>::gemm;                                        \
     break;
 
-    switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE, nil)
-    default:
-      el_error("Convolution_direct_1x1: Unimplemented T");
-      break;
+    if (this->O2 == 8) {
+      if (this->T == 1)
+        ker_bgemm_ = convolution_direct_1x1_kernel<Type, 8, 1, V, I,
+            BIAS(false), RELU(false), SUM(false)>::gemm;
+      else if (this->T == 2)
+        ker_bgemm_ = convolution_direct_1x1_kernel<Type, 8, 2, V, I,
+            BIAS(false), RELU(false), SUM(false)>::gemm;
+    } else {
+      switch (this->T) {
+        BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE, nil)
+      default:
+        el_error("Convolution_direct_1x1: Unimplemented T");
+        break;
+      }
     }
   }
 

@@ -50,6 +50,25 @@ struct convolution_direct_1x1_kernel {
 
 BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, DEF_convolution_direct_1x1_kernel, nil);
 
+template <typename Type, const int V, const int I, const bool with_bias,
+    const bool with_relu, const bool with_sum>
+struct convolution_direct_1x1_kernel<Type, 8, 1, V, I, with_bias, with_relu,
+    with_sum> {
+  static void gemm(elx_conv_t<Type> &xc, Type *output, Type *input,
+      Type *weights, Type *bias);
+  static void gemm_tail(elx_conv_t<Type> &xc, Type *output, Type *input,
+      Type *weights, Type *bias);
+};
+
+template <typename Type, const int V, const int I, const bool with_bias,
+    const bool with_relu, const bool with_sum>
+struct convolution_direct_1x1_kernel<Type, 8, 2, V, I, with_bias, with_relu,
+    with_sum> {
+  static void gemm(elx_conv_t<Type> &xc, Type *output, Type *input,
+      Type *weights, Type *bias);
+  static void gemm_tail(elx_conv_t<Type> &xc, Type *output, Type *input,
+      Type *weights, Type *bias);
+};
 
 } // namespace euler
 
