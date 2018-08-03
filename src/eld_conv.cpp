@@ -72,6 +72,7 @@ int eld_conv_t<F>::setup() {
   sizes.input *= (formats.input == fmt_blocked_data) ? IC : ic;
   sizes.weights
       *= (formats.weights == fmt_blocked_weights) ? OC * IC : oc * ic;
+  sizes.weights += 4 * V; // for weights pipeline
   sizes.output *= (formats.output == fmt_blocked_data) ? OC : oc;
   sizes.bias = (formats.output == fmt_blocked_data) ? OC : oc;
 

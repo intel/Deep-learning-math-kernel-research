@@ -246,14 +246,13 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
     break;
 
   if (this->with_bias) {
-    if (this->O2 == 8) {
-      if (this->T == 1)
-        ker_bgemm_ = convolution_direct_1x1_kernel<Type, 8, 1, V, I, BIAS(true),
-            RELU(false), SUM(false)>::gemm;
-      else if (this->T == 2)
-        ker_bgemm_ = convolution_direct_1x1_kernel<Type, 8, 2, V, I, BIAS(true),
-            RELU(false), SUM(false)>::gemm;
-    } else {
+    if (this->O2 == 8 && this->T == 1)
+      ker_bgemm_ = convolution_direct_1x1_kernel<Type, 8, 1, V, I, BIAS(true),
+          RELU(false), SUM(false)>::gemm;
+    else if (this->O2 == 8 && this->T == 2)
+      ker_bgemm_ = convolution_direct_1x1_kernel<Type, 8, 2, V, I, BIAS(true),
+          RELU(false), SUM(false)>::gemm;
+    else {
       switch (this->T) {
         BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE, nil)
       default:
@@ -269,14 +268,13 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
         RELU(false), SUM(false)>::gemm;                                        \
     break;
 
-    if (this->O2 == 8) {
-      if (this->T == 1)
-        ker_bgemm_ = convolution_direct_1x1_kernel<Type, 8, 1, V, I,
-            BIAS(false), RELU(false), SUM(false)>::gemm;
-      else if (this->T == 2)
-        ker_bgemm_ = convolution_direct_1x1_kernel<Type, 8, 2, V, I,
-            BIAS(false), RELU(false), SUM(false)>::gemm;
-    } else {
+    if (this->O2 == 8 && this->T == 1)
+      ker_bgemm_ = convolution_direct_1x1_kernel<Type, 8, 1, V, I, BIAS(false),
+          RELU(false), SUM(false)>::gemm;
+    else if (this->O2 == 8 && this->T == 2)
+      ker_bgemm_ = convolution_direct_1x1_kernel<Type, 8, 2, V, I, BIAS(false),
+          RELU(false), SUM(false)>::gemm;
+    else {
       switch (this->T) {
         BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE, nil)
       default:
