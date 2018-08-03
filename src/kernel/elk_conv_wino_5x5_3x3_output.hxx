@@ -11,37 +11,41 @@
 #endif
 namespace euler {
 
-#define AVX2_CALCULATE_O_0(z, n, nil)                                        \
+#define GENERIC_CALCULATE_O_0(z, n, nil)                                     \
   C(n) = T(n, 0) + T(n, 1) + T(n, 2) + T(n, 3)                               \
       + T(n, 4) + T(n, 5);
-#define AVX2_CALCULATE_O_1(z, n, nil)                                        \
+#define GENERIC_CALCULATE_O_1(z, n, nil)                                     \
   C(n) = T(n, 0) - T(n, 1) + a2 * (T(n, 2) - T(n, 3))                        \
       + a1_2 * (T(n, 4) - T(n, 5));
-#define AVX2_CALCULATE_O_2(z, n, nil)                                        \
+#define GENERIC_CALCULATE_O_2(z, n, nil)                                     \
   C(n) = T(n, 0) + T(n, 1) + a4 * (T(n, 2) + T(n, 3))                        \
       + a1_4* (T(n, 4) + T(n, 5));
-#define AVX2_CALCULATE_O_3(z, n, nil)                                        \
+#define GENERIC_CALCULATE_O_3(z, n, nil)                                     \
   C(n) = T(n, 0) - T(n, 1) + a8 * (T(n, 2) - T(n, 3))                        \
       + a1_8* (T(n, 4) - T(n, 5));
-#define AVX2_CALCULATE_O_4(z, n, nil)                                        \
+#define GENERIC_CALCULATE_O_4(z, n, nil)                                     \
   C(n) = T(n, 0) + T(n, 1) + a16 * (T(n, 2) + T(n, 3))                       \
       + a1_16* (T(n, 4) + T(n, 5)) + T(n, 6);
 
-#define AVX2_CALCULATE_O(n)                                                  \
+#define GENERIC_CALCULATE_O(n)                                               \
   P(0, n) = C(0) + C(1) + C(2) + C(3) + C(4) + C(5);                         \
   if (with_bias_) P(0, n) += B;                                              \
+  if (with_relu_) P(0, n) = P(0, n) > 0 ? P(0, n) : 0;                       \
   P(1, n) = C(0) - C(1) + a2 * (C(2) - C(3)) + a1_2 * (C(4) - C(5));         \
   if (with_bias_) P(1, n) += B;                                              \
+  if (with_relu_) P(1, n) = P(1, n) > 0 ? P(1, n) : 0;                       \
   P(2, n) = C(0) + C(1) + a4 * (C(2) + C(3)) + a1_4 * (C(4) + C(5));         \
   if (with_bias_) P(2, n) += B;                                              \
+  if (with_relu_) P(2, n) = P(2, n) > 0 ? P(2, n) : 0;                       \
   P(3, n) = C(0) - C(1) + a8 * (C(2) - C(3)) + a1_8 * (C(4) - C(5));         \
   if (with_bias_) P(3, n) += B;                                              \
+  if (with_relu_) P(3, n) = P(3, n) > 0 ? P(3, n) : 0;                       \
   P(4, n) = C(0) + C(1) + a16 * (C(2) + C(3)) + a1_16 * (C(4) + C(5));
 
-#define AVX2_ADD_TAIL_0(n, z)                                           \
+#define GENERIC_ADD_TAIL_0(n, z)                                        \
   P(4, n) += T(6, 0) - T(6, 1) + a##z * (T(6, 2) - T(6, 3))             \
       + a1_##z * (T(6, 4) - T(6, 5));
-#define AVX2_ADD_TAIL_1(n, z)                                           \
+#define GENERIC_ADD_TAIL_1(n, z)                                        \
   P(4, n) += T(6, 0) + T(6, 1) + a##z * (T(6, 2) + T(6, 3))             \
       + a1_##z * (T(6, 4) + T(6, 5));
 
@@ -88,35 +92,40 @@ __TRANS_OUTPUT(float, 7, 3, 16, ISA_GENERIC)
 
 #pragma omp simd
   for (int _V = 0; _V < 16; ++_V) {
-    BOOST_PP_REPEAT(6, AVX2_CALCULATE_O_0, nil)
-    AVX2_CALCULATE_O(0)
+    BOOST_PP_REPEAT(6, GENERIC_CALCULATE_O_0, nil)
+    GENERIC_CALCULATE_O(0)
     P(4, 0) += T(6, 0) + T(6, 1) + T(6, 2) + T(6, 3) + T(6, 4) + T(6, 5);
     if (with_bias_) P(4, 0) += B;
+    if (with_relu_) P(4, 0) = P(4, 0) > 0 ? P(4, 0) : 0;
 
 
-    BOOST_PP_REPEAT(6, AVX2_CALCULATE_O_1, nil)
-    AVX2_CALCULATE_O(1)
-    AVX2_ADD_TAIL_0(1, 2)
+    BOOST_PP_REPEAT(6, GENERIC_CALCULATE_O_1, nil)
+    GENERIC_CALCULATE_O(1)
+    GENERIC_ADD_TAIL_0(1, 2)
     if (with_bias_) P(4, 1) += B;
+    if (with_relu_) P(4, 1) = P(4, 1) > 0 ? P(4, 1) : 0;
 
 
-    BOOST_PP_REPEAT(6, AVX2_CALCULATE_O_2, nil)
-    AVX2_CALCULATE_O(2)
-    AVX2_ADD_TAIL_1(2, 4)
+    BOOST_PP_REPEAT(6, GENERIC_CALCULATE_O_2, nil)
+    GENERIC_CALCULATE_O(2)
+    GENERIC_ADD_TAIL_1(2, 4)
     if (with_bias_) P(4, 2) += B;
+    if (with_relu_) P(4, 2) = P(4, 2) > 0 ? P(4, 2) : 0;
 
 
-    BOOST_PP_REPEAT(6, AVX2_CALCULATE_O_3, nil)
-    AVX2_CALCULATE_O(3)
-    AVX2_ADD_TAIL_0(3, 8)
+    BOOST_PP_REPEAT(6, GENERIC_CALCULATE_O_3, nil)
+    GENERIC_CALCULATE_O(3)
+    GENERIC_ADD_TAIL_0(3, 8)
     if (with_bias_) P(4, 3) += B;
+    if (with_relu_) P(4, 3) = P(4, 3) > 0 ? P(4, 3) : 0;
 
 
-    BOOST_PP_REPEAT(6, AVX2_CALCULATE_O_4, nil)
-    AVX2_CALCULATE_O(4)
-    AVX2_ADD_TAIL_1(4, 16)
+    BOOST_PP_REPEAT(6, GENERIC_CALCULATE_O_4, nil)
+    GENERIC_CALCULATE_O(4)
+    GENERIC_ADD_TAIL_1(4, 16)
     P(4, 4) += T(6, 6);
     if (with_bias_) P(4, 4) += B;
+    if (with_relu_) P(4, 4) = P(4, 4) > 0 ? P(4, 4) : 0;
   }
 }
 
@@ -140,24 +149,36 @@ __TRANS_OUTPUT(float, 7, 3, 16, ISA_GENERIC)
   __m512 p0##n = ADD(ADD(ADD(ADD(ADD(c0, c1), c2), c3), c4), c5);              \
   if (with_bias_)                                                              \
     p0##n = ADD(p0##n, *(__m512*)bias);                                        \
+  if (with_relu_) {                                                            \
+    zero = XOR(zero, zero);                                                    \
+    p0##n = MAX(p0##n, zero);                                                  \
+  }                                                                            \
   _mm512_store_ps(P(0, n), p0##n);                                             \
   __m512 p1##n = ADD(FMADD(z2, SUB(c2, c3), c0), FMSUB(z1_2, SUB(c4, c5), c1));\
   if (with_bias_)                                                              \
     p1##n = ADD(p1##n, *(__m512*)bias);                                        \
+  if (with_relu_)                                                              \
+    p1##n = MAX(p1##n, zero);                                                  \
   _mm512_store_ps(P(1, n), p1##n);                                             \
   __m512 p2##n = ADD(FMADD(z4, ADD(c2, c3), c0), FMADD(z1_4, ADD(c4, c5), c1));\
   if (with_bias_)                                                              \
     p2##n = ADD(p2##n, *(__m512*)bias);                                        \
+  if (with_relu_)                                                              \
+    p2##n = MAX(p2##n, zero);                                                  \
   _mm512_store_ps(P(2, n), p2##n);                                             \
   __m512 p3##n = ADD(FMADD(z8, SUB(c2, c3), c0), FMSUB(z1_8, SUB(c4, c5), c1));\
   if (with_bias_)                                                              \
     p3##n = ADD(p3##n, *(__m512*)bias);                                        \
+  if (with_relu_)                                                              \
+    p3##n = MAX(p3##n, zero);                                                  \
   _mm512_store_ps(P(3, n), p3##n);                                             \
   __m512 p4##n = ADD(FMADD(z16, ADD(c2, c3), c0), FMADD(z1_16, ADD(c4, c5), c1));
 
 #define AVX512_ADD_B(n);                                                       \
   if (with_bias_)                                                              \
     p4##n = ADD(p4##n, *(__m512*)bias);                                        \
+  if (with_relu_)                                                              \
+    p4##n = MAX(p4##n, zero);                                                  \
   _mm512_store_ps(P(4, n), p4##n);
 
 // template <const bool is_border_, const bool with_bias_>
@@ -188,7 +209,7 @@ __TRANS_OUTPUT(float, 7, 3, 16, ISA_SKX_AVX512)
 #define T(_h, _w) atoutput[_w][_h]
 #define P(_h, _w) p_cb(_h, _w)
 
-  __m512 c0, c1, c2, c3, c4, c5;
+  __m512 c0, c1, c2, c3, c4, c5, zero;
 
   __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
   __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
@@ -331,18 +352,23 @@ __TRANS_OUTPUTA_TH( float, 7, 3, 16, ISA_SKX_AVX512)
   P(n, 0) = T(n, 0) + T(n, 1) + T(n, 2) + T(n, 3) + T(n, 4)       \
       + T(n, 5);                                                  \
   if (with_bias_) P(n, 0) += B;                                   \
+  if (with_relu_) P(n, 0) = P(n, 0) > 0 ? P(n, 0) : 0;            \
   P(n, 1) = T(n, 0) - T(n, 1) + z2 * (T(n, 2) - T(n, 3))          \
       + z1_2 * (T(n, 4) - T(n,5));                                \
   if (with_bias_) P(n, 1) += B;                                   \
+  if (with_relu_) P(n, 1) = P(n, 1) > 0 ? P(n, 1) : 0;            \
   P(n, 2) = T(n, 0) + T(n, 1) + z4 * (T(n, 2) + T(n, 3))          \
       + z1_4 * (T(n, 4) + T(n,5));                                \
   if (with_bias_) P(n, 2) += B;                                   \
+  if (with_relu_) P(n, 2) = P(n, 2) > 0 ? P(n, 2) : 0;            \
   P(n, 3) = T(n, 0) - T(n, 1) + z8 * (T(n, 2) - T(n, 3))          \
       + z1_8 * (T(n, 4) - T(n,5));                                \
   if (with_bias_) P(n, 3) += B;                                   \
+  if (with_relu_) P(n, 3) = P(n, 3) > 0 ? P(n, 3) : 0;            \
   P(n, 4) = T(n, 0) + T(n, 1) + z16 * (T(n, 2) + T(n, 3))         \
       + z1_16 * (T(n, 4) + T(n,5)) + T(n, 6);                     \
-  if (with_bias_) P(n, 4) += B;
+  if (with_bias_) P(n, 4) += B;                                   \
+  if (with_relu_) P(n, 4) = P(n, 4) > 0 ? P(n, 4) : 0;
 
 // template <const bool is_border_, const bool with_bias_>
 // Params:
@@ -399,14 +425,19 @@ __TRANS_OUTPUTA_BH(float, 7, 3, 16, ISA_GENERIC)
                                                                     \
   p0 = ADD(ADD(ADD(ADD(ADD(t0, t1), t2), t3), t4), t5);             \
   if (with_bias_) p0 = ADD(p0, *(__m512*)bias);                     \
+  if (with_relu_) { zero = XOR(zero, zero); p0 = MAX(p0, zero); }     \
   p1 = ADD(FMADD(z2, SUB(t2, t3), t0), FMSUB(z1_2, SUB(t4, t5), t1)); \
   if (with_bias_) p1 = ADD(p1, *(__m512*)bias);                       \
+  if (with_relu_) p1 = MAX(p1, zero);                                 \
   p2 = ADD(FMADD(z4, ADD(t2, t3), t0), FMADD(z1_4, ADD(t4, t5), t1)); \
   if (with_bias_) p2 = ADD(p2, *(__m512*)bias);                       \
+  if (with_relu_) p2 = MAX(p2, zero);                                 \
   p3 = ADD(FMADD(z8, SUB(t2, t3), t0), FMSUB(z1_8, SUB(t4, t5), t1)); \
   if (with_bias_) p3 = ADD(p3, *(__m512*)bias);                       \
+  if (with_relu_) p3 = MAX(p3, zero);                                 \
   p4 = ADD(FMADD(z16, ADD(t2, t3), ADD(t0, t1)), FMADD(z1_16, ADD(t4, t5), t6)); \
   if (with_bias_) p4 = ADD(p4, *(__m512*)bias);                       \
+  if (with_relu_) p4 = MAX(p4, zero);                                 \
                                                                       \
   _mm512_store_ps(P(n,0), p0);                                        \
   _mm512_store_ps(P(n,1), p1);                                        \
@@ -451,7 +482,7 @@ __TRANS_OUTPUTA_BH(float, 7, 3, 16, ISA_SKX_AVX512)
   __m512 z1_8 = _mm512_set_ps(IMM_BCAST16(1.0f / 8.0f));
   __m512 z1_16 = _mm512_set_ps(IMM_BCAST16(1.0f / 16.0f));
 
-  __m512 t0, t1, t2, t3, t4, t5, t6, p0, p1, p2, p3, p4;
+  __m512 t0, t1, t2, t3, t4, t5, t6, p0, p1, p2, p3, p4, zero;
 
   BOOST_PP_REPEAT(5, AVX512_BH_CALCULATE_TILE_7, nil)
 }
