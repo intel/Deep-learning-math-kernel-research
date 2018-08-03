@@ -21,6 +21,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a060(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a061(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a069(Type *output, Type *input, Type *weights, Type *bias);
 
   inline void __trans_input_plain(Type *tinput, Type *input);
   inline void __trans_input_blocked(Type *tinput, Type *input);
@@ -41,6 +42,10 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   inline void __trans_weights_plain(Type *tweights, Type *weights);
   inline void __trans_weights_blocked(Type *tweights, Type *weights);
   void trans_weights(Type *tweights, Type *weights);
+
+  inline void __trans_weights_blocked(Type *tweights, Type *weights, int _oc4);
+  inline void __trans_weights_plain(Type *tweights, Type *weights, int _oc4);
+  void trans_weights(Type *tweights, Type *weights, int _oc4);
 
   void gemm(Type *toutput, Type *tinput, Type *tweights);
   void gemm(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);

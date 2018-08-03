@@ -183,6 +183,13 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
     l2_usage = tweights_size / this->oc4
         + this->T * (this->IC + this->OC / this->oc4);
     break;
+  case 0xa069:
+    tweights_size = this->IC * (this->OC / this->oc4) * mthr_;
+    tinput_size = this->IC * this->T * mthr_;
+    toutput_size = (this->OC / this->oc4) * this->T * mthr_;
+    l2_usage = tweights_size / this->oc4
+        + this->T * (this->IC + this->OC / this->oc4);
+    break;
   case 0xa201:
     tweights_size = this->IC * this->OC;
     tinput_size = this->IC * this->T * this->t2 * this->nteams;
@@ -287,6 +294,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
     EXECUTE_CASE(a000);
     EXECUTE_CASE(a060);
     EXECUTE_CASE(a061);
+    EXECUTE_CASE(a069);
   default:
     el_error("Unimplemented");
     break;
@@ -620,6 +628,61 @@ void elx_conv_direct_1x1_t<Type, V, I>::trans_weights(
 }
 
 template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_blocked(
+    Type *tweights, Type *weights, int _oc4)
+{
+  MD7(Type, aweights, weights, this->oc4, this->oc3, this->O2, this->ic3, this->I2, V, V);
+  MD6(Type, atweights, tweights, this->oc3, this->ic3, this->O2, this->I2, V,  V);
+
+  for_each (_oc3, this->oc3) {
+    for_each (_ic3, this->ic3) {
+      for_each (_O2, this->O2) {
+        for_each (_I2, this->I2) {
+          for_each (_iV, V) {
+            if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+              if (stream_wei_)
+                _mm512_stream_ps(
+                    &md6(atweights, _oc3, _ic3, _O2, _I2, _iV, 0),
+                    *(__m512 *)&md7(
+                        aweights, _oc4, _oc3, _O2, _ic3, _I2, _iV, 0));
+              else
+                _mm512_store_ps(
+                    &md6(atweights, _oc3, _ic3, _O2, _I2, _iV, 0),
+                    *(__m512 *)&md7(
+                        aweights, _oc4, _oc3, _O2, _ic3, _I2, _iV, 0));
+            } else {
+#pragma omp simd
+              for_each (_oV, V) {
+                md6(atweights, _oc3, _ic3, _O2, _I2, _iV, _oV)
+                    = md7(aweights, _oc4, _oc3, _O2, _ic3, _I2, _iV, _oV);
+                ;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_plain(
+    Type *tweights, Type *weights, int _oc4)
+{
+  // TODO
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::trans_weights(
+    Type *tweights, Type *weights, int _oc4)
+{
+  if (weights_is_bfmt_ || weights_as_bfmt_)
+    __trans_weights_blocked(tweights, weights, _oc4);
+  else
+    __trans_weights_plain(tweights, weights, _oc4);
+}
+
+template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::__execute_a000(
     Type *output, Type *input, Type *weights, Type *bias)
 {
@@ -702,6 +765,36 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a061(
   }
   if (inference_acc_)
     is_first_run_ = false;
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__execute_a069(
+    Type *output, Type *input, Type *weights, Type *bias)
+{
+  MD2(Type, atinput2, tinput_, mthr_, this->T * this->IC);
+  MD2(Type, atoutput2, toutput_, mthr_, this->T * this->oc3 * this->O2 * V);
+  MD2(Type, atweights2, tweights_, mthr_, this->IC * this->oc3 * this->O2 * V);
+
+  MD3(Type, aoutput, output, this->n, this->oc4, this->oh * this->ow * this->oc3 * this->O2 * V);
+  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+  {
+#pragma omp for nowait collapse(2)
+    for_each (_t2, this->t2) {
+      for_each (_oc4, this->oc4) {
+        int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+        size_t ithr = omp_get_thread_num();
+
+        trans_weights(&md2(atweights2, ithr, 0), weights, _oc4);
+        trans_input(&md2(atinput2, ithr, 0), input, _t2, Tz);
+        gemm(&md2(atoutput2, ithr, 0), &md2(atinput2, ithr, 0),
+            &md2(atweights2, ithr, 0), _t2, Tz);
+        trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
+            &md2(abias, _oc4, 0), _t2, Tz);
+      }
+    }
+  }
 }
 
 template <typename Type, const int V, const int I>
