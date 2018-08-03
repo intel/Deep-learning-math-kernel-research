@@ -8,7 +8,7 @@ namespace euler {
 // Convolution algorithm
 enum {
     CONV_AUTO = 0,
-    CONV_DIRECT_1x1 = 1,
+    CONV_DIRECT_1X1 = 1,
     CONV_DIRECT = 2,
     CONV_WINOGRAD = 3
 };

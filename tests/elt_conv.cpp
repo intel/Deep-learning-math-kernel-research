@@ -158,8 +158,8 @@ int parse_cmd_options(int argc, char **argv) {
       alg = CONV_WINOGRAD;
     else if (alg_str == "DIRECT")
       alg = CONV_DIRECT;
-    else if (alg_str == "DIRECT_1x1")
-      alg = CONV_DIRECT_1x1;
+    else if (alg_str == "DIRECT_1X1")
+      alg = CONV_DIRECT_1X1;
     else {
       printf("Error: convolution options: alg should be auto|wino|direct|direct_1x1\n");
       return -1;
@@ -235,7 +235,7 @@ int parse_cmd_options(int argc, char **argv) {
     {CONV_AUTO, "CONV_AUTO"},
     {CONV_WINOGRAD, "CONV_WINOGRAD"},
     {CONV_DIRECT, "CONV_DIRECT"},
-    {CONV_DIRECT_1x1, "CONV_DIRECT_1x1"}
+    {CONV_DIRECT_1X1, "CONV_DIRECT_1X1"}
   };
   printf("alg:%s", alg_str[alg]);
   if (alg == CONV_WINOGRAD)

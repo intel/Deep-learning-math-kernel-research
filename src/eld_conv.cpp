@@ -94,7 +94,7 @@ int eld_conv_t<F>::setup() {
 
   if (algorithm == CONV_AUTO) {
     if (dims.weights.h == 1 && dims.weights.w == 1) {
-      algorithm = CONV_DIRECT_1x1;
+      algorithm = CONV_DIRECT_1X1;
     } else if (dims.weights.h == 3 && dims.weights.w == 3 && dilations.h == 1
         && dilations.w == 1 && strides.h == 1 && strides.w == 1 && pads.l == 1
         && pads.r == 1 && pads.t == 1 && pads.b == 1) {
@@ -109,9 +109,9 @@ int eld_conv_t<F>::setup() {
     el_error("Algorithm CONV_DIRECT not implemented");
     // TODO: Direct
     return ELD_UNIMPLEMENTED;
-  } else if (algorithm == CONV_DIRECT_1x1) {
+  } else if (algorithm == CONV_DIRECT_1X1) {
     if (dims.weights.h != 1 || dims.weights.w != 1) {
-      el_error("Algorithm CONV_DIRECT_1x1 not supported for this shape.");
+      el_error("Algorithm CONV_DIRECT_1X1 not supported for this shape.");
       return ELD_GENERAL_ERROR;
     }
     xc = new elx_conv_direct_1x1_t<F, 16, ISA_SKX_AVX512>(*this);
