@@ -365,6 +365,9 @@ namespace test {
                   md4(aoutput, _n, _oc, _oh, _ow)
                       += md4(ainput, _n, _ic, _ih, _iw)
                       * md4(aweights, _oc, _ic, _kh, _kw);
+                  md4(aoutput, _n, _oc, _oh, _ow) =
+                      desc.with_relu && md4(aoutput, _n, _oc, _oh, _ow) < 0 ?
+                      0 : md4(aoutput, _n, _oc, _oh, _ow);
                 }
               }
             }
@@ -449,6 +452,10 @@ namespace test {
                       md5(aoutput, _n, _OC, _oh, _ow, _ov)
                           += md5(ainput, _n, _IC, _ih, _iw, _iv)
                           * md6(aweights, _OC, _IC, _kh, _kw, _iv, _ov);
+                      md5(aoutput, _n, _OC, _oh, _ow, _ov) =
+                          desc.with_relu &&
+                          md5(aoutput, _n, _OC, _oh, _ow, _ov) < 0 ?
+                          0 : md5(aoutput, _n, _OC, _oh, _ow, _ov);
                     }
                   }
                 }
