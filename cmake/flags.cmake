@@ -29,6 +29,7 @@ else ()
     set(__opt_flags "-O2 -DNDEBUG")
   endif ()
   set(__opt_flags "${__opt_flags} -mavx512f")
+  set(__opt_flags "${__opt_flags} -mavx512dq")
 endif()
 
 add_definitions(${__basic_flags} ${__cxx_flags} ${__opt_flags})
