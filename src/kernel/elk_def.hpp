@@ -40,6 +40,13 @@
   BOOST_PP_SEQ_FOR_EACH(                                                       \
       EXPAND_2D, _, BOOST_PP_SEQ_FOR_EACH_PRODUCT(TUPLE, (s1)(s2)))
 
+#define EXPAND_2D_OP(_, op, seq)                                               \
+  op(BOOST_PP_TUPLE_ELEM(2, 0, seq), BOOST_PP_TUPLE_ELEM(2, 1, seq));
+
+#define MATRIX_OP(op, m, n)                                                    \
+  BOOST_PP_SEQ_FOR_EACH(                                                       \
+      EXPAND_2D_OP, op, BOOST_PP_SEQ_FOR_EACH_PRODUCT(TUPLE, (M##m)(M##n)))
+
 #define IMM_BCAST16(x) x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x
 
 // TODO: avx2/sse
