@@ -102,7 +102,7 @@ namespace euler {
       }                                                                        \
     }                                                                          \
   }
-BOOST_PP_REPEAT_FROM_TO(1, 29, DEF_function_gemm1, nil);
+//BOOST_PP_REPEAT_FROM_TO(1, 29, DEF_function_gemm1, nil);
 
 #define GEMM29_AVX512_FMA0(z, n, nil)                                          \
   x = _mm512_set1_ps(md6(ainput, _ic3, _I2, 0, n, _V, 0));                     \
@@ -164,7 +164,7 @@ BOOST_PP_REPEAT_FROM_TO(1, 29, DEF_function_gemm1, nil);
       }                                                                        \
     }                                                                          \
   }
-BOOST_PP_REPEAT_FROM_TO(29, 31, DEF_function_gemm29, nil);
+//BOOST_PP_REPEAT_FROM_TO(29, 31, DEF_function_gemm29, nil);
 
 #define DEF_function_gemm31(z, T, nil)                                         \
   template <typename Type, const int V, const int I, const bool with_bias,     \
@@ -203,7 +203,7 @@ BOOST_PP_REPEAT_FROM_TO(29, 31, DEF_function_gemm29, nil);
       }                                                                        \
     }                                                                          \
   }
-BOOST_PP_REPEAT_FROM_TO(31, MAX_FMA_PRL, DEF_function_gemm31, nil);
+//BOOST_PP_REPEAT_FROM_TO(31, MAX_FMA_PRL, DEF_function_gemm31, nil);
 
 #define INST_CONVOLUTION_DIRECT_1X1_KERNEL(z, T, nil)                          \
   template void convolution_direct_1x1_kernel<float, 1, T, 16, ISA_SKX_AVX512, \
@@ -213,6 +213,6 @@ BOOST_PP_REPEAT_FROM_TO(31, MAX_FMA_PRL, DEF_function_gemm31, nil);
       BIAS(true), RELU(false), SUM(false)>::gemm(elx_conv_t<float> &, float *, \
       float *, float *, float *);
 
-BOOST_PP_REPEAT_FROM_TO( 1, MAX_FMA_PRL, INST_CONVOLUTION_DIRECT_1X1_KERNEL, nil);
+//BOOST_PP_REPEAT_FROM_TO( 1, MAX_FMA_PRL, INST_CONVOLUTION_DIRECT_1X1_KERNEL, nil);
 
 }

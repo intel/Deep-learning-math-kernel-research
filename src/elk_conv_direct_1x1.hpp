@@ -37,38 +37,73 @@ struct convolution_direct_1x1_kernel {
       Type *weights, Type *bias);
 };
 
-#define DEF_convolution_direct_1x1_kernel(z, T, nil)                           \
+#define DEF_convolution_direct_1x1_kernel(O, T)                                \
   template <typename Type, const int V, const int I, const bool with_bias,     \
       const bool with_relu, const bool with_sum>                               \
-  struct convolution_direct_1x1_kernel<Type, 1, T, V, I, with_bias, with_relu, \
+  struct convolution_direct_1x1_kernel<Type, O, T, V, I, with_bias, with_relu, \
       with_sum> {                                                              \
     static void gemm(elx_conv_t<Type> &xc, Type *output, Type *input,          \
         Type *weights, Type *bias);                                            \
     static void gemm_tail(elx_conv_t<Type> &xc, Type *output, Type *input,     \
         Type *weights, Type *bias);                                            \
   };
-
-BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, DEF_convolution_direct_1x1_kernel, nil);
-
-template <typename Type, const int V, const int I, const bool with_bias,
-    const bool with_relu, const bool with_sum>
-struct convolution_direct_1x1_kernel<Type, 8, 1, V, I, with_bias, with_relu,
-    with_sum> {
-  static void gemm(elx_conv_t<Type> &xc, Type *output, Type *input,
-      Type *weights, Type *bias);
-  static void gemm_tail(elx_conv_t<Type> &xc, Type *output, Type *input,
-      Type *weights, Type *bias);
-};
-
-template <typename Type, const int V, const int I, const bool with_bias,
-    const bool with_relu, const bool with_sum>
-struct convolution_direct_1x1_kernel<Type, 8, 2, V, I, with_bias, with_relu,
-    with_sum> {
-  static void gemm(elx_conv_t<Type> &xc, Type *output, Type *input,
-      Type *weights, Type *bias);
-  static void gemm_tail(elx_conv_t<Type> &xc, Type *output, Type *input,
-      Type *weights, Type *bias);
-};
+DEF_convolution_direct_1x1_kernel(1, 1);
+DEF_convolution_direct_1x1_kernel(1, 2);
+DEF_convolution_direct_1x1_kernel(1, 3);
+DEF_convolution_direct_1x1_kernel(1, 4);
+DEF_convolution_direct_1x1_kernel(1, 5);
+DEF_convolution_direct_1x1_kernel(1, 6);
+DEF_convolution_direct_1x1_kernel(1, 7);
+DEF_convolution_direct_1x1_kernel(1, 8);
+DEF_convolution_direct_1x1_kernel(1, 9);
+DEF_convolution_direct_1x1_kernel(1, 10);
+DEF_convolution_direct_1x1_kernel(1, 11);
+DEF_convolution_direct_1x1_kernel(1, 12);
+DEF_convolution_direct_1x1_kernel(1, 13);
+DEF_convolution_direct_1x1_kernel(1, 14);
+DEF_convolution_direct_1x1_kernel(1, 15);
+DEF_convolution_direct_1x1_kernel(1, 16);
+DEF_convolution_direct_1x1_kernel(1, 17);
+DEF_convolution_direct_1x1_kernel(1, 18);
+DEF_convolution_direct_1x1_kernel(1, 19);
+DEF_convolution_direct_1x1_kernel(1, 20);
+DEF_convolution_direct_1x1_kernel(1, 21);
+DEF_convolution_direct_1x1_kernel(1, 22);
+DEF_convolution_direct_1x1_kernel(1, 23);
+DEF_convolution_direct_1x1_kernel(1, 24);
+DEF_convolution_direct_1x1_kernel(1, 25);
+DEF_convolution_direct_1x1_kernel(1, 26);
+DEF_convolution_direct_1x1_kernel(1, 27);
+DEF_convolution_direct_1x1_kernel(1, 28);
+DEF_convolution_direct_1x1_kernel(1, 29);
+DEF_convolution_direct_1x1_kernel(1, 30);
+DEF_convolution_direct_1x1_kernel(1, 31);
+DEF_convolution_direct_1x1_kernel(1, 32);
+DEF_convolution_direct_1x1_kernel(1, 33);
+DEF_convolution_direct_1x1_kernel(1, 34);
+DEF_convolution_direct_1x1_kernel(1, 35);
+DEF_convolution_direct_1x1_kernel(2, 1);
+DEF_convolution_direct_1x1_kernel(2, 2);
+DEF_convolution_direct_1x1_kernel(2, 3);
+DEF_convolution_direct_1x1_kernel(2, 4);
+DEF_convolution_direct_1x1_kernel(2, 5);
+DEF_convolution_direct_1x1_kernel(2, 6);
+DEF_convolution_direct_1x1_kernel(2, 7);
+DEF_convolution_direct_1x1_kernel(2, 8);
+DEF_convolution_direct_1x1_kernel(2, 9);
+DEF_convolution_direct_1x1_kernel(2, 10);
+DEF_convolution_direct_1x1_kernel(2, 11);
+DEF_convolution_direct_1x1_kernel(2, 12);
+DEF_convolution_direct_1x1_kernel(2, 13);
+DEF_convolution_direct_1x1_kernel(2, 14);
+DEF_convolution_direct_1x1_kernel(4, 1);
+DEF_convolution_direct_1x1_kernel(4, 2);
+DEF_convolution_direct_1x1_kernel(4, 3);
+DEF_convolution_direct_1x1_kernel(4, 4);
+DEF_convolution_direct_1x1_kernel(4, 5);
+DEF_convolution_direct_1x1_kernel(4, 6);
+DEF_convolution_direct_1x1_kernel(8, 1);
+DEF_convolution_direct_1x1_kernel(8, 2);
 
 } // namespace euler
 
