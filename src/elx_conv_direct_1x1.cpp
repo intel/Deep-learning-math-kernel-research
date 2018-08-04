@@ -71,12 +71,18 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   this->oc3 = this->oc2 / this->O2;
   this->ic3 = this->ic2 / this->I2;
 
-  this->t2 = (this->t + this->T - 1) / this->T;
+  xopt_ = this->execution_mode;
+
+  if (xopt_ == 0xb000) {
+    this->t3 = this->n;
+    this->t2 = (this->nt + this->T - 1) / this->T;
+  } else {
+    this->t2 = (this->t + this->T - 1) / this->T;
+  }
 
   // In case of Ir != V && blocked-format, assume bias also
   // padded to Vx.
 
-  xopt_ = this->execution_mode;
   if (!(xopt_ & XOPT_MSK)) {
     // TODO: deduce xopt
     xopt_ = TTM_O | FUS_T | DUP_I;
@@ -206,7 +212,6 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
         + this->T * (this->IC + this->OC / this->oc4);
     break;
   case 0xb000:
-    this->t3 = this->n;
     break;
   default:
       el_error("Config error!");
