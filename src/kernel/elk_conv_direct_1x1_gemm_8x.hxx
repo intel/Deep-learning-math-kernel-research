@@ -176,7 +176,8 @@ namespace euler {
         MATRIX_OP(LOAD_OUTPUT, O, T);                                          \
       }                                                                        \
       for_each (_I2, xc.I2) {                                                  \
-        for_each (_V, V) {                                                     \
+        pragma_unroll for_each (_V, V)                                         \
+        {                                                                      \
           MATRIX_OP(LOAD_WEIGHTS, O, 1);                                       \
           COMPUTE_OUTPUT(O, T);                                                \
         }                                                                      \
@@ -221,9 +222,10 @@ namespace euler {
         MATRIX_OP(LOAD_OUTPUT, O, T);                                          \
       }                                                                        \
       for_each (_I2, xc.I2) {                                                  \
-        for_each (_V, V / 2) {                                                 \
+        pragma_unroll for_each (_V, V / 2)                                     \
+        {                                                                      \
           MATRIX_OP(P2_LOAD_WEIGHTS_1, O, 1);                                  \
-          P2_COMPUTE_OUTPUT_0( O, T);                                          \
+          P2_COMPUTE_OUTPUT_0(O, T);                                           \
                                                                                \
           MATRIX_OP(P2_LOAD_WEIGHTS_0, O, 1);                                  \
           P2_COMPUTE_OUTPUT_1(O, T);                                           \
@@ -269,7 +271,8 @@ namespace euler {
         MATRIX_OP(LOAD_OUTPUT, O, T);                                          \
       }                                                                        \
       for_each (_I2, xc.I2) {                                                  \
-        for_each (_V, V / 4) {                                                 \
+        pragma_unroll for_each (_V, V / 4)                                     \
+        {                                                                      \
           MATRIX_OP(P4_LOAD_WEIGHTS_2, O, 1);                                  \
           P4_COMPUTE_OUTPUT_0(O, T);                                           \
                                                                                \
@@ -292,9 +295,6 @@ namespace euler {
   template void convolution_direct_1x1_kernel<float, O, T, 16, ISA_SKX_AVX512, \
       BIAS(true), RELU(false), SUM(false)>::gemm(elx_conv_t<float> &, float *, \
       float *, float *, float *);
-
-
-
 
 // O=1, T:
 //    T=31..:  kernel: 1, output: 31..
