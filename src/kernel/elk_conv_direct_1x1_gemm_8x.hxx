@@ -355,6 +355,20 @@ CONV1X1_GEMM_P2(2, 12);
 CONV1X1_GEMM_P2(2, 13);
 CONV1X1_GEMM_P1(2, 14);
 
+
+// O=3, T:
+//    T=8:     bcast: 1, kernel 3, output: 24
+//    T=7:     bcast: 1, kernel 6, output: 21 (pipeline: 2)
+//    T=1..6:  bcast: 1, kernel 12, output: 3..18 (pipeline: 4)
+CONV1X1_GEMM_P4(3, 1);
+CONV1X1_GEMM_P4(3, 2);
+CONV1X1_GEMM_P4(3, 3);
+CONV1X1_GEMM_P4(3, 4);
+CONV1X1_GEMM_P4(3, 5);
+CONV1X1_GEMM_P4(3, 6);
+CONV1X1_GEMM_P2(3, 7);
+CONV1X1_GEMM_P1(3, 8);
+
 // O=4, T:
 //    T=6:     bcast: 1, kernel: 4, outupt: 24
 //    T=1..5:  bcast: 1, kernel: 8, outupt: 4..20 (pipeline: 2)

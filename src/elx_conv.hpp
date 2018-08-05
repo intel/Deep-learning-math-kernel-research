@@ -34,8 +34,8 @@ struct elx_conv_t {
   // register working set
   int T;
   // padding (IC/OC) & tailing dimensions: Ir, Or, Tr
-  int IC, OC, Ir, Or, Tr;
-  // 2nd/3rd level cache blocking unit(in pack) to ic, oc
+  int IC, OC, Ir, Or, Tr, O2r;
+  // 2nd/r3d level cache blocking unit(in pack) to ic, oc
   int I2, O2, I3, O3;
   // padding
   int lp, rp, tp, bp;
