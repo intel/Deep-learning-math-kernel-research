@@ -270,6 +270,9 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
     else if (this->O2 == 4 && this->T == 6)
       ker_bgemm_ = convolution_direct_1x1_kernel<Type, 4, 6, V, I, BIAS(true),
           RELU(false), SUM(false)>::gemm;
+    else if (this->O2 == 4 && this->T == 7)
+      ker_bgemm_ = convolution_direct_1x1_kernel<Type, 4, 7, V, I, BIAS(true),
+          RELU(false), SUM(false)>::gemm;
     else if (this->O2 == 2 && this->T == 1)
       ker_bgemm_ = convolution_direct_1x1_kernel<Type, 2, 1, V, I, BIAS(true),
           RELU(false), SUM(false)>::gemm;
@@ -353,6 +356,9 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
           RELU(false), SUM(false)>::gemm;
     else if (this->O2 == 4 && this->T == 6)
       ker_bgemm_ = convolution_direct_1x1_kernel<Type, 4, 6, V, I, BIAS(false),
+          RELU(false), SUM(false)>::gemm;
+    else if (this->O2 == 4 && this->T == 7)
+      ker_bgemm_ = convolution_direct_1x1_kernel<Type, 4, 7, V, I, BIAS(false),
           RELU(false), SUM(false)>::gemm;
     else if (this->O2 == 2 && this->T == 1)
       ker_bgemm_ = convolution_direct_1x1_kernel<Type, 2, 1, V, I, BIAS(false),

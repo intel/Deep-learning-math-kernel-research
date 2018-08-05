@@ -102,6 +102,7 @@ DEF_convolution_direct_1x1_kernel(4, 3);
 DEF_convolution_direct_1x1_kernel(4, 4);
 DEF_convolution_direct_1x1_kernel(4, 5);
 DEF_convolution_direct_1x1_kernel(4, 6);
+DEF_convolution_direct_1x1_kernel(4, 7);
 DEF_convolution_direct_1x1_kernel(8, 1);
 DEF_convolution_direct_1x1_kernel(8, 2);
 
