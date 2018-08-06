@@ -50,9 +50,18 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   this->t = this->nt * this->n;
 
   // TODO: santize user settings
-  if (this->I2 == 0) this->I2 = 4; // TODO: I2 selection
-  if (this->O2 == 0) this->O2 = 2; // TODO: O2 selection
-  if (this->T == 0)  this->T = 18; // TODO: T selection
+  if (this->I2 == 0) this->I2 = this->ic2;
+  if (this->O2 == 0) this->O2 = 3; // TODO: O2 selection
+  if (this->T == 0)  this->T = 1; // TODO: T selection
+
+  if (this->nt % this->T != 0) {
+    el_error("Unimplemented: T is not a factor of oh * ow");
+    return;
+  }
+  if (this->O2 > 4) {
+    el_error("Unimplemented: O2 > 4");
+    return;
+  }
 
   // Tailing
   this->Tr = this->t % this->T ? this->t % this->T : this->T;
