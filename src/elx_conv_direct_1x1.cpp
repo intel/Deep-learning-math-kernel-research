@@ -241,47 +241,55 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 {
-#define GEMM_CASE_b(z, T, O)                                                   \
+#define GEMM_CASE(z, T, O)                                                     \
   case T:                                                                      \
-    ker_bgemm_ = convolution_direct_1x1_kernel<Type, O, T, V, I, BIAS(true),   \
-        RELU(false), SUM(false)>::gemm;                                        \
+    if (this->with_bias)                                                       \
+      ker_bgemm_ = convolution_direct_1x1_kernel<Type, O, T, V, I, BIAS(true), \
+          RELU(false), SUM(false)>::gemm;                                      \
+    else                                                                       \
+      ker_bgemm_ = convolution_direct_1x1_kernel<Type, O, T, V, I,             \
+          BIAS(false), RELU(false), SUM(false)>::gemm;                         \
     break;
-#define GEMM0_CASE_b(z, T, O)                                                  \
+#define GEMM0_CASE(z, T, O)                                                    \
   case T:                                                                      \
-    ker_bgemm0_ = convolution_direct_1x1_kernel<Type, O, T, V, I, BIAS(true),  \
-        RELU(false), SUM(false)>::gemm;                                        \
+    if (this->with_bias)                                                       \
+      ker_bgemm0_ = convolution_direct_1x1_kernel<Type, O, T, V, I,            \
+          BIAS(true), RELU(false), SUM(false)>::gemm;                          \
+    else                                                                       \
+      ker_bgemm0_ = convolution_direct_1x1_kernel<Type, O, T, V, I,            \
+          BIAS(false), RELU(false), SUM(false)>::gemm;                         \
     break;
 
   switch (this->O2) {
   case 1:
     switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE_b, 1);
+      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE, 1);
     default:
-      el_error("Convolution_direct_1x1: Unimplemented T in O=1");
+      el_error("Convolution_direct_1x1: Unimplemented T>32 in O=1");
       break;
     }
     break;
   case 2:
     switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, 15, GEMM_CASE_b, 2);
+      BOOST_PP_REPEAT_FROM_TO(1, 15, GEMM_CASE, 2);
     default:
-      el_error("Convolution_direct_1x1: Unimplemented T in O=2");
+      el_error("Convolution_direct_1x1: Unimplemented T>14 in O=2");
       break;
     }
     break;
   case 3:
     switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, 9, GEMM_CASE_b, 3);
+      BOOST_PP_REPEAT_FROM_TO(1, 9, GEMM_CASE, 3);
     default:
-      el_error("Convolution_direct_1x1: Unimplemented T in O=3");
+      el_error("Convolution_direct_1x1: Unimplemented T>8 in O=3");
       break;
     }
     break;
   case 4:
     switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, 7, GEMM_CASE_b, 4);
+      BOOST_PP_REPEAT_FROM_TO(1, 8, GEMM_CASE, 4);
     default:
-      el_error("Convolution_direct_1x1: Unimplemented T in O=4");
+      el_error("Convolution_direct_1x1: Unimplemented T>7 in O=4");
       break;
     }
     break;
@@ -292,33 +300,33 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
   switch (this->O2r) {
   case 1:
     switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM0_CASE_b, 1);
+      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM0_CASE, 1);
     default:
-      el_error("Convolution_direct_1x1: Unimplemented T in O=1");
+      el_error("Convolution_direct_1x1: Unimplemented T>32 in O=1");
       break;
     }
     break;
   case 2:
     switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, 15, GEMM0_CASE_b, 2);
+      BOOST_PP_REPEAT_FROM_TO(1, 15, GEMM0_CASE, 2);
     default:
-      el_error("Convolution_direct_1x1: Unimplemented T in O=2");
+      el_error("Convolution_direct_1x1: Unimplemented T>14 in O=2");
       break;
     }
     break;
   case 3:
     switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, 9, GEMM0_CASE_b, 3);
+      BOOST_PP_REPEAT_FROM_TO(1, 9, GEMM0_CASE, 3);
     default:
-      el_error("Convolution_direct_1x1: Unimplemented T in O=3");
+      el_error("Convolution_direct_1x1: Unimplemented T>8 in O=3");
       break;
     }
     break;
   case 4:
     switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, 7, GEMM0_CASE_b, 4);
+      BOOST_PP_REPEAT_FROM_TO(1, 8, GEMM0_CASE, 4);
     default:
-      el_error("Convolution_direct_1x1: Unimplemented T in O=4");
+      el_error("Convolution_direct_1x1: Unimplemented T>7 in O=4");
       break;
     }
     break;

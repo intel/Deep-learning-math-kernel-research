@@ -22,7 +22,7 @@ namespace euler {
 #define LOAD_BIAS(_O, _T) zmm_out(_O, _T) = _mm512_load_ps(&md2(abias, _O, 0))
 #define CLEAR_OUTPUT(_O, _T) zmm_out(_O, _T) = _mm512_setzero_ps()
 #define LOAD_OUTPUT(_O, _T)                                                    \
-  //zmm_out(_O, _T) = _mm512_load_ps(&md4(aoutput, _O, 0, _T, 0))
+  zmm_out(_O, _T) = _mm512_load_ps(&md4(aoutput, _O, 0, _T, 0))
 
 #define STORE_OUTPUT(_O, _T)                                                   \
   _mm512_store_ps(&md4(aoutput, _O, 0, _T, 0), zmm_out(_O, _T))
@@ -77,6 +77,17 @@ namespace euler {
   BOOST_PP_REPEAT(_O, P2_COMPUTE_OUTPUT_1_T_O, _T);
 #define P2_COMPUTE_OUTPUT_1(_O, _T)                                            \
   BOOST_PP_REPEAT(_T, P2_COMPUTE_OUTPUT_1_T, _O);
+
+/*
+#define P2_COMPUTE_OUTPUT_0(_O, _T)                                            \
+  bcast = _mm512_broadcastss_ps(                                               \
+      *(__m128 *)&md6(ainput, _ic3, _I2, 0, _T, _V, 0));                       \
+  zmm_out(_O, _T) = _mm512_fmadd_ps(zmm_wei(_O, 0), bcast, zmm_out(_O, _T))
+#define P2_COMPUTE_OUTPUT_1(_O, _T)                                            \
+  bcast = _mm512_broadcastss_ps(                                               \
+      *(__m128 *)&md6(ainput, _ic3, _I2, 0, _T, _V, 1));                       \
+  zmm_out(_O, _T) = _mm512_fmadd_ps(zmm_wei(_O, 1), bcast, zmm_out(_O, _T))
+*/
 
 // Pipeline = 4
 #define P4_PRELOAD_WEIGHTS_0_1(_O, _P)                                         \
@@ -378,67 +389,12 @@ CONV1X1_GEMM_P2(4, 3);
 CONV1X1_GEMM_P2(4, 4);
 CONV1X1_GEMM_P2(4, 5);
 CONV1X1_GEMM_P1(4, 6);
-
-
-// O=3, T:
-//    T=8:     bcast: 1, kernel 3, output: 24
-//    T=7:     bcast: 1, kernel 6, output: 21 (pipeline: 2)
-//    T=1..6:  bcast: 1, kernel 12, output: 3..18 (pipeline: 4)
-// O=4, T:
-//    T=6:     bcast: 1, kernel: 4, outupt: 24
-//    T=1..5:  bcast: 1, kernel: 8, outupt: 4..20 (pipeline: 2)
-template <typename Type, const int V, const int I, const bool with_bias,
-    const bool with_relu, const bool with_sum>
-void convolution_direct_1x1_kernel<Type, 4, 7, V, I, with_bias, with_relu,
-    with_sum>::gemm(elx_conv_t<Type> &xc, Type *output, Type *input,
-    Type *weights, Type *bias)
-{
-  ENABLE_AVX512F();
-
-#if 0
-  MD4(Type, aoutput, output, 4, xc.t2, T, V);
-  MD6(Type, ainput, input, xc.ic3, xc.I2, xc.t2, T, V / 2, 2);
-  MD6(Type, aweights, weights, 4, xc.ic3, xc.I2, V / 2, 2, V);
-  MD2(Type, abias, bias, 4, V);
-
-  for_each (_ic3, xc.ic3) {
-    __m512 bcast;
-    MATRIX_OP(DEF_OUTPUT, 4, T);
-    MATRIX_OP(DEF_WEIGHTS, O, 2);
-    MATRIX_OP(P2_PRELOAD_WEIGHTS_0, O, 1);
-    if (_ic3 == 0) {
-      if (with_bias) {
-        MATRIX_OP(LOAD_BIAS, O, T);
-      } else {
-        MATRIX_OP(CLEAR_OUTPUT, O, T);
-      }
-    } else {
-      MATRIX_OP(LOAD_OUTPUT, O, T);
-    }
-    for_each (_I2, xc.I2) {
-      for_each (_V, V / 2) {
-        MATRIX_OP(P2_LOAD_WEIGHTS_1, O, 1);
-        MATRIX_OP(P2_COMPUTE_OUTPUT_0, O, T);
-
-        MATRIX_OP(P2_LOAD_WEIGHTS_0, O, 1);
-        MATRIX_OP(P2_COMPUTE_OUTPUT_1, O, T);
-      }
-    }
-    MATRIX_OP(STORE_OUTPUT, O, T);
-  }
-#endif
-}
-template void convolution_direct_1x1_kernel<float, 4, 7, 16, ISA_SKX_AVX512,
-    BIAS(false), RELU(false), SUM(false)>::gemm(elx_conv_t<float> &, float *,
-    float *, float *, float *);
-template void convolution_direct_1x1_kernel<float, 4, 7, 16, ISA_SKX_AVX512,
-    BIAS(true), RELU(false), SUM(false)>::gemm(elx_conv_t<float> &, float *,
-    float *, float *, float *);
+CONV1X1_GEMM_P1(4, 7);
 
 // O=8, T:
 //    T=2:     bcast: 1, kernel: 8, output: 16
 //    T=1:     bcast: 1, kernel: 16, output: 8 (pipeline: 2)
-CONV1X1_GEMM_P1(8, 2);
-CONV1X1_GEMM_P2(8, 1);
+//CONV1X1_GEMM_P1(8, 2);
+//CONV1X1_GEMM_P2(8, 1);
 
 }
