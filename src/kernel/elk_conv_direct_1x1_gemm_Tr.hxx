@@ -55,8 +55,8 @@ namespace euler {
   {                                                                            \
     ENABLE_AVX512F();                                                          \
                                                                                \
-    MD2(Type, aoutput, output, O, xc.oh *xc.ow *V);                            \
-    MD3(Type, ainput, input, xc.ic3, xc.I2, xc.ih *xc.iw *V);                  \
+    MD2(Type, aoutput, output, O, xc.oh * xc.ow * V);                          \
+    MD3(Type, ainput, input, xc.ic3, xc.I2, xc.ih * xc.iw * V);                \
     MD5(Type, aweights, weights, O, xc.ic3, xc.I2, V, V);                      \
     MD2(Type, abias, bias, O, V);                                              \
                                                                                \
@@ -103,7 +103,7 @@ namespace euler {
   {                                                                            \
     ENABLE_AVX512F();                                                          \
                                                                                \
-    MD2(Type, aoutput, output, O, xc.oh *xc.ow *V);                            \
+    MD2(Type, aoutput, output, O, xc.oh * xc.ow * V);                          \
     MD3(Type, ainput, input, xc.ic3, xc.I2, xc.ih *xc.iw *V);                  \
     MD6(Type, aweights, weights, O, xc.ic3, xc.I2, V / 2, 2, V);               \
     MD2(Type, abias, bias, O, V);                                              \
@@ -286,9 +286,35 @@ CONV1X1_GEMM_P2(4, 5);
 CONV1X1_GEMM_P1(4, 6);
 CONV1X1_GEMM_P1(4, 7);
 
+// O=5, T:
+//    T=5:     bcast: 1, kernel: 5, output: 25
+//    T=3,4:   bcast: 1, kernel: 10, output: 15,20 (pipeline: 2)
+//    T=1,2:   bcast: 1, kernel: 20, output: 5,10 (pipeline: 2)
+CONV1X1_GEMM_P4(5, 1);
+CONV1X1_GEMM_P4(5, 2);
+CONV1X1_GEMM_P2(5, 3);
+CONV1X1_GEMM_P2(5, 4);
+CONV1X1_GEMM_P1(5, 5);
+
+// O=6, T:
+//    T=4:     bcast: 1, kenrel: 6, output: 24
+//    T=2,3:   bcast: 1, kernel: 12, output: 12,18 (pipeline: 2)
+//    T=1:     bcast: 1, kernel: 24, output: 6 (pipeline: 4)
+CONV1X1_GEMM_P4(6, 1);
+CONV1X1_GEMM_P2(6, 2);
+CONV1X1_GEMM_P2(6, 3);
+CONV1X1_GEMM_P1(6, 4);
+
+// O=7, T:
+//    T=3:     bcast: 1, kernel: 7, output: 21
+//    T=1,2:   bcast: 1, kernel: 14, output: 7,14 (pipeline: 2)
+CONV1X1_GEMM_P2(7, 1);
+CONV1X1_GEMM_P2(7, 2);
+CONV1X1_GEMM_P1(7, 3);
+
 // O=8, T:
 //    T=2:     bcast: 1, kernel: 8, output: 16
 //    T=1:     bcast: 1, kernel: 16, output: 8 (pipeline: 2)
-// CONV1X1_GEMM_P1(8, 2);
-// CONV1X1_GEMM_P2(8, 1);
+CONV1X1_GEMM_P1(8, 2);
+CONV1X1_GEMM_P2(8, 1);
 }

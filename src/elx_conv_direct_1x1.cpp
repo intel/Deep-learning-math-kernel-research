@@ -54,11 +54,6 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   if (this->O2 == 0) this->O2 = 3; // TODO: O2 selection
   if (this->T == 0)  this->T = 1; // TODO: T selection
 
-  if (this->O2 > 4) {
-    el_error("Unimplemented: O2 > 4");
-    return;
-  }
-
   // Tailing
   this->Ir = this->ic % V ? this->ic % V : V;
   this->Or = this->oc % V ? this->oc % V : V;
@@ -85,6 +80,7 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
     this->t2 = (this->nt + this->T - 1) / this->T;
     this->Tr = this->nt % this->T ? this->nt % this->T : this->T;
   } else {
+    this->t3 = 1;
     this->t2 = (this->t + this->T - 1) / this->T;
     this->Tr = this->t % this->T ? this->t % this->T : this->T;
   }
@@ -303,29 +299,88 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
         break;
       }
       break;
+    case 5:
+      switch (T_) {
+        BOOST_PP_REPEAT_FROM_TO(1, 6, GEMM_CASE, 5);
+      default:
+        el_error("Convolution_direct_1x1: Unimplemented T>5 in O=5");
+        break;
+      }
+      break;
+    case 6:
+      switch (T_) {
+        BOOST_PP_REPEAT_FROM_TO(1, 5, GEMM_CASE, 6);
+      default:
+        el_error("Convolution_direct_1x1: Unimplemented T>4 in O=6");
+        break;
+      }
+      break;
+    case 7:
+      switch (T_) {
+        BOOST_PP_REPEAT_FROM_TO(1, 4, GEMM_CASE, 7);
+      default:
+        el_error("Convolution_direct_1x1: Unimplemented T>3 in O=7");
+        break;
+      }
+      break;
+    case 8:
+      switch (T_) {
+        BOOST_PP_REPEAT_FROM_TO(1, 3, GEMM_CASE, 8);
+      default:
+        el_error("Convolution_direct_1x1: Unimplemented T>2 in O=8");
+        break;
+      }
+      break;
+
     default:
-      el_error("O2 > 4 unsupported");
+      el_error("O2 > 8 unsupported");
     }
   };
 
-  bind_kernel(this->O2, this->T, &ker_bgemm_O_T_);
-  bind_kernel(this->O2, this->Tr, &ker_bgemm_O_Tr_);
-  bind_kernel(this->O2r, this->T, &ker_bgemm_Or_T_);
-  bind_kernel(this->O2r, this->Tr, &ker_bgemm_Or_Tr_);
+  if (xopt_ == 0xb000 || xopt_ == 0xc000) {
+    bind_kernel(this->O2, this->T, &ker_bgemm_O_T_);
+    bind_kernel(this->O2, this->Tr, &ker_bgemm_O_Tr_);
+    bind_kernel(this->O2r, this->T, &ker_bgemm_Or_T_);
+    bind_kernel(this->O2r, this->Tr, &ker_bgemm_Or_Tr_);
+  } else {
+#undef GEMM_CASE
+#define GEMM_CASE(z, n, data)                                                  \
+  case n:                                                                      \
+    ker_gemm_ = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm;      \
+    break;
 
-  if (this->Ir != V) {
+    switch (this->T) {
+      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE, nil)
+    default:
+      el_error("Unimplemented");
+      break;
+    }
+
+#define GEMM_CASE0(z, n, data)                                                 \
+  case n:                                                                      \
+    ker_gemm0_ = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm;     \
+    break;
+
+    switch (this->Tr) {
+      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE0, nil);
+    default:
+      el_error("Unimplemented");
+      break;
+    }
+
+    if (this->Ir != V) {
 #define GEMM_TAIL_CASE(z, n, data)                                             \
   case n:                                                                      \
     ker_gemm_tail_                                                             \
         = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm_tail;       \
     break;
 
-    switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_TAIL_CASE, nil)
-    default:
-      el_error("Unimplemented");
-      break;
-    }
+      switch (this->T) {
+        BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_TAIL_CASE, nil)
+      default:
+        el_error("Unimplemented");
+        break;
+      }
 
 #define GEMM_CASE0_TAIL(z, n, data)                                            \
   case n:                                                                      \
@@ -333,15 +388,16 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
         = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm_tail;       \
     break;
 
-    switch (this->Tr) {
-      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE0_TAIL, nil);
-    default:
-      el_error("Unimplemented");
-      break;
+      switch (this->Tr) {
+        BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE0_TAIL, nil);
+      default:
+        el_error("Unimplemented");
+        break;
+      }
+    } else {
+      ker_gemm_tail_ = ker_gemm_;
+      ker_gemm0_tail_ = ker_gemm0_;
     }
-  } else {
-    ker_gemm_tail_ = ker_gemm_;
-    ker_gemm0_tail_ = ker_gemm0_;
   }
 
 #define EXECUTE_CASE(n)                                                        \
