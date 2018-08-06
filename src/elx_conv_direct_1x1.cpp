@@ -54,17 +54,12 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   if (this->O2 == 0) this->O2 = 3; // TODO: O2 selection
   if (this->T == 0)  this->T = 1; // TODO: T selection
 
-  if (this->nt % this->T != 0) {
-    el_error("Unimplemented: T is not a factor of oh * ow");
-    return;
-  }
   if (this->O2 > 4) {
     el_error("Unimplemented: O2 > 4");
     return;
   }
 
   // Tailing
-  this->Tr = this->t % this->T ? this->t % this->T : this->T;
   this->Ir = this->ic % V ? this->ic % V : V;
   this->Or = this->oc % V ? this->oc % V : V;
 
@@ -85,11 +80,13 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
 
   xopt_ = this->execution_mode;
 
-  if (xopt_ == 0xb000) {
+  if (xopt_ == 0xb000 || xopt_ == 0xc000) {
     this->t3 = this->n;
     this->t2 = (this->nt + this->T - 1) / this->T;
+    this->Tr = this->nt % this->T ? this->nt % this->T : this->T;
   } else {
     this->t2 = (this->t + this->T - 1) / this->T;
+    this->Tr = this->t % this->T ? this->t % this->T : this->T;
   }
 
   // In case of Ir != V && blocked-format, assume bias also
@@ -145,14 +142,14 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
   if (xopt_ & FUS_O) {
     this->oc3 /= this->oc4;
     if (V * this->O2 * this->oc3 * this->oc4 != this->OC) {
-      el_error("Config error!");
+      el_error("V * O2 * oc3 * oc4 != OC");
       return -1;
     }
   }
   if (xopt_ & FUS_I) {
     this->ic3 /= this->ic4;
     if (V * this->I2 * this->ic3 * this->ic4 != this->IC) {
-      el_error("Config error!");
+      el_error("V * I2 * ic3 * ic4 != IC");
       return -1;
     }
   }
@@ -224,9 +221,10 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
         + this->T * (this->IC + this->OC / this->oc4);
     break;
   case 0xb000:
+  case 0xc000:
     break;
   default:
-      el_error("Config error!");
+      el_error("Unknown xopt!");
       return -1;
     break;
   }
@@ -253,96 +251,58 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 #define GEMM_CASE(z, T, O)                                                     \
   case T:                                                                      \
     if (this->with_bias)                                                       \
-      ker_bgemm_ = convolution_direct_1x1_kernel<Type, O, T, V, I, BIAS(true), \
+      *func = convolution_direct_1x1_kernel_Tr<Type, O, T, V, I, BIAS(true),      \
           RELU(false), SUM(false)>::gemm;                                      \
     else                                                                       \
-      ker_bgemm_ = convolution_direct_1x1_kernel<Type, O, T, V, I,             \
-          BIAS(false), RELU(false), SUM(false)>::gemm;                         \
-    break;
-#define GEMM0_CASE(z, T, O)                                                    \
-  case T:                                                                      \
-    if (this->with_bias)                                                       \
-      ker_bgemm0_ = convolution_direct_1x1_kernel<Type, O, T, V, I,            \
-          BIAS(true), RELU(false), SUM(false)>::gemm;                          \
-    else                                                                       \
-      ker_bgemm0_ = convolution_direct_1x1_kernel<Type, O, T, V, I,            \
-          BIAS(false), RELU(false), SUM(false)>::gemm;                         \
+      *func = convolution_direct_1x1_kernel_Tr<Type, O, T, V, I, BIAS(false),     \
+          RELU(false), SUM(false)>::gemm;                                      \
     break;
 
-  switch (this->O2) {
-  case 1:
-    switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE, 1);
-    default:
-      el_error("Convolution_direct_1x1: Unimplemented T>32 in O=1");
+  auto bind_kernel = [&](int O2, int T,
+                  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I,
+                      false, false, false>::gemm) **func) {
+    switch (O2) {
+    case 1:
+      switch (T) {
+        BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE, 1);
+      default:
+        el_error("Convolution_direct_1x1: Unimplemented T>32 in O=1");
+        break;
+      }
       break;
-    }
-    break;
-  case 2:
-    switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, 15, GEMM_CASE, 2);
-    default:
-      el_error("Convolution_direct_1x1: Unimplemented T>14 in O=2");
+    case 2:
+      switch (T) {
+        BOOST_PP_REPEAT_FROM_TO(1, 15, GEMM_CASE, 2);
+      default:
+        el_error("Convolution_direct_1x1: Unimplemented T>14 in O=2");
+        break;
+      }
       break;
-    }
-    break;
-  case 3:
-    switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, 9, GEMM_CASE, 3);
-    default:
-      el_error("Convolution_direct_1x1: Unimplemented T>8 in O=3");
+    case 3:
+      switch (T) {
+        BOOST_PP_REPEAT_FROM_TO(1, 9, GEMM_CASE, 3);
+      default:
+        el_error("Convolution_direct_1x1: Unimplemented T>8 in O=3");
+        break;
+      }
       break;
-    }
-    break;
-  case 4:
-    switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, 8, GEMM_CASE, 4);
-    default:
-      el_error("Convolution_direct_1x1: Unimplemented T>7 in O=4");
+    case 4:
+      switch (T) {
+        BOOST_PP_REPEAT_FROM_TO(1, 8, GEMM_CASE, 4);
+      default:
+        el_error("Convolution_direct_1x1: Unimplemented T>7 in O=4");
+        break;
+      }
       break;
+    default:
+      el_error("O2 > 4 unsupported");
     }
-    break;
-  default:
-    el_error("O2 > 4 unsupported");
-  }
+  };
 
-  switch (this->O2r) {
-  case 1:
-    switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM0_CASE, 1);
-    default:
-      el_error("Convolution_direct_1x1: Unimplemented T>32 in O=1");
-      break;
-    }
-    break;
-  case 2:
-    switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, 15, GEMM0_CASE, 2);
-    default:
-      el_error("Convolution_direct_1x1: Unimplemented T>14 in O=2");
-      break;
-    }
-    break;
-  case 3:
-    switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, 9, GEMM0_CASE, 3);
-    default:
-      el_error("Convolution_direct_1x1: Unimplemented T>8 in O=3");
-      break;
-    }
-    break;
-  case 4:
-    switch (this->T) {
-      BOOST_PP_REPEAT_FROM_TO(1, 8, GEMM0_CASE, 4);
-    default:
-      el_error("Convolution_direct_1x1: Unimplemented T>7 in O=4");
-      break;
-    }
-    break;
-  default:
-    el_error("O2 > 4 unsupported");
-  }
-
+  bind_kernel(this->O2, this->T, &ker_bgemm_O_T_);
+  bind_kernel(this->O2, this->Tr, &ker_bgemm_O_Tr_);
+  bind_kernel(this->O2r, this->T, &ker_bgemm_Or_T_);
+  bind_kernel(this->O2r, this->Tr, &ker_bgemm_Or_Tr_);
 
   if (this->Ir != V) {
 #define GEMM_TAIL_CASE(z, n, data)                                             \
@@ -384,6 +344,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
   switch (xopt_) {
     EXECUTE_CASE(a000);
     EXECUTE_CASE(b000);
+    EXECUTE_CASE(c000);
     EXECUTE_CASE(a060);
     EXECUTE_CASE(a061);
     EXECUTE_CASE(a069);
@@ -911,11 +872,11 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b000(
 
         MD4(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc3, this->O2, this->t2, this->T * V);
         if (_oc3 == this->oc3 - 1)
-          ker_bgemm0_(*this, &md4(aoutput2, _oc3, 0, _t2, 0),
+          ker_bgemm_Or_T_(*this, &md4(aoutput2, _oc3, 0, _t2, 0),
             &md4(ainput, _t3, 0, _t2, 0), &md2(aweights, _oc3, 0),
             &md2(abias, _oc3, 0));
         else
-          ker_bgemm_(*this, &md4(aoutput2, _oc3, 0, _t2, 0),
+          ker_bgemm_O_T_(*this, &md4(aoutput2, _oc3, 0, _t2, 0),
             &md4(ainput, _t3, 0, _t2, 0), &md2(aweights, _oc3, 0),
             &md2(abias, _oc3, 0));
       }
@@ -924,6 +885,50 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b000(
 }
 
 // hw = (t2 - 1) * T + Tr
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__execute_c000(
+    Type *output, Type *input, Type *weights, Type *bias)
+{
+  // weights: oc3*, O2, ic3, I2, V, V
+  // input:   t3*, ic3, I2, t2*, T, V
+  // output:  t3*, oc3*, O2, t2*, T, V
+  MD2(Type, aweights, weights, this->oc3, this->O2 * this->IC * V);
+  MD3(Type, ainput, input, this->t3, this->ic2, this->ih * this->iw * V);
+  MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
+  MD2(Type, abias, bias, this->oc3, this->O2 * V);
+
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+#pragma omp for nowait collapse(3)
+  for_each (_t3, this->t3) {
+    for_each (_oc3, this->oc3) {
+      for_each (_t2, this->t2) {
+
+        MD2(Type, ainput2, &md3(ainput, _t3, 0, 0), this->t2, this->T * V);
+        MD3(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc3, this->O2, this->oh * this->ow * V);
+        MD2(Type, aoutput3, &md3(aoutput2, _oc3, 0, 0), this->t2, this->T * V);
+
+        if (_oc3 == this->oc3 - 1) {
+          if (_t2 == this->t2 - 1) {
+            ker_bgemm_Or_Tr_(*this, &md2(aoutput3, _t2, 0),
+                &md2(ainput2, _t2, 0), &md2(aweights, _oc3, 0),
+                &md2(abias, _oc3, 0));
+          } else {
+            ker_bgemm_Or_T_(*this, &md2(aoutput3, _t2, 0), &md2(ainput2, _t2, 0),
+                &md2(aweights, _oc3, 0), &md2(abias, _oc3, 0));
+          }
+        } else {
+          if (_t2 == this->t2 - 1)
+            ker_bgemm_O_Tr_(*this, &md2(aoutput3, _t2, 0), &md2(ainput2, _t2, 0),
+                &md2(aweights, _oc3, 0), &md2(abias, _oc3, 0));
+          else {
+            ker_bgemm_O_T_(*this, &md2(aoutput3, _t2, 0), &md2(ainput2, _t2, 0),
+                &md2(aweights, _oc3, 0), &md2(abias, _oc3, 0));
+          }
+        }
+      }
+    }
+  }
+}
 
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::execute(

@@ -24,6 +24,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   void __execute_a061(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a069(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_b000(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_c000(Type *output, Type *input, Type *weights, Type *bias);
 
   inline void __trans_input_plain(Type *tinput, Type *input);
   inline void __trans_input_blocked(Type *tinput, Type *input);
@@ -57,9 +58,14 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
 
   // TODO
   decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false,
-      false>::gemm) *ker_bgemm_;
+      false>::gemm) *ker_bgemm_O_T_;
   decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false,
-      false>::gemm) *ker_bgemm0_;
+      false>::gemm) *ker_bgemm_Or_T_;
+  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false,
+      false>::gemm) *ker_bgemm_O_Tr_;
+  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false,
+      false>::gemm) *ker_bgemm_Or_Tr_;
+
 
   decltype(
       convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_;
