@@ -248,30 +248,39 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 {
-#define GEMM_CASE(z, T, O)                                                     \
-  case T:                                                                      \
-    if (this->with_bias)                                                       \
-      *func = convolution_direct_1x1_kernel_Tr<Type, O, T, V, I, BIAS(true),      \
-          RELU(false), SUM(false)>::gemm;                                      \
-    else                                                                       \
-      *func = convolution_direct_1x1_kernel_Tr<Type, O, T, V, I, BIAS(false),     \
-          RELU(false), SUM(false)>::gemm;                                      \
+#define GEMM_CASE(z, T_, O_)                                                   \
+  case T_:                                                                     \
+    if (this->Tr != this->T) {                                                 \
+      if (this->with_bias)                                                     \
+        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(true),    \
+            BIAS(true), RELU(false), SUM(false)>::gemm;                        \
+      else                                                                     \
+        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(true),    \
+            BIAS(false), RELU(false), SUM(false)>::gemm;                       \
+    } else {                                                                   \
+      if (this->with_bias)                                                     \
+        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(false),   \
+            BIAS(true), RELU(false), SUM(false)>::gemm;                        \
+      else                                                                     \
+        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(false),   \
+            BIAS(false), RELU(false), SUM(false)>::gemm;                       \
+    }                                                                          \
     break;
 
-  auto bind_kernel = [&](int O2, int T,
+  auto bind_kernel = [&](int O2_, int T_,
                   decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I,
-                      false, false, false>::gemm) **func) {
-    switch (O2) {
+                      false, false, false, false>::gemm) **func) {
+    switch (O2_) {
     case 1:
-      switch (T) {
-        BOOST_PP_REPEAT_FROM_TO(1, MAX_FMA_PRL, GEMM_CASE, 1);
+      switch (T_) {
+        BOOST_PP_REPEAT_FROM_TO(1, 33, GEMM_CASE, 1);
       default:
         el_error("Convolution_direct_1x1: Unimplemented T>32 in O=1");
         break;
       }
       break;
     case 2:
-      switch (T) {
+      switch (T_) {
         BOOST_PP_REPEAT_FROM_TO(1, 15, GEMM_CASE, 2);
       default:
         el_error("Convolution_direct_1x1: Unimplemented T>14 in O=2");
@@ -279,7 +288,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
       }
       break;
     case 3:
-      switch (T) {
+      switch (T_) {
         BOOST_PP_REPEAT_FROM_TO(1, 9, GEMM_CASE, 3);
       default:
         el_error("Convolution_direct_1x1: Unimplemented T>8 in O=3");
@@ -287,7 +296,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
       }
       break;
     case 4:
-      switch (T) {
+      switch (T_) {
         BOOST_PP_REPEAT_FROM_TO(1, 8, GEMM_CASE, 4);
       default:
         el_error("Convolution_direct_1x1: Unimplemented T>7 in O=4");

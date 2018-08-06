@@ -57,13 +57,13 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   void bind_execute_functions();
 
   // TODO
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false,
+  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false, false,
       false>::gemm) *ker_bgemm_O_T_;
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false,
+  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false, false,
       false>::gemm) *ker_bgemm_Or_T_;
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false,
+  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false, false,
       false>::gemm) *ker_bgemm_O_Tr_;
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false,
+  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false, false,
       false>::gemm) *ker_bgemm_Or_Tr_;
 
 
