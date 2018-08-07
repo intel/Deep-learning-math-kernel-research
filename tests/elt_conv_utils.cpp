@@ -27,7 +27,7 @@ namespace test {
     for (size_t i = 0; i < desc.sizes.weights; i++) {
       (*weights)[i] = i % 31;
       if (i % 3 == 0)
-        (*weights)[i] *= -1.0f;
+        (*weights)[i] = -1.0f;
     }
 #pragma omp parallel for
     for (size_t i = 0; i < desc.sizes.bias; i++) {
