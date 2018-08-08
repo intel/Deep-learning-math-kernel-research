@@ -325,8 +325,9 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
 
   l2_usage *= sizeof(Type);
 
+  // Add extra (4 * 16) size for weight loading pipeline
   if (tweights_size > 0)
-    MEMALIGN64(&tweights_, tweights_size * sizeof(Type));
+    MEMALIGN64(&tweights_, (tweights_size + 4 * 16) * sizeof(Type));
   if (tinput_size > 0)
     MEMALIGN64(&tinput_, tinput_size * sizeof(Type));
   if (toutput_size > 0)
