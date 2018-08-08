@@ -25,6 +25,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   void __execute_a069(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_b000(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_c000(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_d000(Type *output, Type *input, Type *weights, Type *bias);
 
   inline void __trans_input_plain(Type *tinput, Type *input);
   inline void __trans_input_blocked(Type *tinput, Type *input);

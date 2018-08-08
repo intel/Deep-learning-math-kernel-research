@@ -7,7 +7,7 @@
 #include "elk_conv_direct_1x1.hpp"
 
 #ifndef INCLUDE_DIRECT_CONVOLUTION_1X1_KERNEL
-#error "Don'zmm_out include this file directly"
+#error "Don't include this file directly"
 #endif
 
 namespace euler {

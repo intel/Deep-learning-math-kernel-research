@@ -6,6 +6,7 @@
 
 namespace euler {
 
+/*
 template <typename Type, const int O2, const int T, const int V, const int I,
     const bool with_Tr, const bool with_bias, const bool with_relu,
     const bool with_sum>
@@ -23,6 +24,7 @@ void convolution_direct_1x1_kernel<Type, O2, T, V, I, with_Tr, with_bias,
     Type *)
 {
 }
+*/
 
 }
 
@@ -58,6 +60,7 @@ void convolution_direct_1x1_kernel<Type, O2, T, V, I, with_Tr, with_bias,
 //    T=1:     bcast: 1, kernel: 16, output: 8 (pipeline: 2)
 
 #define INCLUDE_DIRECT_CONVOLUTION_1X1_KERNEL
-#include "kernel/elk_conv_direct_1x1_gemm_1x.hxx"
-#include "kernel/elk_conv_direct_1x1_gemm_8x.hxx"
-#include "kernel/elk_conv_direct_1x1_gemm_Tr.hxx"
+//#include "kernel/elk_conv_direct_1x1_gemm_1x.hxx"
+//#include "kernel/elk_conv_direct_1x1_gemm_8x.hxx"
+//#include "kernel/elk_conv_direct_1x1_gemm_Tr.hxx"
+#include "kernel/elk_conv_direct_1x1_gemm.hxx"
