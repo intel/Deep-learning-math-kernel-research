@@ -87,6 +87,14 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
     this->Tr = this->t % this->T ? this->t % this->T : this->T;
   }
 
+  if (xopt_ == 0xb000 && this->Tr != this->T) {
+    el_error("xopt == b000: No tailing T support");
+  } else if (xopt_ == 0xc000 && this->oc4 != 1) {
+    el_error("xopt == c000: No jamming support");
+  } else if (xopt_ == 0xd000 && this->O2r != this->O2) {
+    el_error("xopt == d000: No tailing O2 support");
+  }
+
   // In case of Ir != V && blocked-format, assume bias also
   // padded to Vx.
 
@@ -249,37 +257,33 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 {
 #define GEMM_CASE(z, T_, O_)                                                   \
   case T_:                                                                     \
+    if (xopt_ == 0xd000) {                                                     \
       if (this->with_bias)                                                     \
         *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(true),    \
-            BIAS(true), RELU(false), SUM(false)>::gemm;                        \
+            JAM(true), BIAS(true), RELU(false), SUM(false)>::gemm;             \
       else                                                                     \
         *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(true),    \
-            BIAS(false), RELU(false), SUM(false)>::gemm;                       \
-    break;
-
-/*
-  case T_:                                                                     \
-    if (this->Tr != this->T) {                                                 \
+            JAM(true), BIAS(false), RELU(false), SUM(false)>::gemm;            \
+    } else if (this->Tr != this->T) {                                          \
       if (this->with_bias)                                                     \
         *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(true),    \
-            BIAS(true), RELU(false), SUM(false)>::gemm;                        \
+            JAM(false), BIAS(true), RELU(false), SUM(false)>::gemm;            \
       else                                                                     \
         *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(true),    \
-            BIAS(false), RELU(false), SUM(false)>::gemm;                       \
+            JAM(false), BIAS(false), RELU(false), SUM(false)>::gemm;           \
     } else {                                                                   \
       if (this->with_bias)                                                     \
         *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(false),   \
-            BIAS(true), RELU(false), SUM(false)>::gemm;                        \
+            JAM(false), BIAS(true), RELU(false), SUM(false)>::gemm;            \
       else                                                                     \
         *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(false),   \
-            BIAS(false), RELU(false), SUM(false)>::gemm;                       \
+            JAM(false), BIAS(false), RELU(false), SUM(false)>::gemm;           \
     }                                                                          \
     break;
-*/
 
   auto bind_kernel = [&](int O2_, int T_,
                   decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I,
-                      false, false, false, false>::gemm) **func) {
+                      false, false, false, false, false>::gemm) **func) {
     switch (O2_) {
     case 1:
       switch (T_) {
@@ -356,9 +360,6 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
     bind_kernel(this->O2, this->Tr, &ker_bgemm_O_Tr_);
     bind_kernel(this->O2r, this->T, &ker_bgemm_Or_T_);
     bind_kernel(this->O2r, this->Tr, &ker_bgemm_Or_Tr_);
-  } else if (xopt_ == 0xd000) {
-    bind_kernel(this->O2, this->T, &ker_bgemm_O_T_);
-    bind_kernel(this->O2, this->Tr, &ker_bgemm_O_Tr_);
   } else {
 #undef GEMM_CASE
 #define GEMM_CASE(z, n, data)                                                  \

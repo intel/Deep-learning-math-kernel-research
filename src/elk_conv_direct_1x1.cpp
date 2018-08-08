@@ -61,6 +61,6 @@ void convolution_direct_1x1_kernel<Type, O2, T, V, I, with_Tr, with_bias,
 
 #define INCLUDE_DIRECT_CONVOLUTION_1X1_KERNEL
 //#include "kernel/elk_conv_direct_1x1_gemm_1x.hxx"
-//#include "kernel/elk_conv_direct_1x1_gemm_8x.hxx"
-//#include "kernel/elk_conv_direct_1x1_gemm_Tr.hxx"
+#include "kernel/elk_conv_direct_1x1_gemm_8x.hxx"
+#include "kernel/elk_conv_direct_1x1_gemm_Tr.hxx"
 #include "kernel/elk_conv_direct_1x1_gemm.hxx"
