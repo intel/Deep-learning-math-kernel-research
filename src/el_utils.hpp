@@ -28,6 +28,7 @@ template <typename T, typename... Args> inline T accumulate(T a, Args... args)
   return a * accumulate(args...);
 }
 
+#define WEIGHTS_MAX_PRELOAD 4
 #define MEMALIGN64(ptr, size) posix_memalign((void **)(ptr), 64, size)
 
 // Note: 'align' must be power of 2
