@@ -13,33 +13,47 @@
 using namespace euler;
 using ::testing::TestWithParam;
 using ::testing::Values;
+using ::testing::Range;
 using ::testing::Combine;
 
-int test_elt_conv(int format, int tile_size, int execution_mode, int nteams,
-                  int blk_i, int blk_o, int blk_t) {
+int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
+                  int input_format, int weights_format, int output_format,
+                  int blk_i, int blk_o, int blk_t, int mb, int streaming_input,
+                  int streaming_weights, int streaming_output,
+                  bool input_as_blocked, bool weights_as_blocked,
+                  bool output_as_blocked, bool with_bias, bool with_relu) {
   // Covolution options
-  int mb = 64, ic = 64, ih = 224, iw = 224, oc = 64, oh = 224, ow = 224, kh = 3,
-      kw = 3;
+  int ic = 64, ih = 224, iw = 224, oc = 64, oh = 224, ow = 224, kh = 3, kw = 3;
   int ph = 1, pw = 1, sh = 1, sw = 1, dh = 1, dw = 1;
-  bool with_bias = true, with_relu = false;
   int prop_kind = forward_inference, alg = CONV_WINOGRAD;
-  int pat_i = 1, pat_o = 1;
   bool validate_results = true;
-  int nthreads = nteams * 28;
-  int streaming_weights = 0, streaming_input = 0, streaming_output = 0;
-  bool input_as_blocked = false, weights_as_blocked = false,
-       output_as_blocked = false;
+  int nteams = 0;
+  int nthreads = 0;
 
-  int input_format, weights_format, output_format;
-  if (format == 0) {
-    input_format = nChw16c;
-    weights_format = OIhw16i16o;
-    output_format = nChw16c;
-  } else {
-    input_format = nchw;
-    weights_format = oihw;
-    output_format = nchw;
+  int divisor = 16 * blk_i * pat_i;
+  if (!(ic / divisor != 0 && ic % divisor == 0)) {
+    printf("Error: blocking or partion options are invalid\n");
+    printf("ic = %d, blk_i = %d, pat_i = %d\n", ic, blk_i, pat_i);
+    return 0;
   }
+
+  if (!(oc / divisor != 0 && oc % divisor == 0)) {
+    printf("Error: blocking or partion options are invalid\n");
+    printf("oc = %d, blk_o = %d, pat_o = %d\n", oc, blk_o, pat_o);
+    return 0;
+  }
+
+  printf("test options are: \n");
+  printf("tile_size:%d, execution_mode:%x, pat_i:%d, pat_o:%d \n", tile_size,
+         execution_mode, pat_i, pat_o);
+  printf("input_format:%d, weights_format:%d, output_format:%d \n",
+         input_format, weights_format, output_format);
+  printf("blk_i:%d, blk_o:%d, blk_t:%d, mb:%d \n", blk_i, blk_o, blk_t, mb);
+  printf("streaming_input:%d, streaming_weights:%d, streaming_output:%d \n",
+         streaming_input, streaming_weights, streaming_output);
+  printf("input_as_blocked:%d, weights_as_blocked:%d, output_as_blocked:%d \n",
+         input_as_blocked, weights_as_blocked, output_as_blocked);
+  printf("with_bias:%d, with_relu:%d \n", with_bias, with_relu);
 
   // 1, create convolution desc
   eld_conv_t<float> desc;
@@ -87,45 +101,79 @@ int test_elt_conv(int format, int tile_size, int execution_mode, int nteams,
   time_end(conv, iterations, num_ops);
 
   // 4. cosim, setdown
+  bool validation_pass = true;
   if (validate_results) {
     printf("Validation: ");
     float *ref_output = (float *)malloc(desc.byte_sizes.output);
-    if (test::ref_convolution2d<float>(desc, ref_output, input, weights, bias))
+    if (test::ref_convolution2d<float>(desc, ref_output, input, weights,
+                                       bias)) {
       printf("Fail: Convolution ref execution error!\n");
-    else if (test::compare_conv_results(desc, output, ref_output))
+      validation_pass = false;
+    } else if (test::compare_conv_results(desc, output, ref_output)) {
       printf("Fail: Convolution results not correct!\n");
-    else
+      validation_pass = false;
+    } else {
       printf("Convolution Pass!\n");
-
+      validation_pass = true;
+    }
+    EXPECT_TRUE(validation_pass);
     free(ref_output);
   }
+
   test::teardown_conv_data(input, weights, output, bias);
 
   return 0;
 }
 
-class eltConvTest : public ::testing::TestWithParam<
-                        ::std::tr1::tuple<int, int, int, int, int, int, int>> {
+class eltConvTest
+    : public ::testing::TestWithParam<
+          ::std::tr1::tuple<int, int, int, int, int, int, int, int, int, int>> {
 };
 
-INSTANTIATE_TEST_CASE_P(elt_conv_test, eltConvTest,
-                        Combine(Values(0, 1), Values(5, 7),
+INSTANTIATE_TEST_CASE_P(elt_conv_test_common_params, eltConvTest,
+                        Combine(Values(5, 7), // tile-size
                                 Values(0xa040, 0xa061, 0xa448, 0xa241, 0xa000,
-                                       0xa201, 0xa0e0, 0xa0e1),
-                                Values(1, 2), Values(0, 2, 4, 8),
-                                Values(0, 2, 4, 8), Values(0, 2, 4, 8)));
+                                       0xa201, 0xa0e0,
+                                       0xa0e1),           // execution-mode
+                                Values(1, 2, 4),          // pat_i = 1
+                                Values(1, 2, 4),          // pat_o
+                                Values(nChw16c, nchw),    // input_format
+                                Values(OIhw16i16o, oihw), // weights_format
+                                Values(nChw16c, nchw),    // output_format
+                                Values(1, 2, 4, 8),       // blk_i
+                                Values(1, 2, 4, 8),       // blk_o
+                                Range(1, 32)              // blk_t
+                                ));
+
 TEST_P(eltConvTest, combineTest) {
-  int test_format = ::testing::get<0>(GetParam());
-  int test_tile_size = ::testing::get<1>(GetParam());
-  int test_execution_mode = ::testing::get<2>(GetParam());
+  int test_tile_size = ::testing::get<0>(GetParam());
+  int test_execution_mode = ::testing::get<1>(GetParam());
+  int test_pat_i = ::testing::get<2>(GetParam());
+  int test_pat_o = ::testing::get<3>(GetParam());
 
-  int test_nteams = ::testing::get<3>(GetParam());
-  int test_blk_i = ::testing::get<4>(GetParam());
-  int test_blk_o = ::testing::get<5>(GetParam());
-  int test_blk_t = ::testing::get<6>(GetParam());
+  int test_input_format = ::testing::get<4>(GetParam());
+  int test_weights_format = ::testing::get<5>(GetParam());
+  int test_output_format = ::testing::get<6>(GetParam());
 
-  // printf("actual toutput: [%x]: (ref)\n", test_execution_mode);
-  int ret = test_elt_conv(test_format, test_tile_size, test_execution_mode,
-                          test_nteams, test_blk_i, test_blk_o, test_blk_t);
+  int test_blk_i = ::testing::get<7>(GetParam());
+  int test_blk_o = ::testing::get<8>(GetParam());
+  int test_blk_t = ::testing::get<9>(GetParam());
+
+  int test_mb = rand() % 128 + 1;
+  int test_streaming_input = rand() % 3;
+  int test_streaming_weights = rand() % 3;
+  int test_streaming_output = rand() % 3;
+  bool test_input_as_blocked = rand() % 2;
+  bool test_weights_as_blocked = rand() % 2;
+  bool test_output_as_blocked = rand() % 2;
+  bool test_with_bias = rand() % 2;
+  bool test_with_relu = rand() % 2;
+  int ret = test_elt_conv(
+      test_tile_size, test_execution_mode, test_pat_i, test_pat_o,
+      test_input_format, test_weights_format, test_output_format, test_blk_i,
+      test_blk_o, test_blk_t, test_mb, test_streaming_input,
+      test_streaming_weights, test_streaming_output, test_input_as_blocked,
+      test_weights_as_blocked, test_output_as_blocked, test_with_bias,
+      test_with_relu);
   EXPECT_EQ(0, ret);
 }
