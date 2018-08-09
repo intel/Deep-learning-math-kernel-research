@@ -228,7 +228,13 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
     break;
   case 0xb000:
   case 0xc000:
+    l2_usage = this->IC * this->OC / this->oc3 + this->IC * this->T
+        + this->OC / this->oc3 * this->T;
+    l1_usage = l2_usage;
+    break;
   case 0xd000:
+    l2_usage = this->IC * this->OC / this->oc4 + this->IC * this->T
+        + this->OC / this->oc4 * this->T;
     break;
   default:
       el_error("Unknown xopt!");
