@@ -273,7 +273,7 @@ namespace euler {
       SUM(false)>::gemm(elx_conv_t<float> &, float *, float *, float *,        \
       float *);
 
-#define K2(O2_, T_, P0_, O0_, P1_, O1_)                                        \
+#define K2(O2_, T_, o0_, o1_, P0_, P1_)                                        \
   template <typename Type, const int V, const int I, const bool with_bias,     \
       const bool with_relu, const bool with_sum>                               \
   void convolution_direct_1x1_kernel<Type, O2_, T_, V, I, TR(true), JAM(true), \
@@ -289,8 +289,8 @@ namespace euler {
                                                                                \
     for_each (_ic3, xc.ic3) {                                                  \
       for_each (_oc3, xc.oc3) {                                                \
-        K_GEMM_FMA_P##P0_(O0_, T_, 0);                                         \
-        K_GEMM_FMA_P##P1_(O1_, T_, O0_);                                       \
+        K_GEMM_FMA_P##P0_(o0_, T_, 0);                                         \
+        K_GEMM_FMA_P##P1_(o1_, T_, o0_);                                       \
       }                                                                        \
     }                                                                          \
   }                                                                            \
@@ -302,6 +302,38 @@ namespace euler {
       ISA_SKX_AVX512, TR(true), JAM(true), BIAS(false), RELU(false),           \
       SUM(false)>::gemm(elx_conv_t<float> &, float *, float *, float *,        \
       float *);
+
+#define K3(O2_, T_, o0_, o1_, o2_, P0_, P1_, P2_)                              \
+  template <typename Type, const int V, const int I, const bool with_bias,     \
+      const bool with_relu, const bool with_sum>                               \
+  void convolution_direct_1x1_kernel<Type, O2_, T_, V, I, TR(true), JAM(true), \
+      with_bias, with_relu, with_sum>::gemm(elx_conv_t<Type> &xc,              \
+      Type *output, Type *input, Type *weights, Type *bias)                    \
+  {                                                                            \
+    ENABLE_AVX512F();                                                          \
+                                                                               \
+    MD3(Type, aoutput, output, xc.oc3, O2_, xc.oh *xc.ow *V);                  \
+    MD3(Type, ainput, input, xc.ic3, xc.I2, xc.ih *xc.iw *V);                  \
+    MD4(Type, aweights, weights, xc.oc3, O2_, xc.ic3, xc.I2 *V *V);            \
+    MD3(Type, abias, bias, xc.oc3, O2_, V);                                    \
+                                                                               \
+    for_each (_ic3, xc.ic3) {                                                  \
+      for_each (_oc3, xc.oc3) {                                                \
+        K_GEMM_FMA_P##P0_(o0_, T_, 0);                                         \
+        K_GEMM_FMA_P##P1_(o1_, T_, o0_);                                       \
+        K_GEMM_FMA_P##P2_(o2_, T_, o0_ + o1_);                                 \
+      }                                                                        \
+    }                                                                          \
+  }                                                                            \
+  template void convolution_direct_1x1_kernel<float, O2_, T_, 16,              \
+      ISA_SKX_AVX512, TR(true), JAM(true), BIAS(true), RELU(false),            \
+      SUM(false)>::gemm(elx_conv_t<float> &, float *, float *, float *,        \
+      float *);                                                                \
+  template void convolution_direct_1x1_kernel<float, O2_, T_, 16,              \
+      ISA_SKX_AVX512, TR(true), JAM(true), BIAS(false), RELU(false),           \
+      SUM(false)>::gemm(elx_conv_t<float> &, float *, float *, float *,        \
+      float *);
+
 
 // O=1, T:
 //    T=31..:  kernel: 1, output: 31..
@@ -381,7 +413,15 @@ K1(4, 3, 2)
 K1(4, 4, 2)
 K1(4, 5, 2)
 K1(4, 6, 1)
-K2(4, 7, 2, 3, 4, 1)
+K2(4, 7, 3, 1, 2, 4)
+//K2(4, 7, 2, 2, 4, 4)
+K2(4, 8, 3, 1, 1, 4)
+K2(4, 9, 2, 2, 4, 4)
+K2(4, 10, 2, 2, 4, 4)
+K2(4, 11, 2, 2, 4, 4)
+K2(4, 12, 2, 2, 2, 2)
+K2(4, 13, 2, 2, 2, 2)
+K2(4, 14, 2, 2, 1, 1)
 
 // O=5, T:
 //    T=5:     bcast: 1, kernel: 5, output: 25
@@ -412,7 +452,13 @@ K1(7, 3, 1)
 // O=8, T:
 //    T=2:     bcast: 1, kernel: 8, output: 16
 //    T=1:     bcast: 1, kernel: 16, output: 8 (pipeline: 2)
-K1(8, 2, 1)
 K1(8, 1, 2)
+K1(8, 2, 1)
+K2(8, 3, 5, 3, 2, 4)
+K2(8, 4, 5, 3, 2, 4)
+K2(8, 5, 5, 3, 1, 4)
+K2(8, 6, 4, 4, 1, 1)
+K3(8, 7, 3, 3, 2, 2, 2, 4)
+K3(8, 8, 3, 3, 2, 1, 1, 4)
 
 }

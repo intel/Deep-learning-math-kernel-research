@@ -311,9 +311,9 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
       break;
     case 4:
       switch (T_) {
-        BOOST_PP_REPEAT_FROM_TO(1, 8, GEMM_CASE, 4);
+        BOOST_PP_REPEAT_FROM_TO(1, 15, GEMM_CASE, 4);
       default:
-        el_error("Convolution_direct_1x1: Unimplemented T>7 in O=4");
+        el_error("Convolution_direct_1x1: Unimplemented T>14 in O=4");
         break;
       }
       break;
@@ -343,9 +343,9 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
       break;
     case 8:
       switch (T_) {
-        BOOST_PP_REPEAT_FROM_TO(1, 3, GEMM_CASE, 8);
+        BOOST_PP_REPEAT_FROM_TO(1, 9, GEMM_CASE, 8);
       default:
-        el_error("Convolution_direct_1x1: Unimplemented T>2 in O=8");
+        el_error("Convolution_direct_1x1: Unimplemented T>8 in O=8");
         break;
       }
       break;

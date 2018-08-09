@@ -133,6 +133,13 @@ DEF_convolution_direct_1x1_kernel(4, 4);
 DEF_convolution_direct_1x1_kernel(4, 5);
 DEF_convolution_direct_1x1_kernel(4, 6);
 DEF_convolution_direct_1x1_kernel(4, 7);
+DEF_convolution_direct_1x1_kernel(4, 8);
+DEF_convolution_direct_1x1_kernel(4, 9);
+DEF_convolution_direct_1x1_kernel(4, 10);
+DEF_convolution_direct_1x1_kernel(4, 11);
+DEF_convolution_direct_1x1_kernel(4, 12);
+DEF_convolution_direct_1x1_kernel(4, 13);
+DEF_convolution_direct_1x1_kernel(4, 14);
 DEF_convolution_direct_1x1_kernel(5, 1);
 DEF_convolution_direct_1x1_kernel(5, 2);
 DEF_convolution_direct_1x1_kernel(5, 3);
@@ -147,6 +154,12 @@ DEF_convolution_direct_1x1_kernel(7, 2);
 DEF_convolution_direct_1x1_kernel(7, 3);
 DEF_convolution_direct_1x1_kernel(8, 1);
 DEF_convolution_direct_1x1_kernel(8, 2);
+DEF_convolution_direct_1x1_kernel(8, 3);
+DEF_convolution_direct_1x1_kernel(8, 4);
+DEF_convolution_direct_1x1_kernel(8, 5);
+DEF_convolution_direct_1x1_kernel(8, 6);
+DEF_convolution_direct_1x1_kernel(8, 7);
+DEF_convolution_direct_1x1_kernel(8, 8);
 
 } // namespace euler
 
