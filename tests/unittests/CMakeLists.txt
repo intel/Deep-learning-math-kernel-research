@@ -13,18 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #===============================================================================
-
-include_directories(
-  ${PROJECT_SOURCE_DIR}/euler/tests/unittests/gtest
-  )
-
-add_subdirectory (gtest)
+add_subdirectory (googletest)
 
 set(APP_NAME "gtest")
 set(MAIN_SRC_GTEST main.cpp)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}
-                    ${CMAKE_CURRENT_SOURCE_DIR}/gtest
+                    ${CMAKE_CURRENT_SOURCE_DIR}/googletest/googletest/include
+                    ${CMAKE_CURRENT_SOURCE_DIR}/googletest/googlemock/include
+
                     )
 # TODO: enable me!
 #file(GLOB API_TEST_CASES_SRC api_tests/*.cpp)
@@ -41,7 +38,7 @@ foreach(TEST_FILE ${PRIM_TEST_CASES_SRC})
     set(CURR_APP_NAME ${TEST_FILE_WE})
     add_executable(${CURR_APP_NAME} ${MAIN_SRC_GTEST} ${TEST_FILE})
     target_link_libraries(${CURR_APP_NAME}
-       el ${LIB_NAME} euler_gtest ${EXTRA_LIBS} iomp5 boost_program_options)
+       el ${LIB_NAME} gtest gtest_main gmock ${EXTRA_LIBS} iomp5 boost_program_options)
     add_test(${CURR_APP_NAME} ${CURR_APP_NAME})
 endforeach()
 # we need to have either this or the add_test above; disabling for now...

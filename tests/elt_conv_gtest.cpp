@@ -127,8 +127,9 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
 
 class eltConvTest
     : public ::testing::TestWithParam<
-          ::std::tr1::tuple<int, int, int, int, int, int, int, int, int, int>> {
+          ::testing::tuple<int, int, int, int, int, int, int, int, int, int>> {
 };
+
 
 INSTANTIATE_TEST_CASE_P(elt_conv_test_common_params, eltConvTest,
                         Combine(Values(5, 7), // tile-size
