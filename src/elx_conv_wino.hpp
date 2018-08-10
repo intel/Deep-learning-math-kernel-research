@@ -12,11 +12,15 @@
 #include "kernel/elk_conv_wino_3x3_3x3_input.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_output.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_weights.hxx"
+#include "kernel/elk_conv_wino_5x5_3x3_input.hxx"
+#include "kernel/elk_conv_wino_5x5_3x3_output.hxx"
+#include "kernel/elk_conv_wino_5x5_3x3_weights.hxx"
 
 namespace euler {
 
 template <typename Type, const int A, const int K, const int V, const int I>
 class elx_conv_wino_t : public elx_conv_t<Type> {
+public:
   // Configurable parameters
   using elx_conv_t<Type>::IC;
   using elx_conv_t<Type>::OC;
@@ -287,8 +291,8 @@ private:
 // template class elx_conv_wino_t<float, 4, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<float, 5, 3, 16, ISA_GENERIC>;
 template class elx_conv_wino_t<float, 5, 3, 16, ISA_SKX_AVX512>;
-// template class elx_conv_wino_t<float, 7, 3, 16, ISA_GENERIC>;
-// template class elx_conv_wino_t<float, 7, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<float, 7, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_t<float, 7, 3, 16, ISA_SKX_AVX512>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_WINO_GEMM_HPP__

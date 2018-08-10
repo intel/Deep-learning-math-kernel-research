@@ -46,17 +46,13 @@ void test_elk_trans_input(bool perf, bool show_diff, int execution_mode) {
 
   memset(atinput, 0, sizeof(atinput));
   TT(elk_trans_input, iterations, perf,
-     (convolution_winograd_kernel<S_INPUT(
-          Type, A, 3, V, I, BORDER(false))>::trans_input(xc, atinput,
-                                                         (Type *)&ainput, 0, 4,
-                                                         0, 4)));
+     (convolution_winograd_kernel<Type, I, V, A, K>::
+      template trans_input<false>(xc, atinput,(Type *)&ainput, 0, 4, 0, 4)));
 
   memset(ref_atinput, 0, sizeof(ref_atinput));
   TT(elk_trans_input, iterations, perf,
-     (convolution_winograd_kernel<S_INPUT(
-          Type, A, 3, V, ISA_GENERIC,
-          BORDER(false))>::trans_input(xc, ref_atinput, (Type *)&ainput, 0, 4,
-                                       0, 4)));
+     (convolution_winograd_kernel<Type, ISA_GENERIC, V, A, 3>::
+      template trans_input<false>(xc, ref_atinput, (Type *)&ainput, 0, 4, 0, 4)));
 
   for (int _hA = 0; _hA < A; ++_hA) {
     for (int _wA = 0; _wA < A; ++_wA) {

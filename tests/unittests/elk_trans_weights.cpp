@@ -32,13 +32,12 @@ void test_elk_trans_weights(bool perf, bool show_diff) {
 
   memset(atweights, 0, sizeof(atweights));
   TT(elk_trans_weights, iterations, perf,
-     (convolution_winograd_kernel<S_WEIGHTS(Type, A, K, V, I)>::trans_weights(
+     (convolution_winograd_kernel<Type, I, V, A, K>::trans_weights(
          atweights, aweights)));
 
   memset(ref_atweights, 0, sizeof(ref_atweights));
   TT(ref_elk_trans_weights, iterations, perf,
-     (convolution_winograd_kernel<S_WEIGHTS(
-          Type, A, K, V, ISA_GENERIC)>::trans_weights(ref_atweights,
+     (convolution_winograd_kernel<Type, ISA_GENERIC, V, A, K>::trans_weights(ref_atweights,
                                                       aweights)));
 
   for (int _hK = 0; _hK < K; ++_hK) {

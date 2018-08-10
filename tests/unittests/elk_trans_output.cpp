@@ -49,16 +49,14 @@ void test_elk_trans_output(bool perf, bool show_diff, int execution_mode) {
   memset((void *)ref_aoutput, 0, sizeof(ref_aoutput));
 
   TT(elk_trans_output, iterations, perf,
-     (convolution_winograd_kernel<S_OUTPUT(
-          Type, A, K, V, I, BORDER(false), BIAS(true), RELU(false),
-          SUM(false))>::trans_output(xc, (float *)&aoutput, atoutput, abias,
+     (convolution_winograd_kernel<Type, I, V, A, K>::
+      template trans_output<false, false, false, false>(xc, (float *)&aoutput, atoutput, abias,
                                      A - K, A - K)));
 
   TT(elk_trans_input, iterations, perf,
-     (convolution_winograd_kernel<S_OUTPUT(
-          Type, A, K, V, ISA_GENERIC, BORDER(false), BIAS(true), RELU(false),
-          SUM(false))>::trans_output(xc, (float *)ref_aoutput, atoutput, abias,
-                                     A - K, A - K)));
+     (convolution_winograd_kernel<Type, ISA_GENERIC, V, A, K>::
+      template trans_output<false, false, false, false>(
+        xc, (float *)ref_aoutput, atoutput, abias, A - K, A - K)));
 
   for (int _oh = 0; _oh < xc.oh; ++_oh) {
     for (int _ow = 0; _ow < xc.ow; ++_ow) {
