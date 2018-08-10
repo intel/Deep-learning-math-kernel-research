@@ -40,7 +40,7 @@ file (GLOB __euler_source
   src/elx_conv.cpp
   src/elx_conv_wino.cpp)
 
-include_directories(AFTER . include src)
+include_directories(AFTER . include src xsimd/include)
 link_directories(lib)
 
 # build lib

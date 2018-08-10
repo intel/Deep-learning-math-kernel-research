@@ -1,23 +1,132 @@
 #ifndef __ELX_CONV_WINO_GEMM_HPP__
 #define __ELX_CONV_WINO_GEMM_HPP__
 
+#include <tuple>
+
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
 #include "euler.hpp"
 #include "elk_conv_wino.hpp"
+#include "kernel/elk_conv_wino_gemm.hxx"
+#include "kernel/elk_conv_wino_3x3_3x3_input.hxx"
+#include "kernel/elk_conv_wino_3x3_3x3_output.hxx"
+#include "kernel/elk_conv_wino_3x3_3x3_weights.hxx"
 
 namespace euler {
 
 template <typename Type, const int A, const int K, const int V, const int I>
 class elx_conv_wino_t : public elx_conv_t<Type> {
-  public:
+  // Configurable parameters
+  using elx_conv_t<Type>::IC;
+  using elx_conv_t<Type>::OC;
+  using elx_conv_t<Type>::T;
+  using elx_conv_t<Type>::I2;
+  using elx_conv_t<Type>::O2;
+  using elx_conv_t<Type>::oc4;
+  using elx_conv_t<Type>::ic3;
+  using elx_conv_t<Type>::oc3;
+  constexpr static size_t elem_sz_ = sizeof(Type);
+public:
   elx_conv_wino_t(eld_conv_t<Type> &dc);
   virtual ~elx_conv_wino_t();
 
   virtual void execute(Type *output, Type *input, Type *weights, Type *bias);
 
-  private:
+protected:
+  // Configurator
+  inline std::tuple<int, int> tile_blocking_oc4(int num_cpu) const {
+    constexpr int reg_max = 32;
+    constexpr int reg_min = 15;
+    auto part_o_max = 8;
+
+    auto t = this->t;
+    auto tb = (t - 1)/ num_cpu + 1;
+    auto part_o = 1;
+
+    while (tb < reg_min && part_o < part_o_max) {
+      num_cpu /= 2;
+      part_o *= 2;
+      tb = (t - 1) / num_cpu + 1;
+    }
+
+    while (tb > reg_max) {
+      tb /= 2;
+    }
+
+    return std::make_tuple(tb, part_o);
+  }
+
+  inline std::size_t input_unit() const {
+    return elem_sz_ * T * V;
+  }
+
+  inline std::size_t weights_unit() const {
+    return elem_sz_ * V * V;
+  }
+
+  inline std::size_t output_unit() const {
+    return elem_sz_ * T * V;
+  }
+
+  // Return eligible I2 number, I2 iteration prefer L1 reside
+  inline std::size_t I2_num(std::size_t cache_sz, std::size_t t) const {
+    auto ic2 = this->ic2;
+    auto cache_l = cache_sz - output_unit();
+
+    while((input_unit() + weights_unit()) * ic2 > cache_l) {
+      if ( (ic2 & 0x1) == 0 )
+        ic2 /= 2;
+    }
+    return ic2;
+  }
+
+  // Return eligible O2 number, O2 iteration prefer L2 upper reside
+  inline std::size_t O2_num(std::size_t cache_sz, std::size_t i2, std::size_t oc4)
+    const {
+    auto oc2 = this->oc2/oc4;
+
+    auto cache_l = cache_sz - input_unit() * i2;
+    auto wo_unit = weights_unit() + output_unit();
+
+    while(wo_unit * oc2 > cache_l) {
+      if ((oc2 & 0x1) == 0)
+        oc2 /= 2;
+    }
+    return oc2;
+  }
+
+  // Checkers
+  inline std::size_t gemmker_input_footprint() const {
+    return input_unit() * I2;
+  }
+
+  inline std::size_t gemmker_weights_footprint() const {
+    return weights_unit() * I2;
+  }
+
+  inline std::size_t gemmker_output_footprint() const {
+    return output_unit();
+  }
+
+  inline std::size_t gemm_input_reuse_set() const {
+    return gemmker_input_footprint() + 
+      gemmker_weights_footprint() + gemmker_output_footprint();
+  }
+
+  inline std::size_t gemm_output_reuse_set() const {
+    return gemmker_input_footprint() +
+      gemmker_weights_footprint() * O2 + gemmker_output_footprint() * O2;
+  }
+
+  // a061 currently
+  inline std::size_t gemm_weights_reuse_set() const {
+    auto wtile_sz = elem_sz_ * A * A * IC * OC;
+    return wtile_sz / oc4 + (gemmker_input_footprint() * ic3 +
+      gemmker_output_footprint() * oc3) * A * A;
+  }
+
+private:
 
   void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a040(Type *output, Type *input, Type *weights, Type *bias);
@@ -79,45 +188,56 @@ class elx_conv_wino_t : public elx_conv_t<Type> {
   void bind_execute_functions();
 
   decltype(
-      convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_;
+      convolution_gemm<Type, I, V, 1>::gemm) *ker_gemm_;
   decltype(
-      convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm0_;
+      convolution_gemm<Type, I, V, 1>::gemm) *ker_gemm0_;
   decltype(
-      convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_tail_;
+      convolution_gemm<Type, I, V, 1>::gemm) *ker_gemm_tail_;
   decltype(
-      convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm0_tail_;
-  decltype(convolution_winograd_kernel<S_INPUT(
-          Type, A, K, V, I, BORDER(false))>::trans_input) *ker_trans_input_;
-  decltype(convolution_winograd_kernel<S_INPUT(
-          Type, A, K, V, I, BORDER(true))>::trans_input) *ker_trans_input0_;
-  decltype(convolution_winograd_kernel<S_INPUT(
-          Type, A, K, V, I, BORDER(false))>::trans_inputa) *ker_trans_inputa_;
-  decltype(convolution_winograd_kernel<S_INPUT(
-          Type, A, K, V, I, BORDER(true))>::trans_inputa) *ker_trans_inputa0_;
+      convolution_gemm<Type, I, V, 1>::gemm) *ker_gemm0_tail_;
   decltype(
-      convolution_winograd_kernel<S_WEIGHTS(Type, A, K, V, I)>::trans_weights)
-      *ker_trans_weights_;
-  decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
-      BORDER(false), BIAS(false), RELU(false), SUM(false))>::trans_output)
-      *ker_trans_output_;
-  decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
-      BORDER(true), BIAS(false), RELU(false), SUM(false))>::trans_output)
-      *ker_trans_output0_;
-  decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
-      BORDER(false), BIAS(false), RELU(false), SUM(false))>::trans_output)
-      *ker_trans_output_nobias_;
-  decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
-      BORDER(true), BIAS(false), RELU(false), SUM(false))>::trans_output)
-      *ker_trans_output0_nobias_;
-  decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
-      BORDER(false), BIAS(false), RELU(false), SUM(false))>::trans_outputa_th)
-      *ker_trans_outputa_th_;
-  decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
-      BORDER(false), BIAS(false), RELU(false), SUM(false))>::trans_outputa_bh)
-      *ker_trans_outputa_bh_;
-  decltype(convolution_winograd_kernel<S_OUTPUT(Type, A, K, V, I,
-      BORDER(true), BIAS(false), RELU(false), SUM(false))>::trans_outputa_bh)
-      *ker_trans_outputa0_bh_;
+      convolution_winograd_kernel<
+        Type, I, V, A, K>::template trans_input<false>) *ker_trans_input_;
+  decltype(
+      convolution_winograd_kernel<
+        Type, I, V, A, K>::template trans_input<true>) *ker_trans_input0_;
+  decltype(
+      convolution_winograd_kernel<
+        Type, I, V, A, K>::template trans_inputa<false>) *ker_trans_inputa_;
+  decltype(
+      convolution_winograd_kernel<
+        Type, I, V, A, K>::template trans_inputa<false>) *ker_trans_inputa0_;
+  decltype(
+      convolution_winograd_kernel<
+        Type, I, V, A, K>::trans_weights) *ker_trans_weights_;
+  decltype(
+      convolution_winograd_kernel<
+        Type, I, V, A, K>::template
+        trans_output<false, false, false, false>) *ker_trans_output_;
+  decltype(
+      convolution_winograd_kernel<
+        Type, I, V, A, K>::template
+        trans_output<false, false, false, false>) *ker_trans_output0_;
+  decltype(
+      convolution_winograd_kernel<
+      Type, I, V, A, K>::template
+      trans_output<false, false, false, false>) *ker_trans_output_nobias_;
+  decltype(
+      convolution_winograd_kernel<
+      Type, I, V, A, K>::template
+      trans_output<false, false, false, false>) *ker_trans_output0_nobias_;
+  decltype(
+      convolution_winograd_kernel<
+      Type, I, V, A, K>::template trans_outputa_th<
+      false, false, false, false>) *ker_trans_outputa_th_;
+  decltype(
+      convolution_winograd_kernel<
+      Type, I, V, A, K>::template
+      trans_outputa_bh<false, false, false, false>) *ker_trans_outputa_bh_;
+  decltype(
+      convolution_winograd_kernel<
+      Type, I, V, A, K>::template
+      trans_outputa_bh<false, false, false, false>) *ker_trans_outputa0_bh_;
 
   void (elx_conv_wino_t::*execute_opt_)(Type *, Type *, Type *, Type *);
 

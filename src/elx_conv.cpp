@@ -40,6 +40,7 @@ elx_conv_t<Type>::elx_conv_t(eld_conv_t<Type> &dc) {
   this->nthreads = dc.threading.nthreads;
   this->execution_mode = dc.execution_mode;
 
+  /* Automatical parameters */
   this->I2 = dc.blocking.i;
   this->O2 = dc.blocking.o;
   this->T = dc.blocking.t;

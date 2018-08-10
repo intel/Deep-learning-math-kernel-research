@@ -7,7 +7,7 @@ set(__basic_flags " \
 -Wno-sign-compare -Wno-uninitialized \
 ")
 
-set(__cxx_flags "-std=c++11")
+set(__cxx_flags "-std=c++14")
 
 if (__debug)
   set(__opt_flags "-O0 -g -DDEBUG")

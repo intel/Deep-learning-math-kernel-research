@@ -1,3 +1,4 @@
+#pragma once
 #include <assert.h>
 #include <x86intrin.h>
 #include "elk_def.hpp"
@@ -5,16 +6,16 @@
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
 #include "elk_conv_wino.hpp"
+#include "elk_conv_wino_3x3_3x3_input.hxx"
 
-#ifndef INCLUDE_WINOGRAD_CONVOLUTION_KERNEL
-#error "Don't include this file directly"
-#endif
+// #ifndef INCLUDE_WINOGRAD_CONVOLUTION_KERNEL
+// #error "Don't include this file directly"
+// #endif
 
 namespace euler {
 
-// float atweights[A][A][V][V] <- float aweights[K][K][V][V])
-__TRANS_WEIGHTS(float, 5, 3, 16, ISA_GENERIC)
-{
+inline void convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 5, 3>::
+__trans_weights(float atweights[A][A][V][V], float aweights[K][K][V][V]) {
   const float r12 = 1.0f / 12.0f;
   const float r6 = 1.0f / 6.0f;
   const float r3 = 1.0f / 3.0f;
@@ -22,17 +23,17 @@ __TRANS_WEIGHTS(float, 5, 3, 16, ISA_GENERIC)
   const float r2 = 1.0f / 2.0f;
   const float r2_3 = 2.0f / 3.0f;
 
-  float C10[16], C11[16], C12[16], C20[16], C21[16], C22[16], C30[16], C31[16],
-      C32[16];
+  float C10[V], C11[V], C12[V], C20[V], C21[V], C22[V], C30[V], C31[V],
+      C32[V];
 #undef F
 #undef T
 #undef C
 #define F(h, w) aweights[h][w][_IV][_OV]
 #define T(h, w) atweights[w][h][_IV][_OV]
 #define C(c, n) C##c##n[_OV]
-  for (int _IV = 0; _IV < 16; ++_IV) {
+  for (int _IV = 0; _IV < V; ++_IV) {
 #pragma omp simd
-    for (int _OV = 0; _OV < 16; ++_OV) {
+    for (int _OV = 0; _OV < V; ++_OV) {
       T(0, 0) = r4 * F(0, 0);
       T(1, 0) = -r12 * (F(0, 0) - F(1, 0) + F(2, 0));
       T(2, 0) = -r4 * (F(0, 0) + F(1, 0) + F(2, 0));
@@ -78,12 +79,8 @@ __TRANS_WEIGHTS(float, 5, 3, 16, ISA_GENERIC)
   }
 }
 
-template <D_WEIGHTS(
-    typename Type, const int A, const int K, const int V, const int I)>
-void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::__trans_weights(
-    winograd_template_parameter_t<S_WEIGHTS(float, 5, 3, 16, ISA_SKX_AVX512)>,
-    Type atweights[A][A][V][V], Type aweights[K][K][V][V])
-{
+inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 5, 3>::
+__trans_weights(float atweights[A][A][V][V], float aweights[K][K][V][V]) {
   ENABLE_AVX512F();
 
   // Constants
@@ -108,7 +105,7 @@ void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::__trans_weights(
 #undef T
 #define F(h, w) aweights[h][w][_V]
 #define T(h, w) atweights[w][h][_V]
-  for (int _V = 0; _V < 16; ++_V) {
+  for (int _V = 0; _V < V; ++_V) {
     f00 = _mm512_load_ps(F(0, 0));
     f01 = _mm512_load_ps(F(0, 1));
     f02 = _mm512_load_ps(F(0, 2));
@@ -182,8 +179,5 @@ void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::__trans_weights(
     _mm512_store_ps(T(4, 4), f22);
   }
 }
-
-TRANS_WEIGHTS(float, 5, 3, 16, ISA_GENERIC);
-TRANS_WEIGHTS(float, 5, 3, 16, ISA_SKX_AVX512);
 
 } // namespace euler
