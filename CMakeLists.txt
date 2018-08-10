@@ -36,7 +36,6 @@ include("cmake/required.cmake")
 # find src files
 file (GLOB __euler_source
   src/eld_conv.cpp
-  src/elk_conv_wino.cpp
   src/elx_conv.cpp
   src/elx_conv_wino.cpp)
 
