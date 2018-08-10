@@ -99,7 +99,7 @@ public:
   template <bool is_border>
   static void trans_input(elx_conv_t<Type> &xc, Type atinput[A][A][V],
       Type *input, int hA_start, int hA_end, int wA_start, int wA_end) {
-    __trans_input(xc, atinput, input, hA_start, hA_end,
+    super::template __trans_input<is_border>(xc, atinput, input, hA_start, hA_end,
         wA_start, wA_end);
   }
 
@@ -107,27 +107,27 @@ public:
   static void trans_inputa(elx_conv_t<Type> &xc, Type atinput[A][A][V],
       Type *input, int wA, int hA_start, int hA_end, int wA_start,
       int wA_end) {
-    __trans_inputa(xc, atinput, input, wA, hA_start,
+    super::template __trans_inputa<is_border>(xc, atinput, input, wA, hA_start,
         hA_end, wA_start, wA_end);
   }
 
   template <bool ...conditions>
   static void trans_output(elx_conv_t<Type>& xc, Type* output,
       Type atoutput[A][A][V], Type *bias, int hOA_end, int wOA_end) {
-    __trans_output(xc, output, atoutput, bias, hOA_end,
+    super::template __trans_output<conditions...>(xc, output, atoutput, bias, hOA_end,
         wOA_end);
   }
 
   template <bool ...conditions>
   static void trans_outputa_th(elx_conv_t<Type>& xc,
       Type *toutputa, Type *toutput, int Tz, bool stream_out) {
-    __trans_outputa_th(xc, toutputa, toutput, Tz, stream_out);
+    super::template __trans_outputa_th<conditions...>(xc, toutputa, toutput, Tz, stream_out);
   }
 
   template <bool ...conditions>
   static void trans_outputa_bh(elx_conv_t<Type> &xc, Type *output,
       Type atoutputa[A][A - K + 1][V], Type *bias, int hOA_end, int wOA_end) {
-    __trans_outputa_bh(xc, output, atoutputa, bias, hOA_end, wOA_end);
+    super::template __trans_outputa_bh<conditions...>(xc, output, atoutputa, bias, hOA_end, wOA_end);
   }
 
   static void trans_weights(
