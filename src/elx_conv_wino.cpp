@@ -352,144 +352,104 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 {
-  ker_trans_input_ = convolution_winograd_kernel<S_INPUT(
-      Type, A, K, V, I, BORDER(false))>::trans_input;
-  ker_trans_input0_ = convolution_winograd_kernel<S_INPUT(
-      Type, A, K, V, I, BORDER(true))>::trans_input;
-  ker_trans_inputa_ = convolution_winograd_kernel<S_INPUT(
-      Type, A, K, V, I, BORDER(false))>::trans_inputa;
-  ker_trans_inputa0_ = convolution_winograd_kernel<S_INPUT(
-      Type, A, K, V, I, BORDER(true))>::trans_inputa;
-  ker_trans_weights_ = convolution_winograd_kernel<S_WEIGHTS(
-      Type, A, K, V, I)>::trans_weights;
+  ker_trans_input_ = convolution_winograd_kernel<Type, I, V, A, K>::trans_input;
+  ker_trans_input0_ = convolution_winograd_kernel<Type, I, V, A, K>::trans_input;
+  ker_trans_inputa_ = convolution_winograd_kernel<Type, I, V, A, K>::trans_inputa;
+  ker_trans_inputa0_ = convolution_winograd_kernel<Type, I, V, A, K>::trans_inputa;
+  ker_trans_weights_ = convolution_winograd_kernel<Type, I, V, A, K>::trans_weights;
   // TODO: ker_trans_output_nobias_norelu_nosum (no fusion)
   // Fusion operation is done in related ker_trans_output_
-  ker_trans_output_nobias_ = convolution_winograd_kernel<S_OUTPUT(
-      Type, A, K, V, I, BORDER(false), BIAS(false), RELU(false), SUM(false))>::
+  ker_trans_output_nobias_ = convolution_winograd_kernel<Type, I, V, A, K>::
       trans_output;
-  ker_trans_output0_nobias_ = convolution_winograd_kernel<S_OUTPUT(
-      Type, A, K, V, I, BORDER(true), BIAS(false), RELU(false), SUM(false))>::
+  ker_trans_output0_nobias_ = convolution_winograd_kernel<Type, I, V, A, K>::
       trans_output;
   if (this->with_bias && this->with_relu) {
     if (this->with_sum) {
-      ker_trans_output_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K, V,
-          I, BORDER(false), BIAS(true), RELU(true), SUM(true))>::
+      ker_trans_output_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_output;
-      ker_trans_output0_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K, V,
-          I, BORDER(true), BIAS(true), RELU(true), SUM(true))>::
+      ker_trans_output0_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_output;
-      ker_trans_outputa_bh_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K,
-          V, I, BORDER(false), BIAS(true), RELU(true), SUM(true))>::
+      ker_trans_outputa_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_outputa_bh;
-      ker_trans_outputa0_bh_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K,
-          V, I, BORDER(true), BIAS(true), RELU(true), SUM(true))>::
+      ker_trans_outputa0_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_outputa_bh;
     } else {
-      ker_trans_output_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K, V,
-          I, BORDER(false), BIAS(true), RELU(true), SUM(false))>::
+      ker_trans_output_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_output;
-      ker_trans_output0_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K, V,
-          I, BORDER(true), BIAS(true), RELU(true), SUM(false))>::
+      ker_trans_output0_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_output;
-      ker_trans_outputa_bh_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K,
-          V, I, BORDER(false), BIAS(true), RELU(true), SUM(false))>::
+      ker_trans_outputa_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_outputa_bh;
-      ker_trans_outputa0_bh_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K,
-          V, I, BORDER(true), BIAS(true), RELU(true), SUM(false))>::
+      ker_trans_outputa0_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_outputa_bh;
     }
   } else if (this->with_bias && !this->with_relu) {
     if (this->with_sum) {
-      ker_trans_output_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K, V,
-          I, BORDER(false), BIAS(true), RELU(false), SUM(true))>::
+      ker_trans_output_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_output;
-      ker_trans_output0_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K, V,
-          I, BORDER(true), BIAS(true), RELU(false), SUM(true))>::
+      ker_trans_output0_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_output;
-      ker_trans_outputa_bh_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K,
-          V, I, BORDER(false), BIAS(true), RELU(false), SUM(true))>::
+      ker_trans_outputa_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_outputa_bh;
-      ker_trans_outputa0_bh_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K,
-          V, I, BORDER(true), BIAS(true), RELU(false), SUM(true))>::
+      ker_trans_outputa0_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_outputa_bh;
     } else {
-      ker_trans_output_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K, V,
-          I, BORDER(false), BIAS(true), RELU(false), SUM(false))>::
+      ker_trans_output_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_output;
-      ker_trans_output0_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K, V,
-          I, BORDER(true), BIAS(true), RELU(false), SUM(false))>::
+      ker_trans_output0_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_output;
-      ker_trans_outputa_bh_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K,
-          V, I, BORDER(false), BIAS(true), RELU(false), SUM(false))>::
+      ker_trans_outputa_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_outputa_bh;
-      ker_trans_outputa0_bh_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K,
-          V, I, BORDER(true), BIAS(true), RELU(false), SUM(false))>::
+      ker_trans_outputa0_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_outputa_bh;
     }
   } else if (!this->with_bias && this->with_relu) {
     if (this->with_sum) {
-      ker_trans_output_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K, V,
-          I, BORDER(false), BIAS(false), RELU(true), SUM(true))>::
+      ker_trans_output_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_output;
-      ker_trans_output0_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K, V,
-          I, BORDER(true), BIAS(false), RELU(true), SUM(true))>::
+      ker_trans_output0_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_output;
-      ker_trans_outputa_bh_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K,
-          V, I, BORDER(false), BIAS(false), RELU(true), SUM(true))>::
+      ker_trans_outputa_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_outputa_bh;
-      ker_trans_outputa0_bh_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K,
-          V, I, BORDER(true), BIAS(false), RELU(true), SUM(true))>::
+      ker_trans_outputa0_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_outputa_bh;
     } else {
-      ker_trans_output_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K, V,
-          I, BORDER(false), BIAS(false), RELU(true), SUM(false))>::
+      ker_trans_output_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_output;
-      ker_trans_output0_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K, V,
-          I, BORDER(true), BIAS(false), RELU(true), SUM(false))>::
+      ker_trans_output0_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_output;
-      ker_trans_outputa_bh_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K,
-          V, I, BORDER(false), BIAS(false), RELU(true), SUM(false))>::
+      ker_trans_outputa_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_outputa_bh;
-      ker_trans_outputa0_bh_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K,
-          V, I, BORDER(true), BIAS(false), RELU(true), SUM(false))>::
+      ker_trans_outputa0_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_outputa_bh;
     }
   } else {
     if (this->with_sum) {
-      ker_trans_output_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K, V,
-          I, BORDER(false), BIAS(false), RELU(false), SUM(true))>::
+      ker_trans_output_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_output;
-      ker_trans_output0_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K, V,
-          I, BORDER(true), BIAS(false), RELU(false), SUM(true))>::
+      ker_trans_output0_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_output;
-      ker_trans_outputa_bh_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K,
-          V, I, BORDER(false), BIAS(false), RELU(false), SUM(true))>::
+      ker_trans_outputa_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_outputa_bh;
-      ker_trans_outputa0_bh_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K,
-          V, I, BORDER(true), BIAS(false), RELU(false), SUM(true))>::
+      ker_trans_outputa0_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_outputa_bh;
     } else {
-      ker_trans_output_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K, V,
-          I, BORDER(false), BIAS(false), RELU(false), SUM(false))>::
+      ker_trans_output_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_output;
-      ker_trans_output0_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K, V,
-          I, BORDER(true), BIAS(false), RELU(false), SUM(false))>::
+      ker_trans_output0_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_output;
-      ker_trans_outputa_bh_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K,
-          V, I, BORDER(false), BIAS(false), RELU(false), SUM(false))>::
+      ker_trans_outputa_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_outputa_bh;
-      ker_trans_outputa0_bh_ = convolution_winograd_kernel<S_OUTPUT(Type, A, K,
-          V, I, BORDER(true), BIAS(false), RELU(false), SUM(false))>::
+      ker_trans_outputa0_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
           trans_outputa_bh;
     }
   }
-  ker_trans_outputa_th_ = convolution_winograd_kernel<S_OUTPUT(
-      Type, A, K, V, I, BORDER(false), BIAS(false), RELU(false), SUM(false))>::
+  ker_trans_outputa_th_ = convolution_winograd_kernel<Type, I, V, A, K>::
       trans_outputa_th;
 
 #define GEMM_CASE(z, n, data)                                                \
   case n:                                                                    \
-    ker_gemm_ = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm;    \
+    ker_gemm_ = convolution_winograd_kernel<Type, I, V, n>::gemm;    \
     break;
 
   switch (this->T) {
@@ -501,7 +461,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 
 #define GEMM_CASE0(z, n, data)                                               \
   case n:                                                                    \
-    ker_gemm0_ = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm;   \
+    ker_gemm0_ = convolution_winograd_kernel<Type, I, V, n>::gemm;   \
     break;
 
   switch (this->Tr) {
@@ -515,7 +475,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 #define GEMM_TAIL_CASE(z, n, data)                                           \
   case n:                                                                    \
     ker_gemm_tail_                                                           \
-        = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm_tail;     \
+        = convolution_winograd_kernel<Type, I, V, n>::gemm_tail;     \
     break;
 
     switch (this->T) {
@@ -528,7 +488,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 #define GEMM_CASE0_TAIL(z, n, data)                                          \
   case n:                                                                    \
     ker_gemm0_tail_                                                          \
-        = convolution_winograd_kernel<S_GEMM(Type, n, V, I)>::gemm_tail;     \
+        = convolution_winograd_kernel<Type, I, V, n>::gemm_tail;     \
     break;
 
     switch (this->Tr) {
