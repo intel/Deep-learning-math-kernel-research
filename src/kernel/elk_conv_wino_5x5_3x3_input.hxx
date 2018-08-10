@@ -1,3 +1,4 @@
+#pragma once
 #include <assert.h>
 #include <x86intrin.h>
 #include "elk_def.hpp"
@@ -6,10 +7,6 @@
 #include "elx_conv.hpp"
 #include "elk_conv_wino.hpp"
 #include <math.h>
-
-#ifndef INCLUDE_WINOGRAD_CONVOLUTION_KERNEL
-#error "Don't include this file directly"
-#endif
 
 namespace euler {
 
@@ -22,12 +19,83 @@ namespace euler {
   T(5, n) = z2 * C(1) - C(3) + z4 * (C(4) - C(2)) + z1_2 * C(5) - C(6);         \
   T(6, n) = C(1) - z21_10 * C(3) + z21_4 * C(5);
 
+template <>
+class convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 7, 3> {
+protected:
+  constexpr static int I = ISA_GENERIC;
+  constexpr static int V = 16;
+  constexpr static int A = 7;
+  constexpr static int K = 3;
+
+  template <bool is_border>
+  static inline void __trans_input(elx_conv_t<float> &xc, float atinput[A][A][V],
+      float *input, int hT_start, int hT_end, int wT_start,
+      int wT_end);
+
+  template <bool is_border>
+  static inline void __trans_inputa(elx_conv_t<float> &xc, float atinput[A][A][V],
+      float *input, int _wA, int _hA_start, int _hA_end, int _wA_start,
+      int _wA_end);
+
+  template <bool ...conditions>
+  static inline void __trans_output(elx_conv_t<float> &xc, float *output,
+      float atoutput[A][A][V], float *bias, int hOA_end, int wOA_end);
+
+  template <bool ...conditions>
+  static inline void __trans_outputa_th(elx_conv_t<float> &xc, float *toutputa,
+      float *toutput, int Tz, bool stream_out);
+
+  template <bool ...conditions>
+  static inline void __trans_outputa_bh(elx_conv_t<float> &xc, float *output,
+      float atoutputa[A][A - K + 1][V], float *bias, int hOA_end, int wOA_end);
+
+  static inline void __trans_weights(float atweights[A][A][V][V],
+      float aweights[K][K][V][V]);
+};
+
+template <>
+class convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 7, 3> {
+protected:
+  constexpr static int I = ISA_SKX_AVX512;
+  constexpr static int V = 16;
+  constexpr static int A = 7;
+  constexpr static int K = 3;
+
+  template <bool is_border> static inline
+  void __trans_input(elx_conv_t<float> &xc, float atinput[A][A][V],
+      float *input, int hT_start, int hT_end, int wT_start,
+      int wT_end);
+
+  template <bool is_border>
+  static void __trans_inputa(elx_conv_t<float> &xc, float atinput[A][A][V],
+      float *input, int _wA, int _hA_start, int _hA_end, int _wA_start,
+      int _wA_end);
+
+  template <bool ...conditions>
+  static inline void __trans_output(elx_conv_t<float> &xc, float *output,
+      float atoutput[A][A][V], float *bias, int hOA_end, int wOA_end);
+
+  template <bool ...conditions>
+  static inline void __trans_outputa_th(elx_conv_t<float> &xc, float *toutputa,
+      float *toutput, int Tz, bool stream_out);
+
+  template <bool ...conditions>
+  static inline void __trans_outputa_bh(elx_conv_t<float> &xc, float *output,
+      float aoutputa[A][A - K + 1][V], float *bias, int hOA_end, int wOA_end);
+
+  static inline void __trans_weights(float atweights[A][A][V][V],
+      float aweights[K][K][V][V]);
+};
+
+
 // template <const bool is_border_>
 // Params:
 //    elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
 //    int _hT_start, int _hT_end, int _wT_start, int _wT_end
-__TRANS_INPUT(float, 7, 3, 16, ISA_GENERIC)
-{
+template <bool is_border>
+inline void convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 7, 3>::__trans_input(
+    elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
+    int hT_start, int hT_end, int wT_start, int wT_end) {
   const float z2 = 2.0f;
   const float z4 = 4.0f;
   const float z1_2 = 1.0f / 2.0f;
@@ -43,14 +111,14 @@ __TRANS_INPUT(float, 7, 3, 16, ISA_GENERIC)
   const float z85_16 = 85.0f / 16.0f;
 
   auto f_cb = [&](int _h, int _w, int _V) {
-    if (_wT_end == -1) {
-      MD3(float, ainput, input, A, A, 16);
+    if (wT_end == -1) {
+      MD3(float, ainput, input, A, A, V);
       return md3(ainput, _h, _w, _V);
     } else {
-      MD3(float, ainput, input, xc.ih, xc.iw, 16);
-      if (is_border_
-          && (_h < _hT_start || _w < _wT_start || _h > _hT_end
-                 || _w > _wT_end))
+      MD3(float, ainput, input, xc.ih, xc.iw, V);
+      if (is_border
+          && (_h < hT_start || _w < wT_start || _h > hT_end
+                 || _w > wT_end))
         return 0.0f;
       else
         return md3(ainput, _h, _w, _V);
@@ -64,7 +132,7 @@ __TRANS_INPUT(float, 7, 3, 16, ISA_GENERIC)
 #define C(n) C##n[_V]
 #define T(_h, _w) atinput[_w][_h][_V]
 
-  float C1[16], C2[16], C3[16], C4[16], C5[16], C6[16];
+  float C1[V], C2[V], C3[V], C4[V], C5[V], C6[V];
 
 #pragma omp simd
   for (int _V = 0; _V < 16; ++_V) {
@@ -211,8 +279,10 @@ __TRANS_INPUT(float, 7, 3, 16, ISA_GENERIC)
 // Params:
 //    elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
 //    int _hT_start, int _hT_end, int _wT_start, int _wT_end
-__TRANS_INPUT(float, 7, 3, 16, ISA_SKX_AVX512)
-{
+template <bool is_border>
+inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 7, 3>::__trans_input(
+    elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
+    int hT_start, int hT_end, int wT_start, int wT_end) {
   ENABLE_AVX512F();
 
   // Inputs
@@ -250,13 +320,13 @@ __TRANS_INPUT(float, 7, 3, 16, ISA_SKX_AVX512)
   __m512 z85_16 = _mm512_set_ps(IMM_BCAST16(85.0f / 16.0f));
 
   auto f_cb = [&](int _h, int _w) {
-    if (_wT_end == -1) {
-      MD3(float, ainput, input, A, A, 16);
+    if (wT_end == -1) {
+      MD3(float, ainput, input, A, A, V);
       return _mm512_load_ps(&md3(ainput, _h, _w, 0));
     } else {
-      MD3(float, ainput, input, xc.ih, xc.iw, 16);
-      if (is_border_
-          && (_h < _hT_start || _w < _wT_start || _h > _hT_end || _w > _wT_end))
+      MD3(float, ainput, input, xc.ih, xc.iw, V);
+      if (is_border
+          && (_h < hT_start || _w < wT_start || _h > hT_end || _w > wT_end))
         return z0;
       else
         return _mm512_load_ps(&md3(ainput, _h, _w, 0));
@@ -414,8 +484,11 @@ __TRANS_INPUT(float, 7, 3, 16, ISA_SKX_AVX512)
 // Params:
 //   elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
 //   int _wA, int _hT_start, int _hT_end, int _wT_start, int _wT_end)
-__TRANS_INPUTA(float, 7, 3, 16, ISA_GENERIC)
-{
+template <bool is_border>
+inline void convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 7, 3>::
+__trans_inputa(
+    elx_conv_t<float> &xc, float atinput[A][A][V], float *input, int wA,
+    int hT_start, int hT_end, int wT_start, int wT_end) {
   const float z2 = 2.0f;
   const float z4 = 4.0f;
   const float z1_2 = 1.0f / 2.0f;
@@ -431,14 +504,14 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_GENERIC)
   const float z85_16 = 85.0f / 16.0f;
 
   auto f_cb = [&](int _h, int _w, int _V) {
-    if (_wT_end == -1) {
-      MD3(float, ainput, input, A, A, 16);
+    if (wT_end == -1) {
+      MD3(float, ainput, input, A, A, V);
       return md3(ainput, _h, _w, _V);
     } else {
-      MD3(float, ainput, input, xc.ih, xc.iw, 16);
-      if (is_border_
-          && (_h < _hT_start || _w < _wT_start || _h > _hT_end
-                 || _w > _wT_end))
+      MD3(float, ainput, input, xc.ih, xc.iw, V);
+      if (is_border
+          && (_h < hT_start || _w < wT_start || _h > hT_end
+                 || _w > wT_end))
         return 0.0f;
       else
         return md3(ainput, _h, _w, _V);
@@ -452,11 +525,11 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_GENERIC)
 #define C(n) C##n[_V]
 #define T(_h, _w) atinput[_h][_w][_V]
 
-  float C1[16], C2[16], C3[16], C4[16], C5[16], C6[16];
-  switch (_wA) {
+  float C1[V], C2[V], C3[V], C4[V], C5[V], C6[V];
+  switch (wA) {
   case 0:
 #pragma omp simd
-    for (int _V = 0; _V < 16; ++_V) {
+    for (int _V = 0; _V < V; ++_V) {
       C(1) = F(0, 0) + F(0, 1) - z17_4 * (F(0, 2) + F(0, 3)) + F(0, 4) + F(0, 5);
       C(2) = F(1, 0) + F(1, 1) - z17_4 * (F(1, 2) + F(1, 3)) + F(1, 4) + F(1, 5);
       C(3) = z5_2 * (F(2, 0) + F(2, 1) + F(2, 4) + F(2,5)) - z85_8 * (F(2, 2) + F(2, 3));
@@ -471,7 +544,7 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_GENERIC)
     break;
   case 1:
 #pragma omp simd
-    for (int _V = 0; _V < 16; ++_V) {
+    for (int _V = 0; _V < V; ++_V) {
       C(1) = F(0, 0) - F(0, 1) + z17_4 * (F(0, 3) - F(0, 2)) + F(0, 4) - F(0, 5);
       C(2) = F(1, 0) - F(1, 1) + z17_4 * (F(1, 3) - F(1, 2)) + F(1, 4) - F(1, 5);
       C(3) = z5_2 * (F(2, 0) - F(2, 1) + F(2, 4) - F(2,5)) + z85_8 * (F(2, 3) - F(2, 2));
@@ -486,7 +559,7 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_GENERIC)
     break;
   case 2:
 #pragma omp simd
-    for (int _V = 0; _V < 16; ++_V) {
+    for (int _V = 0; _V < V; ++_V) {
       const float z5 = 5.0f;
       const float z5_8 = 5.0f / 8.0f;
       const float z5_16 = 5.0f / 16.0f;
@@ -515,7 +588,7 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_GENERIC)
     break;
   case 3:
 #pragma omp simd
-    for (int _V = 0; _V < 16; ++_V) {
+    for (int _V = 0; _V < V; ++_V) {
       const float z5 = 5.0f;
       const float z5_8 = 5.0f / 8.0f;
       const float z5_16 = 5.0f / 16.0f;
@@ -544,7 +617,7 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_GENERIC)
     break;
   case 4:
 #pragma omp simd
-    for (int _V = 0; _V < 16; ++_V) {
+    for (int _V = 0; _V < V; ++_V) {
       const float z5 = 5.0f;
       const float z10 = 10.0f;
       const float z5_8 = 5.0f / 8.0f;
@@ -573,7 +646,7 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_GENERIC)
     break;
   case 5:
 #pragma omp simd
-    for (int _V = 0; _V < 16; ++_V) {
+    for (int _V = 0; _V < V; ++_V) {
       const float z5 = 5.0f;
       const float z10 = 10.0f;
       const float z5_8 = 5.0f / 8.0f;
@@ -602,7 +675,7 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_GENERIC)
     break;
   case 6:
 #pragma omp simd
-    for (int _V = 0; _V < 16; ++_V) {
+    for (int _V = 0; _V < V; ++_V) {
       const float z105_8 = 105.0f / 8.0f;
       const float z105_16 = 105.0f / 16.0f;
 
@@ -625,8 +698,11 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_GENERIC)
 // Params:
 //   elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
 //   int _wA, int _hT_start, int _hT_end, int _wT_start, int _wT_end)
-__TRANS_INPUTA(float, 7, 3, 16, ISA_SKX_AVX512)
-{
+template <bool is_border>
+inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 7, 3>::
+__trans_inputa(
+    elx_conv_t<float> &xc, float atinput[A][A][V], float *input, int wA,
+    int hT_start, int hT_end, int wT_start, int wT_end) {
   ENABLE_AVX512F();
 
   // Inputs
@@ -667,13 +743,13 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_SKX_AVX512)
   __m512 z5, z5_8, z5_16, z25_4, z25_8, z25_16, z10, z25_2;
 
   auto f_cb = [&](int _h, int _w) {
-    if (_wT_end == -1) {
-      MD3(float, ainput, input, A, A, 16);
-      return _mm512_load_ps(&md3(ainput, _h, _w, 16));
+    if (wT_end == -1) {
+      MD3(float, ainput, input, A, A, V);
+      return _mm512_load_ps(&md3(ainput, _h, _w, V));
     } else {
-      MD3(float, ainput, input, xc.ih, xc.iw, 16);
-      if (is_border_
-          && (_h < _hT_start || _w < _wT_start || _h > _hT_end || _w > _wT_end))
+      MD3(float, ainput, input, xc.ih, xc.iw, V);
+      if (is_border
+          && (_h < hT_start || _w < wT_start || _h > hT_end || _w > wT_end))
         return z0;
       else
         return _mm512_load_ps(&md3(ainput, _h, _w, 0));
@@ -693,7 +769,7 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_SKX_AVX512)
 
   MATRIX_DEF(7, 6);
 
-  switch (_wA) {
+  switch (wA) {
   case 0:
     c1 = SUB(ADD(f00, f01), FMSUB(z17_4, ADD(f02, f03), ADD(f04, f05)));
     c2 = SUB(ADD(f10, f11), FMSUB(z17_4, ADD(f12, f13), ADD(f14, f15)));
@@ -849,12 +925,5 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_SKX_AVX512)
     break;
   }
 }
-
-
-
-TRANS_INPUT(float, 7, 3, 16, ISA_GENERIC);
-TRANS_INPUT(float, 7, 3, 16, ISA_SKX_AVX512);
-TRANS_INPUTA(float, 7, 3, 16, ISA_GENERIC);
-TRANS_INPUTA(float, 7, 3, 16, ISA_SKX_AVX512);
 
 } // namespace euler

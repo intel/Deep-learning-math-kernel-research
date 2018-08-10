@@ -1,3 +1,4 @@
+#pragma once
 #include <assert.h>
 #include <x86intrin.h>
 #include "elk_def.hpp"
@@ -5,10 +6,8 @@
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
 #include "elk_conv_wino.hpp"
+#include "elk_conv_wino_5x5_3x3_input.hxx"
 
-#ifndef INCLUDE_WINOGRAD_CONVOLUTION_KERNEL
-#error "Don't include this file directly"
-#endif
 namespace euler {
 
 #define GENERIC_CALCULATE_O_0(z, n, nil)                                     \
@@ -29,17 +28,17 @@ namespace euler {
 
 #define GENERIC_CALCULATE_O(n)                                               \
   P(0, n) = C(0) + C(1) + C(2) + C(3) + C(4) + C(5);                         \
-  if (with_bias_) P(0, n) += B;                                              \
-  if (with_relu_) P(0, n) = P(0, n) > 0 ? P(0, n) : 0;                       \
+  if (with_bias) P(0, n) += B;                                              \
+  if (with_relu) P(0, n) = P(0, n) > 0 ? P(0, n) : 0;                       \
   P(1, n) = C(0) - C(1) + a2 * (C(2) - C(3)) + a1_2 * (C(4) - C(5));         \
-  if (with_bias_) P(1, n) += B;                                              \
-  if (with_relu_) P(1, n) = P(1, n) > 0 ? P(1, n) : 0;                       \
+  if (with_bias) P(1, n) += B;                                              \
+  if (with_relu) P(1, n) = P(1, n) > 0 ? P(1, n) : 0;                       \
   P(2, n) = C(0) + C(1) + a4 * (C(2) + C(3)) + a1_4 * (C(4) + C(5));         \
-  if (with_bias_) P(2, n) += B;                                              \
-  if (with_relu_) P(2, n) = P(2, n) > 0 ? P(2, n) : 0;                       \
+  if (with_bias) P(2, n) += B;                                              \
+  if (with_relu) P(2, n) = P(2, n) > 0 ? P(2, n) : 0;                       \
   P(3, n) = C(0) - C(1) + a8 * (C(2) - C(3)) + a1_8 * (C(4) - C(5));         \
-  if (with_bias_) P(3, n) += B;                                              \
-  if (with_relu_) P(3, n) = P(3, n) > 0 ? P(3, n) : 0;                       \
+  if (with_bias) P(3, n) += B;                                              \
+  if (with_relu) P(3, n) = P(3, n) > 0 ? P(3, n) : 0;                       \
   P(4, n) = C(0) + C(1) + a16 * (C(2) + C(3)) + a1_16 * (C(4) + C(5));
 
 #define GENERIC_ADD_TAIL_0(n, z)                                        \
@@ -49,13 +48,15 @@ namespace euler {
   P(4, n) += T(6, 0) + T(6, 1) + a##z * (T(6, 2) + T(6, 3))             \
       + a1_##z * (T(6, 4) + T(6, 5));
 
-// template <const bool is_border_, const bool with_bias_>
+// template <const bool is_border_, const bool with_bias>
 // Params:
 //   elx_conv_t<float> &xc,
 //   float *output, float atoutput[A][A][V], float *bias,
 //   int _hOA_end, int _wOA_end
-__TRANS_OUTPUT(float, 7, 3, 16, ISA_GENERIC)
-{
+template <bool ...conditions>
+inline void convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 7, 3>::
+__trans_output(elx_conv_t<float> &xc, float *output,
+      float atoutput[A][A][V], float *bias, int hOA_end, int wOA_end) {
   const float a2 = 2.0f;
   const float a4 = 4.0f;
   const float a8 = 8.0f;
@@ -65,14 +66,19 @@ __TRANS_OUTPUT(float, 7, 3, 16, ISA_GENERIC)
   const float a1_8 = 1.0f / 8.0f;
   const float a1_16 = 1.0f / 16.0f;
 
-  float dummy[16];
+  float dummy[V];
+
+  constexpr bool is_border = cd_traits<conditions...>::is_border;
+  constexpr bool with_bias = cd_traits<conditions...>::with_bias;
+  constexpr bool with_relu = cd_traits<conditions...>::with_relu;
+
   auto p_cb = [&](int _h, int _w, int _V) {
-    if (_wOA_end == -1) {
-      MD3(float, aoutput, output, A - K + 1, A - K + 1, 16);
+    if (wOA_end == -1) {
+      MD3(float, aoutput, output, A - K + 1, A - K + 1, V);
       return &md3(aoutput, _h, _w, _V);
     } else {
-      MD3(float, aoutput, output, xc.oh, xc.ow, 16);
-      if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
+      MD3(float, aoutput, output, xc.oh, xc.ow, V);
+      if (is_border && (_h > hOA_end || _w > wOA_end))
         return &dummy[_V];
       else
         return &md3(aoutput, _h, _w, _V);
@@ -88,44 +94,44 @@ __TRANS_OUTPUT(float, 7, 3, 16, ISA_GENERIC)
 #define P(_h, _w) *p_cb(_h, _w, _V)
 #define B bias[_V]
 
-  float C0[16], C1[16], C2[16], C3[16], C4[16], C5[16];
+  float C0[V], C1[V], C2[V], C3[V], C4[V], C5[V];
 
 #pragma omp simd
-  for (int _V = 0; _V < 16; ++_V) {
+  for (int _V = 0; _V < V; ++_V) {
     BOOST_PP_REPEAT(6, GENERIC_CALCULATE_O_0, nil)
     GENERIC_CALCULATE_O(0)
     P(4, 0) += T(6, 0) + T(6, 1) + T(6, 2) + T(6, 3) + T(6, 4) + T(6, 5);
-    if (with_bias_) P(4, 0) += B;
-    if (with_relu_) P(4, 0) = P(4, 0) > 0 ? P(4, 0) : 0;
+    if (with_bias) P(4, 0) += B;
+    if (with_relu) P(4, 0) = P(4, 0) > 0 ? P(4, 0) : 0;
 
 
     BOOST_PP_REPEAT(6, GENERIC_CALCULATE_O_1, nil)
     GENERIC_CALCULATE_O(1)
     GENERIC_ADD_TAIL_0(1, 2)
-    if (with_bias_) P(4, 1) += B;
-    if (with_relu_) P(4, 1) = P(4, 1) > 0 ? P(4, 1) : 0;
+    if (with_bias) P(4, 1) += B;
+    if (with_relu) P(4, 1) = P(4, 1) > 0 ? P(4, 1) : 0;
 
 
     BOOST_PP_REPEAT(6, GENERIC_CALCULATE_O_2, nil)
     GENERIC_CALCULATE_O(2)
     GENERIC_ADD_TAIL_1(2, 4)
-    if (with_bias_) P(4, 2) += B;
-    if (with_relu_) P(4, 2) = P(4, 2) > 0 ? P(4, 2) : 0;
+    if (with_bias) P(4, 2) += B;
+    if (with_relu) P(4, 2) = P(4, 2) > 0 ? P(4, 2) : 0;
 
 
     BOOST_PP_REPEAT(6, GENERIC_CALCULATE_O_3, nil)
     GENERIC_CALCULATE_O(3)
     GENERIC_ADD_TAIL_0(3, 8)
-    if (with_bias_) P(4, 3) += B;
-    if (with_relu_) P(4, 3) = P(4, 3) > 0 ? P(4, 3) : 0;
+    if (with_bias) P(4, 3) += B;
+    if (with_relu) P(4, 3) = P(4, 3) > 0 ? P(4, 3) : 0;
 
 
     BOOST_PP_REPEAT(6, GENERIC_CALCULATE_O_4, nil)
     GENERIC_CALCULATE_O(4)
     GENERIC_ADD_TAIL_1(4, 16)
     P(4, 4) += T(6, 6);
-    if (with_bias_) P(4, 4) += B;
-    if (with_relu_) P(4, 4) = P(4, 4) > 0 ? P(4, 4) : 0;
+    if (with_bias) P(4, 4) += B;
+    if (with_relu) P(4, 4) = P(4, 4) > 0 ? P(4, 4) : 0;
   }
 }
 
@@ -147,57 +153,62 @@ __TRANS_OUTPUT(float, 7, 3, 16, ISA_GENERIC)
 
 #define AVX512_CALCULATE_O(n)                                                  \
   __m512 p0##n = ADD(ADD(ADD(ADD(ADD(c0, c1), c2), c3), c4), c5);              \
-  if (with_bias_)                                                              \
+  if (with_bias)                                                              \
     p0##n = ADD(p0##n, *(__m512*)bias);                                        \
-  if (with_relu_) {                                                            \
+  if (with_relu) {                                                            \
     zero = XOR(zero, zero);                                                    \
     p0##n = MAX(p0##n, zero);                                                  \
   }                                                                            \
   _mm512_store_ps(P(0, n), p0##n);                                             \
   __m512 p1##n = ADD(FMADD(z2, SUB(c2, c3), c0), FMSUB(z1_2, SUB(c4, c5), c1));\
-  if (with_bias_)                                                              \
+  if (with_bias)                                                              \
     p1##n = ADD(p1##n, *(__m512*)bias);                                        \
-  if (with_relu_)                                                              \
+  if (with_relu)                                                              \
     p1##n = MAX(p1##n, zero);                                                  \
   _mm512_store_ps(P(1, n), p1##n);                                             \
   __m512 p2##n = ADD(FMADD(z4, ADD(c2, c3), c0), FMADD(z1_4, ADD(c4, c5), c1));\
-  if (with_bias_)                                                              \
+  if (with_bias)                                                              \
     p2##n = ADD(p2##n, *(__m512*)bias);                                        \
-  if (with_relu_)                                                              \
+  if (with_relu)                                                              \
     p2##n = MAX(p2##n, zero);                                                  \
   _mm512_store_ps(P(2, n), p2##n);                                             \
   __m512 p3##n = ADD(FMADD(z8, SUB(c2, c3), c0), FMSUB(z1_8, SUB(c4, c5), c1));\
-  if (with_bias_)                                                              \
+  if (with_bias)                                                              \
     p3##n = ADD(p3##n, *(__m512*)bias);                                        \
-  if (with_relu_)                                                              \
+  if (with_relu)                                                              \
     p3##n = MAX(p3##n, zero);                                                  \
   _mm512_store_ps(P(3, n), p3##n);                                             \
   __m512 p4##n = ADD(FMADD(z16, ADD(c2, c3), c0), FMADD(z1_16, ADD(c4, c5), c1));
 
 #define AVX512_ADD_B(n);                                                       \
-  if (with_bias_)                                                              \
+  if (with_bias)                                                              \
     p4##n = ADD(p4##n, *(__m512*)bias);                                        \
-  if (with_relu_)                                                              \
+  if (with_relu)                                                              \
     p4##n = MAX(p4##n, zero);                                                  \
   _mm512_store_ps(P(4, n), p4##n);
 
-// template <const bool is_border_, const bool with_bias_>
+// template <const bool is_border_, const bool with_bias>
 // Params:
 //   elx_conv_t<float> &xc,
 //   float *output, float atoutput[A][A][V], float *bias,
 //   int _hOA_end, int _wOA_end
-__TRANS_OUTPUT(float, 7, 3, 16, ISA_SKX_AVX512)
-{
+template <bool ...conditions>
+inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 7, 3>::
+__trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
+    float *bias, int hOA_end, int wOA_end) {
   ENABLE_AVX512F();
+  constexpr bool is_border = cd_traits<conditions...>::is_border;
+  constexpr bool with_bias = cd_traits<conditions...>::with_bias;
+  constexpr bool with_relu = cd_traits<conditions...>::with_relu;
 
   alignas(64) float dummy[16];
   auto p_cb = [&](int _h, int _w) {
-    if (_wOA_end == -1) {
-      MD3(float, aoutput, output, A - K + 1, A - K + 1, 16);
+    if (wOA_end == -1) {
+      MD3(float, aoutput, output, A - K + 1, A - K + 1, V);
       return &md3(aoutput, _h, _w, 0);
     } else {
-      MD3(float, aoutput, output, xc.oh, xc.ow, 16);
-      if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
+      MD3(float, aoutput, output, xc.oh, xc.ow, V);
+      if (is_border && (_h > hOA_end || _w > wOA_end))
         return dummy;
       else
         return &md3(aoutput, _h, _w, 0);
@@ -267,8 +278,10 @@ __TRANS_OUTPUT(float, 7, 3, 16, ISA_SKX_AVX512)
 // Params:
 //   elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz,
 //   bool stream_out
-__TRANS_OUTPUTA_TH( float, 7, 3, 16, ISA_GENERIC)
-{
+template <bool ...conditions>
+inline void convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 7, 3>::
+__trans_outputa_th(elx_conv_t<float> &xc, float *toutputa, float *toutput,
+    int Tz, bool stream_out) {
   MD4(float, atoutput, toutput, A, xc.oc3 * xc.O2, Tz, V);
   MD2(float, atoutputa, toutputa, A - K + 1, V);
 
@@ -298,8 +311,10 @@ __TRANS_OUTPUTA_TH( float, 7, 3, 16, ISA_GENERIC)
 // Params:
 //   elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz,
 //   bool stream_out
-__TRANS_OUTPUTA_TH( float, 7, 3, 16, ISA_SKX_AVX512)
-{
+template <bool ...conditions>
+inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 7, 3>::
+__trans_outputa_th(elx_conv_t<float> &xc, float *toutputa, float *toutput,
+    int Tz, bool stream_out) {
   ENABLE_AVX512F();
 
   MD4(float, atoutput, toutput, A, xc.oc3 * xc.O2, Tz, V);
@@ -351,40 +366,46 @@ __TRANS_OUTPUTA_TH( float, 7, 3, 16, ISA_SKX_AVX512)
 #define GENERIC_CALCULATE_TILE_7(z, n, nil)                       \
   P(n, 0) = T(n, 0) + T(n, 1) + T(n, 2) + T(n, 3) + T(n, 4)       \
       + T(n, 5);                                                  \
-  if (with_bias_) P(n, 0) += B;                                   \
-  if (with_relu_) P(n, 0) = P(n, 0) > 0 ? P(n, 0) : 0;            \
+  if (with_bias) P(n, 0) += B;                                   \
+  if (with_relu) P(n, 0) = P(n, 0) > 0 ? P(n, 0) : 0;            \
   P(n, 1) = T(n, 0) - T(n, 1) + z2 * (T(n, 2) - T(n, 3))          \
       + z1_2 * (T(n, 4) - T(n,5));                                \
-  if (with_bias_) P(n, 1) += B;                                   \
-  if (with_relu_) P(n, 1) = P(n, 1) > 0 ? P(n, 1) : 0;            \
+  if (with_bias) P(n, 1) += B;                                   \
+  if (with_relu) P(n, 1) = P(n, 1) > 0 ? P(n, 1) : 0;            \
   P(n, 2) = T(n, 0) + T(n, 1) + z4 * (T(n, 2) + T(n, 3))          \
       + z1_4 * (T(n, 4) + T(n,5));                                \
-  if (with_bias_) P(n, 2) += B;                                   \
-  if (with_relu_) P(n, 2) = P(n, 2) > 0 ? P(n, 2) : 0;            \
+  if (with_bias) P(n, 2) += B;                                   \
+  if (with_relu) P(n, 2) = P(n, 2) > 0 ? P(n, 2) : 0;            \
   P(n, 3) = T(n, 0) - T(n, 1) + z8 * (T(n, 2) - T(n, 3))          \
       + z1_8 * (T(n, 4) - T(n,5));                                \
-  if (with_bias_) P(n, 3) += B;                                   \
-  if (with_relu_) P(n, 3) = P(n, 3) > 0 ? P(n, 3) : 0;            \
+  if (with_bias) P(n, 3) += B;                                   \
+  if (with_relu) P(n, 3) = P(n, 3) > 0 ? P(n, 3) : 0;            \
   P(n, 4) = T(n, 0) + T(n, 1) + z16 * (T(n, 2) + T(n, 3))         \
       + z1_16 * (T(n, 4) + T(n,5)) + T(n, 6);                     \
-  if (with_bias_) P(n, 4) += B;                                   \
-  if (with_relu_) P(n, 4) = P(n, 4) > 0 ? P(n, 4) : 0;
+  if (with_bias) P(n, 4) += B;                                   \
+  if (with_relu) P(n, 4) = P(n, 4) > 0 ? P(n, 4) : 0;
 
-// template <const bool is_border_, const bool with_bias_>
+// template <const bool is_border_, const bool with_bias>
 // Params:
 //   elx_conv_t<float> &xc,
 //   float *output, float atoutput[A][A - K + 1][V], float *bias,
 //   int _hOA_end, int _wOA_end
-__TRANS_OUTPUTA_BH(float, 7, 3, 16, ISA_GENERIC)
-{
-  float dummy[16];
+template <bool ...conditions>
+inline void convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 7, 3>::
+__trans_outputa_bh(elx_conv_t<float> &xc, float *output,
+    float atoutput[A][A - K + 1][V], float *bias, int hOA_end, int wOA_end) {
+  float dummy[V];
+  constexpr bool is_border = cd_traits<conditions...>::is_border;
+  constexpr bool with_bias = cd_traits<conditions...>::with_bias;
+  constexpr bool with_relu = cd_traits<conditions...>::with_relu;
+
   auto p_cb = [&](int _h, int _w, int _V) {
-    if (_wOA_end == -1) {
-      MD3(float, aoutput, output, A - K + 1, A - K + 1, 16);
+    if (wOA_end == -1) {
+      MD3(float, aoutput, output, A - K + 1, A - K + 1, V);
       return &md3(aoutput, _h, _w, _V);
     } else {
-      MD3(float, aoutput, output, xc.oh, xc.ow, 16);
-      if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
+      MD3(float, aoutput, output, xc.oh, xc.ow, V);
+      if (is_border && (_h > hOA_end || _w > wOA_end))
         return &dummy[_V];
       else
         return &md3(aoutput, _h, _w, _V);
@@ -409,7 +430,7 @@ __TRANS_OUTPUTA_BH(float, 7, 3, 16, ISA_GENERIC)
   const float z1_16 = 1.0f / 16.0f;
 
 #pragma omp simd
-  for (int _V = 0; _V < 16; ++_V) {
+  for (int _V = 0; _V < V; ++_V) {
     BOOST_PP_REPEAT(5, GENERIC_CALCULATE_TILE_7, nil)
   }
 }
@@ -424,20 +445,20 @@ __TRANS_OUTPUTA_BH(float, 7, 3, 16, ISA_GENERIC)
   t6 = _mm512_load_ps(T(n, 6));                                     \
                                                                     \
   p0 = ADD(ADD(ADD(ADD(ADD(t0, t1), t2), t3), t4), t5);             \
-  if (with_bias_) p0 = ADD(p0, *(__m512*)bias);                     \
-  if (with_relu_) { zero = XOR(zero, zero); p0 = MAX(p0, zero); }     \
+  if (with_bias) p0 = ADD(p0, *(__m512*)bias);                     \
+  if (with_relu) { zero = XOR(zero, zero); p0 = MAX(p0, zero); }     \
   p1 = ADD(FMADD(z2, SUB(t2, t3), t0), FMSUB(z1_2, SUB(t4, t5), t1)); \
-  if (with_bias_) p1 = ADD(p1, *(__m512*)bias);                       \
-  if (with_relu_) p1 = MAX(p1, zero);                                 \
+  if (with_bias) p1 = ADD(p1, *(__m512*)bias);                       \
+  if (with_relu) p1 = MAX(p1, zero);                                 \
   p2 = ADD(FMADD(z4, ADD(t2, t3), t0), FMADD(z1_4, ADD(t4, t5), t1)); \
-  if (with_bias_) p2 = ADD(p2, *(__m512*)bias);                       \
-  if (with_relu_) p2 = MAX(p2, zero);                                 \
+  if (with_bias) p2 = ADD(p2, *(__m512*)bias);                       \
+  if (with_relu) p2 = MAX(p2, zero);                                 \
   p3 = ADD(FMADD(z8, SUB(t2, t3), t0), FMSUB(z1_8, SUB(t4, t5), t1)); \
-  if (with_bias_) p3 = ADD(p3, *(__m512*)bias);                       \
-  if (with_relu_) p3 = MAX(p3, zero);                                 \
+  if (with_bias) p3 = ADD(p3, *(__m512*)bias);                       \
+  if (with_relu) p3 = MAX(p3, zero);                                 \
   p4 = ADD(FMADD(z16, ADD(t2, t3), ADD(t0, t1)), FMADD(z1_16, ADD(t4, t5), t6)); \
-  if (with_bias_) p4 = ADD(p4, *(__m512*)bias);                       \
-  if (with_relu_) p4 = MAX(p4, zero);                                 \
+  if (with_bias) p4 = ADD(p4, *(__m512*)bias);                       \
+  if (with_relu) p4 = MAX(p4, zero);                                 \
                                                                       \
   _mm512_store_ps(P(n,0), p0);                                        \
   _mm512_store_ps(P(n,1), p1);                                        \
@@ -445,23 +466,27 @@ __TRANS_OUTPUTA_BH(float, 7, 3, 16, ISA_GENERIC)
   _mm512_store_ps(P(n,3), p3);                                        \
   _mm512_store_ps(P(n,4), p4);
 
-// template <const bool is_border_, const bool with_bias_>
+// template <const bool is_border_, const bool with_bias>
 // Params:
 //   elx_conv_t<float> &xc,
 //   float *output, float atoutput[A][A - K + 1][V], float *bias,
 //   int _hOA_end, int _wOA_end
-__TRANS_OUTPUTA_BH(float, 7, 3, 16, ISA_SKX_AVX512)
-{
+template <bool ...conditions>
+inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 7, 3>::
+__trans_outputa_bh(elx_conv_t<float> &xc, float *output,
+    float atoutput[A][A - K + 1][V], float *bias, int hOA_end, int wOA_end) {  
   ENABLE_AVX512F();
-
-  alignas(64) float dummy[16];
+  constexpr bool is_border = cd_traits<conditions...>::is_border;
+  constexpr bool with_bias = cd_traits<conditions...>::with_bias;
+  constexpr bool with_relu = cd_traits<conditions...>::with_relu;
+  alignas(64) float dummy[V];
   auto p_cb = [&](int _h, int _w) {
-    if (_wOA_end == -1) {
-      MD3(float, aoutput, output, A - K + 1, A - K + 1, 16);
+    if (wOA_end == -1) {
+      MD3(float, aoutput, output, A - K + 1, A - K + 1, V);
       return &md3(aoutput, _h, _w, 0);
     } else {
-      MD3(float, aoutput, output, xc.oh, xc.ow, 16);
-      if (is_border_ && (_h > _hOA_end || _w > _wOA_end))
+      MD3(float, aoutput, output, xc.oh, xc.ow, V);
+      if (is_border && (_h > hOA_end || _w > wOA_end))
         return dummy;
       else
         return &md3(aoutput, _h, _w, 0);
@@ -486,15 +511,4 @@ __TRANS_OUTPUTA_BH(float, 7, 3, 16, ISA_SKX_AVX512)
 
   BOOST_PP_REPEAT(5, AVX512_BH_CALCULATE_TILE_7, nil)
 }
-
-
-TRANS_OUPUT(float, 7, 3, 16, ISA_GENERIC);
-TRANS_OUPUT(float, 7, 3, 16, ISA_SKX_AVX512);
-
-TRANS_OUTPUTA_TH(float, 7, 3, 16, ISA_GENERIC);
-TRANS_OUTPUTA_TH(float, 7, 3, 16, ISA_SKX_AVX512);
-
-TRANS_OUTPUTA_BH(float, 7, 3, 16, ISA_GENERIC);
-TRANS_OUTPUTA_BH(float, 7, 3, 16, ISA_SKX_AVX512);
-
 } // namespace euler

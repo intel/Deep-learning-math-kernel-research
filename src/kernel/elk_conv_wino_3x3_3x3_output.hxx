@@ -120,8 +120,7 @@ __trans_output(elx_conv_t<float> &xc, float *output,
 template <bool ...conditions>
 inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 5, 3>::
 __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
-    float *bias, int hOA_end, int wOA_end)
-{
+    float *bias, int hOA_end, int wOA_end) {
   ENABLE_AVX512F();
   constexpr bool is_border = cd_traits<conditions...>::is_border;
   constexpr bool with_bias = cd_traits<conditions...>::with_bias;
