@@ -28,6 +28,7 @@ template <bool ...conditions> struct cd_traits {
   constexpr static bool with_bias = c_[bias_ind];
   constexpr static bool with_relu = c_[relu_ind];
   constexpr static bool with_sum = c_[sum_ind];
+  static_assert(sizeof...(conditions) == 4, "Template argument error!");
 };
 
 template <typename Type, int ...configs>
@@ -40,6 +41,7 @@ protected:
   constexpr static int V = c_[pack_size];
   constexpr static int A = c_[tile_size];
   constexpr static int K = c_[kernel_size];
+  static_assert(sizeof...(configs) == 4, "Template argument error!");
 
   template <bool is_border>
   static inline void __trans_input(elx_conv_t<Type> &xc, Type atinput[A][A][V],
@@ -73,6 +75,7 @@ class convolution_gemm_base {
   constexpr static int I = c_[instr_set];
   constexpr static int V = c_[pack_size];
   constexpr static int T = c_[register_group];
+  static_assert(sizeof...(configs) == 3, "Template argument error!");
 
 public:
   static inline void __gemm(

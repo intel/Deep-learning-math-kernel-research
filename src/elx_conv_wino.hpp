@@ -27,6 +27,14 @@ class elx_conv_wino_t : public elx_conv_t<Type> {
   using elx_conv_t<Type>::ic3;
   using elx_conv_t<Type>::oc3;
   constexpr static size_t elem_sz_ = sizeof(Type);
+  constexpr static bool border = true;
+  constexpr static bool not_border = false;
+  constexpr static bool with_bias = true;
+  constexpr static bool without_bias = false;
+  constexpr static bool with_relu = true;
+  constexpr static bool without_relu = false;
+  constexpr static bool with_sum = true;
+  constexpr static bool without_sum = false;
 public:
   elx_conv_wino_t(eld_conv_t<Type> &dc);
   virtual ~elx_conv_wino_t();
@@ -197,16 +205,16 @@ private:
       convolution_gemm<Type, I, V, 1>::gemm) *ker_gemm0_tail_;
   decltype(
       convolution_winograd_kernel<
-        Type, I, V, A, K>::template trans_input<false>) *ker_trans_input_;
+        Type, I, V, A, K>::template trans_input<not_border>) *ker_trans_input_;
   decltype(
       convolution_winograd_kernel<
-        Type, I, V, A, K>::template trans_input<true>) *ker_trans_input0_;
+        Type, I, V, A, K>::template trans_input<border>) *ker_trans_input0_;
   decltype(
       convolution_winograd_kernel<
-        Type, I, V, A, K>::template trans_inputa<false>) *ker_trans_inputa_;
+        Type, I, V, A, K>::template trans_inputa<not_border>) *ker_trans_inputa_;
   decltype(
       convolution_winograd_kernel<
-        Type, I, V, A, K>::template trans_inputa<false>) *ker_trans_inputa0_;
+        Type, I, V, A, K>::template trans_inputa<border>) *ker_trans_inputa0_;
   decltype(
       convolution_winograd_kernel<
         Type, I, V, A, K>::trans_weights) *ker_trans_weights_;

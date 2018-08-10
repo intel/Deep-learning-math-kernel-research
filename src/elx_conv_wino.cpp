@@ -352,100 +352,113 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 {
-  ker_trans_input_ = convolution_winograd_kernel<Type, I, V, A, K>::trans_input;
-  ker_trans_input0_ = convolution_winograd_kernel<Type, I, V, A, K>::trans_input;
-  ker_trans_inputa_ = convolution_winograd_kernel<Type, I, V, A, K>::trans_inputa;
-  ker_trans_inputa0_ = convolution_winograd_kernel<Type, I, V, A, K>::trans_inputa;
-  ker_trans_weights_ = convolution_winograd_kernel<Type, I, V, A, K>::trans_weights;
+  ker_trans_input_
+    = convolution_winograd_kernel<
+        Type, I, V, A, K>::template trans_input<not_border>;
+  ker_trans_input0_
+    = convolution_winograd_kernel<
+        Type, I, V, A, K>::template trans_input<border>;
+  ker_trans_inputa_
+    = convolution_winograd_kernel<
+        Type, I, V, A, K>::template trans_inputa<not_border>;
+  ker_trans_inputa0_
+    = convolution_winograd_kernel<
+        Type, I, V, A, K>::template trans_inputa<border>;
+  ker_trans_weights_
+    = convolution_winograd_kernel<Type, I, V, A, K>::trans_weights;
+
   // TODO: ker_trans_output_nobias_norelu_nosum (no fusion)
   // Fusion operation is done in related ker_trans_output_
   ker_trans_output_nobias_ = convolution_winograd_kernel<Type, I, V, A, K>::
-      trans_output;
+      template trans_output<not_border, without_bias, without_relu, without_sum>;
   ker_trans_output0_nobias_ = convolution_winograd_kernel<Type, I, V, A, K>::
-      trans_output;
+      template trans_output<border, without_bias, without_relu, without_sum>;
+
   if (this->with_bias && this->with_relu) {
     if (this->with_sum) {
       ker_trans_output_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_output;
+          template trans_output<not_border, with_bias, with_relu, with_sum>;
       ker_trans_output0_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_output;
+          template trans_output<border, with_bias, with_relu, with_sum>;
       ker_trans_outputa_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_outputa_bh;
+          template trans_outputa_bh<not_border, with_bias, with_relu, with_sum>;
       ker_trans_outputa0_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_outputa_bh;
+          template trans_outputa_bh<border, with_bias, with_relu, with_sum>;
     } else {
       ker_trans_output_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_output;
+          template trans_output<not_border, with_bias, with_relu, without_sum>;
       ker_trans_output0_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_output;
+          template trans_output<border, with_bias, with_relu, without_sum>;
       ker_trans_outputa_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_outputa_bh;
+          template trans_outputa_bh<not_border, with_bias, with_relu, without_sum>;
       ker_trans_outputa0_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_outputa_bh;
+          template trans_outputa_bh<border, with_bias, with_relu, without_sum>;
     }
   } else if (this->with_bias && !this->with_relu) {
     if (this->with_sum) {
       ker_trans_output_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_output;
+          template trans_output<not_border, with_bias, without_relu, with_sum>;
       ker_trans_output0_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_output;
+          template trans_output<border, with_bias, without_relu, with_sum>;
       ker_trans_outputa_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_outputa_bh;
+          template trans_outputa_bh<not_border, with_bias, without_relu, with_sum>;
       ker_trans_outputa0_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_outputa_bh;
+          template trans_outputa_bh<border, with_bias, without_relu, with_sum>;
     } else {
       ker_trans_output_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_output;
+          template trans_output<not_border, with_bias, without_relu, without_sum>;
       ker_trans_output0_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_output;
+          template trans_output<border, with_bias, without_relu, without_sum> ;
       ker_trans_outputa_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_outputa_bh;
+          template trans_outputa_bh<not_border, with_bias, without_relu, without_sum>;
       ker_trans_outputa0_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_outputa_bh;
+          template trans_outputa_bh<border, with_bias, without_relu, without_sum>;
     }
   } else if (!this->with_bias && this->with_relu) {
     if (this->with_sum) {
       ker_trans_output_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_output;
+          template trans_output<not_border, without_bias, without_relu, with_sum>;
       ker_trans_output0_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_output;
+          template trans_output<border, without_bias, without_relu, with_sum>;
       ker_trans_outputa_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_outputa_bh;
+          template trans_outputa_bh<not_border, without_bias, without_relu, with_sum>;
       ker_trans_outputa0_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_outputa_bh;
+          template trans_outputa_bh<border, without_bias, without_relu, with_sum>;
     } else {
       ker_trans_output_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_output;
+          template trans_output<not_border, without_bias, without_relu, without_sum>;
       ker_trans_output0_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_output;
+          template trans_output<border, without_bias, without_relu, without_sum>;
       ker_trans_outputa_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_outputa_bh;
+          template trans_outputa_bh<not_border, without_bias,
+                   without_relu, without_sum>;
       ker_trans_outputa0_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_outputa_bh;
+          template trans_outputa_bh<border, without_bias, without_relu, without_sum>;
     }
   } else {
     if (this->with_sum) {
       ker_trans_output_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_output;
+          template trans_output<not_border, without_bias, without_relu, with_sum>;
       ker_trans_output0_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_output;
+          template trans_output<border, without_bias, without_relu, with_sum>;
       ker_trans_outputa_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_outputa_bh;
+          template trans_outputa_bh<not_border, without_bias, without_relu, with_sum>;
       ker_trans_outputa0_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_outputa_bh;
+          template trans_outputa_bh<border, without_bias, without_relu, with_sum>;
     } else {
       ker_trans_output_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_output;
+          template trans_output<not_border, without_bias, without_relu, without_sum>;
       ker_trans_output0_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_output;
+          template trans_output<border, without_bias, without_relu, without_sum>;
       ker_trans_outputa_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_outputa_bh;
+          template trans_outputa_bh<not_border, without_bias,
+                   without_relu, without_sum>;
       ker_trans_outputa0_bh_ = convolution_winograd_kernel<Type, I, V, A, K>::
-          trans_outputa_bh;
+          template trans_outputa_bh<border, without_bias, without_relu, without_sum>;
     }
   }
   ker_trans_outputa_th_ = convolution_winograd_kernel<Type, I, V, A, K>::
-      trans_outputa_th;
+      template trans_outputa_th<not_border, without_bias, without_relu, without_sum>;
 
 #define GEMM_CASE(z, n, data)                                                \
   case n:                                                                    \
