@@ -169,7 +169,7 @@ namespace euler {
       const bool with_relu, const bool with_sum>                               \
   void convolution_direct_1x1_kernel<Type, O, T, V, I, TR(false), JAM(false),  \
       with_bias, with_relu, with_sum>::gemm(elx_conv_t<Type> &xc,              \
-      Type *output, Type *input, Type *weights, Type *bias)                    \
+      Type *output, Type *input, Type *weights, Type *bias, bool)              \
   {                                                                            \
     ENABLE_AVX512F();                                                          \
                                                                                \
@@ -204,11 +204,11 @@ namespace euler {
   template void convolution_direct_1x1_kernel<float, O, T, 16, ISA_SKX_AVX512, \
       TR(false), JAM(false), BIAS(false), RELU(false),                         \
       SUM(false)>::gemm(elx_conv_t<float> &, float *, float *, float *,        \
-      float *);                                                                \
+      float *, bool);                                                          \
   template void convolution_direct_1x1_kernel<float, O, T, 16, ISA_SKX_AVX512, \
       TR(false), JAM(false), BIAS(true), RELU(false),                          \
       SUM(false)>::gemm(elx_conv_t<float> &, float *, float *, float *,        \
-      float *);
+      float *, bool);
 
 // P = 2
 #define CONV1X1_GEMM_P2(O, T)                                                  \
@@ -216,7 +216,7 @@ namespace euler {
       const bool with_relu, const bool with_sum>                               \
   void convolution_direct_1x1_kernel<Type, O, T, V, I, TR(false), JAM(false),  \
       with_bias, with_relu, with_sum>::gemm(elx_conv_t<Type> &xc,              \
-      Type *output, Type *input, Type *weights, Type *bias)                    \
+      Type *output, Type *input, Type *weights, Type *bias, bool)              \
   {                                                                            \
     ENABLE_AVX512F();                                                          \
                                                                                \
@@ -255,11 +255,11 @@ namespace euler {
   template void convolution_direct_1x1_kernel<float, O, T, 16, ISA_SKX_AVX512, \
       TR(false), JAM(false), BIAS(false), RELU(false),                         \
       SUM(false)>::gemm(elx_conv_t<float> &, float *, float *, float *,        \
-      float *);                                                                \
+      float *, bool);                                                          \
   template void convolution_direct_1x1_kernel<float, O, T, 16, ISA_SKX_AVX512, \
       TR(false), JAM(false), BIAS(true), RELU(false),                          \
       SUM(false)>::gemm(elx_conv_t<float> &, float *, float *, float *,        \
-      float *);
+      float *, bool);
 
 // P = 4
 #define CONV1X1_GEMM_P4(O, T)                                                  \
@@ -267,7 +267,7 @@ namespace euler {
       const bool with_relu, const bool with_sum>                               \
   void convolution_direct_1x1_kernel<Type, O, T, V, I, TR(false), JAM(false),  \
       with_bias, with_relu, with_sum>::gemm(elx_conv_t<Type> &xc,              \
-      Type *output, Type *input, Type *weights, Type *bias)                    \
+      Type *output, Type *input, Type *weights, Type *bias, bool)              \
   {                                                                            \
     ENABLE_AVX512F();                                                          \
                                                                                \
@@ -312,11 +312,11 @@ namespace euler {
   template void convolution_direct_1x1_kernel<float, O, T, 16, ISA_SKX_AVX512, \
       TR(false), JAM(false), BIAS(false), RELU(false),                         \
       SUM(false)>::gemm(elx_conv_t<float> &, float *, float *, float *,        \
-      float *);                                                                \
+      float *, bool);                                                          \
   template void convolution_direct_1x1_kernel<float, O, T, 16, ISA_SKX_AVX512, \
       TR(false), JAM(false), BIAS(true), RELU(false),                          \
       SUM(false)>::gemm(elx_conv_t<float> &, float *, float *, float *,        \
-      float *);
+      float *, bool);
 
 // O=1, T:
 //    T=31..:  kernel: 1, output: 31..

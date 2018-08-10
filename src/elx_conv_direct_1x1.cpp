@@ -75,12 +75,21 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
 
   xopt_ = this->execution_mode;
 
-  if (xopt_ == 0xb000 || xopt_ == 0xc000 || xopt_ == 0xd000) {
+  if (xopt_ == 0xb000 || xopt_ == 0xc000 || xopt_ == 0xd000 || xopt_ == 0xe000) {
     this->t3 = this->n;
     this->t2 = (this->nt + this->T - 1) / this->T;
     this->Tr = this->nt % this->T ? this->nt % this->T : this->T;
     if (xopt_ == 0xd000)
       this->oc3 = this->oc2 / this->oc4 / this->O2;
+    else if (xopt_ == 0xe000) {
+      // TODO:
+      int oc34 = this->oc3;
+      this->oc3 = this->oc4;
+      this->oc4 = (oc34 + this->oc3 - 1) / this->oc3;
+      this->oc3r = oc34 % this->oc3;
+      if (this->oc3r == 0) this->oc3r = this->oc3;
+      
+    }
   } else {
     this->t3 = 1;
     this->t2 = (this->t + this->T - 1) / this->T;
@@ -109,7 +118,7 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   // dbg
   printf("T=%d, Tr=%d, t2=%d, t=%d\n", this->T, this->Tr, this->t2, this->t);
   printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic4=%d, IC=%d\n", this->V, this->Ir, this->I2, this->ic3, this->ic4, this->IC);
-  printf("V=%d, Or=%d, O2=%d, oc3=%d, oc4=%d, O2r=%d, OC=%d\n", this->V, this->Or, this->O2, this->oc3, this->oc4, this->O2r, this->OC);
+  printf("V=%d, Or=%d, O2=%d, oc3=%d, oc4=%d, O2r=%d, oc3r=%d, OC=%d\n", this->V, this->Or, this->O2, this->oc3, this->oc4, this->O2r, this->oc3r, this->OC);
 }
 
 
@@ -233,6 +242,7 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
     l1_usage = l2_usage;
     break;
   case 0xd000:
+  case 0xe000:
     l2_usage = this->IC * this->OC / this->oc4 + this->IC * this->T
         + this->OC / this->oc4 * this->T;
     break;
@@ -263,7 +273,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 {
 #define GEMM_CASE(z, T_, O_)                                                   \
   case T_:                                                                     \
-    if (xopt_ == 0xd000) {                                                     \
+    if (xopt_ == 0xd000 || xopt_ == 0xe000) {                                  \
       if (this->with_bias)                                                     \
         *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(true),    \
             JAM(true), BIAS(true), RELU(false), SUM(false)>::gemm;             \
@@ -361,7 +371,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
     }
   };
 
-  if (xopt_ == 0xb000 || xopt_ == 0xc000 || 0xd000) {
+  if (xopt_ == 0xb000 || xopt_ == 0xc000 || xopt_ == 0xd000 || xopt_ == 0xe000) {
     bind_kernel(this->O2, this->T, &ker_bgemm_O_T_);
     bind_kernel(this->O2, this->Tr, &ker_bgemm_O_Tr_);
     bind_kernel(this->O2r, this->T, &ker_bgemm_Or_T_);
@@ -435,6 +445,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
     EXECUTE_CASE(b000);
     EXECUTE_CASE(c000);
     EXECUTE_CASE(d000);
+    EXECUTE_CASE(e000);
     EXECUTE_CASE(a060);
     EXECUTE_CASE(a061);
     EXECUTE_CASE(a069);
@@ -964,11 +975,11 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b000(
         if (_oc3 == this->oc3 - 1)
           ker_bgemm_Or_T_(*this, &md4(aoutput2, _oc3, 0, _t2, 0),
             &md4(ainput, _t3, 0, _t2, 0), &md2(aweights, _oc3, 0),
-            &md2(abias, _oc3, 0));
+            &md2(abias, _oc3, 0), false);
         else
           ker_bgemm_O_T_(*this, &md4(aoutput2, _oc3, 0, _t2, 0),
             &md4(ainput, _t3, 0, _t2, 0), &md2(aweights, _oc3, 0),
-            &md2(abias, _oc3, 0));
+            &md2(abias, _oc3, 0), false);
       }
     }
   }
@@ -1001,18 +1012,18 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_c000(
           if (_t2 == this->t2 - 1) {
             ker_bgemm_Or_Tr_(*this, &md2(aoutput3, _t2, 0),
                 &md2(ainput2, _t2, 0), &md2(aweights, _oc3, 0),
-                &md2(abias, _oc3, 0));
+                &md2(abias, _oc3, 0), false);
           } else {
             ker_bgemm_Or_T_(*this, &md2(aoutput3, _t2, 0), &md2(ainput2, _t2, 0),
-                &md2(aweights, _oc3, 0), &md2(abias, _oc3, 0));
+                &md2(aweights, _oc3, 0), &md2(abias, _oc3, 0), false);
           }
         } else {
           if (_t2 == this->t2 - 1)
             ker_bgemm_O_Tr_(*this, &md2(aoutput3, _t2, 0), &md2(ainput2, _t2, 0),
-                &md2(aweights, _oc3, 0), &md2(abias, _oc3, 0));
+                &md2(aweights, _oc3, 0), &md2(abias, _oc3, 0), false);
           else {
             ker_bgemm_O_T_(*this, &md2(aoutput3, _t2, 0), &md2(ainput2, _t2, 0),
-                &md2(aweights, _oc3, 0), &md2(abias, _oc3, 0));
+                &md2(aweights, _oc3, 0), &md2(abias, _oc3, 0), false);
           }
         }
       }
@@ -1043,14 +1054,65 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_d000(
 
         if (_t2 == this->t2 - 1)
           ker_bgemm_O_Tr_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
-              &md2(aweights, _oc4, 0), &md2(abias, _oc4, 0));
+              &md2(aweights, _oc4, 0), &md2(abias, _oc4, 0), false);
         else {
           ker_bgemm_O_T_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
-              &md2(aweights, _oc4, 0), &md2(abias, _oc4, 0));
+              &md2(aweights, _oc4, 0), &md2(abias, _oc4, 0), false);
         }
       }
     }
   }
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__execute_e000(
+    Type *output, Type *input, Type *weights, Type *bias)
+{
+  // weights: oc4*, oc3, O2(O2r), ic3, I2, V, V
+  // input:   t3*, ic3, I2, t2*, T(Tr), V
+  // output:  t3*, oc4*, oc3, O2(O2r), t2*, T(Tr), V
+  MD4(Type, aweights, weights, this->oc4, this->oc3, this->O2, this->IC * V);
+  MD4(Type, ainput, input, this->t3, this->ic3, this->I2, this->ih * this->iw * V);
+  MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
+  MD3(Type, abias, bias, this->oc4, this->oc3, this->O2 * V);
+
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+#pragma omp for nowait collapse(3)
+  for_each (_t3, this->t3) {
+  for_each (_oc4, this->oc4) {
+  for_each (_t2, this->t2) {
+
+    int oc3 = _oc4 == this->oc4 - 1 ? this->oc3r : this->oc3;
+    MD4(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc4, this->oc3, this->O2, this->oh * this->ow * V);
+
+    for_each (_ic3, this->ic3) {
+      bool reset = _ic3 == 0;
+      MD2(Type, ainput2, &md4(ainput, _t3, _ic3, 0, 0), this->t2, this->T * V);
+      for_each (_oc3, oc3) {
+        MD2(Type, aoutput3, &md4(aoutput2, _oc4, _oc3, 0, 0), this->t2, this->T * V);
+        MD2(Type, aweights2, &md4(aweights, _oc4, _oc3, 0, 0), this->ic3, this->I2 * V * V);
+
+        if (_oc4 == this->oc4 - 1 && _oc3 == oc3 - 1) {
+          if (_t2 == this->t2 - 1)
+            ker_bgemm_Or_Tr_(*this, &md2(aoutput3, _t2, 0),
+                &md2(ainput2, _t2, 0), &md2(aweights2, _ic3, 0),
+                &md3(abias, _oc4, _oc3, 0), reset);
+          else
+            ker_bgemm_Or_T_(*this, &md2(aoutput3, _t2, 0),
+                &md2(ainput2, _t2, 0), &md2(aweights2, _ic3, 0),
+                &md3(abias, _oc4, _oc3, 0), reset);
+        } else {
+          if (_t2 == this->t2 - 1)
+            ker_bgemm_O_Tr_(*this, &md2(aoutput3, _t2, 0),
+                &md2(ainput2, _t2, 0), &md2(aweights2, _ic3, 0),
+                &md3(abias, _oc4, _oc3, 0), reset);
+          else
+            ker_bgemm_O_T_(*this, &md2(aoutput3, _t2, 0), &md2(ainput2, _t2, 0),
+                &md2(aweights2, _ic3, 0), &md3(abias, _oc4, _oc3, 0), reset);
+        }
+      }
+    }
+  }}}
 }
 
 template <typename Type, const int V, const int I>

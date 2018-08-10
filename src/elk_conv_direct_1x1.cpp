@@ -63,4 +63,5 @@ void convolution_direct_1x1_kernel<Type, O2, T, V, I, with_Tr, with_bias,
 //#include "kernel/elk_conv_direct_1x1_gemm_1x.hxx"
 #include "kernel/elk_conv_direct_1x1_gemm_8x.hxx"
 #include "kernel/elk_conv_direct_1x1_gemm_Tr.hxx"
-#include "kernel/elk_conv_direct_1x1_gemm.hxx"
+//#include "kernel/elk_conv_direct_1x1_gemm.hxx"
+#include "kernel/elk_conv_direct_1x1_gemm_jam_Or.hxx"
