@@ -28,7 +28,31 @@ template <bool ...conditions> struct cd_traits {
   constexpr static bool with_bias = c_[bias_ind];
   constexpr static bool with_relu = c_[relu_ind];
   constexpr static bool with_sum = c_[sum_ind];
-  static_assert(sizeof...(conditions) == 4, "Template argument error!");
+  static_assert(sizeof...(conditions) == 4,
+      "Template argument error! Please specify if border, bias, relu, sum...");
+};
+
+template <int ...configs> struct gemm_traits {
+  constexpr static int c_[] {configs...};
+  enum { instr_set , pack_size, register_group };
+
+  constexpr static int I = c_[instr_set];
+  constexpr static int V = c_[pack_size];
+  constexpr static int T = c_[register_group];
+  static_assert(sizeof...(configs) == 3,
+      "Template argument error! Please specify I, V, T...");
+};
+
+template <int ...configs> struct winograd_traits {
+  constexpr static int c_[] {configs...};
+  enum { instr_set = 0, pack_size, tile_size, kernel_size };
+
+  constexpr static int I = c_[instr_set];
+  constexpr static int V = c_[pack_size];
+  constexpr static int A = c_[tile_size];
+  constexpr static int K = c_[kernel_size];
+  static_assert(sizeof...(configs) == 4,
+      "Template argument error! Please specify I, V, A, K...");
 };
 
 template <typename Type, int ...configs>
@@ -41,7 +65,8 @@ protected:
   constexpr static int V = c_[pack_size];
   constexpr static int A = c_[tile_size];
   constexpr static int K = c_[kernel_size];
-  static_assert(sizeof...(configs) == 4, "Template argument error!");
+  static_assert(sizeof...(configs) == 4,
+      "Template argument error! Please specify I, V, A, K...");
 
   template <bool is_border>
   static inline void __trans_input(elx_conv_t<Type> &xc, Type atinput[A][A][V],
@@ -75,15 +100,16 @@ class gemm_kernel_base {
   constexpr static int I = c_[instr_set];
   constexpr static int V = c_[pack_size];
   constexpr static int T = c_[register_group];
-  static_assert(sizeof...(configs) == 3, "Template argument error!");
+  static_assert(sizeof...(configs) == 3,
+      "Template argument error! Please specify I, V, T...");
 
 public:
   static inline void __gemm(
-      elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights,
+      elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights,
       bool zero_out);
 
   static inline void __gemm_tail(
-      elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights,
+      elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights,
       bool zero_out);
 };
 
@@ -99,7 +125,8 @@ public:
   template <bool is_border>
   static void trans_input(elx_conv_t<Type> &xc, Type atinput[A][A][V],
       Type *input, int hA_start, int hA_end, int wA_start, int wA_end) {
-    super::template __trans_input<is_border>(xc, atinput, input, hA_start, hA_end,
+    super::template __trans_input<is_border>(
+        xc, atinput, input, hA_start, hA_end,
         wA_start, wA_end);
   }
 
@@ -107,27 +134,31 @@ public:
   static void trans_inputa(elx_conv_t<Type> &xc, Type atinput[A][A][V],
       Type *input, int wA, int hA_start, int hA_end, int wA_start,
       int wA_end) {
-    super::template __trans_inputa<is_border>(xc, atinput, input, wA, hA_start,
+    super::template __trans_inputa<is_border>(
+        xc, atinput, input, wA, hA_start,
         hA_end, wA_start, wA_end);
   }
 
   template <bool ...conditions>
   static void trans_output(elx_conv_t<Type>& xc, Type* output,
       Type atoutput[A][A][V], Type *bias, int hOA_end, int wOA_end) {
-    super::template __trans_output<conditions...>(xc, output, atoutput, bias, hOA_end,
+    super::template __trans_output<conditions...>(
+        xc, output, atoutput, bias, hOA_end,
         wOA_end);
   }
 
   template <bool ...conditions>
   static void trans_outputa_th(elx_conv_t<Type>& xc,
       Type *toutputa, Type *toutput, int Tz, bool stream_out) {
-    super::template __trans_outputa_th<conditions...>(xc, toutputa, toutput, Tz, stream_out);
+    super::template __trans_outputa_th<conditions...>(
+        xc, toutputa, toutput, Tz, stream_out);
   }
 
   template <bool ...conditions>
   static void trans_outputa_bh(elx_conv_t<Type> &xc, Type *output,
       Type atoutputa[A][A - K + 1][V], Type *bias, int hOA_end, int wOA_end) {
-    super::template __trans_outputa_bh<conditions...>(xc, output, atoutputa, bias, hOA_end, wOA_end);
+    super::template __trans_outputa_bh<conditions...>(
+        xc, output, atoutputa, bias, hOA_end, wOA_end);
   }
 
   static void trans_weights(
@@ -145,13 +176,13 @@ class gemm_kernel :
 
 public:
   static void gemm(
-      elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights,
+      elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights,
       bool zero_out) {
     __gemm(xc, toutput, tinput, tweights, zero_out);
   }
 
   static void gemm_tail(
-      elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights,
+      elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights,
       bool zero_out) {
     __gemm_tail(xc, toutput, tinput, tweights, zero_out);
   }

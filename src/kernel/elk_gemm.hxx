@@ -37,7 +37,7 @@ static inline void elk_gemm_ker(
 
 template <typename Type, int ...configs>
 void inline gemm_kernel_base<Type, configs...>::__gemm(
-    elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights,
+    elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights,
     bool zero_out) {
   MD3(Type, atoutput, toutput, xc.O2, T, V);
   MD3(Type, atinput, tinput, xc.I2, T, V);
@@ -54,7 +54,7 @@ void inline gemm_kernel_base<Type, configs...>::__gemm(
 
 template <typename Type, int ...configs>
 void inline gemm_kernel_base<Type, configs...>::__gemm_tail(
-    elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights,
+    elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights,
     bool zero_out) {
   MD3(Type, atoutput, toutput, xc.O2, T, V);
   MD3(Type, atinput, tinput, xc.I2, T, V);
