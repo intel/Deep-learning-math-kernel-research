@@ -24,11 +24,11 @@ static inline void elk_gemm_ker(
   MD2(Type, anxp, nxp, n, p);
   MD2(Type, amxp, mxp, m, p);
 
-  for_each (_m, m) {
-    for_each (_p, p) {
+  iter_each (_m, m) {
+    iter_each (_p, p) {
       if (zero_out)
         md2(amxp, _m, _p) = 0.0f;
-      for_each (_n, n) {
+      iter_each (_n, n) {
         md2(amxp, _m, _p) += md2(amxn, _m, _n) * md2(anxp, _n, _p);
       }
     }
@@ -44,8 +44,8 @@ void inline gemm_kernel_base<Type, configs...>::__gemm(
   MD4(Type, atweights, tweights, xc.O2, xc.I2, V, V);
 
 #pragma omp parallel for collapse(1)
-  for_each (_O2, xc.O2) {
-    for_each (_I2, xc.I2) {
+  iter_each (_O2, xc.O2) {
+    iter_each (_I2, xc.I2) {
       elk_gemm_ker<Type>(&md3(atoutput, _O2, 0, 0), &md3(atinput, _I2, 0, 0),
           &md4(atweights, _O2, _I2, 0, 0), T, V, V, zero_out && _I2 == 0);
     }
@@ -61,8 +61,8 @@ void inline gemm_kernel_base<Type, configs...>::__gemm_tail(
   MD4(Type, atweights, tweights, xc.O2, xc.I2, V, V);
 
 #pragma omp parallel for collapse(1)
-  for_each (_O2, xc.O2) {
-    for_each (_I2, xc.I2 - 1) {
+  iter_each (_O2, xc.O2) {
+    iter_each (_I2, xc.I2 - 1) {
       elk_gemm_ker<Type>(&md3(atoutput, _O2, 0, 0), &md3(atinput, _I2, 0, 0),
           &md4(atweights, _O2, _I2, 0, 0), T, V, V, zero_out && _I2 == 0);
     }
