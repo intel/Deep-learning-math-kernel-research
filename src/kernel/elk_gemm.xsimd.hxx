@@ -10,21 +10,22 @@
 using namespace euler;
 template <typename Type, int ...configs>
 class gemm_kernel_algo {
+public:
   constexpr static int T = gemm_traits<configs...>::T;
   constexpr static int V = gemm_traits<configs...>::V;
   using bundle = xsimd::batch<Type, V>;
 
-  static inline bundle __fma(bundle x, Type y, bundle z) {
+  static inline bundle __bfma(bundle x, Type y, bundle z) {
     bundle _y{y};
-    return bundle::fma(x, _y, z);
+    return xsimd::fma(x, _y, z);
   }
-  static inline bundle __fma(Type x, bundle y, bundle z) {
+  static inline bundle __bfma(Type x, bundle y, bundle z) {
     bundle _x{x};
-    return bundle::fma(_x, y, z);
+    return xsimd::fma(_x, y, z);
   }
-  static inline bundle __fma(bundle x, bundle y, Type z) {
+  static inline bundle __bfma(bundle x, bundle y, Type z) {
     bundle _z{z};
-    return bundle::fma(x, y, _z);
+    return xsimd::fma(x, y, _z);
   }
 
   template <int G/*, std::enable_if<G%2 == 0 && V%G == 0> */>
@@ -49,7 +50,7 @@ class gemm_kernel_algo {
       if (zero_out) {
 #       pragma unroll
         for(int i =0; i < T; i ++)
-          bundle::bitwise_xor(t[i], t[i]);
+          t[i] ^= t[i];
       } else {
 #       pragma unroll
         for (int i =0; i < T; i++)
@@ -61,12 +62,12 @@ class gemm_kernel_algo {
         for (int _V = 0; _V < V/G; ++ _V) {
 #         pragma unroll
           for (int j = 0; j < G; j ++) {
-            constexpr auto p_idx = (p + j) % G;
+            auto p_idx = (p + j) % G;
             w[p_idx].load_aligned(w_ptr);
             w_ptr += V;
 #           pragma unroll
             for (int i = 0; i < T; i ++)
-              t[i] = __fma(w[p_idx], md4(atinput, _I2, i, _V, j), t[i]);
+              t[i] = __bfma(w[p_idx], md4(atinput, _I2, i, _V, j), t[i]);
           }
       }
 
@@ -108,7 +109,7 @@ void inline gemm_kernel_base<Type, configs...>::__gemm_tail(
     if (zero_out) {
 #     pragma unroll
       for (int i = 0; i < T; i ++)
-        bundle::bitwise_xor(t[i], t[i]);
+        t[i] ^= t[i];
     } else { 
 #     pragma unroll
       for (int i = 0; i < T; i ++)
@@ -118,10 +119,10 @@ void inline gemm_kernel_base<Type, configs...>::__gemm_tail(
     for (int _I2 = 0; _I2 < xc.I2 -1; ++_I2) {
 #     pragma unroll
       for (int _V=0; _V < V; ++_V) {
-        auto w = bundle::load_aligned(&md4(atweights, _O2, _I2, _V, 0));
+        auto w = xsimd::load_aligned(&md4(atweights, _O2, _I2, _V, 0));
 #       pragma unroll
         for (int i = 0; i < V; i ++)
-          t[i] = __fma(w, md3(atinput, xc.I2 -1, i, _V), t[i]);
+          t[i] = gemm_kernel_algo<Type, configs...>::__bfma(w, md3(atinput, xc.I2 -1, i, _V), t[i]);
       }
     }
 #   pragma unroll
