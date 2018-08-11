@@ -462,7 +462,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 
 #define GEMM_CASE(z, n, data)                                                \
   case n:                                                                    \
-    ker_gemm_ = convolution_gemm<Type, I, V, n>::gemm;    \
+    ker_gemm_ = gemm_kernel<Type, I, V, n>::gemm;    \
     break;
 
   switch (this->T) {
@@ -474,7 +474,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 
 #define GEMM_CASE0(z, n, data)                                               \
   case n:                                                                    \
-    ker_gemm0_ = convolution_gemm<Type, I, V, n>::gemm;   \
+    ker_gemm0_ = gemm_kernel<Type, I, V, n>::gemm;   \
     break;
 
   switch (this->Tr) {
@@ -488,7 +488,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 #define GEMM_TAIL_CASE(z, n, data)                                           \
   case n:                                                                    \
     ker_gemm_tail_                                                           \
-        = convolution_gemm<Type, I, V, n>::gemm_tail;     \
+        = gemm_kernel<Type, I, V, n>::gemm_tail;     \
     break;
 
     switch (this->T) {
@@ -501,7 +501,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 #define GEMM_CASE0_TAIL(z, n, data)                                          \
   case n:                                                                    \
     ker_gemm0_tail_                                                          \
-        = convolution_gemm<Type, I, V, n>::gemm_tail;     \
+        = gemm_kernel<Type, I, V, n>::gemm_tail;     \
     break;
 
     switch (this->Tr) {

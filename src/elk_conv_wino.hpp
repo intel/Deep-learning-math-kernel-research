@@ -68,7 +68,7 @@ protected:
 };
 
 template <typename Type, int ...configs>
-class convolution_gemm_base {
+class gemm_kernel_base {
   constexpr static int c_[] {configs...};
   enum { instr_set , pack_size, register_group };
 
@@ -137,11 +137,11 @@ public:
 };
 
 template <typename Type, int ...configs>
-class convolution_gemm :
-  public convolution_gemm_base<Type, configs...> {
+class gemm_kernel :
+  public gemm_kernel_base<Type, configs...> {
 
-  using convolution_gemm_base<Type, configs...>::__gemm;
-  using convolution_gemm_base<Type, configs...>::__gemm_tail;
+  using gemm_kernel_base<Type, configs...>::__gemm;
+  using gemm_kernel_base<Type, configs...>::__gemm_tail;
 
 public:
   static void gemm(

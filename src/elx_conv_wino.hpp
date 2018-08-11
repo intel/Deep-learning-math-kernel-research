@@ -200,13 +200,13 @@ private:
   void bind_execute_functions();
 
   decltype(
-      convolution_gemm<Type, I, V, 1>::gemm) *ker_gemm_;
+      gemm_kernel<Type, I, V, 1>::gemm) *ker_gemm_;
   decltype(
-      convolution_gemm<Type, I, V, 1>::gemm) *ker_gemm0_;
+      gemm_kernel<Type, I, V, 1>::gemm) *ker_gemm0_;
   decltype(
-      convolution_gemm<Type, I, V, 1>::gemm) *ker_gemm_tail_;
+      gemm_kernel<Type, I, V, 1>::gemm) *ker_gemm_tail_;
   decltype(
-      convolution_gemm<Type, I, V, 1>::gemm) *ker_gemm0_tail_;
+      gemm_kernel<Type, I, V, 1>::gemm) *ker_gemm0_tail_;
   decltype(
       convolution_winograd_kernel<
         Type, I, V, A, K>::template trans_input<not_border>) *ker_trans_input_;

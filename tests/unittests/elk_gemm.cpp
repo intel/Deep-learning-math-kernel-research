@@ -63,13 +63,13 @@ void test_elk_gemm(bool perf, bool show_diff, int execution_mode) {
 
   memset(toutput, 0, xc.O2 * xc.T * xc.V * sizeof(Type));
   TT(elk_gemm, iterations, perf,
-     (convolution_gemm<Type, I, V, T>::gemm(
+     (gemm_kernel<Type, I, V, T>::gemm(
          xc, toutput, tinput, tweights, true)));
 
   Type *ref_toutput = (Type *)malloc(toutput_sz);
   memset(ref_toutput, 0, xc.O2 * xc.T * xc.V * sizeof(Type));
   TT(ref_elk_gemm, iterations, perf,
-     (convolution_gemm<Type, ISA_GENERIC, V, T>::gemm(
+     (gemm_kernel<Type, ISA_GENERIC, V, T>::gemm(
          xc, ref_toutput, tinput, tweights, true)));
 
   for (size_t i = 0; i < toutput_sz / sizeof(Type); i++) {
