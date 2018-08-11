@@ -85,12 +85,12 @@ namespace test {
     size_t errors = 0;
 
 #pragma omp parallel for collapse(3)
-    for_each (_n, dims.n) {
-      for_each (_C, C) {
-        for_each (_h, dims.h) {
-          for_each (_w, dims.w) {
+    iter_each (_n, dims.n) {
+      iter_each (_C, C) {
+        iter_each (_h, dims.h) {
+          iter_each (_w, dims.w) {
             int v = _C == C - 1 ? Or : V;
-            for_each (_v, v) {
+            iter_each (_v, v) {
               double delta = fabs(
                   md5(aout, _n, _C, _h, _w, _v) - md5(aref, _n, _C, _h, _w, _v));
               double rel_diff = delta / fabs(md5(aref, _n, _C, _h, _w, _v));
@@ -129,10 +129,10 @@ namespace test {
     size_t errors = 0;
 
 #pragma omp parallel for collapse(3)
-    for_each (_n, dims.n) {
-      for_each (_c, dims.c) {
-        for_each (_h, dims.h) {
-          for_each (_w, dims.w) {
+    iter_each (_n, dims.n) {
+      iter_each (_c, dims.c) {
+        iter_each (_h, dims.h) {
+          iter_each (_w, dims.w) {
             double delta = fabs(
                 md4(aout, _n, _c, _h, _w) - md4(aref, _n, _c, _h, _w));
             double rel_diff = delta / fabs(md4(aref, _n, _c, _h, _w));
@@ -163,14 +163,14 @@ namespace test {
   {
     size_t num_ops = 0;
 
-    for_each (_oh, desc.dims.output.h) {
-      for_each (_ow, desc.dims.output.w) {
-        for_each (_kh, desc.dims.weights.h) {
+    iter_each (_oh, desc.dims.output.h) {
+      iter_each (_ow, desc.dims.output.w) {
+        iter_each (_kh, desc.dims.weights.h) {
           int _ih
               = _oh * desc.strides.h - desc.pads.t + _kh * desc.dilations.h;
           if (_ih < 0 || _ih >= desc.dims.input.h)
             continue;
-          for_each (_kw, desc.dims.weights.w) {
+          iter_each (_kw, desc.dims.weights.w) {
             int _iw
                 = _ow * desc.strides.w - desc.pads.l + _kw * desc.dilations.w;
             if (_iw < 0 || _iw >= desc.dims.input.w)
@@ -195,12 +195,12 @@ namespace test {
     MD4(Type, adst, dst, n, c, h, w);
 
 #pragma omp parallel for collapse(3)
-    for_each (_n, n) {
-      for_each (_C, C) {
-        for_each (_h, h) {
-          for_each (_w, w) {
+    iter_each (_n, n) {
+      iter_each (_C, C) {
+        iter_each (_h, h) {
+          iter_each (_w, w) {
             int v = (_C == C - 1) ? Vr : 16;
-            for_each (_v, v) {
+            iter_each (_v, v) {
               md4(adst, _n, _C * 16 + _v, _h, _w)
                   = md5(asrc, _n, _C, _h, _w, _v);
             }
@@ -221,12 +221,12 @@ namespace test {
     MD5(Type, adst, dst, n, C, h, w, 16);
 
 #pragma omp parallel for collapse(3)
-    for_each (_n, n) {
-      for_each (_C, C) {
-        for_each (_h, h) {
-          for_each (_w, w) {
+    iter_each (_n, n) {
+      iter_each (_C, C) {
+        iter_each (_h, h) {
+          iter_each (_w, w) {
             int v = (_C == C - 1) ? Vr : 16;
-            for_each (_v, 16) {
+            iter_each (_v, 16) {
               if (_v < v)
                 md5(adst, _n, _C, _h, _w, _v)
                     = md4(asrc, _n, _C * 16 + _v, _h, _w);
@@ -252,14 +252,14 @@ namespace test {
     MD6(Type, adst, dst, O, I, h, w, 16, 16);
 
 #pragma omp parallel for collapse(3)
-    for_each (_O, O) {
-      for_each (_I, I) {
-        for_each (_h, h) {
-          for_each (_w, w) {
+    iter_each (_O, O) {
+      iter_each (_I, I) {
+        iter_each (_h, h) {
+          iter_each (_w, w) {
             int ov = (_O == O - 1) ? Or : 16;
             int iv = (_I == I - 1) ? Ir : 16;
-            for_each (_iv, 16) {
-              for_each (_ov, 16) {
+            iter_each (_iv, 16) {
+              iter_each (_ov, 16) {
                 if (_iv < iv && _ov < ov)
                   md6(adst, _O, _I, _h, _w, _iv, _ov)
                       = md4(asrc, _O * 16 + _ov, _I * 16 + _iv, _h, _w);
@@ -286,14 +286,14 @@ namespace test {
     MD4(Type, adst, dst, o, i, h, w);
 
 #pragma omp parallel for collapse(3)
-    for_each (_O, O) {
-      for_each (_I, I) {
-        for_each (_h, h) {
-          for_each (_w, w) {
+    iter_each (_O, O) {
+      iter_each (_I, I) {
+        iter_each (_h, h) {
+          iter_each (_w, w) {
             int ov = _O == O - 1 ? Or : 16;
             int iv = _I == I - 1 ? Ir : 16;
-            for_each (_iv, iv) {
-              for_each (_ov, ov) {
+            iter_each (_iv, iv) {
+              iter_each (_ov, ov) {
                 md4(adst, _O * 16 + _ov, _I * 16 + _iv, _h, _w)
                     = md6(asrc, _O, _I, _h, _w, _iv, _ov);
               }
@@ -350,17 +350,17 @@ namespace test {
     MD4(Type, aoutput, desc.formats.output == nchw ? output : toutput, n, oc, oh, ow);
 
 #pragma omp parallel for collapse(4)
-    for_each (_n, n) {
-      for_each (_oc, oc) {
-        for_each (_oh, oh) {
-          for_each (_ow, ow) {
+    iter_each (_n, n) {
+      iter_each (_oc, oc) {
+        iter_each (_oh, oh) {
+          iter_each (_ow, ow) {
             md4(aoutput, _n, _oc, _oh, _ow) = desc.with_bias ? bias[_oc] : 0.0f;
-            for_each (_ic, ic) {
-              for_each (_kh, kh) {
+            iter_each (_ic, ic) {
+              iter_each (_kh, kh) {
                 int _ih = _oh * sh - pt + _kh * dh;
                 if (_ih < 0 || _ih >= ih)
                   continue;
-                for_each (_kw, kw) {
+                iter_each (_kw, kw) {
                   int _iw = _ow * sw - pl + _kw * dw;
                   if (_iw < 0 || _iw >= iw)
                     continue;
@@ -432,22 +432,22 @@ namespace test {
     int Ir = desc.dims.input.c % 16 ? desc.dims.input.c % 16 : 16;
 
 #pragma omp parallel for collapse(4)
-    for_each (_n, n) {
-      for_each (_OC, OC) {
-        for_each (_oh, oh) {
-          for_each (_ow, ow) {
+    iter_each (_n, n) {
+      iter_each (_OC, OC) {
+        iter_each (_oh, oh) {
+          iter_each (_ow, ow) {
             int ov = _OC == OC - 1 ? Or : 16;
-            for_each (_ov, ov) {
+            iter_each (_ov, ov) {
               md5(aoutput, _n, _OC, _oh, _ow, _ov)
                   = desc.with_bias ? bias[_OC * 16 + _ov] : 0.0f;
-              for_each (_IC, IC) {
+              iter_each (_IC, IC) {
                 int iv = _IC == IC - 1 ? Ir : 16;
-                for_each (_iv, iv) {
-                  for_each (_kh, kh) {
+                iter_each (_iv, iv) {
+                  iter_each (_kh, kh) {
                     int _ih = _oh * sh - pt + _kh * dh;
                     if (_ih < 0 || _ih >= ih)
                       continue;
-                    for_each (_kw, kw) {
+                    iter_each (_kw, kw) {
                       int _iw = _ow * sw - pl + _kw * dw;
                       if (_iw < 0 || _iw >= iw)
                         continue;
