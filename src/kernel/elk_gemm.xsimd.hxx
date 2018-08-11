@@ -49,7 +49,7 @@ class gemm_kernel_algo {
       if (zero_out) {
 #       pragma unroll
         for(int i =0; i < T; i ++)
-          t[i] = 0;
+          bundle::bitwise_xor(t[i], t[i]);
       } else {
 #       pragma unroll
         for (int i =0; i < T; i++)
@@ -108,7 +108,7 @@ void inline gemm_kernel_base<Type, configs...>::__gemm_tail(
     if (zero_out) {
 #     pragma unroll
       for (int i = 0; i < T; i ++)
-        t[i] = _mm512_setzero_ps();
+        bundle::bitwise_xor(t[i], t[i]);
     } else { 
 #     pragma unroll
       for (int i = 0; i < T; i ++)
