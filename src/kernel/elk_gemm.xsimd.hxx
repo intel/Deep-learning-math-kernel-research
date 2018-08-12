@@ -36,45 +36,41 @@ public:
     MD3(Type, atoutput, toutput, xc.O2, T, V);
 
     for (int _O2 = 0; _O2 < xc.O2; ++_O2) {
-      bundle t[T];
+      auto *t = new (&md3(atoutput, _O2, 0, 0)) bundle [T];
       auto *w_ptr = &md4(atweights, _O2, 0, 0, 0);
       bundle w[G];
       constexpr int p = G/2;
 
-#     pragma unroll
+#     pragma unroll (p)
       for (int i = 0; i < p; i ++) {
         w[i].load_aligned(w_ptr);
         w_ptr += V;
       }
 
       if (zero_out) {
-#       pragma unroll
+#       pragma unroll (T)
         for(int i =0; i < T; i ++)
           t[i] ^= t[i];
-      } else {
-#       pragma unroll
-        for (int i =0; i < T; i++)
-          t[i].load_aligned(&md3(atoutput, _O2, i, 0));
       }
 
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#       pragma unroll
+#       pragma unroll (V/G)
         for (int _V = 0; _V < V/G; ++ _V) {
-#         pragma unroll
+#         pragma unroll (G)
           for (int j = 0; j < G; j ++) {
             auto p_idx = (p + j) % G;
             w[p_idx].load_aligned(w_ptr);
             w_ptr += V;
-#           pragma unroll
+#           pragma unroll (T)
             for (int i = 0; i < T; i ++)
               t[i] = __bfma(w[p_idx], md4(atinput, _I2, i, _V, j), t[i]);
           }
+        }
       }
 
-#     pragma unroll
+#     pragma unroll (T)
       for (int i = 0; i < T; ++i)
         t[i].store_aligned(&md3(atoutput, _O2, i, 0));
-      }
     }
   }
 };
