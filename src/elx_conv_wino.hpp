@@ -45,9 +45,8 @@ public:
 
   virtual void execute(Type *output, Type *input, Type *weights, Type *bias);
 
-protected:
   // Configurator
-  inline std::tuple<int, int> tile_blocking_oc4(int num_cpu) const {
+  inline std::pair<int, int> tile_blocking_oc4(int num_cpu) const {
     constexpr int reg_max = 32;
     constexpr int reg_min = 15;
     auto part_o_max = 8;
@@ -66,27 +65,27 @@ protected:
       tb /= 2;
     }
 
-    return std::make_tuple(tb, part_o);
+    return std::make_pair(tb, part_o);
   }
 
-  inline std::size_t input_unit() const {
-    return elem_sz_ * T * V;
+  inline std::size_t input_unit(int t) const {
+    return elem_sz_ * t * V;
   }
 
   inline std::size_t weights_unit() const {
     return elem_sz_ * V * V;
   }
 
-  inline std::size_t output_unit() const {
+  inline std::size_t output_unit(int t) const {
     return elem_sz_ * T * V;
   }
 
   // Return eligible I2 number, I2 iteration prefer L1 reside
-  inline std::size_t I2_num(std::size_t cache_sz, std::size_t t) const {
+  inline std::size_t I2_num(std::size_t cache_sz, int t) const {
     auto ic2 = this->ic2;
-    auto cache_l = cache_sz - output_unit();
+    auto cache_l = cache_sz - output_unit(t);
 
-    while((input_unit() + weights_unit()) * ic2 > cache_l) {
+    while((input_unit(t) + weights_unit()) * ic2 > cache_l) {
       if ( (ic2 & 0x1) == 0 )
         ic2 /= 2;
     }
@@ -94,12 +93,13 @@ protected:
   }
 
   // Return eligible O2 number, O2 iteration prefer L2 upper reside
-  inline std::size_t O2_num(std::size_t cache_sz, std::size_t i2, std::size_t oc4)
+  inline std::size_t O2_num(std::size_t cache_sz, int i2
+      , std::pair<int, int> t_oc4)
     const {
-    auto oc2 = this->oc2/oc4;
+    auto oc2 = this->oc2/t_oc4.second;
 
-    auto cache_l = cache_sz - input_unit() * i2;
-    auto wo_unit = weights_unit() + output_unit();
+    auto cache_l = cache_sz - input_unit(t_oc4.first) * i2;
+    auto wo_unit = weights_unit() + output_unit(t_oc4.first);
 
     while(wo_unit * oc2 > cache_l) {
       if ((oc2 & 0x1) == 0)
@@ -110,7 +110,7 @@ protected:
 
   // Checkers
   inline std::size_t gemmker_input_footprint() const {
-    return input_unit() * I2;
+    return input_unit(T) * I2;
   }
 
   inline std::size_t gemmker_weights_footprint() const {
@@ -118,7 +118,7 @@ protected:
   }
 
   inline std::size_t gemmker_output_footprint() const {
-    return output_unit();
+    return output_unit(T);
   }
 
   inline std::size_t gemm_input_reuse_set() const {

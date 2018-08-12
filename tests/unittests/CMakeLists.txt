@@ -31,6 +31,7 @@ file(GLOB PRIM_TEST_CASES_SRC
                               elk_trans_input.cpp
                               elk_trans_output.cpp
                               elk_trans_weights.cpp
+                              parameter_tuner.cpp
                               ) #temporary
 foreach(TEST_FILE ${PRIM_TEST_CASES_SRC})
     message(STATUS ${TEST_FILE} )
@@ -57,7 +58,7 @@ endforeach()
   #get_filename_component(__exe_file_name ${__test_file} NAME_WE)
 #  add_executable(sample1_unittest ${__native_test_src})
 #  target_link_libraries(sample1_unittest ${CURR_APP_NAME}
-#       el ${LIB_NAME} euler_gtest ${EXTRA_LIBS} iomp5 boost_program_options) 
+#       el ${LIB_NAME} euler_gtest ${EXTRA_LIBS} iomp5 boost_program_options)
 #  add_test(NAME sample1_unittest
 #    COMMAND sample1_unittest)
 #endforeach()

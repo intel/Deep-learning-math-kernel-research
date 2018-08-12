@@ -7,10 +7,10 @@
 #include "euler.hpp"
 #include "el_def.hpp"
 #include "elt_unitests.hpp"
-#include "tests/elt_utils.hpp"
-#include "src/elk_conv_wino.hpp"
-#include "src/elx_conv.hpp"
-#include "src/elx_conv_wino.hpp"
+#include "elt_utils.hpp"
+#include "elk_conv_wino.hpp"
+#include "elx_conv.hpp"
+#include "elx_conv_wino.hpp"
 
 int iterations = 10;
 using namespace euler;
@@ -21,8 +21,6 @@ int ref_elk_gemm(elx_conv_t<F> &xc, F *output, F *input, F *weights,
 
 template <typename Type, const int T, const int A, const int V, const int I>
 void test_elk_gemm(bool perf, bool show_diff, int execution_mode) {
-  int error = 0;
-
   eld_conv_t<Type> desc;
   desc.dims = {{64, 64, 224, 224}, {64, 64, 3, 3}, {64, 64, 224, 224}, {64}};
   desc.formats = {nChw16c, OIhw16i16o, nChw16c};
