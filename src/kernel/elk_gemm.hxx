@@ -82,7 +82,7 @@ public:
       __gemm_impl_1_28(xc, toutput, tinput, tweights, zero_out);
     else if (29 <= T && T <= 30)
       __gemm_impl_29_30(xc, toutput, tinput, tweights, zero_out);
-    else if (T <= 31)
+    else /*if (31 <= T)*/
       __gemm_impl_31(xc, toutput, tinput, tweights, zero_out);
     /* else throw ??? */
   }
@@ -98,29 +98,29 @@ public:
       __m512 t[T];
  
       if (zero_out) {
-#       pragma unroll
+#       pragma unroll (T)
         for (int i =0; i < T; i++) {
           t[i] = _mm512_setzero_ps();
         }
       } else {
-#       pragma unroll
+#       pragma unroll (T)
         for (int i =0; i < T; i++) {
           t[i] = _mm512_load_ps(&md3(atoutput, _O2, i, 0));
         }
       }
 
       for (int _I2 = 0; _I2 < xc.I2 -1; ++_I2) {
-#       pragma unroll
+#       pragma unroll (16)
         for (int _V= 0; _V < 16; ++_V) {
           auto w = _mm512_load_ps(&md4(atweights, _O2, _I2, _V, 0));
-#         pragma unroll
+#         pragma unroll (T)
           for (int i=0; i < T; i++) {
             auto x = _mm512_set1_ps(md3(atinput, xc.I2 - 1, i, _V));
             t[i] = _mm512_fmadd_ps(w, x, t[i]);
           }
         }
       }
-#     pragma unroll
+#     pragma unroll (T)
       for (int i =0; i < T; i ++) {
         _mm512_store_ps(&md3(atoutput, _O2, i, 0), t[i]);
       }
@@ -146,21 +146,21 @@ private:
       asm volatile("" : : : "memory");
 
       if (zero_out) {
-#       pragma unroll
+#       pragma unroll (T)
         for(int i =0; i < T; i++)
           t[i] = _mm512_setzero_ps();
       } else {
-#       pragma unroll
+#       pragma unroll (T)
         for(int i =0; i < T; i++)
           t[i] = _mm512_load_ps(&md3(atoutput, _O2, i, 0));
       }
 
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#       pragma unroll
+#       pragma unroll (4)
         for (int _V = 0; _V < 4; ++_V) {
           w2 = _mm512_load_ps(w_ptr);
           w_ptr += 16;
-#         pragma unroll
+#         pragma unroll (T)
           for (int i = 0; i < T; i++) {
             auto x = _mm512_set1_ps(md4(atinput, _I2, i, _V, 0));
             t[i] = _mm512_fmadd_ps(w0, x, t[i]);
@@ -169,7 +169,7 @@ private:
 
           w3 = _mm512_load_ps(w_ptr);
           w_ptr += 16;
-#         pragma unroll
+#         pragma unroll (T)
           for (int i =0; i < T; i++) {
             auto x = _mm512_set1_ps(md4(atinput, _I2, i, _V, 1));
             t[i] = _mm512_fmadd_ps(w1, x, t[i]);
@@ -178,7 +178,7 @@ private:
 
           w0 = _mm512_load_ps(w_ptr);
           w_ptr += 16;
-#         pragma unroll
+#         pragma unroll (T)
           for (int i =0; i < T; i ++) {
             auto x = _mm512_set1_ps(md4(atinput, _I2, i, _V, 2));
             t[i] = _mm512_fmadd_ps(w2, x, t[i]);
@@ -187,14 +187,14 @@ private:
 
           w1 = _mm512_load_ps(w_ptr);
           w_ptr += 16;
-#         pragma unroll
+#         pragma unroll (T)
           for (int i =0; i < T; i ++) {
             auto x = _mm512_set1_ps(md4(atinput, _I2, i, _V, 3));
             t[i] = _mm512_fmadd_ps(w3, x, t[i]);
           }
         }
       }
-#     pragma unroll
+#     pragma unroll (T)
       for (int i = 0; i < T; i ++) {
         _mm512_store_ps(&md3(atoutput, _O2, i, 0), t[i]);
       }
@@ -218,21 +218,21 @@ private:
       asm volatile("" : : : "memory");
 
       if (zero_out) {
-#       pragma unroll
+#       pragma unroll (T)
         for(int i =0; i < T; i++)
           t[i] = _mm512_setzero_ps();
       } else {
-#       pragma unroll
+#       pragma unroll (T)
         for(int i =0; i < T; i++)
           t[i] = _mm512_load_ps(&md3(atoutput, _O2, i, 0));
       }
 
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#       pragma unroll
+#       pragma unroll (8)
         for (int _V = 0; _V < 8; ++_V) {
           w1 = _mm512_load_ps(w_ptr);
           w_ptr += 16;
-#         pragma unroll
+#         pragma unroll (T)
           for (int i =0; i < T; ++i) {
             auto x = _mm512_set1_ps(md4(atinput, _I2, i, _V, 0));
             t[i] = _mm512_fmadd_ps(w0, x, t[i]);
@@ -241,14 +241,14 @@ private:
           asm volatile("" : : : "memory");
           w0 = _mm512_load_ps(w_ptr);
           w_ptr += 16;
-#         pragma unroll
+#         pragma unroll (T)
           for (int i =0; i < T; ++i) {
             auto x = _mm512_set1_ps(md4(atinput, _I2, i, _V, 1));
             t[i] = _mm512_fmadd_ps(w0, x, t[i]);
           }
         }
       }
-#     pragma unroll
+#     pragma unroll (T)
       for (int i =0; i < T; i++) {
         _mm512_store_ps(&md3(atoutput, _O2, i, 0), t[i]);
       }
@@ -266,29 +266,29 @@ private:
       __m512 t[T];
 
       if (zero_out) {
-#       pragma unroll
+#       pragma unroll (T)
         for (int i =0; i<T; i++) {
           t[i] = _mm512_setzero_ps();
         }
       } else {
-#       pragma unroll
+#       pragma unroll (T)
         for (int i =0; i<T; i++) {
           t[i] = _mm512_load_ps(&md3(atoutput, _O2, i, 0));
         }
       }
 
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#       pragma unroll
+#       pragma unroll (16)
         for (int _V = 0; _V < 16; ++_V) {
           auto w = _mm512_load_ps(&md4(atweights, _O2, _I2, _V, 0));
-#         pragma unroll
+#         pragma unroll (T)
           for (int i =0; i < T; ++i) {
             auto x = _mm512_set1_ps(md3(atinput, _I2, i, _V));
             t[i] = _mm512_fmadd_ps(w, x, t[i]);
           }
         }
       }
-#     pragma unroll
+#     pragma unroll (T)
       for (int i=0; i < T; i++) {
         _mm512_store_ps(&md3(atoutput, _O2, i, 0), t[i]);
       }
