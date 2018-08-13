@@ -65,6 +65,10 @@ TEST(elkTransWeightsTest, A5) {
   test_elk_trans_weights<float, 5, 3, 16, ISA_SKX_AVX512>(test_perf, show_diff);
 }
 
+TEST(elkTransWeightsTest, A6) {
+  test_elk_trans_weights<float, 6, 3, 16, ISA_SKX_AVX512>(test_perf, show_diff);
+}
+
 TEST(elkTransWeightsTest, A7) {
   test_elk_trans_weights<float, 7, 3, 16, ISA_SKX_AVX512>(test_perf, show_diff);
 }

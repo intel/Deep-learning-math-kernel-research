@@ -85,6 +85,12 @@ TEST_P(elkTransInputTest, A5) {
                                                         execution_mode);
 }
 
+TEST_P(elkTransInputTest, A6) {
+  int execution_mode = GetParam();
+  test_elk_trans_input<float, 6, 3, 16, ISA_SKX_AVX512>(test_perf, show_diff,
+                                                        execution_mode);
+}
+
 TEST_P(elkTransInputTest, A7) {
   int execution_mode = GetParam();
   test_elk_trans_input<float, 7, 3, 16, ISA_SKX_AVX512>(test_perf, show_diff,

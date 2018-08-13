@@ -97,6 +97,12 @@ TEST_P(elkGemmTest, T16_A5) {
                                                   execution_mode);
 }
 
+TEST_P(elkGemmTest, T16_A6) {
+  int execution_mode = GetParam();
+  test_elk_gemm<float, 16, 6, 16, ISA_SKX_AVX512>(test_perf, show_diff,
+                                                  execution_mode);
+}
+
 TEST_P(elkGemmTest, T16_A7) {
   int execution_mode = GetParam();
   test_elk_gemm<float, 16, 7, 16, ISA_SKX_AVX512>(test_perf, show_diff,
@@ -106,6 +112,12 @@ TEST_P(elkGemmTest, T16_A7) {
 TEST_P(elkGemmTest, T25_A5) {
   int execution_mode = GetParam();
   test_elk_gemm<float, 25, 5, 16, ISA_SKX_AVX512>(test_perf, show_diff,
+                                                  execution_mode);
+}
+
+TEST_P(elkGemmTest, T25_A6) {
+  int execution_mode = GetParam();
+  test_elk_gemm<float, 25, 6, 16, ISA_SKX_AVX512>(test_perf, show_diff,
                                                   execution_mode);
 }
 
