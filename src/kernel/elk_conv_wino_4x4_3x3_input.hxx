@@ -365,6 +365,7 @@ __TRANS_INPUT(float, 6, 3, 16, ISA_SKX_AVX512)
 __TRANS_INPUTA(float, 6, 3, 16, ISA_GENERIC)
 {
   // TODO
+  el_error("Unimplemented");
 }
 
 // template <const bool is_border_>
@@ -374,6 +375,7 @@ __TRANS_INPUTA(float, 6, 3, 16, ISA_GENERIC)
 __TRANS_INPUTA(float, 6, 3, 16, ISA_SKX_AVX512)
 {
   // TODO
+  el_error("Unimplemented");
 }
 
 TRANS_INPUT(float, 6, 3, 16, ISA_GENERIC);

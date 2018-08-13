@@ -52,7 +52,7 @@ __TRANS_INPUT(float, 4, 3, 16, ISA_GENERIC)
 
     C(1) = F(1,2) - F(1,1);
     C(2) = F(2,2) - F(2,1);
-    T(0,1) = F(0,2) - F(0,1) - C(2); 
+    T(0,1) = F(0,2) - F(0,1) - C(2);
     T(1,1) = C(2) - C(1);
     T(2,1) = C(2) + C(1);
     T(3,1) = F(3,2) - F(3,1) - C(1);
@@ -165,6 +165,7 @@ __TRANS_INPUT(float, 4, 3, 16, ISA_SKX_AVX512)
 __TRANS_INPUTA(float, 4, 3, 16, ISA_GENERIC)
 {
   // TODO
+  el_error("Unimplemented");
 }
 
 // template <const bool is_border_>
@@ -174,6 +175,7 @@ __TRANS_INPUTA(float, 4, 3, 16, ISA_GENERIC)
 __TRANS_INPUTA(float, 4, 3, 16, ISA_SKX_AVX512)
 {
   // TODO
+  el_error("Unimplemented");
 }
 
 TRANS_INPUT(float, 4, 3, 16, ISA_GENERIC);

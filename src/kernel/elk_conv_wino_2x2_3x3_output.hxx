@@ -120,6 +120,7 @@ __TRANS_OUTPUT(float, 4, 3, 16, ISA_SKX_AVX512)
 __TRANS_OUTPUTA_TH( float, 4, 3, 16, ISA_GENERIC)
 {
   // TODO
+  el_error("Unimplemented");
 }
 
 // Params:
@@ -128,6 +129,7 @@ __TRANS_OUTPUTA_TH( float, 4, 3, 16, ISA_GENERIC)
 __TRANS_OUTPUTA_TH( float, 4, 3, 16, ISA_SKX_AVX512)
 {
   // TODO
+  el_error("Unimplemented");
 }
 
 
@@ -139,6 +141,7 @@ __TRANS_OUTPUTA_TH( float, 4, 3, 16, ISA_SKX_AVX512)
 __TRANS_OUTPUTA_BH(float, 4, 3, 16, ISA_GENERIC)
 {
   // TODO
+  el_error("Unimplemented");
 }
 
 // template <const bool is_border_, const bool with_bias_>
@@ -149,6 +152,7 @@ __TRANS_OUTPUTA_BH(float, 4, 3, 16, ISA_GENERIC)
 __TRANS_OUTPUTA_BH(float, 4, 3, 16, ISA_SKX_AVX512)
 {
   // TODO
+  el_error("Unimplemented");
 }
 
 TRANS_OUPUT(float, 4, 3, 16, ISA_GENERIC);
