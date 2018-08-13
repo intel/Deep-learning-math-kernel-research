@@ -669,7 +669,7 @@ __TRANS_INPUTA(float, 7, 3, 16, ISA_SKX_AVX512)
   auto f_cb = [&](int _h, int _w) {
     if (_wT_end == -1) {
       MD3(float, ainput, input, A, A, 16);
-      return _mm512_load_ps(&md3(ainput, _h, _w, 16));
+      return _mm512_load_ps(&md3(ainput, _h, _w, 0));
     } else {
       MD3(float, ainput, input, xc.ih, xc.iw, 16);
       if (is_border_

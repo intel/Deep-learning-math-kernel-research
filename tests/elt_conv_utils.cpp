@@ -1,9 +1,9 @@
 #include <math.h>
 #include "elt_conv_utils.hpp"
+#include <random>
 
 namespace euler {
 namespace test {
-
   template <typename Type>
   void prepare_conv_data(
       eld_conv_t<Type> &, Type **, Type **, Type **, Type **)
@@ -14,6 +14,9 @@ namespace test {
   void prepare_conv_data<float>(eld_conv_t<float> &desc, float **input,
       float **weights, float **output, float **bias)
   {
+    std::default_random_engine generator;
+    std::normal_distribution<float> data(1.0, 1e-2);
+
     MEMALIGN64(input, desc.byte_sizes.input);
     MEMALIGN64(weights, desc.byte_sizes.weights);
     MEMALIGN64(output, desc.byte_sizes.output);
@@ -21,17 +24,18 @@ namespace test {
 
 #pragma omp parallel for
     for (size_t i = 0; i < desc.sizes.input; i++) {
-      (*input)[i] = i % 15;
+      (*input)[i] = data(generator);
     }
 #pragma omp parallel for
     for (size_t i = 0; i < desc.sizes.weights; i++) {
-      (*weights)[i] = i % 31;
-      if (i % 3 == 0)
-        (*weights)[i] = -1.0f;
+      (*weights)[i] = data(generator);
     }
 #pragma omp parallel for
     for (size_t i = 0; i < desc.sizes.bias; i++) {
-      (*bias)[i] = i % 13;
+      (*bias)[i] = data(generator);
+      // for conv relu fusion
+      if (i % 2 == 0)
+        (*bias)[i] = -1000.0f;
     }
   }
 
@@ -94,7 +98,7 @@ namespace test {
               double delta = fabs(
                   md5(aout, _n, _C, _h, _w, _v) - md5(aref, _n, _C, _h, _w, _v));
               double rel_diff = delta / fabs(md5(aref, _n, _C, _h, _w, _v));
-              if (rel_diff > 1e-5) {
+              if (rel_diff > 1e-4) {
                 if (errors < MAX_PRINT_ERRORS) {
                   printf("Not equal!: [%d][%d][%d][%d][%d]: %f != %f (ref), "
                          "delta=%g, rel_diff=%g\n",
@@ -136,7 +140,7 @@ namespace test {
             double delta = fabs(
                 md4(aout, _n, _c, _h, _w) - md4(aref, _n, _c, _h, _w));
             double rel_diff = delta / fabs(md4(aref, _n, _c, _h, _w));
-            if (rel_diff > 5e-6) {
+            if (rel_diff > 1e-4) {
               if (errors < MAX_PRINT_ERRORS) {
                 printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
                        "delta=%g, rel_diff=%g\n",
