@@ -30,14 +30,15 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
   int nteams = 0;
   int nthreads = 0;
 
-  int divisor = 16 * blk_i * pat_i;
-  if (!(ic / divisor != 0 && ic % divisor == 0)) {
+  int divisor_i = 16 * blk_i * pat_i;
+  if (!(ic / divisor_i != 0 && ic % divisor_i == 0)) {
     printf("Error: blocking or partion options are invalid\n");
     printf("ic = %d, blk_i = %d, pat_i = %d\n", ic, blk_i, pat_i);
     return 0;
   }
 
-  if (!(oc / divisor != 0 && oc % divisor == 0)) {
+  int divisor_o = 16 * blk_o * pat_o;
+  if (!(oc / divisor_o != 0 && oc % divisor_o == 0)) {
     printf("Error: blocking or partion options are invalid\n");
     printf("oc = %d, blk_o = %d, pat_o = %d\n", oc, blk_o, pat_o);
     return 0;
