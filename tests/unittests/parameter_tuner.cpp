@@ -25,7 +25,8 @@ public:
   virtual void SetUp() {
     auto p = testing::TestWithParam<tuner_test_parameters>::GetParam();
 
-    desc_.dims = { {p.n, p.o, p.h, p.h}, {p.o, p.i, K, K}, {p.n, p.o, p.H, p.H} };
+    desc_.dims = {
+      {p.n, p.i, p.h, p.h}, {p.o, p.i, K, K}, {p.n, p.o, p.H, p.H}, {p.o} };
     desc_.formats = { euler::nChw16c, euler::OIhw16i16o, euler::nChw16c };
     desc_.pads = {1, 1, 1, 1};
     desc_.with_bias = false;
@@ -71,10 +72,10 @@ INSTANTIATE_TEST_CASE_P(resnet_n1, tuner_test_tile_5,
     , ttp {l1, l2, l3, skx_8180, 1, 256, 14, 256, 14, 1, 0xa000, 25, 1, 8, 4}
     , ttp {l1, l2, l3, skx_8180, 1, 512, 7, 512, 7, 1, 0xa000, 9, 1, 8, 4}
     /* resnet-n1-8180-2s-wino-f3_3 */
-    , ttp {l1, l2, l3, skx_8180, 2, 64, 56, 64, 56, 2, 0xa061, 13, 2, 4, 2}
-    , ttp {l1, l2, l3, skx_8180, 2, 128, 28, 128, 28, 2, 0xa061, 15, 8, 8, 2}
-    , ttp {l1, l2, l3, skx_8180, 2, 256, 14, 256, 14, 2, 0xa000, 9, 4, 8, 1}
-    , ttp {l1, l2, l3, skx_8180, 2, 512, 7, 512, 7, 2, 0xa000, 9, 4, 8, 4}
+    , ttp {l1, l2, l3, skx_8180, 2, 64, 56, 64, 56, 1, 0xa061, 13, 2, 4, 2}
+    , ttp {l1, l2, l3, skx_8180, 2, 128, 28, 128, 28, 1, 0xa061, 15, 8, 8, 2}
+    , ttp {l1, l2, l3, skx_8180, 2, 256, 14, 256, 14, 1, 0xa000, 9, 4, 8, 1}
+    , ttp {l1, l2, l3, skx_8180, 2, 512, 7, 512, 7, 1, 0xa000, 9, 4, 8, 4}
 ));
 
 INSTANTIATE_TEST_CASE_P(vgg_n1, tuner_test_tile_5,

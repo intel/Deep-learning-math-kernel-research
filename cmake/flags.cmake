@@ -4,7 +4,8 @@ endif()
 
 set(__basic_flags " \
 -fopenmp -Wall -Werror -Wextra -Wno-unused-parameter -Wno-unused-variable \
--Wno-sign-compare -Wno-uninitialized \
+-Wno-sign-compare -Wno-uninitialized -Wno-unknown-pragmas \
+-Wno-unused-but-set-variable -Wno-misleading-indentation \
 ")
 
 set(__cxx_flags "-std=c++14")

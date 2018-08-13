@@ -163,7 +163,7 @@ public:
 
   static void trans_weights(
       Type atweights[A][A][V][V], Type aweights[K][K][V][V]) {
-    __trans_weights(atweights, aweights);
+    super::__trans_weights(atweights, aweights);
   }
 };
 
