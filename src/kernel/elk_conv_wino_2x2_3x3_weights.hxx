@@ -57,11 +57,8 @@ __TRANS_WEIGHTS(float, 4, 3, 16, ISA_GENERIC)
   }
 }
 
-template <D_WEIGHTS(
-    typename Type, const int A, const int K, const int V, const int I)>
-void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::__trans_weights(
-    winograd_template_parameter_t<S_WEIGHTS(float, 4, 3, 16, ISA_SKX_AVX512)>,
-    Type atweights[A][A][V][V], Type aweights[K][K][V][V])
+// float atweights[A][A][V][V] <- float aweights[K][K][V][V])
+__TRANS_WEIGHTS(float, 4, 3, 16, ISA_SKX_AVX512)
 {
   ENABLE_AVX512F();
 

@@ -139,6 +139,9 @@ struct convolution_winograd_kernel {
   TRANS_KERNEL(float, 5, 3, 16, ISA_GENERIC);
   TRANS_KERNEL(float, 5, 3, 16, ISA_SKX_AVX512);
 
+  TRANS_KERNEL(float, 6, 3, 16, ISA_GENERIC);
+  TRANS_KERNEL(float, 6, 3, 16, ISA_SKX_AVX512);
+
   TRANS_KERNEL(float, 7, 3, 16, ISA_GENERIC);
   TRANS_KERNEL(float, 7, 3, 16, ISA_SKX_AVX512);
 
