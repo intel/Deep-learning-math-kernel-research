@@ -128,3 +128,25 @@ void convolution_winograd_kernel<R_WEIGHTS(Type, A, K, V, I)>::trans_weights(
 #include "kernel/elk_conv_wino_5x5_3x3_input.hxx"
 #include "kernel/elk_conv_wino_5x5_3x3_output.hxx"
 #include "kernel/elk_conv_wino_5x5_3x3_weights.hxx"
+
+#ifdef WITH_GK
+// F(2x2, 3x3)
+#include "kernel/elk_conv_wino_2x2_3x3_input_gen.hxx"
+#include "kernel/elk_conv_wino_2x2_3x3_output_gen.hxx"
+#include "kernel/elk_conv_wino_2x2_3x3_weights_gen.hxx"
+
+// F(3x3, 3x3)
+#include "kernel/elk_conv_wino_3x3_3x3_input_gen.hxx"
+#include "kernel/elk_conv_wino_3x3_3x3_output_gen.hxx"
+#include "kernel/elk_conv_wino_3x3_3x3_weights_gen.hxx"
+
+// F(4x4, 3x3)
+#include "kernel/elk_conv_wino_4x4_3x3_input_gen.hxx"
+#include "kernel/elk_conv_wino_4x4_3x3_output_gen.hxx"
+#include "kernel/elk_conv_wino_4x4_3x3_weights_gen.hxx"
+
+// F(5x5, 3x3)
+#include "kernel/elk_conv_wino_5x5_3x3_input_gen.hxx"
+#include "kernel/elk_conv_wino_5x5_3x3_output_gen.hxx"
+#include "kernel/elk_conv_wino_5x5_3x3_weights_gen.hxx"
+#endif

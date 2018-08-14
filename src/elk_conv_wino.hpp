@@ -133,16 +133,16 @@ struct convolution_winograd_kernel {
       winograd_template_parameter_t<S_WEIGHTS(Type_, _A, _K, _V, _I)>,       \
       Type atweights[A][A][V][V], Type aweights[K][K][V][V]);
 
+#ifdef WITH_GK
   TRANS_KERNEL(float, 4, 3, 16, ISA_GENERIC);
-  TRANS_KERNEL(float, 4, 3, 16, ISA_SKX_AVX512);
-
   TRANS_KERNEL(float, 5, 3, 16, ISA_GENERIC);
-  TRANS_KERNEL(float, 5, 3, 16, ISA_SKX_AVX512);
-
   TRANS_KERNEL(float, 6, 3, 16, ISA_GENERIC);
-  TRANS_KERNEL(float, 6, 3, 16, ISA_SKX_AVX512);
-
   TRANS_KERNEL(float, 7, 3, 16, ISA_GENERIC);
+#endif
+
+  TRANS_KERNEL(float, 4, 3, 16, ISA_SKX_AVX512);
+  TRANS_KERNEL(float, 5, 3, 16, ISA_SKX_AVX512);
+  TRANS_KERNEL(float, 6, 3, 16, ISA_SKX_AVX512);
   TRANS_KERNEL(float, 7, 3, 16, ISA_SKX_AVX512);
 
   template <const int T_>

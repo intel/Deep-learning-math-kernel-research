@@ -1,13 +1,16 @@
 cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
-include(CheckTypeSize)
 
 # euler version info
 project(Euler CXX C)
 
+option(WITH_TEST "Build with test cases" ON)
+option(WITH_GK "Build with generic kernel and unit tests" ON)
+
 set(EULER_VERSION_MAJOR 0)
 set(EULER_VERSION_MINOR 0)
 set(EULER_VERSION_PATCH 1)
-set(EULER_VERSION "${EULER_VERSION_MAJOR}.${EULER_VERSION_MINOR}.${EULER_VERSION_PATCH}")
+set(EULER_VERSION
+  "${EULER_VERSION_MAJOR}.${EULER_VERSION_MINOR}.${EULER_VERSION_PATCH}")
 
 cmake_policy(SET CMP0015 NEW)
 cmake_policy(SET CMP0042 NEW)
@@ -28,6 +31,8 @@ endif()
 if(${CMAKE_BUILD_TYPE} MATCHES "Debug")
   message(STATUS "Build type is Debug")
   set(__debug ON)
+  set(WITH_TEST ON)
+  set(WITH_GK ON)
 endif()
 
 include("cmake/flags.cmake")
@@ -47,4 +52,6 @@ link_directories(lib)
 add_library(${lib_name} SHARED ${__euler_source})
 target_link_libraries(${lib_name} PUBLIC iomp5)
 
-add_subdirectory(tests)
+if (WITH_TEST)
+  add_subdirectory(tests)
+endif()
