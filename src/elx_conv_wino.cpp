@@ -2304,17 +2304,24 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a061(
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
+    static int t2_history = -1;
+#pragma omp threadprivate (t2_history)
     if (is_first_run_) {
       trans_weights(tweights_, weights, this->oc4);
 #pragma omp barrier
     }
+
+    t2_history = -1;
 #pragma omp for nowait collapse(2)
     iter_each (_t2, this->t2) {
       iter_each (_oc4, this->oc4) {
         int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
         size_t ithr = omp_get_thread_num();
 
-        trans_input(&md2(atinput2, ithr, 0), input, _t2, Tz);
+        if (t2_history != _t2) {
+          trans_input(&md2(atinput2, ithr, 0), input, _t2, Tz);
+          t2_history = _t2;
+        }
         gemm(&md2(atoutput2, ithr, 0), &md2(atinput2, ithr, 0),
             &md2(atweights2, _oc4, 0), _t2, Tz);
         trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
