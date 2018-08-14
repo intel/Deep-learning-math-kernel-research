@@ -77,7 +77,7 @@ public:
   }
 
   inline std::size_t output_unit(int t) const {
-    return elem_sz_ * T * V;
+    return elem_sz_ * t * V;
   }
 
   // Return eligible I2 number, I2 iteration prefer L1 reside
@@ -96,10 +96,11 @@ public:
   inline std::size_t O2_num(std::size_t cache_sz, int i2
       , std::pair<int, int> t_oc4)
     const {
+    auto t = t_oc4.first;
     auto oc2 = this->oc2/t_oc4.second;
 
-    auto cache_l = cache_sz - input_unit(t_oc4.first) * i2;
-    auto wo_unit = weights_unit() + output_unit(t_oc4.first);
+    auto cache_l = cache_sz - input_unit(t) * i2;
+    auto wo_unit = weights_unit() + output_unit(t);
 
     while(wo_unit * oc2 > cache_l) {
       if ((oc2 & 0x1) == 0)
