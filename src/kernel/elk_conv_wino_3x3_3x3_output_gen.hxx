@@ -1,3 +1,4 @@
+#pragma once
 #include <assert.h>
 #include <x86intrin.h>
 #include "elk_def.hpp"
