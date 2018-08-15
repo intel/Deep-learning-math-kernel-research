@@ -1,6 +1,5 @@
 #include <math.h>
 #include "elt_conv_utils.hpp"
-#include <random>
 
 namespace euler {
 namespace test {
@@ -14,9 +13,6 @@ namespace test {
   void prepare_conv_data<float>(eld_conv_t<float> &desc, float **input,
       float **weights, float **output, float **bias)
   {
-    std::default_random_engine generator;
-    std::normal_distribution<float> data(1.0, 1e-2);
-
     MEMALIGN64(input, desc.byte_sizes.input);
     MEMALIGN64(weights, desc.byte_sizes.weights);
     MEMALIGN64(output, desc.byte_sizes.output);
@@ -24,18 +20,15 @@ namespace test {
 
 #pragma omp parallel for
     for (size_t i = 0; i < desc.sizes.input; i++) {
-      (*input)[i] = data(generator);
+      (*input)[i] = rand() % 20 - 4;
     }
 #pragma omp parallel for
     for (size_t i = 0; i < desc.sizes.weights; i++) {
-      (*weights)[i] = data(generator);
+      (*weights)[i] = rand() % 32;
     }
 #pragma omp parallel for
     for (size_t i = 0; i < desc.sizes.bias; i++) {
-      (*bias)[i] = data(generator);
-      // for conv relu fusion
-      if (i % 2 == 0)
-        (*bias)[i] = -1000.0f;
+      (*bias)[i] = rand() % 100;
     }
   }
 
@@ -98,7 +91,7 @@ namespace test {
               double delta = fabs(
                   md5(aout, _n, _C, _h, _w, _v) - md5(aref, _n, _C, _h, _w, _v));
               double rel_diff = delta / fabs(md5(aref, _n, _C, _h, _w, _v));
-              if (rel_diff > 1e-4) {
+              if (rel_diff > 1e-5) {
                 if (errors < MAX_PRINT_ERRORS) {
                   printf("Not equal!: [%d][%d][%d][%d][%d]: %f != %f (ref), "
                          "delta=%g, rel_diff=%g\n",
@@ -140,7 +133,7 @@ namespace test {
             double delta = fabs(
                 md4(aout, _n, _c, _h, _w) - md4(aref, _n, _c, _h, _w));
             double rel_diff = delta / fabs(md4(aref, _n, _c, _h, _w));
-            if (rel_diff > 1e-4) {
+            if (rel_diff > 1e-5) {
               if (errors < MAX_PRINT_ERRORS) {
                 printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
                        "delta=%g, rel_diff=%g\n",
