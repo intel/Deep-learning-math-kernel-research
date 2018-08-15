@@ -288,11 +288,17 @@ private:
   struct { int start; int end; } ttm_[MAX_THREAD_TEAMS];
 };
 
-// template class elx_conv_wino_t<float, 4, 3, 16, ISA_GENERIC>;
-// template class elx_conv_wino_t<float, 4, 3, 16, ISA_SKX_AVX512>;
+
+#ifdef WITH_GK
+template class elx_conv_wino_t<float, 4, 3, 16, ISA_GENERIC>;
 template class elx_conv_wino_t<float, 5, 3, 16, ISA_GENERIC>;
-template class elx_conv_wino_t<float, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<float, 6, 3, 16, ISA_GENERIC>;
 template class elx_conv_wino_t<float, 7, 3, 16, ISA_GENERIC>;
+#endif
+
+template class elx_conv_wino_t<float, 4, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<float, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<float, 6, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<float, 7, 3, 16, ISA_SKX_AVX512>;
 
 }  // namespace euler

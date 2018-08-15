@@ -52,9 +52,9 @@ int eld_conv_t<F>::setup() {
   const int fmt_blocked_weights = OIhw16i16o;
 
   bool format_okay
-      = (formats.input == nchw || formats.input == fmt_blocked_data)
-      && (formats.weights == oihw || formats.weights == fmt_blocked_weights)
-      && (formats.output == nchw || formats.output == fmt_blocked_data);
+      = any_of(formats.input, nchw, fmt_blocked_data)
+      && any_of(formats.weights, oihw, fmt_blocked_weights)
+      && any_of(formats.output, nchw, fmt_blocked_data);
 
   if (!format_okay) {
     el_error("Data format error");
@@ -82,8 +82,11 @@ int eld_conv_t<F>::setup() {
   // TODO: Check CPUID
   xc = nullptr;
 
-  if (prop_kind != forward_training && prop_kind != forward_inference
-      && prop_kind != backward_data && prop_kind != backward_weights) {
+  if (none_of(prop_kind,
+        forward_training,
+        forward_inference,
+        backward_data,
+        backward_weights)) {
     el_error("Propagation kind error");
     return ELD_GENERAL_ERROR;
   }
@@ -95,7 +98,7 @@ int eld_conv_t<F>::setup() {
     return ELD_UNIMPLEMENTED;
   } else if (algorithm == CONV_WINOGRAD) {
     // Winograd
-    if (dilations.h > 1 || dilations.w > 1 || 
+    if (dilations.h > 1 || dilations.w > 1 ||
         strides.h != 1 || strides.w != 1 ||
         dims.weights.h != 3 || dims.weights.w != 3) {
       el_error("Unimplemented");
@@ -113,6 +116,9 @@ int eld_conv_t<F>::setup() {
 //        break;
       case 5:
         xc = new elx_conv_wino_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);
+        break;
+      case 6:
+        xc = new elx_conv_wino_t<F, 6, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       case 7:
         xc = new elx_conv_wino_t<F, 7, 3, 16, ISA_SKX_AVX512>(*this);

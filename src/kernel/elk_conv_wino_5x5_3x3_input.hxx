@@ -745,7 +745,7 @@ __trans_inputa(
   auto f_cb = [&](int _h, int _w) {
     if (wT_end == -1) {
       MD3(float, ainput, input, A, A, V);
-      return _mm512_load_ps(&md3(ainput, _h, _w, V));
+      return _mm512_load_ps(&md3(ainput, _h, _w, 0));
     } else {
       MD3(float, ainput, input, xc.ih, xc.iw, V);
       if (is_border

@@ -13,7 +13,7 @@
 using namespace euler;
 using ::testing::TestWithParam;
 using ::testing::Values;
-using ::testing::Range;
+//using ::testing::Range;
 using ::testing::Combine;
 
 int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
@@ -24,20 +24,21 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
                   bool output_as_blocked, bool with_bias, bool with_relu) {
   // Covolution options
   int ic = 64, ih = 224, iw = 224, oc = 64, oh = 224, ow = 224, kh = 3, kw = 3;
-  int ph = 1, pw = 1, sh = 1, sw = 1, dh = 1, dw = 1;
+  int ph = 1, pw = 1;
   int prop_kind = forward_inference, alg = CONV_WINOGRAD;
   bool validate_results = true;
   int nteams = 0;
   int nthreads = 0;
 
-  int divisor = 16 * blk_i * pat_i;
-  if (!(ic / divisor != 0 && ic % divisor == 0)) {
+  int divisor_i = 16 * blk_i * pat_i;
+  if (!(ic / divisor_i != 0 && ic % divisor_i == 0)) {
     printf("Error: blocking or partion options are invalid\n");
     printf("ic = %d, blk_i = %d, pat_i = %d\n", ic, blk_i, pat_i);
     return 0;
   }
 
-  if (!(oc / divisor != 0 && oc % divisor == 0)) {
+  int divisor_o = 16 * blk_o * pat_o;
+  if (!(oc / divisor_o != 0 && oc % divisor_o == 0)) {
     printf("Error: blocking or partion options are invalid\n");
     printf("oc = %d, blk_o = %d, pat_o = %d\n", oc, blk_o, pat_o);
     return 0;
@@ -57,13 +58,13 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
 
   // 1, create convolution desc
   eld_conv_t<float> desc;
-  desc.dims = {.input = {mb, ic, ih, iw},
-               .weights = {oc, ic, kh, kw},
-               .output = {mb, oc, oh, ow},
-               .bias = {oc}};
-  desc.formats = {.input = input_format,
-                  .weights = weights_format,
-                  .output = output_format};
+  desc.dims = {{mb, ic, ih, iw},
+               {oc, ic, kh, kw},
+               {mb, oc, oh, ow},
+               {oc}};
+  desc.formats = {input_format,
+                  weights_format,
+                  output_format};
   desc.pads = {ph, ph, pw, pw};
   desc.with_bias = with_bias;
   desc.with_relu = with_relu;
@@ -136,14 +137,15 @@ INSTANTIATE_TEST_CASE_P(elt_conv_test_common_params, eltConvTest,
                                 Values(0xa040, 0xa061, 0xa448, 0xa241, 0xa000,
                                        0xa201, 0xa0e0,
                                        0xa0e1),           // execution-mode
-                                Values(1, 2, 4),          // pat_i = 1
+                                Values(1, 2, 4),          // pat_i
                                 Values(1, 2, 4),          // pat_o
                                 Values(nChw16c, nchw),    // input_format
                                 Values(OIhw16i16o, oihw), // weights_format
                                 Values(nChw16c, nchw),    // output_format
                                 Values(1, 2, 4, 8),       // blk_i
                                 Values(1, 2, 4, 8),       // blk_o
-                                Range(1, 32)              // blk_t
+                                Values(1, 32)             // blk_t
+                                // Range(1, 32)              // blk_t
                                 ));
 
 TEST_P(eltConvTest, combineTest) {

@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <cxxabi.h>
 #include <chrono>
+#include <algorithm>
 #include <boost/preprocessor/repetition/repeat.hpp>
 #include <boost/preprocessor/repetition/repeat_from_to.hpp>
 
@@ -38,6 +39,25 @@ template <typename T, typename... Args> inline T accumulate(T a, Args... args)
   const __m512i vindex = _mm512_set_epi32(15 * (s), 14 * (s), 13 * (s),     \
       12 * (s), 11 * (s), 10 * (s), 9 * (s), 8 * (s), 7 * (s), 6 * (s),     \
       5 * (s), 4 * (s), 3 * (s), 2 * (s), (s), 0);
+
+template <typename T, typename U> inline bool any_of(T val, U last)
+{ return val == last; }
+template <typename T, typename U, typename... Args> inline bool any_of(
+    T val, U first, Args... rest) {
+  return (val == first) || any_of(val, rest...);
+}
+
+template <typename T, typename... Args> inline bool none_of(
+    T val, Args... args) {
+  return !any_of(val, args...);
+}
+
+template <typename T, typename U> inline bool all_of(T val, U last)
+{ return val == last; }
+template <typename T, typename U, typename... Args> inline bool all_of(
+    T val, U first, Args... rest) {
+  return (val == first) && all_of(val, rest...);
+}
 
 template <typename F, const int N> class mdarray {
   public:

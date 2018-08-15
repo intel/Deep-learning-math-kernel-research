@@ -3,7 +3,6 @@
 
 namespace euler {
 namespace test {
-
   template <typename Type>
   void prepare_conv_data(
       eld_conv_t<Type> &, Type **, Type **, Type **, Type **)
@@ -21,17 +20,15 @@ namespace test {
 
 #pragma omp parallel for
     for (size_t i = 0; i < desc.sizes.input; i++) {
-      (*input)[i] = i % 15;
+      (*input)[i] = rand() % 20 - 4;
     }
 #pragma omp parallel for
     for (size_t i = 0; i < desc.sizes.weights; i++) {
-      (*weights)[i] = i % 31;
-      if (i % 3 == 0)
-        (*weights)[i] = -1.0f;
+      (*weights)[i] = rand() % 32;
     }
 #pragma omp parallel for
     for (size_t i = 0; i < desc.sizes.bias; i++) {
-      (*bias)[i] = i % 13;
+      (*bias)[i] = rand() % 100;
     }
   }
 
@@ -136,7 +133,7 @@ namespace test {
             double delta = fabs(
                 md4(aout, _n, _c, _h, _w) - md4(aref, _n, _c, _h, _w));
             double rel_diff = delta / fabs(md4(aref, _n, _c, _h, _w));
-            if (rel_diff > 5e-6) {
+            if (rel_diff > 1e-5) {
               if (errors < MAX_PRINT_ERRORS) {
                 printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
                        "delta=%g, rel_diff=%g\n",

@@ -35,12 +35,12 @@ int main(int argc, char **argv)
 
   // 1, create convolution desc
   eld_conv_t<float> desc;
-  desc.dims = { .input = { mb, ic, ih, iw },
-    .weights = { oc, ic, kh, kw },
-    .output = { mb, oc, oh, ow },
-    .bias = { oc } };
+  desc.dims = {{ mb, ic, ih, iw },
+               { oc, ic, kh, kw },
+               { mb, oc, oh, ow },
+               { oc } };
   desc.formats = {
-    .input = input_format, .weights = weights_format, .output = output_format
+    input_format, weights_format, output_format
   };
   desc.pads = { ph, ph, pw, pw };
   desc.with_bias = with_bias;

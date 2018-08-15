@@ -132,14 +132,35 @@ elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
   }
 
   prepare_execute_opt();
+
   bind_execute_functions();
 
   // dbg
+  printf("############################################################\n");
   printf("T=%d, Tr=%d, t2=%d, t=%d\n", this->T, this->Tr, this->t2, this->t);
   printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic4=%d, IC=%d\n", this->V, this->Ir, this->I2, this->ic3, this->ic4, this->IC);
   printf("V=%d, Or=%d, O2=%d, oc3=%d, oc4=%d, OC=%d\n", this->V, this->Or, this->O2, this->oc3, this->oc4, this->OC);
-}
 
+#ifdef DEBUG
+  if (this->V * this->I2 * this->ic3 * this->ic4 != this->IC) {
+      el_warn("V * I2 * ic3 * ic4 != this->IC\n Force ic4 = IC / (V * I2 * ic3)");
+      this->ic4 = this->IC / (this->V * this->I2 * this->ic3);
+  } 
+
+  if (this->V * this->O2 * this->oc3 * this->oc4 != this->OC) {
+      el_warn("V * O2 * oc3 * oc4 != this->OC\n Force oc4 = OC / (V * O2 * oc3)");
+      this->oc4 = this->OC / (this->V * this->O2 * this->oc3);
+  }
+#else
+  if (this->V * this->I2 * this->ic3 * this->ic4 != this->IC) {
+      el_error("V * I2 * ic3 * ic4 != this->IC\n)");
+  }
+
+  if (this->V * this->O2 * this->oc3 * this->oc4 != this->OC) {
+      el_error("V * O2 * oc3 * oc4 != this->OC\n)");
+  }
+#endif
+}
 template <typename Type, const int A, const int K, const int V, const int I>
 int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
 {
