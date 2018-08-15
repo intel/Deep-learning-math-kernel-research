@@ -133,7 +133,7 @@ class eltConvTest
 
 
 INSTANTIATE_TEST_CASE_P(elt_conv_test_common_params, eltConvTest,
-                        Combine(Values(5, 7), // tile-size
+                        Combine(Values(5, 6, 7), // tile-size
                                 Values(0xa040, 0xa061, 0xa448, 0xa241, 0xa000,
                                        0xa201, 0xa0e0,
                                        0xa0e1),           // execution-mode

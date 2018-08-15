@@ -81,7 +81,7 @@ void test_elk_gemm(bool perf, bool show_diff, int execution_mode,
          xc, ref_toutput, tinput, tweights, true)));
 
   for (size_t i = 0; i < toutput_sz / sizeof(Type); i++) {
-    EXPECT_NEAR(ref_toutput[i], toutput[i], 1e-6);
+    EXPECT_NEAR(ref_toutput[i], toutput[i], 0);
     if (show_diff) {
       printf("actual toutput: [%ld]: %f vs reference: %f (ref)\n", i,
              toutput[i], ref_toutput[i]);

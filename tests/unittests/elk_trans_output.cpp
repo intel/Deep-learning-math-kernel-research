@@ -79,7 +79,7 @@ void test_elk_trans_output(bool perf, bool show_diff, int execution_mode,
   for (int _oh = 0; _oh < xc.oh; ++_oh) {
     for (int _ow = 0; _ow < xc.ow; ++_ow) {
       for (int _oV = 0; _oV < V; ++_oV) {
-        EXPECT_NEAR(ref_aoutput[_oh][_ow][_oV], aoutput[_oh][_ow][_oV], 1e-6);
+        EXPECT_NEAR(ref_aoutput[_oh][_ow][_oV], aoutput[_oh][_ow][_oV], 0);
       }
     }
   }
