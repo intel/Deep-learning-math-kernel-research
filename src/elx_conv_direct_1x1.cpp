@@ -273,33 +273,41 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 {
 #define GEMM_CASE(z, T_, O_)                                                   \
   case T_:                                                                     \
-    if (xopt_ == 0xd000 || xopt_ == 0xe000) {                                  \
+    if (xopt_ == 0xe000) {                                                     \
       if (this->with_bias)                                                     \
-        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(true),    \
-            JAM(true), BIAS(true), RELU(false), SUM(false)>::gemm;             \
+        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, OR(true),    \
+            TR(true), JAM(true), BIAS(true), RELU(false), SUM(false)>::gemm;   \
       else                                                                     \
-        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(true),    \
-            JAM(true), BIAS(false), RELU(false), SUM(false)>::gemm;            \
+        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, OR(true),    \
+            TR(true), JAM(true), BIAS(false), RELU(false), SUM(false)>::gemm;  \
+    } else if (xopt_ == 0xd000) {                                              \
+      if (this->with_bias)                                                     \
+        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, OR(false),   \
+            TR(true), JAM(true), BIAS(true), RELU(false), SUM(false)>::gemm;   \
+      else                                                                     \
+        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, OR(false),   \
+            TR(true), JAM(true), BIAS(false), RELU(false), SUM(false)>::gemm;  \
     } else if (this->Tr != this->T) {                                          \
       if (this->with_bias)                                                     \
-        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(true),    \
-            JAM(false), BIAS(true), RELU(false), SUM(false)>::gemm;            \
+        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, OR(true),    \
+            TR(true), JAM(false), BIAS(true), RELU(false), SUM(false)>::gemm;  \
       else                                                                     \
-        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(true),    \
-            JAM(false), BIAS(false), RELU(false), SUM(false)>::gemm;           \
+        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, OR(true),    \
+            TR(true), JAM(false), BIAS(false), RELU(false), SUM(false)>::gemm; \
     } else {                                                                   \
       if (this->with_bias)                                                     \
-        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(false),   \
-            JAM(false), BIAS(true), RELU(false), SUM(false)>::gemm;            \
+        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, OR(true),    \
+            TR(false), JAM(false), BIAS(true), RELU(false), SUM(false)>::gemm; \
       else                                                                     \
-        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, TR(false),   \
-            JAM(false), BIAS(false), RELU(false), SUM(false)>::gemm;           \
+        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, OR(true),    \
+            TR(false), JAM(false), BIAS(false), RELU(false),                   \
+            SUM(false)>::gemm;                                                 \
     }                                                                          \
     break;
 
   auto bind_kernel = [&](int O2_, int T_,
                   decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I,
-                      false, false, false, false, false>::gemm) **func) {
+                      false, false, false, false, false, false>::gemm) **func) {
     switch (O2_) {
     case 1:
       switch (T_) {

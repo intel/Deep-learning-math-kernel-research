@@ -23,6 +23,7 @@ namespace euler {
 // with_relu: with relu fusion
 // with_sum: with sum fusion
 
+#define OR(x) x
 #define TR(x) x
 #define JAM(x) x
 #define BIAS(x) x
@@ -31,8 +32,8 @@ namespace euler {
 #define SUM(x) x
 
 template <typename Type, const int O2, const int T, const int V, const int I,
-    const bool with_Tr, const bool with_jam, const bool with_bias,
-    const bool with_relu, const bool with_sum>
+    const bool with_Or, const bool with_Tr, const bool with_jam,
+    const bool with_bias, const bool with_relu, const bool with_sum>
 struct convolution_direct_1x1_kernel {
   static void gemm(elx_conv_t<Type> &xc, Type *output, Type *input,
       Type *weights, Type *bias, bool reset_out = false);
@@ -43,7 +44,7 @@ struct convolution_direct_1x1_kernel {
 #define DEF_convolution_direct_1x1_kernel(O, T)                                \
   template <typename Type, const int V, const int I, const bool with_bias,     \
       const bool with_relu, const bool with_sum>                               \
-  struct convolution_direct_1x1_kernel<Type, O, T, V, I, TR(false),            \
+  struct convolution_direct_1x1_kernel<Type, O, T, V, I, OR(true), TR(false),  \
       JAM(false), with_bias, with_relu, with_sum> {                            \
     static void gemm(elx_conv_t<Type> &xc, Type *output, Type *input,          \
         Type *weights, Type *bias, bool reset_out = false);                    \
@@ -52,8 +53,8 @@ struct convolution_direct_1x1_kernel {
   };                                                                           \
   template <typename Type, const int V, const int I, const bool with_bias,     \
       const bool with_relu, const bool with_sum>                               \
-  struct convolution_direct_1x1_kernel<Type, O, T, V, I, TR(true), JAM(false), \
-      with_bias, with_relu, with_sum> {                                        \
+  struct convolution_direct_1x1_kernel<Type, O, T, V, I, OR(true), TR(true),   \
+      JAM(false), with_bias, with_relu, with_sum> {                            \
     static void gemm(elx_conv_t<Type> &xc, Type *output, Type *input,          \
         Type *weights, Type *bias, bool reset_out = false);                    \
     static void gemm_tail(elx_conv_t<Type> &xc, Type *output, Type *input,     \
@@ -61,8 +62,17 @@ struct convolution_direct_1x1_kernel {
   };                                                                           \
   template <typename Type, const int V, const int I, const bool with_bias,     \
       const bool with_relu, const bool with_sum>                               \
-  struct convolution_direct_1x1_kernel<Type, O, T, V, I, TR(true), JAM(true),  \
-      with_bias, with_relu, with_sum> {                                        \
+  struct convolution_direct_1x1_kernel<Type, O, T, V, I, OR(false), TR(true),  \
+      JAM(true), with_bias, with_relu, with_sum> {                             \
+    static void gemm(elx_conv_t<Type> &xc, Type *output, Type *input,          \
+        Type *weights, Type *bias, bool reset_out = false);                    \
+    static void gemm_tail(elx_conv_t<Type> &xc, Type *output, Type *input,     \
+        Type *weights, Type *bias, bool reset_out = false);                    \
+  };                                                                           \
+  template <typename Type, const int V, const int I, const bool with_bias,     \
+      const bool with_relu, const bool with_sum>                               \
+  struct convolution_direct_1x1_kernel<Type, O, T, V, I, OR(true), TR(true),   \
+      JAM(true), with_bias, with_relu, with_sum> {                             \
     static void gemm(elx_conv_t<Type> &xc, Type *output, Type *input,          \
         Type *weights, Type *bias, bool reset_out = false);                    \
     static void gemm_tail(elx_conv_t<Type> &xc, Type *output, Type *input,     \
