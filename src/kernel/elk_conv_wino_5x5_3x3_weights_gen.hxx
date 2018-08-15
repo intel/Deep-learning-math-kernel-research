@@ -5,10 +5,7 @@
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
 #include "elk_conv_wino.hpp"
-
-#ifndef INCLUDE_WINOGRAD_CONVOLUTION_KERNEL
-#error "Don't include this file directly"
-#endif
+#include "elk_conv_wino_5x5_3x3_input_gen.hxx"
 
 namespace euler {
 
@@ -35,8 +32,8 @@ namespace euler {
   T(6, n) = r9_2 * C(2);
 
 // float atweights[A][A][V][V] <- float aweights[K][K][V][V])
-__TRANS_WEIGHTS(float, 7, 3, 16, ISA_GENERIC)
-{
+void convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 7, 3>::
+__trans_weights(float atweights[A][A][V][V], float aweights[K][K][V][V]) {
   const float r1_5 = 1.0f / 5.0f;
   const float r1_10 = 1.0f / 10.0f;
   const float r2_5 = 2.0f / 5.0f;
@@ -45,16 +42,16 @@ __TRANS_WEIGHTS(float, 7, 3, 16, ISA_GENERIC)
   const float r8_5 = 8.0f / 5.0f;
   const float r9_2 = 9.0f / 2.0f;
 
-  float C0[16], C1[16], C2[16];
+  float C0[V], C1[V], C2[V];
 #undef F
 #undef T
 #undef C
 #define F(h, w) aweights[h][w][_IV][_OV]
 #define T(h, w) atweights[w][h][_IV][_OV]
 #define C(n) C##n[_OV]
-  for (int _IV = 0; _IV < 16; ++_IV) {
+  for (int _IV = 0; _IV < V; ++_IV) {
 #pragma omp simd
-    for (int _OV = 0; _OV < 16; ++_OV) {
+    for (int _OV = 0; _OV < V; ++_OV) {
       BOOST_PP_REPEAT(3, GENERIC_CALCULATE_W_5_0, nil)
       GENERIC_CALCULATE_W_5(0)
 
@@ -106,8 +103,4 @@ __TRANS_WEIGHTS(float, 7, 3, 16, ISA_GENERIC)
     }
   }
 }
-
-
-TRANS_WEIGHTS(float, 7, 3, 16, ISA_GENERIC);
-
 } // namespace euler
