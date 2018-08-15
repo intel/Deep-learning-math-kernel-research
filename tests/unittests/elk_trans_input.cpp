@@ -72,7 +72,7 @@ void test_elk_trans_input(bool perf, bool show_diff, int execution_mode,
   for (int _hA = 0; _hA < A; ++_hA) {
     for (int _wA = 0; _wA < A; ++_wA) {
       for (int _iV = 0; _iV < V; ++_iV) {
-        EXPECT_NEAR(ref_atinput[_hA][_wA][_iV], atinput[_hA][_wA][_iV], 1e-6);
+        EXPECT_NEAR(ref_atinput[_hA][_wA][_iV], atinput[_hA][_wA][_iV], 5e-4);
         if (show_diff) {
           printf("actual atinput: [%d][%d][%d]: %f vs reference: %f (ref)\n",
                  _hA, _wA, _iV, atinput[_hA][_wA][_iV],
