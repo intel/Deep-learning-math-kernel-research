@@ -25,6 +25,8 @@ if (CMAKE_CXX_COMPILER MATCHES "icpc")
   list(APPEND __opt_flags "-xHost")
   #  list(APPEND __opt_flags "-qopt-report=5")
   list(APPEND __opt_flags "-qopt-zmm-usage=high")
+  list(APPEND __opt_flags "-no-inline-max-size")
+  list(APPEND __opt_flags "-no-inline-max-total-size")
 
   # FIXME: Workaround ICC 18.0.2 inline bug. Remove this if ICC bug fixed.
   if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 18.0.2)
