@@ -319,9 +319,9 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
       break;
     case 3:
       switch (T_) {
-        BOOST_PP_REPEAT_FROM_TO(1, 9, GEMM_CASE, 3);
+        BOOST_PP_REPEAT_FROM_TO(1, 15, GEMM_CASE, 3);
       default:
-        el_error("Convolution_direct_1x1: Unimplemented T>8 in O=3");
+        el_error("Convolution_direct_1x1: Unimplemented T>14 in O=3");
         break;
       }
       break;
@@ -1076,18 +1076,17 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_e000(
   MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
   MD3(Type, abias, bias, this->oc4, this->oc3, this->O2 * V);
 
+  for_each (_ic3, this->ic3) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(3)
-  for_each (_t3, this->t3) {
-  for_each (_oc4, this->oc4) {
-  for_each (_t2, this->t2) {
-
-    int oc3 = _oc4 == this->oc4 - 1 ? this->oc3r : this->oc3;
-    MD4(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc4, this->oc3, this->O2, this->oh * this->ow * V);
-
-    for_each (_ic3, this->ic3) {
+    for_each (_t3, this->t3) {
+    for_each (_oc4, this->oc4) {
+    for_each (_t2, this->t2) {
       bool reset = _ic3 == 0;
+      int oc3 = _oc4 == this->oc4 - 1 ? this->oc3r : this->oc3;
+      MD4(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc4, this->oc3, this->O2, this->oh * this->ow * V);
       MD2(Type, ainput2, &md4(ainput, _t3, _ic3, 0, 0), this->t2, this->T * V);
+
       for_each (_oc3, oc3) {
         MD2(Type, aoutput3, &md4(aoutput2, _oc4, _oc3, 0, 0), this->t2, this->T * V);
         MD2(Type, aweights2, &md4(aweights, _oc4, _oc3, 0, 0), this->ic3, this->I2 * V * V);
@@ -1111,8 +1110,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_e000(
                 &md2(aweights2, _ic3, 0), &md3(abias, _oc4, _oc3, 0), reset);
         }
       }
-    }
-  }}}
+    }}}
+  }
 }
 
 template <typename Type, const int V, const int I>
