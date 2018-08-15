@@ -13,7 +13,7 @@
 using namespace euler;
 using ::testing::TestWithParam;
 using ::testing::Values;
-using ::testing::Range;
+//using ::testing::Range;
 using ::testing::Combine;
 
 int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
@@ -24,7 +24,7 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
                   bool output_as_blocked, bool with_bias, bool with_relu) {
   // Covolution options
   int ic = 64, ih = 224, iw = 224, oc = 64, oh = 224, ow = 224, kh = 3, kw = 3;
-  int ph = 1, pw = 1, sh = 1, sw = 1, dh = 1, dw = 1;
+  int ph = 1, pw = 1;
   int prop_kind = forward_inference, alg = CONV_WINOGRAD;
   bool validate_results = true;
   int nteams = 0;
@@ -137,14 +137,15 @@ INSTANTIATE_TEST_CASE_P(elt_conv_test_common_params, eltConvTest,
                                 Values(0xa040, 0xa061, 0xa448, 0xa241, 0xa000,
                                        0xa201, 0xa0e0,
                                        0xa0e1),           // execution-mode
-                                Values(1, 2, 4),          // pat_i = 1
+                                Values(1, 2, 4),          // pat_i
                                 Values(1, 2, 4),          // pat_o
                                 Values(nChw16c, nchw),    // input_format
                                 Values(OIhw16i16o, oihw), // weights_format
                                 Values(nChw16c, nchw),    // output_format
                                 Values(1, 2, 4, 8),       // blk_i
                                 Values(1, 2, 4, 8),       // blk_o
-                                Range(1, 32)              // blk_t
+                                Values(1, 32)             // blk_t
+                                // Range(1, 32)              // blk_t
                                 ));
 
 TEST_P(eltConvTest, combineTest) {

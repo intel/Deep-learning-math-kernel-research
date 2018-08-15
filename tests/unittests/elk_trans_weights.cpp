@@ -13,6 +13,8 @@
 
 int iterations = 10;
 using namespace euler;
+using ::testing::TestWithParam;
+using ::testing::Values;
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void test_elk_trans_weights(bool perf, bool show_diff) {
@@ -59,16 +61,28 @@ void test_elk_trans_weights(bool perf, bool show_diff) {
   }
 }
 
+class elkTransWeightsTest : public ::testing::TestWithParam<int> {};
+INSTANTIATE_TEST_CASE_P(elk_elk_trans_test, elkTransWeightsTest,
+                        testing::Values(5, 6, 7));
 bool test_perf = false;
 bool show_diff = false;
-TEST(elkTransWeightsTest, A5) {
-  test_elk_trans_weights<float, 5, 3, 16, ISA_SKX_AVX512>(test_perf, show_diff);
-}
-
-TEST(elkTransWeightsTest, A6) {
-  test_elk_trans_weights<float, 6, 3, 16, ISA_SKX_AVX512>(test_perf, show_diff);
-}
-
-TEST(elkTransWeightsTest, A7) {
-  test_elk_trans_weights<float, 7, 3, 16, ISA_SKX_AVX512>(test_perf, show_diff);
+TEST_P(elkTransWeightsTest, combineTest) {
+  int test_tile_size = GetParam();
+  switch (test_tile_size) {
+  case 5:
+    test_elk_trans_weights<float, 5, 3, 16, ISA_SKX_AVX512>(test_perf,
+                                                            show_diff);
+    break;
+  case 6:
+    test_elk_trans_weights<float, 6, 3, 16, ISA_SKX_AVX512>(test_perf,
+                                                            show_diff);
+    break;
+  case 7:
+    test_elk_trans_weights<float, 7, 3, 16, ISA_SKX_AVX512>(test_perf,
+                                                            show_diff);
+    break;
+  default:
+    el_error("Unimplemented tile size");
+    break;
+  }
 }
