@@ -23,7 +23,7 @@ endif()
 
 if (CMAKE_CXX_COMPILER MATCHES "icpc")
   list(APPEND __opt_flags "-xHost")
-  list(APPEND __opt_flags "-qopt-report=5")
+  #  list(APPEND __opt_flags "-qopt-report=5")
   list(APPEND __opt_flags "-qopt-zmm-usage=high")
 
   # FIXME: Workaround ICC 18.0.2 inline bug. Remove this if ICC bug fixed.

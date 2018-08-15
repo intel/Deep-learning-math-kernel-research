@@ -117,9 +117,9 @@ int eld_conv_t<F>::setup() {
       case 5:
         xc = new elx_conv_wino_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);
         break;
-      case 6:
-        xc = new elx_conv_wino_t<F, 6, 3, 16, ISA_SKX_AVX512>(*this);
-        break;
+//       case 6:
+//         xc = new elx_conv_wino_t<F, 6, 3, 16, ISA_SKX_AVX512>(*this);
+//         break;
       case 7:
         xc = new elx_conv_wino_t<F, 7, 3, 16, ISA_SKX_AVX512>(*this);
         break;

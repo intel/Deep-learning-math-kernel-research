@@ -72,10 +72,10 @@ TEST_P(elkTransWeightsTest, combineTest) {
     test_elk_trans_weights<float, 5, 3, 16, ISA_SKX_AVX512>(test_perf,
                                                             show_diff);
     break;
-  case 6:
-    test_elk_trans_weights<float, 6, 3, 16, ISA_SKX_AVX512>(test_perf,
-                                                            show_diff);
-    break;
+//   case 6:
+//     test_elk_trans_weights<float, 6, 3, 16, ISA_SKX_AVX512>(test_perf,
+//                                                             show_diff);
+//     break;
   case 7:
     test_elk_trans_weights<float, 7, 3, 16, ISA_SKX_AVX512>(test_perf,
                                                             show_diff);

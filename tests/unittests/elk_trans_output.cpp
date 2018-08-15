@@ -120,12 +120,12 @@ TEST_P(elkTransOutputTest, combineTest) {
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);
     break;
-  case 6:
-    test_elk_trans_output<float, 6, 3, 16, ISA_SKX_AVX512>(
-        test_perf, show_diff, test_execution_mode, test_input_format,
-        test_weights_format, test_output_format, test_with_bias, test_with_relu,
-        test_mb);
-    break;
+//   case 6:
+//     test_elk_trans_output<float, 6, 3, 16, ISA_SKX_AVX512>(
+//         test_perf, show_diff, test_execution_mode, test_input_format,
+//         test_weights_format, test_output_format, test_with_bias, test_with_relu,
+//         test_mb);
+//     break;
   case 7:
     test_elk_trans_output<float, 7, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
