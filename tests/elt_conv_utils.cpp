@@ -184,7 +184,7 @@ namespace test {
 
   int cal_iterations(size_t num_ops)
   {
-    float iter = 1e12 / num_ops;
+    float iter = 5e12 / num_ops;
     return std::max((int)iter, 1024);
   }
  
