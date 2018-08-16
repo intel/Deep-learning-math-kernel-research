@@ -410,17 +410,17 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
     decltype (ker_trans_outputa_bh_) f3_;
     decltype (ker_trans_outputa0_bh_) f4_;
   } pointer_table[2][2][2] = {
-    {kernel_set::template trans_output<0, 0, 0, 0>
-    , kernel_set::template trans_ouput<1, 0, 0, 0>
+    {{{kernel_set::template trans_output<0, 0, 0, 0>
+    , kernel_set::template trans_output<1, 0, 0, 0>
     , kernel_set::template trans_outputa_bh<0, 0, 0, 0>
     , kernel_set::template trans_outputa_bh<1, 0, 0, 0>}
 
     ,{kernel_set::template trans_output<0, 0, 0, 1>
     , kernel_set::template trans_output<1, 0, 0, 1>
     , kernel_set::template trans_outputa_bh<0, 0, 0, 1>
-    , kernel_set::template trans_outputa_bh<1, 0, 0, 1>}
+    , kernel_set::template trans_outputa_bh<1, 0, 0, 1>}}
 
-    ,{kernel_set::template trans_output<0, 0, 1, 0>
+    ,{{kernel_set::template trans_output<0, 0, 1, 0>
     , kernel_set::template trans_output<1, 0, 1, 0>
     , kernel_set::template trans_outputa_bh<0, 0, 1, 0>
     , kernel_set::template trans_outputa_bh<1, 0, 1, 0>}
@@ -428,9 +428,9 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
     ,{kernel_set::template trans_output<0, 0, 1, 1>
     , kernel_set::template trans_output<1, 0, 1, 1>
     , kernel_set::template trans_outputa_bh<0, 0, 1, 1>
-    , kernel_set::template trans_outputa_bh<1, 0, 1, 1>}
+    , kernel_set::template trans_outputa_bh<1, 0, 1, 1>}}}
 
-    ,{kernel_set::template trans_output<0, 1, 0, 0>
+    ,{{{kernel_set::template trans_output<0, 1, 0, 0>
     , kernel_set::template trans_output<1, 1, 0, 0>
     , kernel_set::template trans_outputa_bh<0, 1, 0, 0>
     , kernel_set::template trans_outputa_bh<1, 1, 0, 0>}
@@ -438,9 +438,9 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
     ,{kernel_set::template trans_output<0, 1, 0, 1>
     , kernel_set::template trans_output<1, 1, 0, 1>
     , kernel_set::template trans_outputa_bh<0, 1, 0, 1>
-    , kernel_set::template trans_outputa_bh<1, 1, 0, 1>}
+    , kernel_set::template trans_outputa_bh<1, 1, 0, 1>}}
 
-    ,{kernel_set::template trans_output<0, 1, 1, 0>
+    ,{{kernel_set::template trans_output<0, 1, 1, 0>
     , kernel_set::template trans_output<1, 1, 1, 0>
     , kernel_set::template trans_outputa_bh<0, 1, 1, 0>
     , kernel_set::template trans_outputa_bh<1, 1, 1, 0>}
@@ -448,7 +448,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
     ,{kernel_set::template trans_output<0, 1, 1, 1>
     , kernel_set::template trans_output<1, 1, 1, 1>
     , kernel_set::template trans_outputa_bh<0, 1, 1, 1>
-    , kernel_set::template trans_outputa_bh<1, 1, 1, 1>}
+    , kernel_set::template trans_outputa_bh<1, 1, 1, 1>}}}
   };
 
   auto slot = pointer_table[this->with_bias][this->with_relu][this->with_sum];
