@@ -115,9 +115,18 @@ public:
           auto w = _mm512_load_ps(&md4(atweights, _O2, _I2, _V, 0));
 #         pragma unroll (T)
           for (int i=0; i < T; i++) {
-            auto x = _mm512_set1_ps(md3(atinput, xc.I2 - 1, i, _V));
+            auto x = _mm512_set1_ps(md3(atinput, _I2, i, _V));
             t[i] = _mm512_fmadd_ps(w, x, t[i]);
           }
+        }
+      }
+
+      for (int _v = 0; _v < xc.Ir; ++_v) {
+        auto w = _mm512_load_ps(&md4(atweights, _O2, xc.I2 - 1, _v, 0));
+#       pragma unroll (T)
+        for (int i = 0; i < T; i ++) {
+          auto x = _mm512_set1_ps(md3(atinput, xc.I2 - 1, i, _v));
+          t[i] = _mm512_fmadd_ps(w, x, t[i]);
         }
       }
 #     pragma unroll (T)
