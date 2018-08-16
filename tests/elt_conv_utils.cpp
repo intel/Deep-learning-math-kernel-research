@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <math.h>
 #include "elt_conv_utils.hpp"
 
@@ -181,6 +182,12 @@ namespace test {
         * desc.dims.weights.o * 2;
   }
 
+  int cal_iterations(size_t num_ops)
+  {
+    float iter = 1e12 / num_ops;
+    return std::max((int)iter, 1024);
+  }
+ 
   template <typename Type>
   reorder<Type, nchw, nChw16c>::reorder(
       Type *dst, Type *src, int n, int c, int h, int w)

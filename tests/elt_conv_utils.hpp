@@ -29,6 +29,7 @@ namespace test {
   int compare_conv_results(eld_conv_t<Type> &, Type *out, Type *ref);
 
   size_t cal_ops(eld_conv_t<float> &desc);
+  int cal_iterations(size_t num_ops);
 
   template <typename Type, const int dst_fmt, const int src_fmt,
       typename... Args>

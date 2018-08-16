@@ -67,8 +67,8 @@ int main(int argc, char **argv)
   test::prepare_conv_data<float>(desc, &input, &weights, &output, &bias);
 
   // 3. execute convolution
-  int iterations = validate_results ? 1: 64000 / (kh * kw) / mb;
   size_t num_ops = test::cal_ops(desc);
+  int iterations = test::cal_iterations(num_ops);
   time_start(conv);
   for (int n = 0; n < iterations; ++n) {
     if (ELX_OK != elx_conv<float>(desc, output, input, weights, bias)) {
