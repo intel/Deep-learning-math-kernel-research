@@ -405,10 +405,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 
   using kernel_set = convolution_winograd_kernel<Type, I, V, A, K>;
   static const struct {
-    decltype (ker_trans_input_) _f1;
-    decltype (ker_trans_input0_) _f2;
-    decltype (ker_trans_outputa_bh_) _f3;
-    decltype (ker_trans_outputa0_bh_) _f4;
+    decltype (ker_trans_input_) f1_;
+    decltype (ker_trans_input0_) f2_;
+    decltype (ker_trans_outputa_bh_) f3_;
+    decltype (ker_trans_outputa0_bh_) f4_;
   } pointer_table[2][2][2] = {
     {kernel_set::template trans_output<0, 0, 0, 0>
     , kernel_set::template trans_ouput<1, 0, 0, 0>
@@ -452,10 +452,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
   };
 
   auto slot = pointer_table[this->with_bias][this->with_relu][this->with_sum];
-  ker_trans_output_ = slot.f1;
-  ker_trans_output0_ = slot.f2;
-  ker_trans_outputa_bh_ = slot.f3;
-  ker_trans_outputa0_bh_ = slot.f4;
+  ker_trans_output_ = slot.f1_;
+  ker_trans_output0_ = slot.f2_;
+  ker_trans_outputa_bh_ = slot.f3_;
+  ker_trans_outputa0_bh_ = slot.f4_;
 
   ker_trans_outputa_th_ = convolution_winograd_kernel<Type, I, V, A, K>::
       template trans_outputa_th<no, no, no, no>;
