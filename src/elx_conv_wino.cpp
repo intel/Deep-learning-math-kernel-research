@@ -405,8 +405,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 
   using kernel_set = convolution_winograd_kernel<Type, I, V, A, K>;
   static const struct {
-    decltype (ker_trans_input_) f1_;
-    decltype (ker_trans_input0_) f2_;
+    decltype (ker_trans_output_) f1_;
+    decltype (ker_trans_output0_) f2_;
     decltype (ker_trans_outputa_bh_) f3_;
     decltype (ker_trans_outputa0_bh_) f4_;
   } pointer_table[2][2][2] = {
