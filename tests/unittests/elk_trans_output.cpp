@@ -66,7 +66,7 @@ void test_elk_trans_output(bool perf, bool show_diff, int execution_mode,
 
   TT(elk_trans_output, iterations, perf,
      (convolution_winograd_kernel<Type, I, V, A, K>::
-      template trans_output<false, false, false, false>(xc, (float *)&aoutput, atoutput, abias,
+      template trans_output<false, true, false, false>(xc, (float *)&aoutput, atoutput, abias,
                                      A - K, A - K)));
 
   TT(elk_trans_input, iterations, perf,
