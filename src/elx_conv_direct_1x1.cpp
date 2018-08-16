@@ -75,33 +75,21 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
 
   xopt_ = this->execution_mode;
 
-  if (xopt_ == 0xb000 || xopt_ == 0xc000 || xopt_ == 0xd000 || xopt_ == 0xe000) {
+  if (xopt_ == 0xe000 || xopt_ == 0xe001) {
     this->t3 = this->n;
     this->t2 = (this->nt + this->T - 1) / this->T;
     this->Tr = this->nt % this->T ? this->nt % this->T : this->T;
-    if (xopt_ == 0xd000)
-      this->oc3 = this->oc2 / this->oc4 / this->O2;
-    else if (xopt_ == 0xe000) {
-      // TODO:
-      int oc34 = this->oc3;
-      this->oc3 = this->oc4;
-      this->oc4 = (oc34 + this->oc3 - 1) / this->oc3;
-      this->oc3r = oc34 % this->oc3;
-      if (this->oc3r == 0) this->oc3r = this->oc3;
-      
-    }
+    // TODO:
+    int oc34 = this->oc3;
+    this->oc3 = this->oc4;
+    this->oc4 = (oc34 + this->oc3 - 1) / this->oc3;
+    this->oc3r = oc34 % this->oc3;
+    if (this->oc3r == 0) this->oc3r = this->oc3;
+
   } else {
     this->t3 = 1;
     this->t2 = (this->t + this->T - 1) / this->T;
     this->Tr = this->t % this->T ? this->t % this->T : this->T;
-  }
-
-  if (xopt_ == 0xb000 && this->Tr != this->T) {
-    el_error("xopt == b000: No tailing T support");
-  } else if (xopt_ == 0xc000 && this->oc4 != 1) {
-    el_error("xopt == c000: No jamming support");
-  } else if (xopt_ == 0xd000 && this->O2r != this->O2) {
-    el_error("xopt == d000: No tailing O2 support");
   }
 
   // In case of Ir != V && blocked-format, assume bias also
@@ -235,14 +223,8 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
     l2_usage = tweights_size / this->oc4
         + this->T * (this->IC + this->OC / this->oc4);
     break;
-  case 0xb000:
-  case 0xc000:
-    l2_usage = this->IC * this->OC / this->oc3 + this->IC * this->T
-        + this->OC / this->oc3 * this->T;
-    l1_usage = l2_usage;
-    break;
-  case 0xd000:
   case 0xe000:
+  case 0xe001:
     l2_usage = this->IC * this->OC / this->oc4 + this->IC * this->T
         + this->OC / this->oc4 * this->T;
     break;
@@ -273,41 +255,17 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 {
 #define GEMM_CASE(z, T_, O_)                                                   \
   case T_:                                                                     \
-    if (xopt_ == 0xe000) {                                                     \
-      if (this->with_bias)                                                     \
-        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, OR(true),    \
-            TR(true), JAM(true), BIAS(true), RELU(false), SUM(false)>::gemm;   \
-      else                                                                     \
-        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, OR(true),    \
-            TR(true), JAM(true), BIAS(false), RELU(false), SUM(false)>::gemm;  \
-    } else if (xopt_ == 0xd000) {                                              \
-      if (this->with_bias)                                                     \
-        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, OR(false),   \
-            TR(true), JAM(true), BIAS(true), RELU(false), SUM(false)>::gemm;   \
-      else                                                                     \
-        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, OR(false),   \
-            TR(true), JAM(true), BIAS(false), RELU(false), SUM(false)>::gemm;  \
-    } else if (this->Tr != this->T) {                                          \
-      if (this->with_bias)                                                     \
-        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, OR(true),    \
-            TR(true), JAM(false), BIAS(true), RELU(false), SUM(false)>::gemm;  \
-      else                                                                     \
-        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, OR(true),    \
-            TR(true), JAM(false), BIAS(false), RELU(false), SUM(false)>::gemm; \
-    } else {                                                                   \
-      if (this->with_bias)                                                     \
-        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, OR(true),    \
-            TR(false), JAM(false), BIAS(true), RELU(false), SUM(false)>::gemm; \
-      else                                                                     \
-        *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, OR(true),    \
-            TR(false), JAM(false), BIAS(false), RELU(false),                   \
-            SUM(false)>::gemm;                                                 \
-    }                                                                          \
+    if (this->with_bias)                                                       \
+      *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, BIAS(true),    \
+          RELU(false), SUM(false)>::gemm;                                      \
+    else                                                                       \
+      *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, BIAS(false),   \
+          RELU(false), SUM(false)>::gemm;                                      \
     break;
 
   auto bind_kernel = [&](int O2_, int T_,
                   decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I,
-                      false, false, false, false, false, false>::gemm) **func) {
+                           false, false, false>::gemm) **func) {
     switch (O2_) {
     case 1:
       switch (T_) {
@@ -379,11 +337,11 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
     }
   };
 
-  if (xopt_ == 0xb000 || xopt_ == 0xc000 || xopt_ == 0xd000 || xopt_ == 0xe000) {
-    bind_kernel(this->O2, this->T, &ker_bgemm_O_T_);
-    bind_kernel(this->O2, this->Tr, &ker_bgemm_O_Tr_);
-    bind_kernel(this->O2r, this->T, &ker_bgemm_Or_T_);
-    bind_kernel(this->O2r, this->Tr, &ker_bgemm_Or_Tr_);
+  if (xopt_ == 0xe000 || xopt_ == 0xe001) {
+    bind_kernel(this->O2, this->T, &ker_gemm_O_T_);
+    bind_kernel(this->O2, this->Tr, &ker_gemm_O_Tr_);
+    bind_kernel(this->O2r, this->T, &ker_gemm_Or_T_);
+    bind_kernel(this->O2r, this->Tr, &ker_gemm_Or_Tr_);
   } else {
 #undef GEMM_CASE
 #define GEMM_CASE(z, n, data)                                                  \
@@ -449,11 +407,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
     break
 
   switch (xopt_) {
-    EXECUTE_CASE(a000);
-    EXECUTE_CASE(b000);
-    EXECUTE_CASE(c000);
-    EXECUTE_CASE(d000);
     EXECUTE_CASE(e000);
+    EXECUTE_CASE(e001);
     EXECUTE_CASE(a060);
     EXECUTE_CASE(a061);
     EXECUTE_CASE(a069);
@@ -960,125 +915,63 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a069(
   }
 }
 
-// hw = t2 * T
-template <typename Type, const int V, const int I>
-void elx_conv_direct_1x1_t<Type, V, I>::__execute_b000(
-    Type *output, Type *input, Type *weights, Type *bias)
-{
-  // weights: oc3*, O2, ic3, I2, V, V
-  // input:   t3*, ic3, I2, t2*, T, V
-  // output:  t3*, oc3*, O2, t2*, T, V
-  MD2(Type, aweights, weights, this->oc3, this->O2 * this->IC * V);
-  MD4(Type, ainput, input, this->t3, this->ic2, this->t2, this->T * V);
-  MD2(Type, aoutput, output, this->t3, this->OC * this->t2 * this->T);
-  MD2(Type, abias, bias, this->oc3, this->O2 * V);
-
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-#pragma omp for nowait collapse(3)
-  for_each (_t3, this->t3) {
-    for_each (_oc3, this->oc3) {
-      for_each (_t2, this->t2) {
-
-        MD4(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc3, this->O2, this->t2, this->T * V);
-        if (_oc3 == this->oc3 - 1)
-          ker_bgemm_Or_T_(*this, &md4(aoutput2, _oc3, 0, _t2, 0),
-            &md4(ainput, _t3, 0, _t2, 0), &md2(aweights, _oc3, 0),
-            &md2(abias, _oc3, 0), false);
-        else
-          ker_bgemm_O_T_(*this, &md4(aoutput2, _oc3, 0, _t2, 0),
-            &md4(ainput, _t3, 0, _t2, 0), &md2(aweights, _oc3, 0),
-            &md2(abias, _oc3, 0), false);
-      }
-    }
-  }
-}
-
-// hw = (t2 - 1) * T + Tr
-template <typename Type, const int V, const int I>
-void elx_conv_direct_1x1_t<Type, V, I>::__execute_c000(
-    Type *output, Type *input, Type *weights, Type *bias)
-{
-  // weights: oc3*, O2, ic3, I2, V, V
-  // input:   t3*, ic3, I2, t2*, T, V
-  // output:  t3*, oc3*, O2, t2*, T, V
-  MD2(Type, aweights, weights, this->oc3, this->O2 * this->IC * V);
-  MD3(Type, ainput, input, this->t3, this->ic2, this->ih * this->iw * V);
-  MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
-  MD2(Type, abias, bias, this->oc3, this->O2 * V);
-
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-#pragma omp for nowait collapse(3)
-  for_each (_t3, this->t3) {
-    for_each (_oc3, this->oc3) {
-      for_each (_t2, this->t2) {
-
-        MD2(Type, ainput2, &md3(ainput, _t3, 0, 0), this->t2, this->T * V);
-        MD3(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc3, this->O2, this->oh * this->ow * V);
-        MD2(Type, aoutput3, &md3(aoutput2, _oc3, 0, 0), this->t2, this->T * V);
-
-        if (_oc3 == this->oc3 - 1) {
-          if (_t2 == this->t2 - 1) {
-            ker_bgemm_Or_Tr_(*this, &md2(aoutput3, _t2, 0),
-                &md2(ainput2, _t2, 0), &md2(aweights, _oc3, 0),
-                &md2(abias, _oc3, 0), false);
-          } else {
-            ker_bgemm_Or_T_(*this, &md2(aoutput3, _t2, 0), &md2(ainput2, _t2, 0),
-                &md2(aweights, _oc3, 0), &md2(abias, _oc3, 0), false);
-          }
-        } else {
-          if (_t2 == this->t2 - 1)
-            ker_bgemm_O_Tr_(*this, &md2(aoutput3, _t2, 0), &md2(ainput2, _t2, 0),
-                &md2(aweights, _oc3, 0), &md2(abias, _oc3, 0), false);
-          else {
-            ker_bgemm_O_T_(*this, &md2(aoutput3, _t2, 0), &md2(ainput2, _t2, 0),
-                &md2(aweights, _oc3, 0), &md2(abias, _oc3, 0), false);
-          }
-        }
-      }
-    }
-  }
-}
-
-template <typename Type, const int V, const int I>
-void elx_conv_direct_1x1_t<Type, V, I>::__execute_d000(
-    Type *output, Type *input, Type *weights, Type *bias)
-{
-  // weights: oc4*, oc3, O2, ic3, I2, V, V
-  // input:   t3*, ic3, I2, t2*, T, V
-  // output:  t3*, oc4*, oc3, O2, t2*, T, V
-  MD2(Type, aweights, weights, this->oc4, this->oc3 * this->O2 * this->IC * V);
-  MD3(Type, ainput, input, this->t3, this->ic2, this->ih * this->iw * V);
-  MD4(Type, aoutput, output, this->t3, this->oc4, this->oc3 * this->O2, this->oh * this->ow * V);
-  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-#pragma omp for nowait collapse(3)
-  for_each (_t3, this->t3) {
-    for_each (_oc4, this->oc4) {
-      for_each (_t2, this->t2) {
-
-        MD2(Type, ainput2, &md3(ainput, _t3, 0, 0), this->t2, this->T * V);
-        MD2(Type, aoutput2, &md4(aoutput, _t3, _oc4, 0, 0), this->t2, this->T * V);
-
-        if (_t2 == this->t2 - 1)
-          ker_bgemm_O_Tr_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
-              &md2(aweights, _oc4, 0), &md2(abias, _oc4, 0), false);
-        else {
-          ker_bgemm_O_T_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
-              &md2(aweights, _oc4, 0), &md2(abias, _oc4, 0), false);
-        }
-      }
-    }
-  }
-}
-
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::__execute_e000(
     Type *output, Type *input, Type *weights, Type *bias)
 {
-  // weights: oc4*, oc3, O2(O2r), ic3, I2, V, V
-  // input:   t3*, ic3, I2, t2*, T(Tr), V
-  // output:  t3*, oc4*, oc3, O2(O2r), t2*, T(Tr), V
+  // weights: oc4*, oc3, O2(O2r), ic3*, I2, V, V
+  // input:   t3*, ic3*, I2, t2*, T(Tr), V
+  // output:  t3*, oc4*, oc3*, O2(O2r), t2*, T(Tr), V
+  MD4(Type, aweights, weights, this->oc4, this->oc3, this->O2, this->IC * V);
+  MD4(Type, ainput, input, this->t3, this->ic3, this->I2, this->ih * this->iw * V);
+  MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
+  MD3(Type, abias, bias, this->oc4, this->oc3, this->O2 * V);
+
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+#pragma omp for nowait collapse(3)
+  for_each (_t3, this->t3) {
+  for_each (_oc4, this->oc4) {
+  for_each (_t2, this->t2) {
+    for_each (_ic3, this->ic3) {
+      bool reset = _ic3 == 0;
+      int oc3 = _oc4 == this->oc4 - 1 ? this->oc3r : this->oc3;
+      MD4(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc4, this->oc3, this->O2, this->oh * this->ow * V);
+      MD2(Type, ainput2, &md4(ainput, _t3, _ic3, 0, 0), this->t2, this->T * V);
+
+      for_each (_oc3, oc3) {
+        MD2(Type, aoutput3, &md4(aoutput2, _oc4, _oc3, 0, 0), this->t2, this->T * V);
+        MD2(Type, aweights2, &md4(aweights, _oc4, _oc3, 0, 0), this->ic3, this->I2 * V * V);
+
+        if (_oc4 == this->oc4 - 1 && _oc3 == oc3 - 1) {
+          if (_t2 == this->t2 - 1)
+            ker_gemm_Or_Tr_(*this, &md2(aoutput3, _t2, 0),
+                &md2(ainput2, _t2, 0), &md2(aweights2, _ic3, 0),
+                &md3(abias, _oc4, _oc3, 0), reset);
+          else
+            ker_gemm_Or_T_(*this, &md2(aoutput3, _t2, 0),
+                &md2(ainput2, _t2, 0), &md2(aweights2, _ic3, 0),
+                &md3(abias, _oc4, _oc3, 0), reset);
+        } else {
+          if (_t2 == this->t2 - 1)
+            ker_gemm_O_Tr_(*this, &md2(aoutput3, _t2, 0),
+                &md2(ainput2, _t2, 0), &md2(aweights2, _ic3, 0),
+                &md3(abias, _oc4, _oc3, 0), reset);
+          else
+            ker_gemm_O_T_(*this, &md2(aoutput3, _t2, 0), &md2(ainput2, _t2, 0),
+                &md2(aweights2, _ic3, 0), &md3(abias, _oc4, _oc3, 0), reset);
+        }
+      }
+    }
+  }}}
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__execute_e001(
+    Type *output, Type *input, Type *weights, Type *bias)
+{
+  // weights: oc4*, oc3, O2(O2r), ic3*, I2, V, V
+  // input:   t3*, ic3*, I2, t2*, T(Tr), V
+  // output:  t3*, oc4*, oc3*, O2(O2r), t2*, T(Tr), V
   MD4(Type, aweights, weights, this->oc4, this->oc3, this->O2, this->IC * V);
   MD4(Type, ainput, input, this->t3, this->ic3, this->I2, this->ih * this->iw * V);
   MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
@@ -1101,20 +994,20 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_e000(
 
         if (_oc4 == this->oc4 - 1 && _oc3 == oc3 - 1) {
           if (_t2 == this->t2 - 1)
-            ker_bgemm_Or_Tr_(*this, &md2(aoutput3, _t2, 0),
+            ker_gemm_Or_Tr_(*this, &md2(aoutput3, _t2, 0),
                 &md2(ainput2, _t2, 0), &md2(aweights2, _ic3, 0),
                 &md3(abias, _oc4, _oc3, 0), reset);
           else
-            ker_bgemm_Or_T_(*this, &md2(aoutput3, _t2, 0),
+            ker_gemm_Or_T_(*this, &md2(aoutput3, _t2, 0),
                 &md2(ainput2, _t2, 0), &md2(aweights2, _ic3, 0),
                 &md3(abias, _oc4, _oc3, 0), reset);
         } else {
           if (_t2 == this->t2 - 1)
-            ker_bgemm_O_Tr_(*this, &md2(aoutput3, _t2, 0),
+            ker_gemm_O_Tr_(*this, &md2(aoutput3, _t2, 0),
                 &md2(ainput2, _t2, 0), &md2(aweights2, _ic3, 0),
                 &md3(abias, _oc4, _oc3, 0), reset);
           else
-            ker_bgemm_O_T_(*this, &md2(aoutput3, _t2, 0), &md2(ainput2, _t2, 0),
+            ker_gemm_O_T_(*this, &md2(aoutput3, _t2, 0), &md2(ainput2, _t2, 0),
                 &md2(aweights2, _ic3, 0), &md3(abias, _oc4, _oc3, 0), reset);
         }
       }
