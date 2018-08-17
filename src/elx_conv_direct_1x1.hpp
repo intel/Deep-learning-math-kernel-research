@@ -20,37 +20,8 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
 
   private:
   void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a060(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a061(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_e000(Type *output, Type *input, Type *weights, Type *bias);
-
-  inline void __trans_input_plain(Type *tinput, Type *input);
-  inline void __trans_input_blocked(Type *tinput, Type *input);
-  void trans_input(Type *tinput, Type *input);
-
-  inline void __trans_input_plain(Type *tinput, Type *input, int _t2, int Tz);
-  inline void __trans_input_blocked(Type *tinput, Type *input, int _t2, int Tz);
-  void trans_input(Type *tinput, Type *input, int _t2, int Tz);
-
-  inline void __trans_output_plain(Type *output, Type *toutput, Type *bias);
-  inline void __trans_output_blocked(Type *output, Type *toutput, Type *bias);
-  void trans_output(Type *output, Type *toutput, Type *bias);
-
-  inline void __trans_output_plain(Type *output, Type *toutput, Type *bias, int _t2, int Tz);
-  inline void __trans_output_blocked(Type *output, Type *toutput, Type *bias, int _t2, int Tz);
-  void trans_output(Type *output, Type *toutput, Type *bias, int _t2, int Tz);
-
-  inline void __trans_weights_plain(Type *tweights, Type *weights);
-  inline void __trans_weights_blocked(Type *tweights, Type *weights);
-  void trans_weights(Type *tweights, Type *weights);
-
-  inline void __trans_weights_blocked(Type *tweights, Type *weights, int _oc4);
-  inline void __trans_weights_plain(Type *tweights, Type *weights, int _oc4);
-  void trans_weights(Type *tweights, Type *weights, int _oc4);
-
-  void gemm(Type *toutput, Type *tinput, Type *tweights);
-  void gemm(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
-  void gemm(Type *toutput, Type *tinput, Type *tweights, Type *bias, int _ic4, int _oc4, int _t2);
+  void gemm(Type *toutput, Type *tinput, Type *tweights, Type *bias, int _ic4,
+      int _oc4, int _t2);
 
   int prepare_execute_opt();
   void bind_execute_functions();
@@ -64,15 +35,13 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false,
       false>::gemm) *ker_gemm_Or_Tr_;
 
-  // To-be-removed
-  decltype(
-      convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_;
+  decltype(convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_;
   decltype(
       convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm0_;
   decltype(
       convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_tail_;
-  decltype(
-      convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm0_tail_;
+  decltype(convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm)
+      *ker_gemm0_tail_;
 
   void (elx_conv_direct_1x1_t::*execute_opt_)(Type *, Type *, Type *, Type *);
 
