@@ -21,6 +21,8 @@
 #include "kernel/elk_conv_wino_5x5_3x3_input_gen.hxx"
 #include "kernel/elk_conv_wino_5x5_3x3_output_gen.hxx"
 #include "kernel/elk_conv_wino_5x5_3x3_weights_gen.hxx"
+#include "kernel/elk_gemm.cosim.hxx"
+#include "kernel/elk_conv_wino_kernels.cosim.hxx"
 
 namespace euler {
 
