@@ -103,7 +103,7 @@ namespace euler {
     MATRIX_OP(DEF_WEIGHTS, O_, 1);                                             \
                                                                                \
     MD2(float, aoutput2, &md2(aoutput, Os_, 0), O_, xc.oh *xc.ow *V);          \
-    MD5(float, aweights5, &md3(aweights, Os_, 0, 0), O_, xc.ic3,               \
+    MD5(float, aweights5, &md3(aweights, Os_, 0, 0), O_, xc.ic34,              \
         xc.I2, V, V);                                                          \
     MD2(float, abias2, &md2(abias, Os_, 0), O_, V);                            \
                                                                                \
@@ -156,7 +156,7 @@ namespace euler {
     MATRIX_OP(DEF_WEIGHTS, O_, 2);                                             \
                                                                                \
     MD2(float, aoutput2, &md2(aoutput, Os_, 0), O_, xc.oh *xc.ow *V);          \
-    MD6(float, aweights6, &md3(aweights, Os_, 0, 0), O_, xc.ic3,               \
+    MD6(float, aweights6, &md3(aweights, Os_, 0, 0), O_, xc.ic34,              \
         xc.I2, V / 2, 2, V);                                                   \
     MD2(float, abias2, &md2(abias, Os_, 0), O_, V);                            \
                                                                                \
@@ -214,7 +214,7 @@ namespace euler {
     MATRIX_OP(DEF_WEIGHTS, O_, 4);                                             \
                                                                                \
     MD2(float, aoutput2, &md2(aoutput, Os_, 0), O_, xc.oh *xc.ow *V);          \
-    MD6(float, aweights6, &md3(aweights, Os_, 0, 0), O_, xc.ic3,               \
+    MD6(float, aweights6, &md3(aweights, Os_, 0, 0), O_, xc.ic34,              \
         xc.I2, V / 4, 4, V);                                                   \
     MD2(float, abias2, &md2(abias, Os_, 0), O_, V);                            \
                                                                                \
@@ -261,7 +261,7 @@ namespace euler {
                                                                                \
     MD2(Type, aoutput, output, O2_, xc.oh *xc.ow *V);                          \
     MD2(Type, ainput, input, xc.I2, xc.ih *xc.iw *V);                          \
-    MD3(Type, aweights, weights, O2_, xc.ic3, xc.I2 *V *V);                    \
+    MD3(Type, aweights, weights, O2_, xc.ic34, xc.I2 *V *V);                   \
     MD2(Type, abias, bias, O2_, V);                                            \
                                                                                \
     K_GEMM_FMA_P##P_(O2_, T_, 0);                                              \
@@ -286,7 +286,7 @@ namespace euler {
                                                                                \
     MD2(Type, aoutput, output, O2_, xc.oh *xc.ow *V);                          \
     MD2(Type, ainput, input, xc.I2, xc.ih *xc.iw *V);                          \
-    MD3(Type, aweights, weights, O2_, xc.ic3, xc.I2 *V *V);                    \
+    MD3(Type, aweights, weights, O2_, xc.ic34, xc.I2 *V *V);                   \
     MD2(Type, abias, bias, O2_, V);                                            \
                                                                                \
     K_GEMM_FMA_P##P0_(o0_, T_, 0);                                             \
@@ -312,7 +312,7 @@ namespace euler {
                                                                                \
     MD2(Type, aoutput, output, O2_, xc.oh *xc.ow *V);                          \
     MD2(Type, ainput, input, xc.I2, xc.ih *xc.iw *V);                          \
-    MD3(Type, aweights, weights, O2_, xc.ic3, xc.I2 *V *V);                    \
+    MD3(Type, aweights, weights, O2_, xc.ic34, xc.I2 *V *V);                   \
     MD2(Type, abias, bias, O2_, V);                                            \
                                                                                \
     K_GEMM_FMA_P##P0_(o0_, T_, 0);                                             \

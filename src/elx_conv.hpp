@@ -25,6 +25,8 @@ struct elx_conv_t {
   int ic3, oc3, ih3, iw3, oh3, ow3, t3;
   // dimensions in tripple level packed unit
   int ic4, oc4;
+  // redundant dim size
+  int ic234, ic34, oc234, oc34;
   // dimensions in tiles: tiles per (image, line, column)
   int nt, ht, wt;
   // pack size
