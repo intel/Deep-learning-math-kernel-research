@@ -7,10 +7,6 @@
 #include "elx_conv.hpp"
 #include "elk_conv_wino.hpp"
 
-// #ifndef INCLUDE_WINOGRAD_CONVOLUTION_KERNEL
-// #error "Don't include this file directly"
-// #endif
-
 namespace euler {
 
 #define GENERIC_CALCULATE_I(n)                                                  \

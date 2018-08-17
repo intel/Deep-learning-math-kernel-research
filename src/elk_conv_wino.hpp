@@ -171,20 +171,19 @@ template <typename Type, int ...configs>
 class gemm_kernel :
   public gemm_kernel_base<Type, configs...> {
 
-  using gemm_kernel_base<Type, configs...>::__gemm;
-  using gemm_kernel_base<Type, configs...>::__gemm_tail;
+  using super = gemm_kernel_base<Type, configs...>;
 
 public:
   static void gemm(
       elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights,
       bool zero_out) {
-    __gemm(xc, toutput, tinput, tweights, zero_out);
+    super::__gemm(xc, toutput, tinput, tweights, zero_out);
   }
 
   static void gemm_tail(
       elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights,
       bool zero_out) {
-    __gemm_tail(xc, toutput, tinput, tweights, zero_out);
+    super::__gemm_tail(xc, toutput, tinput, tweights, zero_out);
   }
 };
 

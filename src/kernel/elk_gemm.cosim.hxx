@@ -1,6 +1,6 @@
 #pragma once
-#include "elk_gemm.hxx"
 #include "elk_cosim.hpp"
+#include "elk_conv_wino.hpp"
 
 namespace euler {
 
