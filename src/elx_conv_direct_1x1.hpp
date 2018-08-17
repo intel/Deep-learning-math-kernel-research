@@ -50,6 +50,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
 
   void gemm(Type *toutput, Type *tinput, Type *tweights);
   void gemm(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
+  void gemm(Type *toutput, Type *tinput, Type *tweights, Type *bias, int _ic4, int _oc4, int _t2);
 
   int prepare_execute_opt();
   void bind_execute_functions();

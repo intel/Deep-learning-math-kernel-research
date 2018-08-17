@@ -570,27 +570,6 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm(
   }
 }
 
-// input:   ic3, I2, T, V
-// weights: oc3, ic3, O2, I2, V, V
-// output:  oc3, O2, T, V
-template <typename Type, const int V, const int I>
-void elx_conv_direct_1x1_t<Type, V, I>::gemm(
-    Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz)
-{
-  MD2(Type, atinput, tinput, this->ic3, this->I2 * Tz * V);
-  MD3(Type, atweights, tweights, this->oc3, this->ic3, this->O2 * this->I2 * V * V);
-  MD2(Type, atoutput, toutput, this->oc3, this->O2 * Tz * V);
-
-  auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
-
-  for_each (_oc3, this->oc3) {
-    for_each (_ic3, this->ic3) {
-      ker_gemm(*this, &md2(atoutput, _oc3, 0), &md2(atinput, _ic3, 0),
-          &md3(atweights, _oc3, _ic3, 0), _ic3 == 0);
-    }
-  }
-}
-
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_blocked(
     Type *tweights, Type *weights)
@@ -743,8 +722,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a060(
         int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
         size_t ithr = omp_get_thread_num();
 
-        gemm(&md2(atoutput2, ithr, 0), &md2(atinput2, _t2, 0),
-            &md2(atweights2, _oc4, 0), _t2, Tz);
+        //gemm(&md2(atoutput2, ithr, 0), &md2(atinput2, _t2, 0), &md2(atweights2, _oc4, 0), _t2, Tz);
         trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
             &md2(abias, _oc4, 0), _t2, Tz);
       }
@@ -777,8 +755,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a061(
         size_t ithr = omp_get_thread_num();
 
         trans_input(&md2(atinput2, ithr, 0), input, _t2, Tz);
-        gemm(&md2(atoutput2, ithr, 0), &md2(atinput2, ithr, 0),
-            &md2(atweights2, _oc4, 0), _t2, Tz);
+        //gemm(&md2(atoutput2, ithr, 0), &md2(atinput2, ithr, 0), &md2(atweights2, _oc4, 0), _t2, Tz);
         trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
             &md2(abias, _oc4, 0), _t2, Tz);
       }
@@ -789,55 +766,76 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a061(
 }
 
 template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::gemm(Type *output, Type *input,
+    Type *weights, Type *bias, int _ic4, int _oc4, int _t2)
+{
+  // weights: oc3, O2(O2r), ic4*, ic3, I2, V, V
+  // input:   ic3, I2, t2*, T(Tr), V
+  // output:  oc3, O2(O2r), t2*, T(Tr), V
+  MD2(Type, ainput, input, this->ic3, this->I2 * this->ih * this->iw * V);
+  MD2(Type, aoutput, output, this->oc3, this->O2 * this->oh * this->ow * V);
+  MD5(Type, aweights, weights, this->oc3, this->O2, this->ic4, this->ic3,
+      this->I2 * V * V);
+  MD2(Type, abias, bias, this->oc3, this->O2 * V);
+
+  for_each (_ic3, this->ic3) {
+    bool reset = _ic4 == 0 && _ic3 == 0;
+    int oc3 = _oc4 == this->oc4 - 1 ? this->oc3r : this->oc3;
+    MD2(Type, ainput2, &md2(ainput, _ic3, 0), this->t2, this->T * V);
+
+    for_each (_oc3, oc3) {
+      MD2(Type, aoutput2, &md2(aoutput, _oc3, 0), this->t2, this->T * V);
+
+      if (_oc4 == this->oc4 - 1 && _oc3 == oc3 - 1) {
+        if (_t2 == this->t2 - 1)
+          ker_gemm_Or_Tr_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
+              &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
+              reset);
+        else
+          ker_gemm_Or_T_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
+              &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
+              reset);
+      } else {
+        if (_t2 == this->t2 - 1)
+          ker_gemm_O_Tr_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
+              &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
+              reset);
+        else
+          ker_gemm_O_T_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
+              &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
+              reset);
+      }
+    }
+  }
+}
+
+template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::__execute_e000(
     Type *output, Type *input, Type *weights, Type *bias)
 {
-  // weights: oc4*, oc3, O2(O2r), ic3*, I2, V, V
-  // input:   t3*, ic3*, I2, t2*, T(Tr), V
-  // output:  t3*, oc4*, oc3*, O2(O2r), t2*, T(Tr), V
-  MD4(Type, aweights, weights, this->oc4, this->oc3, this->O2, this->IC * V);
-  MD5(Type, ainput, input, this->t3, this->ic4, this->ic3, this->I2, this->ih * this->iw * V);
+  // weights: oc4*, oc3, O2(O2r), ic4*, ic3, I2, V, V
+  // input:   t3*, ic4*, ic3, I2, t2*, T(Tr), V
+  // output:  t3*, oc4*, oc3, O2(O2r), t2*, T(Tr), V
+  MD2(Type, aweights, weights, this->oc4, this->oc3 * this->O2 * this->IC * V);
+  MD3(Type, ainput, input, this->t3, this->ic4, this->ic3 * this->I2 * this->ih * this->iw * V);
   MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
-  MD3(Type, abias, bias, this->oc4, this->oc3, this->O2 * V);
+  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-  for_each(_ic4, this->ic4) {
+  for_each (_ic4, this->ic4) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(3)
-  for_each (_t3, this->t3) {
-  for_each (_oc4, this->oc4) {
-  for_each (_t2, this->t2) {
-    for_each (_ic3, this->ic3) {
-      bool reset = _ic4 == 0 && _ic3 == 0;
-      int oc3 = _oc4 == this->oc4 - 1 ? this->oc3r : this->oc3;
-      MD4(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc4, this->oc3, this->O2, this->oh * this->ow * V);
-      MD2(Type, ainput2, &md5(ainput, _t3, _ic4, _ic3, 0, 0), this->t2, this->T * V);
+    for_each (_t3, this->t3) {
+      for_each (_oc4, this->oc4) {
+        for_each (_t2, this->t2) {
+          MD2(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
+              this->oc3 * this->O2 * this->oh * this->ow * V);
 
-      for_each (_oc3, oc3) {
-        MD2(Type, aoutput3, &md4(aoutput2, _oc4, _oc3, 0, 0), this->t2, this->T * V);
-        MD3(Type, aweights2, &md4(aweights, _oc4, _oc3, 0, 0), this->ic4, this->ic3, this->I2 * V * V);
-
-        if (_oc4 == this->oc4 - 1 && _oc3 == oc3 - 1) {
-          if (_t2 == this->t2 - 1)
-            ker_gemm_Or_Tr_(*this, &md2(aoutput3, _t2, 0),
-                &md2(ainput2, _t2, 0), &md3(aweights2, _ic4, _ic3, 0),
-                &md3(abias, _oc4, _oc3, 0), reset);
-          else
-            ker_gemm_Or_T_(*this, &md2(aoutput3, _t2, 0), &md2(ainput2, _t2, 0),
-                &md3(aweights2, _ic4, _ic3, 0), &md3(abias, _oc4, _oc3, 0),
-                reset);
-        } else {
-          if (_t2 == this->t2 - 1)
-            ker_gemm_O_Tr_(*this, &md2(aoutput3, _t2, 0), &md2(ainput2, _t2, 0),
-                &md3(aweights2, _ic4, _ic3, 0), &md3(abias, _oc4, _oc3, 0),
-                reset);
-          else
-            ker_gemm_O_T_(*this, &md2(aoutput3, _t2, 0), &md2(ainput2, _t2, 0),
-                &md3(aweights2, _ic4, _ic3, 0), &md3(abias, _oc4, _oc3, 0),
-                reset);
+          gemm(&md2(aoutput2, _oc4, 0), &md3(ainput, _t3, _ic4, 0),
+              &md2(aweights, _oc4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _t2);
         }
       }
     }
-  }}}}
+  }
 }
 
 template <typename Type, const int V, const int I>
