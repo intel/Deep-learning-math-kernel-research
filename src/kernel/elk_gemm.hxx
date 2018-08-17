@@ -255,7 +255,7 @@ private:
 #         pragma unroll (T)
           for (int i =0; i < T; ++i) {
             auto x = _mm512_set1_ps(md4(atinput, _I2, i, _V, 1));
-            t[i] = _mm512_fmadd_ps(w0, x, t[i]);
+            t[i] = _mm512_fmadd_ps(w1, x, t[i]);
           }
         }
       }

@@ -8,7 +8,7 @@ template <typename Type, int V, int T>
 class gemm_kernel_base<Type, ISA_COSIM_AVX512, V, T> :
   public cosim_base<Type> {
 public:
-  using target = gemm_kernel_base<Type, ISA_COSIM_AVX512, V, T>;
+  using target = gemm_kernel_base<Type, ISA_SKX_AVX512, V, T>;
   using cosim = gemm_kernel_base<Type, ISA_GENERIC, V, T>;
 
   static void inline __gemm(elx_conv_t<Type> &xc, Type *toutput, Type *tinput
