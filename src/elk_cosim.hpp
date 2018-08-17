@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+#include <mutex>
 #include <iostream>
 #include <cstring>
 
@@ -12,6 +13,7 @@ public:
   static void compare_small(const Type *__restrict l,
       const Type * __restrict r, int elem_count, double acc = 1e-5) {
     int errors = 0;
+    static std::mutex mu;
     for (int i = 0; i < elem_count; ++ i) {
       auto l_d = static_cast<double>(l[i]);
       auto r_d = static_cast<double>(r[i]);
@@ -20,7 +22,9 @@ public:
       auto rel_diff = delta / std::fabs(r_d);
 
       if (rel_diff > acc) {
+        mu.lock();
         std::cerr<<"Exceeded "<<acc<<" at index:"<<i<<" !"<<std::endl;
+        mu.unlock();
         if (errors ++ > max_errors)
           break;
       }
