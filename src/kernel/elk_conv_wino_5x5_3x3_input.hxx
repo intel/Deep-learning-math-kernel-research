@@ -12,6 +12,8 @@ namespace euler {
 
 template <>
 class convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 7, 3> {
+  template <typename Type, int ...configs>
+    friend class convolution_winograd_kernel_base;
 protected:
   constexpr static int I = ISA_SKX_AVX512;
   constexpr static int V = 16;

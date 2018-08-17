@@ -303,8 +303,10 @@ template class elx_conv_wino_t<float, 7, 3, 16, ISA_GENERIC>;
 
 // template class elx_conv_wino_t<float, 4, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<float, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<float, 5, 3, 16, ISA_COSIM_AVX512>;
 // template class elx_conv_wino_t<float, 6, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<float, 7, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<float, 7, 3, 16, ISA_COSIM_AVX512>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_WINO_GEMM_HPP__

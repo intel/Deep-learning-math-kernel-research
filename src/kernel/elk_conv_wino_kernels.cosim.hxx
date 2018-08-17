@@ -3,15 +3,19 @@
 #include "elk_conv_wino.hpp"
 
 namespace euler {
-template <typename Type, int V, int A, int K>
-class convolution_winograd_kernel_base<Type, ISA_COSIM_AVX512, V, A, K> :
+template <typename Type, int ...configs> 
+class convolution_winograd_kernel_base<Type, ISA_COSIM_AVX512, configs...> :
   public cosim_base<Type> {
+protected:
+    constexpr static int configs_[] {configs...};
+    constexpr static int I = ISA_COSIM_AVX512;
+    constexpr static int V = configs_[0];
+    constexpr static int A = configs_[1];
+    constexpr static int K = configs_[2];
     using target =
       convolution_winograd_kernel_base<Type, ISA_SKX_AVX512, V, A, K>;
     using cosim =
       convolution_winograd_kernel_base<Type, ISA_GENERIC, V, A, K>;
-protected:
-  constexpr static int I = ISA_COSIM_AVX512;
 
   template <bool is_border> static inline
   void __trans_input(elx_conv_t<float> &xc, float atinput[A][A][V],
@@ -24,7 +28,8 @@ protected:
     cosim::template __trans_input<is_border>(xc, dup_atinput, input, hT_start,
         hT_end, wT_start, wT_end);
 
-    cosim_base<Type>::compare_small(dup_atinput, atinput, A * A * V);
+    cosim_base<Type>::compare_small(reinterpret_cast<Type *>(dup_atinput),
+        reinterpret_cast<Type *>(atinput), A * A * V);
   }
 
   template <bool is_border>
@@ -33,12 +38,13 @@ protected:
       int wA_end) {
     Type dup_atinput[A][A][V];
 
-    target::template __trans_inputa<is_border>(xc, atinput, input, hA_start,
+    target::template __trans_inputa<is_border>(xc, atinput, input, _wA, hA_start,
         hA_end, wA_start, wA_end);
-    cosim::template __trans_inputa<is_border>(xc, dup_atinput, input, hA_start,
+    cosim::template __trans_inputa<is_border>(xc, dup_atinput, input, _wA, hA_start,
         hA_end, wA_start, wA_end);
 
-    cosim_base<Type>::compare_small(dup_atinput, atinput, A * A * V);
+    cosim_base<Type>::compare_small(reinterpret_cast<Type *>(dup_atinput),
+        reinterpret_cast<Type *>(atinput), A * A * V);
   }
 
   template <bool ...conditions>
@@ -49,10 +55,11 @@ protected:
 
     target::template __trans_output<conditions...>(xc, output, atoutput,
         bias, hOA_end, wOA_end);
-    cosim::template __trans_output<conditions...>(xc, dup_output, atoutput,
-        bias, hOA_end, wOA_end);
+    cosim::template __trans_output<conditions...>(xc, reinterpret_cast<Type *>(dup_output),
+        atoutput, bias, hOA_end, wOA_end);
 
-    cosim_base<Type>::compare_small(dup_output, atoutput, (A-K+1)*(A-K+1)*V);
+    cosim_base<Type>::compare_small(reinterpret_cast<Type *>(dup_output),
+        reinterpret_cast<Type *>(atoutput), (A-K+1)*(A-K+1)*V);
   }
 
   template <bool ...conditions>
@@ -63,10 +70,11 @@ protected:
 
     target::template __trans_outputa_th<conditions...>(xc, toutputa, toutput,
         Tz, stream_out);
-    cosim::template __trans_outputa_th<conditions...>(xc, dup_toutputa, toutput,
-        Tz, stream_out);
+    cosim::template __trans_outputa_th<conditions...>(xc,
+        reinterpret_cast<Type *>(dup_toutputa), toutput, Tz, stream_out);
 
-    cosim_base<Type>::compare_small(dup_toutputa, toutputa, (A - K + 1) * V);
+    cosim_base<Type>::compare_small(reinterpret_cast<Type *>(dup_toutputa),
+        reinterpret_cast<Type *>(toutputa), (A - K + 1) * V);
   }
 
   template <bool ...conditions>
@@ -77,20 +85,22 @@ protected:
 
     target::template __trans_outputa_bh<conditions...>(xc, output, aoutputa,
         bias, hOA_end, wOA_end);
-    cosim::template __trans_outputa_bh<conditions...>(xc, dup_output, aoutputa,
-        bias, hOA_end, wOA_end);
+    cosim::template __trans_outputa_bh<conditions...>(xc,
+        reinterpret_cast<Type *>(dup_output), aoutputa, bias, hOA_end, wOA_end);
 
-    cosim_base<Type>::compare_small(dup_output, output, (A-K+1)*(A-K+1)*V);
+    cosim_base<Type>::compare_small(reinterpret_cast<Type *>(dup_output),
+        reinterpret_cast<Type *>(output), (A-K+1)*(A-K+1)*V);
   }
 
   static inline void __trans_weights(float atweights[A][A][V][V],
       float aweights[K][K][V][V]) {
     Type dup_atweights[A][A][V][V];
 
-    target::trans_weights(atweights, aweights);
-    cosim::trans_weights(dup_atweights, aweights);
+    target::__trans_weights(atweights, aweights);
+    cosim::__trans_weights(dup_atweights, aweights);
 
-    cosim_base<Type>::compare_small(dup_atweights, aweights, A * A * V * V);
+    cosim_base<Type>::compare_small(reinterpret_cast<Type *>(dup_atweights),
+        reinterpret_cast<Type *>(aweights), A * A * V * V);
   }
 };
 };

@@ -18,6 +18,8 @@ namespace euler {
 
 template <>
 class convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 5, 3> {
+  template<typename Type, int ...configs>
+    friend class convolution_winograd_kernel_base;
 protected:
   constexpr static int I = ISA_GENERIC;
   constexpr static int V = 16;

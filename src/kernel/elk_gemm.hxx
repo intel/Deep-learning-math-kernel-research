@@ -74,6 +74,8 @@ void inline gemm_kernel_base<Type, configs...>::__gemm_tail(
 
 template <int T>
 class gemm_kernel_base<float, ISA_SKX_AVX512, 16, T> {
+  template <typename Type, int ...configs>
+    friend class gemm_kernel_base;
 public:
   static void inline __gemm(
     elx_conv_t<float> &xc, float *toutput, float *tinput, float *tweights,
