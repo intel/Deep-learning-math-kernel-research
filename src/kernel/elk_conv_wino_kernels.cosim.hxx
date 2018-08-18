@@ -59,7 +59,7 @@ protected:
         reinterpret_cast<Type *>(dup_output), atoutput, bias, hOA_end, wOA_end);
 
     cosim_base<Type>::compare_small(reinterpret_cast<Type *>(dup_output),
-        reinterpret_cast<Type *>(atoutput), xc.oh * xc.ow * V);
+        reinterpret_cast<Type *>(output), xc.oh * xc.ow * V);
     delete [] dup_output;
   }
 
