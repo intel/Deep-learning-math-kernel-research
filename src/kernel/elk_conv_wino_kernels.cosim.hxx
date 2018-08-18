@@ -55,8 +55,8 @@ protected:
 
     target::template __trans_output<conditions...>(xc, output, atoutput,
         bias, hOA_end, wOA_end);
-    cosim::template __trans_output<conditions...>(xc, reinterpret_cast<Type *>(dup_output),
-        atoutput, bias, hOA_end, wOA_end);
+    cosim::template __trans_output<conditions...>(xc,
+        reinterpret_cast<Type *>(dup_output), atoutput, bias, hOA_end, wOA_end);
 
     cosim_base<Type>::compare_small(reinterpret_cast<Type *>(dup_output),
         reinterpret_cast<Type *>(atoutput), (A-K+1)*(A-K+1)*V);
