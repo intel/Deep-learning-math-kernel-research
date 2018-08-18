@@ -6,4 +6,5 @@
 
 #define INCLUDE_DIRECT_CONVOLUTION_1X1_KERNEL
 
-#include "kernel/elk_conv_direct_1x1_gemm_OTJ.hxx"
+#include "kernel/elk_conv_direct_1x1_gemm_s1.hxx"
+#include "kernel/elk_conv_direct_1x1_gemm_s2.hxx"

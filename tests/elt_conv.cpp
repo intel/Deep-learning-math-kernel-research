@@ -43,6 +43,7 @@ int main(int argc, char **argv)
     input_format, weights_format, output_format
   };
   desc.pads = { ph, ph, pw, pw };
+  desc.strides   = { sh, sw };
   desc.with_bias = with_bias;
   desc.with_relu = with_relu;
   desc.algorithm = alg;

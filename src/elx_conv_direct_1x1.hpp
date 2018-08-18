@@ -20,19 +20,23 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
 
   private:
   void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_b000(Type *output, Type *input, Type *weights, Type *bias);
   void gemm(Type *toutput, Type *tinput, Type *tweights, Type *bias, int _ic4,
       int _oc4, int _t2);
+  void gemm(Type *toutput, Type *tinput, Type *tweights, Type *bias, int _ic4,
+      int _oc4, int _ht, int _wt);
+
 
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false,
+  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, V, I, false, false,
       false>::gemm) *ker_gemm_O_T_;
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false,
+  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, V, I, false, false,
       false>::gemm) *ker_gemm_Or_T_;
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false,
+  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, V, I, false, false,
       false>::gemm) *ker_gemm_O_Tr_;
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I, false, false,
+  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, V, I, false, false,
       false>::gemm) *ker_gemm_Or_Tr_;
 
   decltype(convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_;

@@ -13,6 +13,7 @@
 namespace euler {
 
 // Type: data type
+// S: stride
 // O2: OC blocking
 // T: tile blocking unit
 // V: vector size
@@ -26,7 +27,7 @@ namespace euler {
 #define RELU(x) x
 #define SUM(x) x
 
-template <typename Type, const int O2, const int T, const int V, const int I,
+template <typename Type, const int S, const int O2, const int T, const int V, const int I,
     const bool with_bias, const bool with_relu, const bool with_sum>
 struct convolution_direct_1x1_kernel {
   static void gemm(elx_conv_t<Type> &xc, Type *output, Type *input,
@@ -36,10 +37,19 @@ struct convolution_direct_1x1_kernel {
 };
 
 #define DEF_convolution_direct_1x1_kernel(O, T)                                \
+  template <typename Type, const int S, const int V, const int I,              \
+      const bool with_bias, const bool with_relu, const bool with_sum>         \
+  struct convolution_direct_1x1_kernel<Type, S, O, T, V, I, with_bias,         \
+      with_relu, with_sum> {                                                   \
+    static void gemm(elx_conv_t<Type> &xc, Type *output, Type *input,          \
+        Type *weights, Type *bias, bool reset_out = false);                    \
+    static void gemm_tail(elx_conv_t<Type> &xc, Type *output, Type *input,     \
+        Type *weights, Type *bias, bool reset_out = false);                    \
+  };                                                                           \
   template <typename Type, const int V, const int I, const bool with_bias,     \
       const bool with_relu, const bool with_sum>                               \
-  struct convolution_direct_1x1_kernel<Type, O, T, V, I, with_bias, with_relu, \
-      with_sum> {                                                              \
+  struct convolution_direct_1x1_kernel<Type, 1, O, T, V, I, with_bias,         \
+      with_relu, with_sum> {                                                   \
     static void gemm(elx_conv_t<Type> &xc, Type *output, Type *input,          \
         Type *weights, Type *bias, bool reset_out = false);                    \
     static void gemm_tail(elx_conv_t<Type> &xc, Type *output, Type *input,     \

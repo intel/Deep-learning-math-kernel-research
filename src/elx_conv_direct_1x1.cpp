@@ -18,6 +18,8 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
     : elx_conv_t<Type>(dc)
 {
   // user input
+  xopt_ = this->execution_mode;
+
   this->IC = ALIGNUP(this->ic, V);
   this->OC = ALIGNUP(this->oc, V);
 
@@ -32,13 +34,29 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   this->oc2 = this->OC / V;
 
   // t3, t2, (T, Tr)
-  this->ht = this->oh;
-  this->wt = this->ow;
-  this->nt = this->ht * this->wt;
-  this->t = this->nt * this->n;
   this->t3 = this->n;
-  this->t2 = (this->nt + this->T - 1) / this->T;
-  this->Tr = this->nt % this->T ? this->nt % this->T : this->T;
+  if (this->hs == 1 && this->ws == 1) {
+    this->ht = this->oh;
+    this->wt = this->ow;
+    this->nt = this->ht * this->wt;
+    this->t = this->nt * this->n;
+    this->t2 = (this->nt + this->T - 1) / this->T;
+    this->Tr = this->nt % this->T ? this->nt % this->T : this->T;
+    if (!xopt_) xopt_ = 0xa000;
+  } else {
+    this->ht = this->oh;
+    this->wt = this->ow / this->T;
+    this->nt = this->oh * this->ow;
+    this->t2 = this->nt / this->T;
+    this->Tr = this->T; // No Tr support
+    this->t = this->nt * this->n;
+    if (!xopt_) xopt_ = 0xb000;
+
+    if (this->ht * this->hs != this->ih
+        || this->wt * this->ws * this->T != this->iw) {
+      el_error("Unimplemented non-unitride shape or blocking");
+    }
+  }
 
   // TODO: Ir, Or Tailing
   this->Ir = this->ic % V ? this->ic % V : V;
@@ -59,7 +77,6 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   if (this->ic4 * this->ic3 * this->I2 * V != this->IC)
     el_error("IC blocking error");
 
-  xopt_ = this->execution_mode;
   is_first_run_ = true;
   inference_acc_ = false;
   mthr_ = omp_get_max_threads();
@@ -69,7 +86,7 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   bind_execute_functions();
 
   // dbg
-  printf("T=%d, Tr=%d, t2=%d, t=%d\n", this->T, this->Tr, this->t2, this->t);
+  printf("T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d\n", this->T, this->Tr, this->t2, this->ht, this->wt, this->t);
   printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic4=%d, IC=%d\n", this->V, this->Ir, this->I2, this->ic3, this->ic4, this->IC);
   printf("V=%d, Or=%d, O2=%d, oc3=%d, oc4=%d, O2r=%d, oc3r=%d, OC=%d\n", this->V, this->Or, this->O2, this->oc3, this->oc4, this->O2r, this->oc3r, this->OC);
 }
@@ -113,6 +130,7 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
 
   switch (xopt_) {
   case 0xa000:
+  case 0xb000:
     l2_usage = this->IC * this->OC / this->oc4 + this->IC * this->T
         + this->OC / this->oc4 * this->T;
     break;
@@ -143,16 +161,25 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 {
 #define GEMM_CASE(z, T_, O_)                                                   \
   case T_:                                                                     \
-    if (this->with_bias)                                                       \
-      *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, BIAS(true),    \
-          RELU(false), SUM(false)>::gemm;                                      \
-    else                                                                       \
-      *func = convolution_direct_1x1_kernel<Type, O_, T_, V, I, BIAS(false),   \
-          RELU(false), SUM(false)>::gemm;                                      \
+    if (this->hs == 1) {                                                       \
+      if (this->with_bias)                                                     \
+        *func = convolution_direct_1x1_kernel<Type, 1, O_, T_, V, I,           \
+            BIAS(true), RELU(false), SUM(false)>::gemm;                        \
+      else                                                                     \
+        *func = convolution_direct_1x1_kernel<Type, 1, O_, T_, V, I,           \
+            BIAS(false), RELU(false), SUM(false)>::gemm;                       \
+    } else if (this->hs == 2) {                                                \
+      if (this->with_bias)                                                     \
+        *func = convolution_direct_1x1_kernel<Type, 2, O_, T_, V, I,           \
+            BIAS(true), RELU(false), SUM(false)>::gemm;                        \
+      else                                                                     \
+        *func = convolution_direct_1x1_kernel<Type, 2, O_, T_, V, I,           \
+            BIAS(false), RELU(false), SUM(false)>::gemm;                       \
+    }                                                                          \
     break;
 
   auto bind_kernel = [&](int O2_, int T_,
-                  decltype(convolution_direct_1x1_kernel<Type, 1, 1, V, I,
+                  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, V, I,
                            false, false, false>::gemm) **func) {
     switch (O2_) {
     case 1:
@@ -238,6 +265,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 
   switch (xopt_) {
     EXECUTE_CASE(a000);
+    EXECUTE_CASE(b000);
   default:
     el_error("Unimplemented");
     break;
@@ -265,9 +293,9 @@ template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::gemm(Type *output, Type *input,
     Type *weights, Type *bias, int _ic4, int _oc4, int _t2)
 {
-  // weights: oc3, O2(O2r), ic4*, ic3, I2, V, V
-  // input:   ic3, I2, t2*, T(Tr), V
-  // output:  oc3, O2(O2r), t2*, T(Tr), V
+  // weights: oc3*, O2(O2r), ic4*, ic3*, I2, V, V
+  // input:   ic3*, I2, t2*, T(Tr), V
+  // output:  oc3*, O2(O2r), t2*, T(Tr), V
   MD2(Type, ainput, input, this->ic3, this->I2 * this->ih * this->iw * V);
   MD2(Type, aoutput, output, this->oc3, this->O2 * this->oh * this->ow * V);
   MD5(Type, aweights, weights, this->oc3, this->O2, this->ic4, this->ic3,
@@ -328,6 +356,72 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a000(
 
           gemm(&md2(aoutput2, _oc4, 0), &md3(ainput, _t3, _ic4, 0),
               &md2(aweights, _oc4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _t2);
+        }
+      }
+    }
+  }
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::gemm(Type *output, Type *input,
+    Type *weights, Type *bias, int _ic4, int _oc4, int _ht, int _wt)
+{
+  // weights: oc3*, O2(O2r), ic4*, ic3*, I2, V, V
+  // input:   ic3*, I2, ht*, S*, wt*, T, S, V
+  // output:  oc3*, O2(O2r), ht*, wt*, T, V
+  MD5(Type, ainput, input, this->ic3, this->I2, this->ih, this->wt, this->T * this->ws * V);
+  MD5(Type, aoutput, output, this->oc3, this->O2, this->ht, this->wt,  this->T * V);
+  MD5(Type, aweights, weights, this->oc3, this->O2, this->ic4, this->ic3,
+      this->I2 * V * V);
+  MD2(Type, abias, bias, this->oc3, this->O2 * V);
+
+  for_each (_ic3, this->ic3) {
+    bool reset = _ic4 == 0 && _ic3 == 0;
+    int oc3 = _oc4 == this->oc4 - 1 ? this->oc3r : this->oc3;
+
+    for_each (_oc3, oc3) {
+      if (_oc4 == this->oc4 - 1 && _oc3 == oc3 - 1) {
+        ker_gemm_Or_T_(*this, &md5(aoutput, _oc3, 0, 0, 0, 0),
+            &md5(ainput, _ic3, 0, 0, 0, 0),
+            &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
+            reset);
+      } else {
+        ker_gemm_O_T_(*this, &md5(aoutput, _oc3, 0, 0, 0, 0),
+            &md5(ainput, _ic3, 0, 0, 0, 0),
+            &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
+            reset);
+      }
+    }
+  }
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__execute_b000(
+    Type *output, Type *input, Type *weights, Type *bias)
+{
+  // weights: oc4*, oc3, O2(O2r), ic4*, ic3, I2, V, V
+  // input:   t3*, ic4*, ic3, I2, ht*, S, wt*, T, S, V
+  // output:  t3*, oc4*, oc3, O2(O2r), ht*wt*, T, V
+  MD2(Type, aweights, weights, this->oc4, this->oc3 * this->O2 * this->IC * V);
+  MD7(Type, ainput, input, this->t3, this->ic4, this->ic3 * this->I2, this->ht, this->hs, this->wt, this->T * this->ws * V);
+  MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
+  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+
+  for_each (_ic4, this->ic4) {
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+#pragma omp for nowait collapse(4)
+    for_each (_t3, this->t3) {
+      for_each (_oc4, this->oc4) {
+        for_each (_ht, this->ht) {
+          for_each (_wt, this->wt) {
+            MD5(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
+                this->oc3 * this->O2, this->ht, this->wt, this->T * V);
+
+            gemm(&md5(aoutput2, _oc4, 0, _ht, _wt, 0),
+                &md7(ainput, _t3, _ic4, 0, _ht, 0, _wt, 0),
+                &md2(aweights, _oc4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _ht,
+                _wt);
+          }
         }
       }
     }
