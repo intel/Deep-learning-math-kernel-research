@@ -22,7 +22,7 @@ public:
     auto max = static_cast<double>(std::numeric_limits<Type>::max());
 
     if (l_d == 0 || r_d == 0 || diff < min) {
-      return diff < acc * min;
+      return diff < acc;
     } else {
       return (diff /
           std::min(std::fabs(l_d + r_d), max)) < acc;
@@ -30,11 +30,11 @@ public:
   }
 
   static void compare_small(const Type *__restrict l,
-      const Type * __restrict r, int elem_count, double acc = 3e-3) {
+      const Type * __restrict r, int elem_count, double acc = 1e-4) {
     int errors = 0;
     static std::mutex mu;
     for (int i = 0; i < elem_count; ++ i) {
-      if (!near_eq(l[i], r[i])) {
+      if (!near_eq(l[i], r[i], acc)) {
         mu.lock();
         std::cerr<<"Exceeded "<<acc<<" at index:"<<i<<"! "
           <<r[i]<<" expected than "<<l[i]<<"."<<std::endl;
