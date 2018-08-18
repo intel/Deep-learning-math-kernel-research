@@ -539,8 +539,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-elx_conv_wino_t<Type, A, K, V, I>::~elx_conv_wino_t()
-{
+elx_conv_wino_t<Type, A, K, V, I>::~elx_conv_wino_t() {
   if (tweights_ != nullptr) {
     free(tweights_);
     tweights_ = nullptr;

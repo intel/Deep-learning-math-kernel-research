@@ -14,14 +14,14 @@ public:
     if (l == r)
       return true;
 
-    auto l_d = static_cast<double>(l);
-    auto r_d = static_cast<double>(r);
-    auto diff = std::fabs(l_d - r_d);
+    auto l_d = static_cast<double>(std::abs(l));
+    auto r_d = static_cast<double>(std::abs(r));
+    auto diff = std::abs(l_d - r_d);
 
-    auto min = static_cast<double>(std::numeric_limits<Type>::min());
+    // auto min = static_cast<double>(std::numeric_limits<Type>::min());
     auto max = static_cast<double>(std::numeric_limits<Type>::max());
 
-    if (l_d == 0 || r_d == 0 || diff < min) {
+    if (l_d == 0 || r_d == 0 || diff < acc) {
       return diff < acc;
     } else {
       return (diff /
@@ -35,6 +35,7 @@ public:
     static std::mutex mu;
     for (int i = 0; i < elem_count; ++ i) {
       if (!near_eq(l[i], r[i], acc)) {
+        near_eq(l[i], r[i], acc);
         mu.lock();
         std::cerr<<"Exceeded "<<acc<<" at index:"<<i<<"! "
           <<r[i]<<" expected than "<<l[i]<<"."<<std::endl;

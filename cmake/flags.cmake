@@ -33,8 +33,10 @@ if (CMAKE_CXX_COMPILER MATCHES "icpc")
     set_source_files_properties(
       src/elx_conv_wino.cpp PROPERTIES COMPILE_FLAGS -finline-limit=80)
   endif ()
-
-else ()
+elseif(CMAKE_CXX_COMPILER MATCHES "clang")
+  list(APPEND __opt_flags "-mavx512f")
+  list(APPEND __opt_flags "-mavx512dq")
+else()
   list(APPEND __basic_flags "-Wno-unused-result")
   list(APPEND __basic_flags "-Wno-unused-but-set-variable")
   list(APPEND __basic_flags "-Wno-misleading-indentation")
