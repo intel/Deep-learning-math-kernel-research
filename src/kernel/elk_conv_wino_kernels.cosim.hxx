@@ -50,8 +50,8 @@ protected:
   template <bool ...conditions>
   static inline void __trans_output(elx_conv_t<float> &xc, Type *output,
       Type atoutput[A][A][V], Type *bias, int hOA_end, int wOA_end) {
-    alignas(64) Type dup_output[A - K + 1][A - K + 1][V] = {0};
-    std::memset(atoutput, 0, sizeof(dup_output));
+    auto *dup_output = new Type [xc.oh * xc.ow * V];
+    std::memcpy(dup_output, output, sizeof(Type) * xc.oh * xc.ow * V);
 
     target::template __trans_output<conditions...>(xc, output, atoutput,
         bias, hOA_end, wOA_end);
@@ -59,7 +59,8 @@ protected:
         reinterpret_cast<Type *>(dup_output), atoutput, bias, hOA_end, wOA_end);
 
     cosim_base<Type>::compare_small(reinterpret_cast<Type *>(dup_output),
-        reinterpret_cast<Type *>(atoutput), (A-K+1)*(A-K+1)*V);
+        reinterpret_cast<Type *>(atoutput), xc.oh * xc.ow * V);
+    delete [] dup_output;
   }
 
   template <bool ...conditions>
@@ -80,8 +81,8 @@ protected:
   template <bool ...conditions>
   static inline void __trans_outputa_bh(elx_conv_t<float> &xc, float *output,
       float aoutputa[A][A - K + 1][V], float *bias, int hOA_end, int wOA_end) {
-    alignas(64) Type dup_output[A-K+1][A-K+1][V];
-    std::memset(output, 0, sizeof(dup_output));
+    auto *dup_output = new Type [xc.oh * xc.ow * V];
+    std::memcpy(dup_output, output, sizeof(Type) * xc.oh * xc.ow * V);
 
     target::template __trans_outputa_bh<conditions...>(xc, output, aoutputa,
         bias, hOA_end, wOA_end);
@@ -90,6 +91,7 @@ protected:
 
     cosim_base<Type>::compare_small(reinterpret_cast<Type *>(dup_output),
         reinterpret_cast<Type *>(output), (A-K+1)*(A-K+1)*V);
+    delete [] dup_output;
   }
 
   static inline void __trans_weights(float atweights[A][A][V][V],
