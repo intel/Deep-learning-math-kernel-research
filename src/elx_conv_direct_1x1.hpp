@@ -21,22 +21,34 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   private:
   void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_b000(Type *output, Type *input, Type *weights, Type *bias);
-  void gemm(Type *toutput, Type *tinput, Type *tweights, Type *bias, int _ic4,
+  void __execute_b061(Type *output, Type *input, Type *weights, Type *bias);
+
+  inline void __trans_input_plain(Type *tinput, Type *input);
+  inline void __trans_input_blocked(Type *tinput, Type *input);
+  void trans_input(Type *tinput, Type *input);
+
+  inline void __trans_weights_plain(Type *tweights, Type *weights);
+  inline void __trans_weights_blocked(Type *tweights, Type *weights);
+  void trans_weights(Type *tweights, Type *weights);
+
+  void gemm_a000(Type *toutput, Type *tinput, Type *tweights, Type *bias, int _ic4,
       int _oc4, int _t2);
-  void gemm(Type *toutput, Type *tinput, Type *tweights, Type *bias, int _ic4,
+  void gemm_b000(Type *toutput, Type *tinput, Type *tweights, Type *bias, int _ic4,
       int _oc4, int _ht, int _wt);
+  void gemm_b061(Type *toutput, Type *tinput, Type *tweights, Type *bias, int _ic4,
+      int _oc4);
 
 
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, V, I, false, false,
+  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, 0, V, I, false, false,
       false>::gemm) *ker_gemm_O_T_;
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, V, I, false, false,
+  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, 0, V, I, false, false,
       false>::gemm) *ker_gemm_Or_T_;
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, V, I, false, false,
+  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, 0, V, I, false, false,
       false>::gemm) *ker_gemm_O_Tr_;
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, V, I, false, false,
+  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, 0, V, I, false, false,
       false>::gemm) *ker_gemm_Or_Tr_;
 
   decltype(convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_;

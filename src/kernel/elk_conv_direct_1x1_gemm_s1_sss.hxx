@@ -23,17 +23,6 @@ namespace euler {
 #undef K1
 #undef K2
 #undef K3
-#undef MM_LOAD_OUTPUT
-#undef _MM_LOAD_OUTPUT
-#undef MM_COMPUTE_OUTPUT_P1
-#undef _MM_COMPUTE_OUTPUT_P1
-#undef __MM_COMPUTE_OUTPUT_P1
-#undef MM_STORE_OUTPUT
-#undef _MM_STORE_OUTPUT
-#undef __MM_STORE_OUTPUT
-#undef MM_COMPUTE_OUTPUT_P
-#undef _MM_COMPUTE_OUTPUT_P
-#undef __MM_COMPUTE_OUTPUT_P
 
 #define _zmm_out(O_, T_) zmm_out##O_##T_ // output
 #define _zmm_wei(O_, P_) zmm_wei##O_##P_ // weights
@@ -69,7 +58,7 @@ namespace euler {
 //     zmm_out(O_, _T) = _mm512_load_ps(&md3(aoutput3, 0, T_, 0));
 #define MM_LOAD_OUTPUT(O_, T_) BOOST_PP_REPEAT(O_, _MM_LOAD_OUTPUT, T_);
 #define _MM_LOAD_OUTPUT(z, O_, T_)                                             \
-  MD3(float, aoutput3##O_, &md2(aoutput2, O_, 0), xc.ht * xc.wt, T_, V);       \
+  MD3(float, aoutput3##O_, &md2(aoutput2, O_, 0), xc.t2, T_, V);               \
   BOOST_PP_REPEAT(T_, __MM_LOAD_OUTPUT, O_);
 #define __MM_LOAD_OUTPUT(z, T_, O_)                                            \
   zmm_out(O_, T_) = _mm512_load_ps(&md3(aoutput3##O_, 0, T_, 0));
@@ -89,7 +78,7 @@ namespace euler {
 #define MM_COMPUTE_OUTPUT_P1(O_, T_)                                           \
   BOOST_PP_REPEAT(T_, _MM_COMPUTE_OUTPUT_P1, O_);
 #define _MM_COMPUTE_OUTPUT_P1(z, T_, O_)                                       \
-  bcast = _mm512_broadcastss_ps(*(__m128 *)&md5(ainput3, 0, 0, T_, 0, _V));    \
+  bcast = _mm512_broadcastss_ps(*(__m128 *)&md3(ainput3, 0, T_, _V));          \
   BOOST_PP_REPEAT(O_, __MM_COMPUTE_OUTPUT_P1, T_);
 #define __MM_COMPUTE_OUTPUT_P1(z, O_, T_)                                      \
   zmm_out(O_, T_) = _mm512_fmadd_ps(zmm_wei(O_, 0), bcast, zmm_out(O_, T_));
@@ -102,7 +91,7 @@ namespace euler {
 //     _mm512_store_ps(&md3(aoutput3, 0, _T, 0), zmm_out[_O1][_T]);
 #define MM_STORE_OUTPUT(O_, T_) BOOST_PP_REPEAT(O_, _MM_STORE_OUTPUT, T_);
 #define _MM_STORE_OUTPUT(z, O_, T_)                                            \
-  MD3(float, aoutput3##O_, &md2(aoutput2, O_, 0), xc.ht * xc.wt, T_, V);       \
+  MD3(float, aoutput3##O_, &md2(aoutput2, O_, 0), xc.t2, T_, V);               \
   BOOST_PP_REPEAT(T_, __MM_STORE_OUTPUT, O_);
 #define __MM_STORE_OUTPUT(z, T_, O_)                                           \
   _mm512_store_ps(&md3(aoutput3##O_, 0, T_, 0), zmm_out(O_, T_));
@@ -114,8 +103,8 @@ namespace euler {
     MATRIX_OP(DEF_WEIGHTS, O_, 1);                                             \
                                                                                \
     MD2(float, aoutput2, &md2(aoutput, Os_, 0), O_, xc.oh *xc.ow *V);          \
-    MD5(float, aweights5, &md3(aweights, Os_, 0, 0), O_, xc.ic34, xc.I2, V,    \
-        V);                                                                    \
+    MD5(float, aweights5, &md3(aweights, Os_, 0, 0), O_, xc.ic34,              \
+        xc.I2, V, V);                                                          \
     MD2(float, abias2, &md2(abias, Os_, 0), O_, V);                            \
                                                                                \
     if (reset_out) {                                                           \
@@ -129,7 +118,7 @@ namespace euler {
       MM_LOAD_OUTPUT(O_, T_);                                                  \
     }                                                                          \
     for_each (_I2, xc.I2) {                                                    \
-      MD5(float, ainput3, &md2(ainput, _I2, 0), xc.ih, xc.wt, T_, S, V);       \
+      MD3(float, ainput3, &md2(ainput, _I2, 0), xc.t2, T_, V);                 \
       pragma_unroll for_each (_V, V)                                           \
       {                                                                        \
         MM_LOAD_WEIGHTS_P1(O_);                                                \
@@ -154,8 +143,7 @@ namespace euler {
 #define MM_COMPUTE_OUTPUT_P(O_, T_, P_)                                        \
   BOOST_PP_REPEAT(T_, _MM_COMPUTE_OUTPUT_P, (O_, P_));
 #define _MM_COMPUTE_OUTPUT_P(z, T_, OP_)                                       \
-  bcast = _mm512_broadcastss_ps(                                               \
-      *(__m128 *)&md6(ainput4, 0, 0, T_, 0, _V, _1(OP_)));                     \
+  bcast = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, 0, T_, _V, _1(OP_))); \
   BOOST_PP_REPEAT(_0(OP_), __MM_COMPUTE_OUTPUT_P, (T_, _1(OP_)));
 #define __MM_COMPUTE_OUTPUT_P(z, O_, TP_)                                      \
   zmm_out(O_, _0(TP_))                                                         \
@@ -185,7 +173,7 @@ namespace euler {
       MM_LOAD_OUTPUT(O_, T_);                                                  \
     }                                                                          \
     for_each (_I2, xc.I2) {                                                    \
-      MD6(Type, ainput4, &md2(ainput, _I2, 0), xc.ih, xc.wt, T_, S, V / 2, 2); \
+      MD4(Type, ainput4, &md2(ainput, _I2, 0), xc.t2, T_, V / 2, 2);           \
       pragma_unroll for_each (_V, V / 2)                                       \
       {                                                                        \
         MM_LOAD_WEIGHTS_P2_1(O_);                                              \
@@ -226,8 +214,8 @@ namespace euler {
     MATRIX_OP(DEF_WEIGHTS, O_, 4);                                             \
                                                                                \
     MD2(float, aoutput2, &md2(aoutput, Os_, 0), O_, xc.oh *xc.ow *V);          \
-    MD6(float, aweights6, &md3(aweights, Os_, 0, 0), O_, xc.ic34, xc.I2,       \
-        V / 4, 4, V);                                                          \
+    MD6(float, aweights6, &md3(aweights, Os_, 0, 0), O_, xc.ic34,              \
+        xc.I2, V / 4, 4, V);                                                   \
     MD2(float, abias2, &md2(abias, Os_, 0), O_, V);                            \
                                                                                \
     MM_PRELOAD_WEIGHTS_P4(O_);                                                 \
@@ -243,7 +231,7 @@ namespace euler {
       MM_LOAD_OUTPUT(O_, T_);                                                  \
     }                                                                          \
     for_each (_I2, xc.I2) {                                                    \
-      MD6(Type, ainput4, &md2(ainput, _I2, 0), xc.ih, xc.wt, T_, S, V / 4, 4); \
+      MD4(Type, ainput4, &md2(ainput, _I2, 0), xc.t2, T_, V / 4, 4);           \
       pragma_unroll for_each (_V, V / 4)                                       \
       {                                                                        \
         MM_LOAD_WEIGHTS_P4_2(O_);                                              \
@@ -263,9 +251,9 @@ namespace euler {
   }
 
 #define K1(O2_, T_, P_)                                                        \
-  template <typename Type, const int S, const int V, const int I,              \
-      const bool with_bias, const bool with_relu, const bool with_sum>         \
-  void convolution_direct_1x1_kernel<Type, S, O2_, T_, V, I, with_bias,        \
+  template <typename Type, const int V, const int I, const bool with_bias,     \
+      const bool with_relu, const bool with_sum>                               \
+  void convolution_direct_1x1_kernel<Type, 1, O2_, T_, SSS, V, I, with_bias,   \
       with_relu, with_sum>::gemm(elx_conv_t<Type> &xc, Type *output,           \
       Type *input, Type *weights, Type *bias, bool reset_out)                  \
   {                                                                            \
@@ -279,18 +267,18 @@ namespace euler {
     K_GEMM_FMA_P##P_(O2_, T_, 0);                                              \
   }                                                                            \
   template void                                                                \
-  convolution_direct_1x1_kernel<float, 2, O2_, T_, 16, ISA_SKX_AVX512,         \
+  convolution_direct_1x1_kernel<float, 1, O2_, T_, SSS, 16, ISA_SKX_AVX512,    \
       BIAS(true), RELU(false), SUM(false)>::gemm(elx_conv_t<float> &, float *, \
       float *, float *, float *, bool);                                        \
   template void                                                                \
-  convolution_direct_1x1_kernel<float, 2, O2_, T_, 16, ISA_SKX_AVX512,         \
+  convolution_direct_1x1_kernel<float, 1, O2_, T_, SSS, 16, ISA_SKX_AVX512,    \
       BIAS(false), RELU(false), SUM(false)>::gemm(elx_conv_t<float> &,         \
       float *, float *, float *, float *, bool);
 
 #define K2(O2_, T_, o0_, o1_, P0_, P1_)                                        \
-  template <typename Type, const int S, const int V, const int I,              \
-      const bool with_bias, const bool with_relu, const bool with_sum>         \
-  void convolution_direct_1x1_kernel<Type, S, O2_, T_, V, I, with_bias,        \
+  template <typename Type, const int V, const int I, const bool with_bias,     \
+      const bool with_relu, const bool with_sum>                               \
+  void convolution_direct_1x1_kernel<Type, 1, O2_, T_, SSS, V, I, with_bias,   \
       with_relu, with_sum>::gemm(elx_conv_t<Type> &xc, Type *output,           \
       Type *input, Type *weights, Type *bias, bool reset_out)                  \
   {                                                                            \
@@ -305,18 +293,18 @@ namespace euler {
     K_GEMM_FMA_P##P1_(o1_, T_, o0_);                                           \
   }                                                                            \
   template void                                                                \
-  convolution_direct_1x1_kernel<float, 2, O2_, T_, 16, ISA_SKX_AVX512,         \
+  convolution_direct_1x1_kernel<float, 1, O2_, T_, SSS, 16, ISA_SKX_AVX512,    \
       BIAS(true), RELU(false), SUM(false)>::gemm(elx_conv_t<float> &, float *, \
       float *, float *, float *, bool);                                        \
   template void                                                                \
-  convolution_direct_1x1_kernel<float, 2, O2_, T_, 16, ISA_SKX_AVX512,         \
+  convolution_direct_1x1_kernel<float, 1, O2_, T_, SSS, 16, ISA_SKX_AVX512,    \
       BIAS(false), RELU(false), SUM(false)>::gemm(elx_conv_t<float> &,         \
       float *, float *, float *, float *, bool);
 
 #define K3(O2_, T_, o0_, o1_, o2_, P0_, P1_, P2_)                              \
-  template <typename Type, const int S, const int V, const int I,              \
-      const bool with_bias, const bool with_relu, const bool with_sum>         \
-  void convolution_direct_1x1_kernel<Type, S, O2_, T_, V, I, with_bias,        \
+  template <typename Type, const int V, const int I, const bool with_bias,     \
+      const bool with_relu, const bool with_sum>                               \
+  void convolution_direct_1x1_kernel<Type, 1, O2_, T_, SSS, V, I, with_bias,   \
       with_relu, with_sum>::gemm(elx_conv_t<Type> &xc, Type *output,           \
       Type *input, Type *weights, Type *bias, bool reset_out)                  \
   {                                                                            \
@@ -332,11 +320,11 @@ namespace euler {
     K_GEMM_FMA_P##P2_(o2_, T_, o0_ + o1_);                                     \
   }                                                                            \
   template void                                                                \
-  convolution_direct_1x1_kernel<float, 2, O2_, T_, 16, ISA_SKX_AVX512,         \
+  convolution_direct_1x1_kernel<float, 1, O2_, T_, SSS, 16, ISA_SKX_AVX512,    \
       BIAS(true), RELU(false), SUM(false)>::gemm(elx_conv_t<float> &, float *, \
       float *, float *, float *, bool);                                        \
   template void                                                                \
-  convolution_direct_1x1_kernel<float, 2, O2_, T_, 16, ISA_SKX_AVX512,         \
+  convolution_direct_1x1_kernel<float, 1, O2_, T_, SSS, 16, ISA_SKX_AVX512,    \
       BIAS(false), RELU(false), SUM(false)>::gemm(elx_conv_t<float> &,         \
       float *, float *, float *, float *, bool);
 

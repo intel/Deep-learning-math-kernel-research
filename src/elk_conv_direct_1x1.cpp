@@ -8,3 +8,4 @@
 
 #include "kernel/elk_conv_direct_1x1_gemm_s1.hxx"
 #include "kernel/elk_conv_direct_1x1_gemm_s2.hxx"
+#include "kernel/elk_conv_direct_1x1_gemm_s1_ccs.hxx"
