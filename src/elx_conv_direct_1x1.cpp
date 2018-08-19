@@ -384,7 +384,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_blocked(
 {
   // oc4, (oc3, oc3r), (O2, O2r), ic4, ic3, I2, V, V -> ic4, oc4, ic3, (oc3, oc3r), I2, V, (O2, O2r), V
   MD8(Type, aweights, weights, this->oc4, this->oc3, this->O2, this->ic4, this->ic3, this->I2, V, V);
-  MD8(Type, atweights, tweights, this->oc4, this->ic4, this->oc3, this->ic3, this->O2, this->I2, V, V);
+  MD8(Type, atweights, tweights, this->oc4, this->ic4, this->oc3, this->ic3, this->I2, V, this->O2, V);
 
 #pragma omp parallel
 #pragma omp for nowait collapse(4) schedule(static)
@@ -392,25 +392,26 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_blocked(
     for_each (_ic4, this->ic4) {
       for_each (_oc3, this->oc3) {
         for_each (_ic3, this->ic3) {
-          for_each (_O2, this->O2) {
-            for_each (_I2, this->I2) {
-              for_each (_iV, V) {
+          for_each (_I2, this->I2) {
+            for_each (_iV, V) {
+              for_each (_O2, this->O2) {
                 if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
                   if (stream_wei_)
-                    _mm512_stream_ps(
-                        &md8(atweights, _oc4, _ic4, _oc3, _ic3, _O2, _I2, _iV, 0),
-                        *(__m512 *)&md8(
-                            aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV, 0));
+                    _mm512_stream_ps(&md8(atweights, _oc4, _ic4, _oc3, _ic3,
+                                         _I2, _iV, _O2, 0),
+                        *(__m512 *)&md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3,
+                            _I2, _iV, 0));
                   else
-                    _mm512_store_ps(
-                        &md8(atweights, _oc4, _ic4, _oc3, _ic3, _O2, _I2, _iV, 0),
-                        *(__m512 *)&md8(
-                            aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV, 0));
+                    _mm512_store_ps(&md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2,
+                                        _iV, _O2, 0),
+                        *(__m512 *)&md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3,
+                            _I2, _iV, 0));
                 } else {
 #pragma omp simd
                   for_each (_oV, V) {
-                    md8(atweights, _oc4, _ic4, _oc3, _ic3, _O2, _I2, _iV, _oV)
-                        = md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV, _oV);
+                    md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2, _oV)
+                        = md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV,
+                            _oV);
                     ;
                   }
                 }
@@ -506,7 +507,6 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b061(
   // weights: oc4*, oc3, O2(O2r), ic4*, ic3, I2, V, V
   // input:   t3*, ic4*, ic3, I2, t2*, T(Tr), V
   // output:  t3*, oc4*, oc3, O2(O2r), t2*, T(Tr), V
-  //MD2(Type, aweights, weights, this->oc4, this->oc3 * this->O2 * this->IC * V);
   MD10(Type, ainput, input, this->t3, this->ic4, this->ic3, this->I2, this->ht, this->hs, this->wt, this->T, this->ws, V);
   MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
   MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);

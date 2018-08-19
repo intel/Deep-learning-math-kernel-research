@@ -87,7 +87,7 @@ namespace euler {
 
 // Load weights
 #define _MM_LOAD_WEIGHTS_P1(O_, P_)                                            \
-  zmm_wei(O_, P_) = _mm512_load_ps(&md4(aweights4, O_, _I2, _V, 0))
+  zmm_wei(O_, P_) = _mm512_load_ps(&md4(aweights4, _I2, _V, O_, 0))
 #define MM_LOAD_WEIGHTS_P1(O_) MATRIX_OP(_MM_LOAD_WEIGHTS_P1, O_, 1);
 
 // Compute output
@@ -118,7 +118,7 @@ namespace euler {
 #define __MM_STORE_OUTPUT(z, T_, O_)                                           \
   _mm512_store_ps(&md3(aoutput3##O_, 0, T_, 0), zmm_out(O_, T_));
 
-#define K_GEMM_FMA_P1(O_, T_, Os_)                                             \
+#define K_GEMM_FMA_P1(O2_, O_, T_, Os_)                                        \
   {                                                                            \
     __m512 bcast;                                                              \
     MATRIX_OP(DEF_OUTPUT, O_, T_);                                             \
@@ -126,7 +126,7 @@ namespace euler {
                                                                                \
     MD3(float, ainput, input, xc.I2, T_, V);                                   \
     MD2(float, aoutput2, &md2(aoutput, Os_, 0), O_, xc.oh *xc.ow *V);          \
-    MD4(float, aweights4, &md2(aweights, Os_, 0), O_, xc.I2, V, V);            \
+    MD4(float, aweights4, &md4(aweights, 0, 0, Os_, 0), xc.I2, V, O2_, V);     \
     MD2(float, abias2, &md2(abias, Os_, 0), O_, V);                            \
                                                                                \
     if (reset_out) {                                                           \
@@ -150,15 +150,15 @@ namespace euler {
   }
 
 #define _MM_PRELOAD_WEIGHTS_P2(O_, nil)                                        \
-  zmm_wei(O_, 0) = _mm512_load_ps(&md5(aweights5, O_, 0, 0, 0, 0));
+  zmm_wei(O_, 0) = _mm512_load_ps(&md5(aweights5, 0, 0, 0, O_, 0));
 #define MM_PRELOAD_WEIGHTS_P2(O_) MATRIX_OP(_MM_PRELOAD_WEIGHTS_P2, O_, 1)
 
 #define _MM_LOAD_WEIGHTS_P2_1(O_, nil)                                         \
-  zmm_wei(O_, 1) = _mm512_load_ps(&md5(aweights5, O_, _I2, _V, 1, 0));
+  zmm_wei(O_, 1) = _mm512_load_ps(&md5(aweights5, _I2, _V, 1, O_, 0));
 #define MM_LOAD_WEIGHTS_P2_1(O_) MATRIX_OP(_MM_LOAD_WEIGHTS_P2_1, O_, 1);
 
 #define _MM_LOAD_WEIGHTS_P2_0(O_, nil)                                         \
-  zmm_wei(O_, 0) = _mm512_load_ps(&md5(aweights5, O_, _I2, _V + 1, 0, 0));
+  zmm_wei(O_, 0) = _mm512_load_ps(&md5(aweights5, _I2, _V + 1, 0, O_, 0));
 #define MM_LOAD_WEIGHTS_P2_0(O_) MATRIX_OP(_MM_LOAD_WEIGHTS_P2_0, O_, 1);
 
 #define MM_COMPUTE_OUTPUT_P(O_, T_, P_)                                        \
@@ -171,7 +171,7 @@ namespace euler {
   zmm_out(O_, _0(TP_))                                                         \
       = _mm512_fmadd_ps(zmm_wei(O_, _1(TP_)), bcast, zmm_out(O_, _0(TP_)));
 
-#define K_GEMM_FMA_P2(O_, T_, Os_)                                             \
+#define K_GEMM_FMA_P2(O2_, O_, T_, Os_)                                        \
   {                                                                            \
     __m512 bcast;                                                              \
     MATRIX_OP(DEF_OUTPUT, O_, T_);                                             \
@@ -179,7 +179,8 @@ namespace euler {
                                                                                \
     MD4(float, ainput, input, xc.I2, T_, V / 2, 2);                            \
     MD2(float, aoutput2, &md2(aoutput, Os_, 0), O_, xc.oh *xc.ow *V);          \
-    MD5(float, aweights5, &md2(aweights, Os_, 0), O_, xc.I2, V / 2, 2, V);     \
+    MD5(float, aweights5, &md4(aweights, 0, 0, Os_, 0), xc.I2, V / 2, 2, O2_,  \
+        V);                                                                    \
     MD2(float, abias2, &md2(abias, Os_, 0), O_, V);                            \
                                                                                \
     MM_PRELOAD_WEIGHTS_P2(O_);                                                 \
@@ -208,27 +209,27 @@ namespace euler {
   }
 
 #define _MM_PRELOAD_WEIGHTS_P4(O_, nil)                                        \
-  zmm_wei(O_, 0) = _mm512_load_ps(&md5(aweights5, O_, 0, 0, 0, 0));            \
-  zmm_wei(O_, 1) = _mm512_load_ps(&md5(aweights5, O_, 0, 0, 1, 0));
+  zmm_wei(O_, 0) = _mm512_load_ps(&md5(aweights5, 0, 0, 0, O_, 0));            \
+  zmm_wei(O_, 1) = _mm512_load_ps(&md5(aweights5, 0, 0, 1, O_, 0));
 #define MM_PRELOAD_WEIGHTS_P4(O_) MATRIX_OP(_MM_PRELOAD_WEIGHTS_P4, O_, 1)
 
 #define _MM_LOAD_WEIGHTS_P4_2(O_, nil)                                         \
-  zmm_wei(O_, 2) = _mm512_load_ps(&md5(aweights5, O_, _I2, _V, 2, 0));
+  zmm_wei(O_, 2) = _mm512_load_ps(&md5(aweights5, _I2, _V, 2, O_, 0));
 #define MM_LOAD_WEIGHTS_P4_2(O_) MATRIX_OP(_MM_LOAD_WEIGHTS_P4_2, O_, 1);
 
 #define _MM_LOAD_WEIGHTS_P4_3(O_, nil)                                         \
-  zmm_wei(O_, 3) = _mm512_load_ps(&md5(aweights5, O_, _I2, _V, 3, 0));
+  zmm_wei(O_, 3) = _mm512_load_ps(&md5(aweights5, _I2, _V, 3, O_, 0));
 #define MM_LOAD_WEIGHTS_P4_3(O_) MATRIX_OP(_MM_LOAD_WEIGHTS_P4_3, O_, 1);
 
 #define _MM_LOAD_WEIGHTS_P4_0(O_, nil)                                         \
-  zmm_wei(O_, 0) = _mm512_load_ps(&md5(aweights5, O_, _I2, _V + 1, 0, 0));
+  zmm_wei(O_, 0) = _mm512_load_ps(&md5(aweights5, _I2, _V + 1, 0, O_, 0));
 #define MM_LOAD_WEIGHTS_P4_0(O_) MATRIX_OP(_MM_LOAD_WEIGHTS_P4_0, O_, 1);
 
 #define _MM_LOAD_WEIGHTS_P4_1(O_, nil)                                         \
-  zmm_wei(O_, 1) = _mm512_load_ps(&md5(aweights5, O_, _I2, _V + 1, 1, 0));
+  zmm_wei(O_, 1) = _mm512_load_ps(&md5(aweights5, _I2, _V + 1, 1, O_, 0));
 #define MM_LOAD_WEIGHTS_P4_1(O_) MATRIX_OP(_MM_LOAD_WEIGHTS_P4_1, O_, 1);
 
-#define K_GEMM_FMA_P4(O_, T_, Os_)                                             \
+#define K_GEMM_FMA_P4(O2_, O_, T_, Os_)                                        \
   {                                                                            \
     __m512 bcast;                                                              \
     MATRIX_OP(DEF_OUTPUT, O_, T_);                                             \
@@ -236,7 +237,8 @@ namespace euler {
                                                                                \
     MD4(float, ainput, input, xc.I2, T_, V / 4, 4);                            \
     MD2(float, aoutput2, &md2(aoutput, Os_, 0), O_, xc.oh *xc.ow *V);          \
-    MD5(float, aweights5, &md2(aweights, Os_, 0), O_, xc.I2, V / 4, 4, V);     \
+    MD5(float, aweights5, &md4(aweights, 0, 0, Os_, 0), xc.I2, V / 4, 4, O2_,  \
+        V);                                                                    \
     MD2(float, abias2, &md2(abias, Os_, 0), O_, V);                            \
                                                                                \
     MM_PRELOAD_WEIGHTS_P4(O_);                                                 \
@@ -280,10 +282,10 @@ namespace euler {
     ENABLE_AVX512F();                                                          \
                                                                                \
     MD2(Type, aoutput, output, O2_, xc.oh *xc.ow *V);                          \
-    MD2(Type, aweights, weights, O2_, xc.I2 * V * V);                          \
+    MD4(Type, aweights, weights, xc.I2, V, O2_, V);                            \
     MD2(Type, abias, bias, O2_, V);                                            \
                                                                                \
-    K_GEMM_FMA_P##P_(O2_, T_, 0);                                              \
+    K_GEMM_FMA_P##P_(O2_, O2_, T_, 0);                                         \
   }                                                                            \
   template void                                                                \
   convolution_direct_1x1_kernel<float, 1, O2_, T_, CCS, 16, ISA_SKX_AVX512,    \
@@ -304,11 +306,11 @@ namespace euler {
     ENABLE_AVX512F();                                                          \
                                                                                \
     MD2(Type, aoutput, output, O2_, xc.oh *xc.ow *V);                          \
-    MD2(Type, aweights, weights, O2_, xc.I2 * V * V);                          \
+    MD4(Type, aweights, weights, xc.I2, V, O2_, V);                            \
     MD2(Type, abias, bias, O2_, V);                                            \
                                                                                \
-    K_GEMM_FMA_P##P0_(o0_, T_, 0);                                             \
-    K_GEMM_FMA_P##P1_(o1_, T_, o0_);                                           \
+    K_GEMM_FMA_P##P0_(O2_, o0_, T_, 0);                                        \
+    K_GEMM_FMA_P##P1_(O2_, o1_, T_, o0_);                                      \
   }                                                                            \
   template void                                                                \
   convolution_direct_1x1_kernel<float, 1, O2_, T_, CCS, 16, ISA_SKX_AVX512,    \
@@ -329,12 +331,12 @@ namespace euler {
     ENABLE_AVX512F();                                                          \
                                                                                \
     MD2(Type, aoutput, output, O2_, xc.oh *xc.ow *V);                          \
-    MD2(Type, aweights, weights, O2_, xc.I2 * V * V);                          \
+    MD4(Type, aweights, weights, xc.I2, V, O2_, V);                            \
     MD2(Type, abias, bias, O2_, V);                                            \
                                                                                \
-    K_GEMM_FMA_P##P0_(o0_, T_, 0);                                             \
-    K_GEMM_FMA_P##P1_(o1_, T_, o0_);                                           \
-    K_GEMM_FMA_P##P2_(o2_, T_, o0_ + o1_);                                     \
+    K_GEMM_FMA_P##P0_(O2_, o0_, T_, 0);                                        \
+    K_GEMM_FMA_P##P1_(O2_, o1_, T_, o0_);                                      \
+    K_GEMM_FMA_P##P2_(O2_, o2_, T_, o0_ + o1_);                                \
   }                                                                            \
   template void                                                                \
   convolution_direct_1x1_kernel<float, 1, O2_, T_, CCS, 16, ISA_SKX_AVX512,    \
