@@ -71,8 +71,9 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   this->oc3r = this->oc34 % this->oc3;
   if (this->oc3r == 0) this->oc3r = this->oc3;
 
-  if (xopt_ == 0xb061 && (this->O2r != this->O2 || this->oc3r != this->oc3)) {
-    el_error("No oc tailing for 0xb061");
+  if ((xopt_ == 0xb061 || xopt_ == 0xb062)
+      && (this->O2r != this->O2 || this->oc3r != this->oc3)) {
+    el_error("No oc tailing for 0xb061, 0xb062");
   }
 
   // ic4, ic3, I3
@@ -80,6 +81,10 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   this->ic3 = this->ic34 / this->ic4;
   if (this->ic4 * this->ic3 * this->I2 * V != this->IC)
     el_error("IC blocking error");
+
+  if (xopt_ == 0xb062 && this->ic4 != 1) {
+    el_error("ic4 != 1 not support in 0xb062");
+  }
 
   is_first_run_ = true;
   inference_acc_ = false;
@@ -138,6 +143,8 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
     l2_usage = this->IC * this->OC / this->oc4 + this->IC * this->T
         + this->OC / this->oc4 * this->T;
     break;
+  case 0xb062:
+    toutput_size = mthr_ * this->oc3 * this->O2 * this->T * V;
   case 0xb061:
     tinput_size = mthr_ * this->ic3 * this->I2 * this->T * V;
     tweights_size = this->IC * this->OC;
@@ -189,6 +196,13 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
             BIAS(true), RELU(false), SUM(false)>::gemm;                        \
       else                                                                     \
         *func = convolution_direct_1x1_kernel<Type, 1, O_, T_, CCS, V, I,      \
+            BIAS(false), RELU(false), SUM(false)>::gemm;                       \
+    } else if (this->hs == 2 && xopt_ == 0xb062) {                             \
+      if (this->with_bias)                                                     \
+        *func = convolution_direct_1x1_kernel<Type, 1, O_, T_, CCC, V, I,      \
+            BIAS(true), RELU(false), SUM(false)>::gemm;                        \
+      else                                                                     \
+        *func = convolution_direct_1x1_kernel<Type, 1, O_, T_, CCC, V, I,      \
             BIAS(false), RELU(false), SUM(false)>::gemm;                       \
     }                                                                          \
     break;
@@ -282,6 +296,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
     EXECUTE_CASE(a000);
     EXECUTE_CASE(b000);
     EXECUTE_CASE(b061);
+    EXECUTE_CASE(b062);
   default:
     el_error("Unimplemented");
     break;
@@ -478,6 +493,45 @@ void elx_conv_direct_1x1_t<Type, V, I>::trans_input(
     __trans_input_plain(tinput, input);
 }
 
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_blocked(
+    Type *output, Type *toutput)
+{
+  // oc3, O2, T, V => n, oc4 | oc3, O2, ht, wt, T, V
+  MD4(Type, atoutput, toutput, this->oc3, this->O2, this->T, V);
+  MD6(Type, aoutput, output, this->oc3, this->O2, this->ht, this->wt, this->T, V);
+
+  for_each (_oc3, this->oc3) {
+    for_each (_O2, this->O2) {
+      for_each (_T, this->T) {
+#pragma omp simd
+        for_each (_V, V) {
+          md6(aoutput, _oc3, _O2, 0, 0, _T, _V)
+              = md4(atoutput, _oc3, _O2, _T, _V);
+        }
+      }
+    }
+  }
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_plain(
+    Type *output, Type *toutput)
+{
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::trans_output(
+    Type *output, Type *toutput)
+{
+  if (output_is_bfmt_ || output_as_bfmt_)
+    __trans_output_blocked(output, toutput);
+  else
+    __trans_output_plain(output, toutput);
+}
+
+
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::gemm_b061(Type *output, Type *input,
     Type *weights, Type *bias, int _ic4, int _oc4)
@@ -499,6 +553,29 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_b061(Type *output, Type *input,
     }
   }
 }
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::gemm_b062(Type *output, Type *input,
+    Type *weights, Type *bias, int _ic4, int _oc4)
+{
+  // weights: oc3*, ic3*, O2, I2, V, V
+  // input:   ic3*, I2, T, V
+  // output:  oc3*, O2, T, V
+  MD2(Type, ainput, input, this->ic3, this->I2 * this->T * V);
+  MD2(Type, aoutput, output, this->oc3, this->O2 * this->T * V);
+  MD3(Type, aweights, weights, this->oc3, this->ic3, this->O2 * this->I2 * V * V);
+  MD2(Type, abias, bias, this->oc3, this->O2 * V);
+
+  for_each (_ic3, this->ic3) {
+    bool reset = _ic4 == 0 && _ic3 == 0;
+    for_each (_oc3, this->oc3) {
+      ker_gemm_O_T_(*this, &md2(aoutput, _oc3, 0),
+          &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
+          &md2(abias, _oc3, 0), reset);
+    }
+  }
+}
+
 
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::__execute_b061(
@@ -541,6 +618,47 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b061(
   }
 
   if (inference_acc_) is_first_run_ = false;
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__execute_b062(
+    Type *output, Type *input, Type *weights, Type *bias)
+{
+  MD10(Type, ainput, input, this->t3, this->ic4, this->ic3, this->I2, this->ht, this->hs, this->wt, this->T, this->ws, V);
+  MD8(Type, aoutput, output, this->t3, this->oc4, this->oc3, this->O2, this->ht, this->wt, this->T, V);
+  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+
+  MD2(Type, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
+  MD2(Type, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
+  MD3(Type, atweights, tweights_, this->oc4, this->ic4, this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
+
+  if (is_first_run_) {
+    trans_weights(tweights_, weights);
+  }
+
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+#pragma omp for nowait collapse(4)
+  for_each (_t3, this->t3) {
+    for_each (_oc4, this->oc4) {
+      for_each (_ht, this->ht) {
+        for_each (_wt, this->wt) {
+          size_t ithr = omp_get_thread_num();
+          MD5(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
+              this->oc3 * this->O2, this->ht, this->wt, this->T * V);
+
+          trans_input(&md2(atinput, ithr, 0),
+              &md10(ainput, _t3, 0, 0, 0, _ht, 0, _wt, 0, 0, 0));
+          gemm_b062(&md2(atoutput, ithr, 0), &md2(atinput, ithr, 0),
+              &md3(atweights, _oc4, 0, 0), &md2(abias, _oc4, 0), 0, _oc4);
+          trans_output(&md8(aoutput, _t3, _oc4, 0, 0, _ht, _wt, 0, 0),
+              &md2(atoutput, ithr, 0));
+        }
+      }
+    }
+  }
+
+  if (inference_acc_)
+    is_first_run_ = false;
 }
 
 template <typename Type, const int V, const int I>

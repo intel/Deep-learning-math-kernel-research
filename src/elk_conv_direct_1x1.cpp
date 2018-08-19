@@ -9,3 +9,4 @@
 #include "kernel/elk_conv_direct_1x1_gemm_s1_sss.hxx"
 #include "kernel/elk_conv_direct_1x1_gemm_s2_sss.hxx"
 #include "kernel/elk_conv_direct_1x1_gemm_s1_ccs.hxx"
+#include "kernel/elk_conv_direct_1x1_gemm_s1_ccc.hxx"
