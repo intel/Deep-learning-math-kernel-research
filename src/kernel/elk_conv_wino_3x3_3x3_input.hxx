@@ -33,7 +33,7 @@ protected:
 
   template <bool is_border>
   static void __trans_inputa(elx_conv_t<float> &xc, float atinput[A][A][V],
-      float *input, int _wA, int _hA_start, int _hA_end, int _wA_start,
+      float *input, int wA, int hA_start, int hA_end, int wA_start,
       int _wA_end);
 
   template <bool ...conditions>

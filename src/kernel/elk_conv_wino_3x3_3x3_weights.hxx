@@ -12,8 +12,6 @@ namespace euler {
 
 inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 5, 3>::
 __trans_weights(float atweights[A][A][V][V], float aweights[K][K][V][V]) {
-  ENABLE_AVX512F();
-
   // Constants
   __m512 r12 = _mm512_set_ps(IMM_BCAST16(1.0f / 12.0f));
   __m512 r6 = _mm512_set_ps(IMM_BCAST16(1.0f / 6.0f));

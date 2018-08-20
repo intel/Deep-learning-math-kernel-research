@@ -1,3 +1,4 @@
+#pragma once
 #include <assert.h>
 #include <x86intrin.h>
 #include "elk_def.hpp"
@@ -5,18 +6,12 @@
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
 #include "elk_conv_wino.hpp"
-
-#ifndef INCLUDE_WINOGRAD_CONVOLUTION_KERNEL
-#error "Don't include this file directly"
-#endif
+#include "elk_conv_wino_4x4_3x3_input.hxx"
 
 namespace euler {
 
-// float atweights[A][A][V][V] <- float aweights[K][K][V][V])
-__TRANS_WEIGHTS(float, 6, 3, 16, ISA_SKX_AVX512)
-{
-  ENABLE_AVX512F();
-
+inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 6, 3>::
+  __trans_weights(float atweights[A][A][V][V], float aweights[K][K][V][V]) {
   __m512 z0 = _mm512_setzero_ps();
   __m512 z1 = _mm512_set_ps(IMM_BCAST16(1.0f));
   __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
@@ -196,7 +191,4 @@ __TRANS_WEIGHTS(float, 6, 3, 16, ISA_SKX_AVX512)
     ISTORE(5, 5);
   }
 }
-
-TRANS_WEIGHTS(float, 6, 3, 16, ISA_SKX_AVX512);
-
 } // namespace euler

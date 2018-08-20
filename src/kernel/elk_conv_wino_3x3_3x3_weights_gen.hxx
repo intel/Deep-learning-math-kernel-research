@@ -9,6 +9,7 @@
 #include "elk_conv_wino_3x3_3x3_input_gen.hxx"
 
 namespace euler {
+
 inline void convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 5, 3>::
 __trans_weights(float atweights[A][A][V][V], float aweights[K][K][V][V]) {
   const float r12 = 1.0f / 12.0f;
