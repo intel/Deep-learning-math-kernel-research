@@ -57,29 +57,6 @@ public:
 
   virtual void execute(Type *output, Type *input, Type *weights, Type *bias);
 
-  // Configurator
-  inline std::pair<int, int> tile_blocking_oc4(int num_cpu) const {
-    constexpr int reg_max = 32;
-    constexpr int reg_min = 15;
-    auto part_o_max = 8;
-
-    auto t = this->t;
-    auto tb = (t - 1)/ num_cpu + 1;
-    auto part_o = 1;
-
-    while (tb < reg_min && part_o < part_o_max) {
-      num_cpu /= 2;
-      part_o *= 2;
-      tb = (t - 1) / num_cpu + 1;
-    }
-
-    while (tb > reg_max) {
-      tb /= 2;
-    }
-
-    return std::make_pair(tb, part_o);
-  }
-
   inline std::size_t input_unit(int t) const {
     return elem_sz_ * t * V;
   }
@@ -92,9 +69,35 @@ public:
     return elem_sz_ * t * V;
   }
 
+  // Calculate t and oc4 initial according to core numbers
+  inline std::pair<int, int> tile_oc4(int num_cpu) const {
+    constexpr int reg_max = 32;
+    constexpr int reg_min = 13;
+    auto part_o_max = this->OC;
+    auto t = this->t;
+    int tb, n = 1, oc4 = 1;
+
+    if ( t > 13 * 27 + 1 ) {
+      do {
+        tb = (t - 1) / (n ++ * num_cpu) + 1;
+      } while (tb > reg_max);
+    } else {
+      tb = (t - 1) / num_cpu + 1;
+
+      while (tb < reg_min && oc4 < part_o_max) {
+        num_cpu /= 2;
+        oc4 *= 2;
+        tb = (t - 1) / num_cpu + 1;
+      }
+    }
+
+    return std::make_pair(tb, oc4);
+  }
+
   // Return eligible I2 number, I2 iteration prefer L1 reside
-  inline std::size_t I2_num(std::size_t cache_sz, int t) const {
-    auto ic2 = this->ic2;
+  // XXX: prefer not to divide ic
+  inline int I2_num(std::size_t cache_sz, int t) const {
+    auto ic2 = this->IC;
     auto cache_l = cache_sz - output_unit(t);
 
     while((input_unit(t) + weights_unit()) * ic2 > cache_l) {
@@ -104,21 +107,24 @@ public:
     return ic2;
   }
 
-  // Return eligible O2 number, O2 iteration prefer L2 upper reside
-  inline std::size_t O2_num(std::size_t cache_sz, int i2
-      , std::pair<int, int> t_oc4)
-    const {
+  // oc4 fine tune, eligible for L2, avoid eviction of inputs
+  inline std::pair<int, int> oc4_tune(std::size_t cache_sz, int i2
+      , std::pair<int, int> t_oc4) const {
     auto t = t_oc4.first;
-    auto oc2 = this->oc2/t_oc4.second;
+    auto oc4 = t_oc4.second;
+    auto oc3 = this->OC/oc4;
 
+    // oc4 will divide weights and outputs
     auto cache_l = cache_sz - input_unit(t) * i2;
-    auto wo_unit = weights_unit() + output_unit(t);
+    auto wo_unit = weights_unit() * i2 + output_unit(t);
 
-    while(wo_unit * oc2 > cache_l) {
-      if ((oc2 & 0x1) == 0)
-        oc2 /= 2;
+    while(wo_unit * oc3 > cache_l) {
+      if ((oc3 & 0x1) == 0) {
+        oc3 /= 2;
+        oc4 *= 2;
+      }
     }
-    return oc2;
+    return std::make_pair(oc3, oc4);
   }
 
   // Checkers
