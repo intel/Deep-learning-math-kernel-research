@@ -1,5 +1,5 @@
-#ifndef __ELX_CONV_WINO_GEMM_HPP__
-#define __ELX_CONV_WINO_GEMM_HPP__
+#ifndef __ELX_CONV_WINO_HPP__
+#define __ELX_CONV_WINO_HPP__
 
 #include <tuple>
 
@@ -317,4 +317,4 @@ template class elx_conv_wino_t<float, 6, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<float, 7, 3, 16, ISA_SKX_AVX512>;
 
 }  // namespace euler
-#endif  // __ELX_CONV_WINO_GEMM_HPP__
+#endif  // __ELX_CONV_WINO_HPP__

@@ -20,7 +20,8 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
   Time::time_point __e##name = Time::now();                                    \
   double ms = Duration(__e##name - __s##name).count() / iterations;            \
   double tflops = num_ops / ms / 1e9;                                          \
-  printf("%s: %.2f ms, tflops=%g\n", #name, ms, tflops);
+  printf("%s: iterations=%d, ops=%ld, time=%.4f ms, tflops=%g\n", #name,       \
+      iterations, (unsigned long)num_ops, ms, tflops);
 
 // Test timing
 #define TT(name, iters, perf, expr)                                            \

@@ -41,8 +41,10 @@ include("cmake/required.cmake")
 # find src files
 file (GLOB __euler_source
   src/eld_conv.cpp
+  src/elk_conv_direct_1x1.cpp
   src/elx_conv.cpp
-  src/elx_conv_wino.cpp)
+  src/elx_conv_wino.cpp
+  src/elx_conv_direct_1x1.cpp)
 
 include_directories(AFTER . include src tests xsimd/include)
 link_directories(lib)

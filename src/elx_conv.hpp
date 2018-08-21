@@ -25,6 +25,8 @@ struct elx_conv_t {
   int ic3, oc3, ih3, iw3, oh3, ow3, t3;
   // dimensions in tripple level packed unit
   int ic4, oc4;
+  // redundant dim size
+  int ic234, ic34, oc234, oc34;
   // dimensions in tiles: tiles per (image, line, column)
   int nt, ht, wt;
   // pack size
@@ -34,8 +36,8 @@ struct elx_conv_t {
   // register working set
   int T;
   // padding (IC/OC) & tailing dimensions: Ir, Or, Tr
-  int IC, OC, Ir, Or, Tr;
-  // 2nd/3rd level cache blocking unit(in pack) to ic, oc
+  int IC, OC, Ir, Or, Tr, O2r, oc3r;
+  // 2nd/r3d level cache blocking unit(in pack) to ic, oc
   int I2, O2, I3, O3;
   // padding
   int lp, rp, tp, bp;

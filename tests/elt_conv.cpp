@@ -43,6 +43,7 @@ int main(int argc, char **argv)
     input_format, weights_format, output_format
   };
   desc.pads = { ph, ph, pw, pw };
+  desc.strides   = { sh, sw };
   desc.with_bias = with_bias;
   desc.with_relu = with_relu;
   desc.algorithm = alg;
@@ -67,8 +68,8 @@ int main(int argc, char **argv)
   test::prepare_conv_data<float>(desc, &input, &weights, &output, &bias);
 
   // 3. execute convolution
-  int iterations = validate_results ? 1: 6400 / mb;
   size_t num_ops = test::cal_ops(desc);
+  int iterations = validate_results ? 1 : test::cal_iterations(num_ops);
   time_start(conv);
   for (int n = 0; n < iterations; ++n) {
     if (ELX_OK != elx_conv<float>(desc, output, input, weights, bias)) {
@@ -120,7 +121,7 @@ int parse_cmd_options(int argc, char **argv) {
     ("validate-results,v", po::value<bool>(&validate_results), "on|off. Validate correctness. Default: off")
     ("with-bias,b", po::value<bool>(&with_bias), "on|off. With bias. Default: on")
     ("with-relu,r", po::value<bool>(&with_relu), "on|off. With relu. Default: off")
-    ("alg,a", po::value<std::string>(), "wino|direct. Algorithm. Default: wino")
+    ("alg,a", po::value<std::string>(), "auto|wino|direct|direct_1x1. Algorithm. Default: wino")
     ("tile-size", po::value<int>(&tile_size), "Winograd tile size: 5")
     ("nteams", po::value<int>(&nteams), "Number of thread team")
     ("nthreads", po::value<int>(&nthreads), "Number of threads per team")
@@ -152,12 +153,16 @@ int parse_cmd_options(int argc, char **argv) {
     std::string alg_str = vm["alg"].as<std::string>();
     std::transform(
         alg_str.begin(), alg_str.end(), alg_str.begin(), ::toupper);
-    if (alg_str == "WINO")
+    if (alg_str == "AUTO")
+      alg = CONV_AUTO;
+    else if (alg_str == "WINO")
       alg = CONV_WINOGRAD;
     else if (alg_str == "DIRECT")
       alg = CONV_DIRECT;
+    else if (alg_str == "DIRECT_1X1")
+      alg = CONV_DIRECT_1X1;
     else {
-      printf("Error: convolution options: alg should be wino|direct\n");
+      printf("Error: convolution options: alg should be auto|wino|direct|direct_1x1\n");
       return -1;
     }
   }
@@ -228,10 +233,15 @@ int parse_cmd_options(int argc, char **argv) {
   printf("prop_kind:%s\n", prop_kind_str[prop_kind]);
 
   std::unordered_map<int, const char *> alg_str {
+    {CONV_AUTO, "CONV_AUTO"},
+    {CONV_WINOGRAD, "CONV_WINOGRAD"},
     {CONV_DIRECT, "CONV_DIRECT"},
-    {CONV_WINOGRAD, "CONV_WINOGRAD"}
+    {CONV_DIRECT_1X1, "CONV_DIRECT_1X1"}
   };
-  printf("alg:%s, tile-size=%d\n", alg_str[alg], tile_size);
+  printf("alg:%s", alg_str[alg]);
+  if (alg == CONV_WINOGRAD)
+    printf(", tile-size=%d", tile_size);
+  printf("\n");
 
   std::unordered_map<int, const char *> fmt_str { {nchw, "nchw"},
     {oihw, "oihw"}, {nChw16c, "nChw16c"}, {OIhw16i16o, "OIhw16i16o"}

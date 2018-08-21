@@ -47,3 +47,9 @@ IC/OC != 16x (2018-7-16): Done
 MD-Array (2018-7-22): Done
 - Cross platform/compiler MD-array
 - Improve MD-Array performance for ICC
+
+Conv_1x1 (2018-8-1): Done
+- Uni-stride: kernel=1x1, stride=1, padding=0
+- Stride=2, padding=0
+- Blocked format
+- TODO: plain format, IC/OC != 16x

@@ -68,14 +68,7 @@ int elx_conv(eld_conv_t<T> &desc, T *output, T *input, T *weights, T *bias) {
     return ELX_GENERAL_ERROR;
   }
 
-  if (desc.algorithm == CONV_DIRECT) {
-    el_error("Unimplemented");
-    return ELX_UNIMPLEMENTED;
-
-  } else {
-    assert(desc.algorithm == CONV_WINOGRAD);
-    xc.execute(output, input, weights, bias);
-  }
+  xc.execute(output, input, weights, bias);
   return ELX_OK;
 }
 
