@@ -365,12 +365,12 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_c060(Type *output, Type *input,
       this->I2 * V * V);
   MD2(Type, abias, bias, this->oc3, this->O2 * V);
 
-  for_each (_ic3, this->ic3) {
+  iter_each (_ic3, this->ic3) {
     bool reset = _ic4 == 0 && _ic3 == 0;
     int oc3 = _oc4 == this->oc4 - 1 ? this->oc3r : this->oc3;
     MD2(Type, ainput2, &md2(ainput, _ic3, 0), this->t2, this->T * V);
 
-    for_each (_oc3, oc3) {
+    iter_each (_oc3, oc3) {
       MD2(Type, aoutput2, &md2(aoutput, _oc3, 0), this->t2, this->T * V);
 
       if (_oc4 == this->oc4 - 1 && _oc3 == oc3 - 1) {
@@ -408,12 +408,12 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_c060(
   MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
   MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-  for_each (_ic4, this->ic4) {
+  iter_each (_ic4, this->ic4) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(3)
-    for_each (_t3, this->t3) {
-      for_each (_oc4, this->oc4) {
-        for_each (_t2, this->t2) {
+    iter_each (_t3, this->t3) {
+      iter_each (_oc4, this->oc4) {
+        iter_each (_t2, this->t2) {
           MD2(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
               this->oc3 * this->O2 * this->oh * this->ow * V);
 
@@ -435,13 +435,13 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_blocked(
 
 #pragma omp parallel
 #pragma omp for nowait collapse(4) schedule(static)
-  for_each (_oc4, this->oc4) {
-    for_each (_ic4, this->ic4) {
-      for_each (_oc3, this->oc3) {
-        for_each (_ic3, this->ic3) {
-          for_each (_I2, this->I2) {
-            for_each (_iV, V) {
-              for_each (_O2, this->O2) {
+  iter_each (_oc4, this->oc4) {
+    iter_each (_ic4, this->ic4) {
+      iter_each (_oc3, this->oc3) {
+        iter_each (_ic3, this->ic3) {
+          iter_each (_I2, this->I2) {
+            iter_each (_iV, V) {
+              iter_each (_O2, this->O2) {
                 if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
                   if (stream_wei_)
                     _mm512_stream_ps(&md8(atweights, _oc4, _ic4, _oc3, _ic3,
@@ -455,7 +455,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_blocked(
                             _I2, _iV, 0));
                 } else {
 #pragma omp simd
-                  for_each (_oV, V) {
+                  iter_each (_oV, V) {
                     md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2, _oV)
                         = md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV,
                             _oV);
@@ -496,11 +496,11 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_input_blocked(
   MD8(Type, ainput, input, this->ic3, this->I2, this->ht, this->hs, this->wt, this->T, this->ws, V);
   MD4(Type, atinput, tinput, this->ic3, this->I2, this->T, V);
 
-  for_each (_ic3, this->ic3) {
-    for_each (_I2, this->I2) {
-      for_each (_T, this->T) {
+  iter_each (_ic3, this->ic3) {
+    iter_each (_I2, this->I2) {
+      iter_each (_T, this->T) {
 #pragma omp simd
-        for_each (_V, V) {
+        iter_each (_V, V) {
           md4(atinput, _ic3, _I2, _T, _V)
               = md8(ainput, _ic3, _I2, 0, 0, 0, _T, 0, _V);
         }
@@ -534,11 +534,11 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_blocked(
   MD4(Type, atoutput, toutput, this->oc3, this->O2, this->T, V);
   MD6(Type, aoutput, output, this->oc3, this->O2, this->ht, this->wt, this->T, V);
 
-  for_each (_oc3, this->oc3) {
-    for_each (_O2, this->O2) {
-      for_each (_T, this->T) {
+  iter_each (_oc3, this->oc3) {
+    iter_each (_O2, this->O2) {
+      iter_each (_T, this->T) {
 #pragma omp simd
-        for_each (_V, V) {
+        iter_each (_V, V) {
           md6(aoutput, _oc3, _O2, 0, 0, _T, _V)
               = md4(atoutput, _oc3, _O2, _T, _V);
         }
@@ -576,9 +576,9 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_b061(Type *output, Type *input,
   MD3(Type, aweights, weights, this->oc3, this->ic3, this->O2 * this->I2 * V * V);
   MD2(Type, abias, bias, this->oc3, this->O2 * V);
 
-  for_each (_ic3, this->ic3) {
+  iter_each (_ic3, this->ic3) {
     bool reset = _ic4 == 0 && _ic3 == 0;
-    for_each (_oc3, this->oc3) {
+    iter_each (_oc3, this->oc3) {
       ker_gemm_O_T_(*this, &md5(aoutput, _oc3, 0, 0, 0, 0),
           &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
           &md2(abias, _oc3, 0), reset);
@@ -598,9 +598,9 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_a061(Type *output, Type *input,
   MD3(Type, aweights, weights, this->oc3, this->ic3, this->O2 * this->I2 * V * V);
   MD2(Type, abias, bias, this->oc3, this->O2 * V);
 
-  for_each (_ic3, this->ic3) {
+  iter_each (_ic3, this->ic3) {
     bool reset = _ic4 == 0 && _ic3 == 0;
-    for_each (_oc3, this->oc3) {
+    iter_each (_oc3, this->oc3) {
       ker_gemm_O_T_(*this, &md2(aoutput, _oc3, 0),
           &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
           &md2(abias, _oc3, 0), reset);
@@ -627,13 +627,13 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b061(
     trans_weights(tweights_, weights);
   }
 
-  for_each (_ic4, this->ic4) {
+  iter_each (_ic4, this->ic4) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(4)
-    for_each (_t3, this->t3) {
-      for_each (_oc4, this->oc4) {
-        for_each (_ht, this->ht) {
-          for_each (_wt, this->wt) {
+    iter_each (_t3, this->t3) {
+      iter_each (_oc4, this->oc4) {
+        iter_each (_ht, this->ht) {
+          iter_each (_wt, this->wt) {
             size_t ithr = omp_get_thread_num();
             MD5(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
                 this->oc3 * this->O2, this->ht, this->wt, this->T * V);
@@ -670,10 +670,10 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a061(
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(4)
-  for_each (_t3, this->t3) {
-    for_each (_oc4, this->oc4) {
-      for_each (_ht, this->ht) {
-        for_each (_wt, this->wt) {
+  iter_each (_t3, this->t3) {
+    iter_each (_oc4, this->oc4) {
+      iter_each (_ht, this->ht) {
+        iter_each (_wt, this->wt) {
           size_t ithr = omp_get_thread_num();
           MD5(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
               this->oc3 * this->O2, this->ht, this->wt, this->T * V);
@@ -706,11 +706,11 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_d060(Type *output, Type *input,
       this->I2 * V * V);
   MD2(Type, abias, bias, this->oc3, this->O2 * V);
 
-  for_each (_ic3, this->ic3) {
+  iter_each (_ic3, this->ic3) {
     bool reset = _ic4 == 0 && _ic3 == 0;
     int oc3 = _oc4 == this->oc4 - 1 ? this->oc3r : this->oc3;
 
-    for_each (_oc3, oc3) {
+    iter_each (_oc3, oc3) {
       if (_oc4 == this->oc4 - 1 && _oc3 == oc3 - 1) {
         ker_gemm_Or_T_(*this, &md5(aoutput, _oc3, 0, 0, 0, 0),
             &md5(ainput, _ic3, 0, 0, 0, 0),
@@ -738,13 +738,13 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_d060(
   MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
   MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-  for_each (_ic4, this->ic4) {
+  iter_each (_ic4, this->ic4) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(4)
-    for_each (_t3, this->t3) {
-      for_each (_oc4, this->oc4) {
-        for_each (_ht, this->ht) {
-          for_each (_wt, this->wt) {
+    iter_each (_t3, this->t3) {
+      iter_each (_oc4, this->oc4) {
+        iter_each (_ht, this->ht) {
+          iter_each (_wt, this->wt) {
             MD5(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
                 this->oc3 * this->O2, this->ht, this->wt, this->T * V);
 

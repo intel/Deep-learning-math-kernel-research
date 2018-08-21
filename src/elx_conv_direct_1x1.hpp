@@ -53,13 +53,10 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, 0, V, I, false, false,
       false>::gemm) *ker_gemm_Or_Tr_;
 
-  decltype(convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_;
-  decltype(
-      convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm0_;
-  decltype(
-      convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm) *ker_gemm_tail_;
-  decltype(convolution_winograd_kernel<S_GEMM(Type, 1, V, I)>::gemm)
-      *ker_gemm0_tail_;
+  decltype(gemm_kernel<Type, I, V, 1>::gemm) *ker_gemm_;
+  decltype(gemm_kernel<Type, I, V, 1>::gemm) *ker_gemm0_;
+  decltype(gemm_kernel<Type, I, V, 1>::gemm) *ker_gemm_tail_;
+  decltype(gemm_kernel<Type, I, V, 1>::gemm) *ker_gemm0_tail_;
 
   void (elx_conv_direct_1x1_t::*execute_opt_)(Type *, Type *, Type *, Type *);
 
