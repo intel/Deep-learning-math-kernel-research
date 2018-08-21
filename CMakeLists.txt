@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
+include(CMakeDependentOption)
 
 # euler version info
 project(Euler CXX C)
 
 option(WITH_TEST "Build with test cases" ON)
+cmake_dependent_option(WITH_GTEST
+  "Build with gtest/unit tests if WITH_TEST is ON" ON "WITH_TEST" OFF)
 option(WITH_GK "Build with generic kernel and unit tests" ON)
 
 set(EULER_VERSION_MAJOR 0)
@@ -32,6 +35,7 @@ if(${CMAKE_BUILD_TYPE} MATCHES "Debug")
   message(STATUS "Build type is Debug")
   set(__debug ON)
   set(WITH_TEST ON)
+  set(WITH_GTEST ON)
   set(WITH_GK ON)
 endif()
 
