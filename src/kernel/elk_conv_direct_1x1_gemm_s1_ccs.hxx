@@ -58,9 +58,9 @@ namespace euler {
 
 // Load bias
 // 
-// for_each (_O1, O1)
+// iter_each (_O1, O1)
 //   tmp = _mm512_load_ps(&md2(abias, _O1, 0));
-//   for_each (_T, T)
+//   iter_each (_T, T)
 //     zmm_out(_O1, _T) = tmp;
 #define MM_LOAD_BIAS(O_, T_) BOOST_PP_REPEAT(O_, _MM_LOAD_BIAS, T_);
 #define _MM_LOAD_BIAS(z, O_, T_)                                               \
@@ -74,9 +74,9 @@ namespace euler {
 
 // Load output
 //
-// for_each (O_, O)
+// iter_each (O_, O)
 //   MD3(float, aoutput3, &md2(aoutput, _O1, 0), xc.t2, T_, V);
-//   for_each (T_, T)
+//   iter_each (T_, T)
 //     zmm_out(O_, _T) = _mm512_load_ps(&md3(aoutput3, 0, T_, 0));
 #define MM_LOAD_OUTPUT(O_, T_) BOOST_PP_REPEAT(O_, _MM_LOAD_OUTPUT, T_);
 #define _MM_LOAD_OUTPUT(z, O_, T_)                                             \
@@ -92,9 +92,9 @@ namespace euler {
 
 // Compute output
 //
-// for_each (_T, T)
+// iter_each (_T, T)
 //   bcast = _mm512_broadcastss_ps(*(__m128 *)&md3(ainput, _I2, T_, _V));
-//   for_each (O_, O)
+//   iter_each (O_, O)
 //     zmm_out(O_, _T)
 //         = _mm512_fmadd_ps(zmm_wei(O_, 0), bcast, zmm_out(O_, T_));
 #define MM_COMPUTE_OUTPUT_P1(O_, T_)                                           \
@@ -107,9 +107,9 @@ namespace euler {
 
 // Store output
 //
-// for_each (O_, O)
+// iter_each (O_, O)
 //   MD3(float, aoutput3, &md2(aoutput, O_, 0), xc.t2, T, V);
-//   for_each (_T, T)
+//   iter_each (_T, T)
 //     _mm512_store_ps(&md3(aoutput3, 0, _T, 0), zmm_out[_O1][_T]);
 #define MM_STORE_OUTPUT(O_, T_) BOOST_PP_REPEAT(O_, _MM_STORE_OUTPUT, T_);
 #define _MM_STORE_OUTPUT(z, O_, T_)                                            \
@@ -139,8 +139,8 @@ namespace euler {
     } else {                                                                   \
       MM_LOAD_OUTPUT(O_, T_);                                                  \
     }                                                                          \
-    for_each (_I2, xc.I2) {                                                    \
-      pragma_unroll for_each (_V, V)                                           \
+    iter_each (_I2, xc.I2) {                                                    \
+      pragma_unroll iter_each (_V, V)                                           \
       {                                                                        \
         MM_LOAD_WEIGHTS_P1(O_);                                                \
         MM_COMPUTE_OUTPUT_P1(O_, T_);                                          \
@@ -195,8 +195,8 @@ namespace euler {
     } else {                                                                   \
       MM_LOAD_OUTPUT(O_, T_);                                                  \
     }                                                                          \
-    for_each (_I2, xc.I2) {                                                    \
-      pragma_unroll for_each (_V, V / 2)                                       \
+    iter_each (_I2, xc.I2) {                                                    \
+      pragma_unroll iter_each (_V, V / 2)                                       \
       {                                                                        \
         MM_LOAD_WEIGHTS_P2_1(O_);                                              \
         MM_COMPUTE_OUTPUT_P(O_, T_, 0);                                        \
@@ -253,8 +253,8 @@ namespace euler {
     } else {                                                                   \
       MM_LOAD_OUTPUT(O_, T_);                                                  \
     }                                                                          \
-    for_each (_I2, xc.I2) {                                                    \
-      pragma_unroll for_each (_V, V / 4)                                       \
+    iter_each (_I2, xc.I2) {                                                    \
+      pragma_unroll iter_each (_V, V / 4)                                       \
       {                                                                        \
         MM_LOAD_WEIGHTS_P4_2(O_);                                              \
         MM_COMPUTE_OUTPUT_P(O_, T_, 0);                                        \
