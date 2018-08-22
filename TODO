@@ -53,3 +53,6 @@ Conv_1x1 (2018-8-1): Done
 - Stride=2, padding=0
 - Blocked format
 - TODO: plain format, IC/OC != 16x
+
+Merge GEMM kernel (2018-8-23):
+- Merge conv 1x1 gemm kernel with Winograd: CCC
