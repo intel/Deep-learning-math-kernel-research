@@ -9,7 +9,7 @@ list(APPEND __basic_flags "-Wno-uninitialized")
 list(APPEND __basic_flags "-Wno-unused-variable")
 list(APPEND __basic_flags "-Wno-unused-parameter")
 
-set(__cxx_flags "-std=c++14")
+set(__cxx_flags "-std=c++11")
 
 if (__debug)
   set(__opt_flags "-O0 -g -DDEBUG")
