@@ -43,14 +43,20 @@ public:
   std::unique_ptr<euler::elx_conv_wino_t<Type, A, K, V, I>> p_xc_;
 };
 
+#define l1 (32 * 1024)
+#define l2 (1024 * 1024)
+#define l3 (39424 * 1024)
+#define skx_8180  28
+
 using tuner_test_tile_5 = tuner_test<float, euler::ISA_SKX_AVX512, 16, 5, 3>;
 TEST_P(tuner_test_tile_5, tile_5) {
   auto p = testing::TestWithParam<tuner_test_parameters>::GetParam();
-  auto tile_oc4 = p_xc_->tile_blocking_oc4(p.core_num_ * p.sockets_);
-  auto blk_t = tile_oc4.first;
-  auto pat_o = tile_oc4.second;
-  auto blk_i = p_xc_->I2_num(p.l1_sz_, blk_t);
-  auto blk_o = p_xc_->O2_num(p.l2_sz_, blk_i, tile_oc4);
+  auto plan = p_xc_->execute_plan(skx_8180, l2, l1);
+
+  auto blk_t = plan.tiles_;
+  auto pat_o = plan.ocd_;
+  auto blk_i = plan.icb_;
+  auto blk_o = plan.ocb_;
 
   EXPECT_EQ(blk_t, p.blk_t);
   EXPECT_EQ(pat_o, p.pat_o);
@@ -58,10 +64,6 @@ TEST_P(tuner_test_tile_5, tile_5) {
   EXPECT_EQ(blk_o, p.blk_o);
 }
 
-#define l1 (32 * 1024)
-#define l2 (1024 * 1024)
-#define l3 (39424 * 1024)
-#define skx_8180  28
 using ttp = tuner_test_parameters;
 
 INSTANTIATE_TEST_CASE_P(resnet_n1, tuner_test_tile_5,
