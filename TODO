@@ -52,4 +52,8 @@ Conv_1x1 (2018-8-1): Done
 - Uni-stride: kernel=1x1, stride=1, padding=0
 - Stride=2, padding=0
 - Blocked format
-- TODO: plain format, IC/OC != 16x
+- WIP: plain format(IC/OC = 16x and IC/OC != 16x)
+      (measure perf for a061 and c060 plain format)
+- TODO: conv 1x1 padding != 0
+- TODO: conv 1x1 relu fusion
+  TODO: bitmask
