@@ -26,14 +26,12 @@ enum {
 #define pragma_unroll
 #endif
 
-inline void el_error(const char *msg)
-{
+inline void el_error(const char *msg) {
   printf("Euler:Error: %s\n", msg);
   abort();
 }
 
-inline void el_warn(const char *msg)
-{
+inline void el_warn(const char *msg) {
   printf("Euler:Warning: %s\n", msg);
 }
 

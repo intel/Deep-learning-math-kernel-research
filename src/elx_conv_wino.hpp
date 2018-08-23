@@ -57,108 +57,116 @@ public:
 
   virtual void execute(Type *output, Type *input, Type *weights, Type *bias);
 
-  inline std::size_t input_unit(int t) const {
-    return elem_sz_ * t * V;
-  }
+  class exe_plan {
+  public:
+    exe_plan(int tiles, int IC, int OC):
+      tiles_(tiles), tb_(tiles), ocd_(1), icb_(IC), ocb_(OC) {
+    }
 
-  inline std::size_t weights_unit() const {
-    return elem_sz_ * V * V;
-  }
-
-  inline std::size_t output_unit(int t) const {
-    return elem_sz_ * t * V;
-  }
-
-  // Calculate t and oc4 initial according to core numbers
-  inline std::pair<int, int> tile_oc4(int num_cpu) const {
-    constexpr int reg_max = 32;
-    constexpr int reg_min = 13;
-    auto part_o_max = this->OC;
-    auto t = this->t;
-    int tb, n = 1, oc4 = 1;
-
-    if ( t > 13 * 27 + 1 ) {
-      do {
-        tb = (t - 1) / (n ++ * num_cpu) + 1;
-      } while (tb > reg_max);
-    } else {
-      tb = (t - 1) / num_cpu + 1;
-
-      while (tb < reg_min && oc4 < part_o_max) {
-        num_cpu /= 2;
-        oc4 *= 2;
-        tb = (t - 1) / num_cpu + 1;
+    inline bool bifurcate_oc() {
+      if (ocb_ & 0x1 == 0) {
+        ocb_ /= 2;
+        ocd_ *= 2;
+        return true;
       }
+      return false;
     }
 
-    return std::make_pair(tb, oc4);
-  }
+    inline bool threading_fit(int num_cpu) {
+      constexpr int reg_max = 32;
+      constexpr int reg_min = 13;
+      int n = 1;
 
-  // Return eligible I2 number, I2 iteration prefer L1 reside
-  // XXX: prefer not to divide ic
-  inline int I2_num(std::size_t cache_sz, int t) const {
-    auto ic2 = this->IC;
-    auto cache_l = cache_sz - output_unit(t);
-
-    while((input_unit(t) + weights_unit()) * ic2 > cache_l) {
-      if ( (ic2 & 0x1) == 0 )
-        ic2 /= 2;
-    }
-    return ic2;
-  }
-
-  // oc4 fine tune, eligible for L2, avoid eviction of inputs
-  inline std::pair<int, int> oc4_tune(std::size_t cache_sz, int i2
-      , std::pair<int, int> t_oc4) const {
-    auto t = t_oc4.first;
-    auto oc4 = t_oc4.second;
-    auto oc3 = this->OC/oc4;
-
-    // oc4 will divide weights and outputs
-    auto cache_l = cache_sz - input_unit(t) * i2;
-    auto wo_unit = weights_unit() * i2 + output_unit(t);
-
-    while(wo_unit * oc3 > cache_l) {
-      if ((oc3 & 0x1) == 0) {
-        oc3 /= 2;
-        oc4 *= 2;
+      if ( tiles_ > reg_min * (num_cpu -1) + 1 ) {
+        do {
+          tb_ = (tiles_ - 1) / (n ++ * num_cpu) + 1;
+        } while (tb_ > reg_max);
+      } else {
+        do {
+          tb_ = (tiles_ * ocd_ - 1) / num_cpu + 1;
+          if (!bifurcate_oc())
+            break;
+        } while (tb_ < reg_min);
       }
+
+      return tb_ < reg_min && tb_ > reg_max;
     }
-    return std::make_pair(oc3, oc4);
-  }
 
-  // Checkers
-  inline std::size_t gemmker_input_footprint() const {
-    return input_unit(T) * I2;
-  }
+    // Guarantees outputs L2 reside, then hiding output transform
+    //
+    inline bool l2_fit(std::size_t cache_sz) {
+      while(gemm_output_reuse_set() > cache_sz) {
+        if (!bifurcate_oc())
+          break;
+      }
 
-  inline std::size_t gemmker_weights_footprint() const {
-    return weights_unit() * I2;
-  }
+      return gemm_output_reuse_set() < cache_sz;
+    }
 
-  inline std::size_t gemmker_output_footprint() const {
-    return output_unit(T);
-  }
+    // Is this necessary??? Don't know if it help.
+    // Guarantees inputs L1 reside
+    //
+    inline bool l1_fit(std::size_t cache_sz) {
+      while(gemm_input_reuse_set() > cache_sz) {
+        if ( (icb_ & 0x1) == 0 )
+          icb_ /= 2;
+        else
+          break;
+      }
 
-  inline std::size_t gemm_input_reuse_set() const {
-    return gemmker_input_footprint() + 
-      gemmker_weights_footprint() + gemmker_output_footprint();
-  }
+      return (gemm_input_reuse_set() < cache_sz);
+    }
 
-  inline std::size_t gemm_output_reuse_set() const {
-    return gemmker_input_footprint() +
-      gemmker_weights_footprint() * O2 + gemmker_output_footprint() * O2;
-  }
+    inline bool fit(int num_cpu, std::size_t l2, std::size_t l1) {
+      return threading_fit(num_cpu) && l2_fit(l2) && l1_fit(l1);
+    }
 
-  // a061 currently
-  inline std::size_t gemm_weights_reuse_set() const {
-    auto wtile_sz = elem_sz_ * A * A * IC * OC;
-    return wtile_sz / oc4 + (gemmker_input_footprint() * ic3 +
-      gemmker_output_footprint() * oc3) * A * A;
-  }
+    // queries
+    inline std::size_t input_unit() const {
+      return elem_sz_ * tb_ * V;
+    }
 
+    inline std::size_t weights_unit() const {
+      return elem_sz_ * V * V;
+    }
+
+    inline std::size_t output_unit() const {
+      return elem_sz_ * tb_ * V;
+    }
+
+    inline std::size_t gemmker_input_footprint() const {
+      return input_unit() * icb_;
+    }
+
+    inline std::size_t gemmker_weights_footprint() const {
+      return weights_unit() * icb_;
+    }
+
+    inline std::size_t gemmker_output_footprint() const {
+      return output_unit();
+    }
+
+    inline std::size_t gemm_input_reuse_set() const {
+      return gemmker_input_footprint() + 
+        gemmker_weights_footprint() + gemmker_output_footprint();
+    }
+
+    inline std::size_t gemm_output_reuse_set() const {
+      auto wtile_sz = elem_sz_ * A * A * icb_ * ocb_;
+      return wtile_sz + (gemmker_input_footprint() * icb_ +
+        gemmker_output_footprint() * ocb_) * A * A;
+    }
+
+    const int tiles_;
+    int tb_, ocd_, icb_, ocb_;
+  };
+
+  exe_plan execute_plan(int num_cpu, std::size_t l2, std::size_t l1) {
+    exe_plan plan(this->t, this->IC, this->OC);
+    plan.fit(num_cpu, l2, l1);
+    return plan;
+  }
 private:
-
   void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a040(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a060(Type *output, Type *input, Type *weights, Type *bias);

@@ -364,16 +364,15 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
     MEMALIGN64(&boutput_, boutput_size * sizeof(Type));
 
   // dbg
+
+  auto plan = execute_plan(this->nthreads, 1024 * 1024, 32 * 1024);
+
   printf("nteams=%d, nthreads=%d, mthr_=%d\n", this->nteams, this->nthreads, mthr_);
-  printf("l2_usage=%ld, l1_usage=%ld\n", l2_usage, l1_usage);
-
-  printf("gemmker_input_footprint = %ld\n", gemmker_input_footprint());
-  printf("gemmker_weights_footprint = %ld\n", gemmker_weights_footprint());
-  printf("gemmker_output_footprint = %ld\n", gemmker_output_footprint());
-
-  printf("gemm_input_reuse_set = %ld\n", gemm_input_reuse_set());
-  printf("gemm_output_reuse_set = %ld\n", gemm_output_reuse_set());
-  printf("gemm_weights_reuse_set = %ld\n", gemm_weights_reuse_set());
+  printf("gemmker_input_footprint = %ld\n", plan.gemmker_input_footprint());
+  printf("gemmker_weights_footprint = %ld\n", plan.gemmker_weights_footprint());
+  printf("gemmker_output_footprint = %ld\n", plan.gemmker_output_footprint());
+  printf("gemm_input_reuse_set = %ld\n", plan.gemm_input_reuse_set());
+  printf("gemm_output_reuse_set = %ld\n", plan.gemm_output_reuse_set());
 
   return 0;
 }
