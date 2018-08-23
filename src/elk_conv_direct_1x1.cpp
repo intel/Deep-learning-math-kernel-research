@@ -1,4 +1,3 @@
-#pragma once
 #include <assert.h>
 #include "el_def.hpp"
 #include "el_utils.hpp"

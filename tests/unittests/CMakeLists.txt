@@ -23,25 +23,19 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/googletest/googletest/include
   ${CMAKE_CURRENT_SOURCE_DIR}/googletest/googlemock/include)
 
-# TODO: enable me!
-#file(GLOB API_TEST_CASES_SRC api_tests/*.cpp)
-#file(GLOB PRIM_TEST_CASES_SRC test_*.cpp)
 file(GLOB PRIM_TEST_CASES_SRC
-  elk_gemm.cpp
-  elk_trans_input.cpp
-  elk_trans_output.cpp
-  elk_trans_weights.cpp
-  paramter_tuner.cpp) #temporary
+  elk_gemm.cpp elk_trans_input.cpp elk_trans_output.cpp
+  elk_trans_weights.cpp parameter_tuner.cpp)
 
 foreach(TEST_FILE ${PRIM_TEST_CASES_SRC})
-    message(STATUS ${TEST_FILE} )
-    get_filename_component (TEST_FILE_WE ${TEST_FILE} NAME_WE)
-    set(CURR_APP_NAME ${TEST_FILE_WE})
-    add_executable(${CURR_APP_NAME} ${MAIN_SRC_GTEST} ${TEST_FILE})
-    target_link_libraries(${CURR_APP_NAME}
-       el ${LIB_NAME} gtest gtest_main gmock
-       ${EXTRA_LIBS} iomp5 boost_program_options)
-    add_test(${CURR_APP_NAME} ${CURR_APP_NAME})
+  message(STATUS ${TEST_FILE} )
+  get_filename_component (TEST_FILE_WE ${TEST_FILE} NAME_WE)
+  set(CURR_APP_NAME ${TEST_FILE_WE})
+  add_executable(${CURR_APP_NAME} ${MAIN_SRC_GTEST} ${TEST_FILE})
+  target_link_libraries(${CURR_APP_NAME}
+     el ${LIB_NAME} gtest gtest_main gmock
+     ${EXTRA_LIBS} iomp5 boost_program_options)
+  add_test(${CURR_APP_NAME} ${CURR_APP_NAME})
 endforeach()
 
 # we need to have either this or the add_test above; disabling for now...
