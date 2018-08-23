@@ -83,6 +83,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   Type *tweights_;
   Type *tinput_;
   Type *toutput_;
+  unsigned char *tinput_msk_;
 
   unsigned int xopt_;
   int mthr_;
