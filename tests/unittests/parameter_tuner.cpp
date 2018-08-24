@@ -53,7 +53,7 @@ TEST_P(tuner_test_tile_5, tile_5) {
   auto p = testing::TestWithParam<tuner_test_parameters>::GetParam();
   auto plan = p_xc_->execute_plan(skx_8180, l2, l1);
 
-  auto blk_t = plan.tiles_;
+  auto blk_t = plan.tb_;
   auto pat_o = plan.ocd_;
   auto blk_i = plan.icb_;
   auto blk_o = plan.ocb_;

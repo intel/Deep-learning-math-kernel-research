@@ -60,11 +60,11 @@ public:
   class exe_plan {
   public:
     exe_plan(int tiles, int IC, int OC):
-      tiles_(tiles), tb_(tiles), ocd_(1), icb_(IC), ocb_(OC) {
+      tiles_(tiles), tb_(tiles), ocd_(1), icb_(IC/V), ocb_(OC/V) {
     }
 
     inline bool bifurcate_oc() {
-      if (ocb_ & 0x1 == 0) {
+      if ((ocb_ & 0x1) == 0) {
         ocb_ /= 2;
         ocd_ *= 2;
         return true;
