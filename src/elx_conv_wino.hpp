@@ -82,11 +82,12 @@ public:
           tb_ = (tiles_ - 1) / (n ++ * num_cpu) + 1;
         } while (tb_ > reg_max);
       } else {
-        do {
-          tb_ = (tiles_ * ocd_ - 1) / num_cpu + 1;
+        tb_ = (tiles_ * ocd_ - 1) / num_cpu + 1;
+        while(tb_ < reg_min) {
           if (!bifurcate_oc())
             break;
-        } while (tb_ < reg_min);
+          tb_ = (tiles_ * ocd_ - 1) / num_cpu + 1;
+        }
       }
 
       return tb_ >= reg_min && tb_ < reg_max;
