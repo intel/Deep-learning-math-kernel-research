@@ -152,7 +152,7 @@ public:
     }
 
     inline std::size_t gemm_output_reuse_set() const {
-      auto wtile_sz = elem_sz_ * A * A * icb_ * ocb_;
+      auto wtile_sz = elem_sz_ * A * A * icb_ * ocb_ * V * V;
       return wtile_sz + (gemmker_input_footprint() * icb_ +
         gemmker_output_footprint() * ocb_) * A * A;
     }
@@ -166,6 +166,42 @@ public:
     plan.fit(num_cpu, l2, l1);
     return plan;
   }
+
+  inline std::size_t input_unit() const {
+    return elem_sz_ * this->t * V;
+  }
+
+  inline std::size_t weights_unit() const {
+    return elem_sz_ * V * V;
+  }
+
+  inline std::size_t output_unit() const {
+    return elem_sz_ * this->t * V;
+  }
+
+  inline std::size_t gemmker_input_footprint() const {
+    return input_unit() * this->I2;
+  }
+
+  inline std::size_t gemmker_weights_footprint() const {
+    return weights_unit() * this->I2;
+  }
+
+  inline std::size_t gemmker_output_footprint() const {
+    return output_unit();
+  }
+
+  inline std::size_t gemm_input_reuse_set() const {
+    return gemmker_input_footprint() + 
+      gemmker_weights_footprint() + gemmker_output_footprint();
+  }
+
+  inline std::size_t gemm_output_reuse_set() const {
+    auto wtile_sz = elem_sz_ * A * A * IC * OC;
+    return wtile_sz/oc4 + (gemmker_input_footprint() * ic3 +
+      gemmker_output_footprint() * oc3) * A * A;
+  }
+
 private:
   void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a040(Type *output, Type *input, Type *weights, Type *bias);
