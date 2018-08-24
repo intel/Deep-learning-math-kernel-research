@@ -158,6 +158,13 @@ public:
         gemmker_output_footprint() * ocb_) * A * A;
     }
 
+    void dump() const {
+      std::cout<<"tb="<<tb_<<", icb_="<<icb_<<", ocb_"
+        <<ocb_<<", ocd_="<<ocd_<<std::endl;
+      std::cout<<"Input footprint: "<<gemm_input_reuse_set()<<std::endl;
+      std::cout<<"Total footprint: "<<gemm_output_reuse_set()<<std::endl;
+    }
+
     const int tiles_;
     int tb_, ocd_, icb_, ocb_;
   };

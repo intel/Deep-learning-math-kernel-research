@@ -365,7 +365,6 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
 
   // dbg
 
-  auto plan = execute_plan(this->nthreads, 1024 * 1024, 32 * 1024);
 
   printf("nteams=%d, nthreads=%d, mthr_=%d\n",
       this->nteams, this->nthreads, mthr_);
@@ -375,8 +374,8 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
   printf("gemm_input_reuse_set = %ld\n", gemm_input_reuse_set());
   printf("gemm_output_reuse_set = %ld\n", gemm_output_reuse_set());
 
-  printf("planed gemm_input_reuse_set = %ld\n", plan.gemm_input_reuse_set());
-  printf("planed gemm_output_reuse_set = %ld\n", plan.gemm_output_reuse_set());
+  auto plan = execute_plan(this->nthreads, 1024 * 1024, 32 * 1024);
+  plan.dump();
 
   return 0;
 }
