@@ -20,6 +20,7 @@ typedef std::chrono::duration<float, std::milli> Duration;
       Duration(__e##n - __s##n).count()));
 
 #define iter_each(indx, lim) for (int indx = 0; indx < (lim); ++indx)
+#define revs_each(indx, lim) for (int indx = lim -1; indx >=0; -- indx)
 
 namespace euler {
 

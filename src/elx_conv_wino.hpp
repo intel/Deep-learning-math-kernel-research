@@ -153,7 +153,7 @@ public:
 
     inline std::size_t gemm_output_reuse_set() const {
       auto wtile_sz = elem_sz_ * A * A * icb_ * ocb_ * V * V;
-      return wtile_sz + (gemmker_input_footprint() * icb_ +
+      return wtile_sz + (gemmker_input_footprint() +
         gemmker_output_footprint() * ocb_) * A * A;
     }
 
@@ -168,7 +168,7 @@ public:
   }
 
   inline std::size_t input_unit() const {
-    return elem_sz_ * this->t * V;
+    return elem_sz_ * this->T * V;
   }
 
   inline std::size_t weights_unit() const {
@@ -176,7 +176,7 @@ public:
   }
 
   inline std::size_t output_unit() const {
-    return elem_sz_ * this->t * V;
+    return elem_sz_ * this->T * V;
   }
 
   inline std::size_t gemmker_input_footprint() const {
@@ -198,8 +198,8 @@ public:
 
   inline std::size_t gemm_output_reuse_set() const {
     auto wtile_sz = elem_sz_ * A * A * IC * OC;
-    return wtile_sz/oc4 + (gemmker_input_footprint() * ic3 +
-      gemmker_output_footprint() * oc3) * A * A;
+    return wtile_sz/oc4 + (gemmker_input_footprint() +
+      gemmker_output_footprint() * this->O2) * A * A;
   }
 
 private:
