@@ -760,7 +760,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_plain(
 {
   // oc4, (oc3, oc3r), (O2, O2r), V, ic4, ic3, I2, V -> ic4, oc4, ic3, (oc3, oc3r), I2, V, (O2, O2r), V
   MD8(Type, atweights, tweights, this->oc4, this->ic4, this->oc3, this->ic3, this->I2, V, this->O2, V);
-    MD8(Type, aweights, weights, this->oc4, this->oc3, this->O2, V, this->ic4, this->ic3, this->I2, V);
+  MD8(Type, aweights, weights, this->oc4, this->oc3, this->O2, V, this->ic4, this->ic3, this->I2, V);
   SET_EPI32(this->ic)
 
   if (this->Ir == V && this->Or == V) {
