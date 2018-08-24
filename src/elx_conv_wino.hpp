@@ -89,7 +89,7 @@ public:
         } while (tb_ < reg_min);
       }
 
-      return tb_ < reg_min && tb_ > reg_max;
+      return tb_ >= reg_min && tb_ < reg_max;
     }
 
     // Guarantees outputs L2 reside, then hiding output transform
