@@ -82,8 +82,9 @@ public:
           tb_ = (tiles_ - 1) / (n ++ * num_cpu) + 1;
         } while (tb_ > reg_max);
       } else {
+        constexpr int input_dup_max = 4;
         tb_ = (tiles_ * ocd_ - 1) / num_cpu + 1;
-        while(tb_ < reg_min) {
+        while (tb_ < reg_min && ocd_ < input_dup_max) {
           if (!bifurcate_oc())
             break;
           tb_ = (tiles_ * ocd_ - 1) / num_cpu + 1;
