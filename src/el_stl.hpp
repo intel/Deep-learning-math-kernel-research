@@ -60,14 +60,14 @@ template <int to> using arange = valid_range<0, to>;
 
 // Iterate the sequence
 template <typename F, int... Ns>
-inline void for_each(integer_sequence<Ns...>, F f)
+inline void for_each(integer_sequence<Ns...>, F func)
 {
 #if __cpp_generic_lambdas && !__GCC_COMPILER
-  (void)(int[]){ (f(integer<Ns>{}), 0)... };
+  (void)(int[]){ (func(integer<Ns>{}), 0)... };
 #else
   // Workaround the lambda issue. XXX. It will depends on
   // compiler to optimize the runtime parameter passing.
-  (void)(int[]){ (f(Ns), 0)... };
+  (void)(int[]){ (func(Ns), 0)... };
 #endif
 }
 
