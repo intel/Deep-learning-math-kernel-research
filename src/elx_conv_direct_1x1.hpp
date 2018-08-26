@@ -7,6 +7,7 @@
 #include "euler.hpp"
 #include "elk_conv_wino.hpp"
 #include "elk_conv_direct_1x1.hpp"
+#include "kernel/elk_gemm_otj.hxx"
 
 namespace euler {
 
