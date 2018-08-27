@@ -23,5 +23,5 @@ sleep 1
 NSOCKETS=1 ./scripts/run.sh -c -i96 -h35 -o96 -H35 -n1 --blk-i=6 --blk-o=3 --blk-t=3 --pat-o=2 --tile-size=6 --execution-mode=0xa061 --output-as-blocked=true $COMMON 
 sleep 1
 # googlenet_v3:mixed_9_tower_1_conv_1_conv2d, ['ic', '448', 'ih', '8', 'oc', '384', 'oh', '8', 'kh', '3', 'ph', '1']
- NSOCKETS=1 ./scripts/run.sh -c -i448 -h8 -o384 -H8 -n1 --blk-i=14 --blk-o=4 --blk-t=4 --tile-size=6 --execution-mode=0xa000 --streaming-input=1 $COMMON  
+NSOCKETS=1 ./scripts/run.sh -c -i448 -h8 -o384 -H8 -n1 --blk-i=14 --blk-o=4 --blk-t=4 --tile-size=6 --execution-mode=0xa000 --streaming-input=1 $COMMON  
 sleep 1
