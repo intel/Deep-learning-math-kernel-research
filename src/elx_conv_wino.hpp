@@ -45,7 +45,7 @@ public:
   using elx_conv_t<Type>::oc4;
   using elx_conv_t<Type>::ic3;
   using elx_conv_t<Type>::oc3;
-  constexpr static size_t elem_sz_ = sizeof(Type);
+  constexpr static size_t elem_sz = sizeof(Type);
   constexpr static bool is_border = true;
   constexpr static bool has_bias = true;
   constexpr static bool has_relu = true;
@@ -60,7 +60,8 @@ public:
   class exe_plan {
   public:
     exe_plan(int tiles, int IC, int OC):
-      tiles_(tiles), tb_(tiles), ocd_(1), icb_(IC/V), ocb_(OC/V) {
+      tiles_(tiles), tb_(tiles), ocd_(1), icb_(IC/V), ocb_(OC/V),
+      weights_total(A * A * IC * OC * V * elem_sz) {
     }
 
     inline bool bifurcate_oc() {
@@ -72,10 +73,14 @@ public:
       return false;
     }
 
-    inline bool threading_fit(int num_cpu, int num_socket=1) {
+    inline bool threading_fit(int num_cpu, int num_socket, std::size_t l2) {
       constexpr int reg_max = 32;
-      /* double L3 effect */
-      const int reg_min = (13 - 1)/num_socket +1;
+      /* double L3 effect, L2/L3 effect.
+       * We still don't have clear boundaries between these */
+      const int reg_min = (weights_total < (l2/2))?
+        (13 - 1)/num_socket +1:
+        (15 - 1)/num_socket +1;
+
       int n = 1;
 
       if ( tiles_ > reg_min * (num_cpu -1) + 1 ) {
@@ -120,20 +125,20 @@ public:
     }
 
     inline bool fit(int num_cpu, int num_socket, std::size_t l2, std::size_t l1) {
-      return threading_fit(num_cpu, num_socket) && l2_fit(l2) && l1_fit(l1);
+      return threading_fit(num_cpu, num_socket, l2) && l2_fit(l2) && l1_fit(l1);
     }
 
     // queries
     inline std::size_t input_unit() const {
-      return elem_sz_ * tb_ * V;
+      return elem_sz * tb_ * V;
     }
 
     inline std::size_t weights_unit() const {
-      return elem_sz_ * V * V;
+      return elem_sz * V * V;
     }
 
     inline std::size_t output_unit() const {
-      return elem_sz_ * tb_ * V;
+      return elem_sz * tb_ * V;
     }
 
     inline std::size_t gemmker_input_footprint() const {
@@ -154,7 +159,7 @@ public:
     }
 
     inline std::size_t gemm_output_reuse_set() const {
-      auto wtile_sz = elem_sz_ * A * A * icb_ * ocb_ * V * V;
+      auto wtile_sz = elem_sz * A * A * icb_ * ocb_ * V * V;
       return wtile_sz + (gemmker_input_footprint() +
         gemmker_output_footprint() * ocb_) * A * A;
     }
@@ -168,6 +173,7 @@ public:
 
     const int tiles_;
     int tb_, ocd_, icb_, ocb_;
+    std::size_t weights_total;
   };
 
   exe_plan execute_plan(int num_cpu, int num_socket, std::size_t l2, std::size_t l1) {
@@ -177,15 +183,15 @@ public:
   }
 
   inline std::size_t input_unit() const {
-    return elem_sz_ * this->T * V;
+    return elem_sz * this->T * V;
   }
 
   inline std::size_t weights_unit() const {
-    return elem_sz_ * V * V;
+    return elem_sz * V * V;
   }
 
   inline std::size_t output_unit() const {
-    return elem_sz_ * this->T * V;
+    return elem_sz * this->T * V;
   }
 
   inline std::size_t gemmker_input_footprint() const {
@@ -206,7 +212,7 @@ public:
   }
 
   inline std::size_t gemm_output_reuse_set() const {
-    auto wtile_sz = elem_sz_ * A * A * IC * OC;
+    auto wtile_sz = elem_sz * A * A * IC * OC;
     return wtile_sz/oc4 + (gemmker_input_footprint() +
       gemmker_output_footprint() * this->O2) * A * A;
   }

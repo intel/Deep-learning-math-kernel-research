@@ -13,6 +13,8 @@ set(__cxx_flags "-std=c++14")
 
 if (__debug)
   set(__opt_flags "-O0 -g -DDEBUG")
+elseif (__profiling)
+  set(__opt_flags "-O2 -g -DNDEBUG")
 else ()
   set(__opt_flags "-O2 -DNDEBUG")
 endif ()
