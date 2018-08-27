@@ -72,9 +72,10 @@ public:
       return false;
     }
 
-    inline bool threading_fit(int num_cpu) {
+    inline bool threading_fit(int num_cpu, int num_socket=1) {
       constexpr int reg_max = 32;
-      constexpr int reg_min = 13;
+      /* double L3 effect */
+      const int reg_min = (13 - 1)/num_socket +1;
       int n = 1;
 
       if ( tiles_ > reg_min * (num_cpu -1) + 1 ) {
@@ -82,9 +83,8 @@ public:
           tb_ = (tiles_ - 1) / (n ++ * num_cpu) + 1;
         } while (tb_ > reg_max);
       } else {
-        constexpr int input_dup_max = 4;
         tb_ = (tiles_ * ocd_ - 1) / num_cpu + 1;
-        while (tb_ < reg_min && ocd_ < input_dup_max) {
+        while (tb_ < reg_min) {
           if (!bifurcate_oc())
             break;
           tb_ = (tiles_ * ocd_ - 1) / num_cpu + 1;
@@ -119,8 +119,8 @@ public:
       return (gemm_input_reuse_set() < cache_sz);
     }
 
-    inline bool fit(int num_cpu, std::size_t l2, std::size_t l1) {
-      return threading_fit(num_cpu) && l2_fit(l2) && l1_fit(l1);
+    inline bool fit(int num_cpu, int num_socket, std::size_t l2, std::size_t l1) {
+      return threading_fit(num_cpu, num_socket) && l2_fit(l2) && l1_fit(l1);
     }
 
     // queries
@@ -170,9 +170,9 @@ public:
     int tb_, ocd_, icb_, ocb_;
   };
 
-  exe_plan execute_plan(int num_cpu, std::size_t l2, std::size_t l1) {
+  exe_plan execute_plan(int num_cpu, int num_socket, std::size_t l2, std::size_t l1) {
     exe_plan plan(this->t, this->IC, this->OC);
-    plan.fit(num_cpu, l2, l1);
+    plan.fit(num_cpu, num_socket, l2, l1);
     return plan;
   }
 
