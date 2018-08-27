@@ -22,21 +22,31 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   void __execute_a061(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_b061(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_c060(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_e061(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_d060(Type *output, Type *input, Type *weights, Type *bias);
 
   inline void __trans_input_plain(Type *tinput, Type *input, int _ht, int _wt);
   inline void __trans_input_blocked(Type *tinput, Type *input, int _ht, int _wt);
   void trans_input(Type *tinput, Type *input, int _ht, int _wt);
 
+  inline void __trans_input_plain2(Type *tinput, Type *input, int _t2, int Tz);
+  inline void __trans_input_blocked2(Type *tinput, Type *input, int _t2, int Tz);
+  void trans_input2(Type *tinput, Type *input, int _t2, int Tz);
+
   inline void __trans_output_plain(Type *output, Type *toutput, int _oc4, int _ht, int _wt);
   inline void __trans_output_blocked(Type *output, Type *toutput, int _oc4, int _ht, int _wt);
   void trans_output(Type *output, Type *toutput, int _oc4, int _ht, int _wt);
+
+  inline void __trans_output_plain2(Type *output, Type *toutput, int _oc4, int _t2, int Tz);
+  inline void __trans_output_blocked2(Type *output, Type *toutput, int _oc4, int _t2, int Tz);
+  void trans_output2(Type *output, Type *toutput, int _oc4, int _t2, int Tz);
 
   inline void __trans_weights_plain(Type *tweights, Type *weights);
   inline void __trans_weights_blocked(Type *tweights, Type *weights);
   void trans_weights(Type *tweights, Type *weights);
 
   void gemm_a061(Type *toutput, Type *tinput, Type *tweights, Type *bias, int _ic4, int _oc4);
+  void gemm_e061(Type *toutput, Type *tinput, Type *tweights, Type *bias, int _t2, int Tz);
   void gemm_b061(Type *toutput, Type *tinput, Type *tweights, Type *bias, int _ic4, int _oc4);
   void gemm_c060(Type *toutput, Type *tinput, Type *tweights, Type *bias, int _ic4, int _oc4, int _t2);
   void gemm_d060(Type *toutput, Type *tinput, Type *tweights, Type *bias, int _ic4, int _oc4, int _ht, int _wt);
