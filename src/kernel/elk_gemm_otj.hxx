@@ -25,7 +25,11 @@ const int GKF_CCD = 0xccd;
 const int GKF_DDD = 0xddd;
 
 template <typename Type, int V, int I, int F, int S, typename KP>
-struct gemm_kernel_otj {};
+struct gemm_kernel_otj {
+  static inline void execute(elx_conv_t<float> &xc, float *output, float *input,
+      float *weights, float *bias, bool reset_output)
+  {}
+};
 
 template <int... Kp>
 struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, GKF_CCC, 1,
@@ -44,23 +48,31 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, GKF_CCC, 1,
   constexpr static auto with_relu = estl::get<6, bool, kparams>();
   constexpr static auto with_sum = estl::get<7, bool, kparams>();
 
-  // O (T + P) + 1 <= 32
-  template <int O> static inline constexpr typename
-  std::enable_if<(32 / O - T) >= 4, int>::type getP() {
+  // O == 1: T + P <= 32
+  // O > 1: O (T + P) + 1 <= 32
+  template <int O>
+  static inline constexpr typename std::enable_if<
+      (O == 1 && T <= 28) || (O > 1 && (31 / O - T) >= 4), int>::type
+  getP()
+  {
     return 4;
   }
-  template <int O> static inline constexpr typename
-  std::enable_if<((32 / O - T) >= 2) && ((32 / O - T) < 4), int>::type getP() {
+  template <int O>
+  static inline constexpr
+      typename std::enable_if<(O == 1 && (T == 29 || T == 30))
+              || (O > 1 && (31 / O - T) >= 2 && (31 / O - T) < 4),
+          int>::type
+      getP()
+  {
     return 2;
   }
-  template <int O> static inline constexpr typename
-  std::enable_if<(32 / O - T) == 1, int>::type getP() {
+  template <int O>
+  static inline constexpr
+      typename std::enable_if<(O == 1 && T == 31) || (O > 1 && (31 / O - T) == 1),
+          int>::type
+      getP()
+  {
     return 1;
-  }
-  template <int O> static inline constexpr typename
-  std::enable_if<(32 / O - T) < 1, int>::type getP() {
-    // Wrong path to make compiler happy
-    return 0xd;
   }
 
   template <int O, int P>
@@ -131,40 +143,95 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, GKF_CCC, 1,
         _mm512_store_ps(&md3(aoutput3, _O, _T, 0), mmout[_O][_T]);
   }
 
-  static inline void execute(elx_conv_t<float> &xc, float *output, float *input,
-      float *weights, float *bias, bool reset_output)
+  template <int O2 = O2, int T = T>
+  static inline
+      typename std::enable_if<(O2 == 1 && T < 32) || (O2 == 2 && T < 15)
+              || (O2 == 3 && T < 10) || (O2 == 4 && T < 7) || (O2 == 5 && T < 6)
+              || (O2 == 6 && T < 5) || (O2 == 7 && T < 4) || (O2 == 8 && T < 3),
+          void>::type
+      execute(elx_conv_t<float> &xc, float *output, float *input,
+          float *weights, float *bias, bool reset_output)
+  {
+    op_fma<O2, getP<O2>()>(xc, output, input, weights, bias, reset_output);
+  }
+
+  template <int O2 = O2, int T = T>
+  static inline
+      typename std::enable_if<O2 == 3 && (T >= 10 && T < 15), void>::type
+      execute(elx_conv_t<float> &xc, float *output, float *input,
+          float *weights, float *bias, bool reset_output)
   {
     MD2(float, aoutput, output, O2, T *V);
     MD4(float, aweights, weights, xc.I2, V, O2, V);
     MD2(float, abias, bias, O2, V);
 
-    if constexpr(O2 * T < 32)
-      op_fma<O2, getP<O2>()>(xc, output, input, weights, bias, reset_output);
-    else if constexpr(O2 == 3 && T < 15) {
-      op_fma<2, getP<2>()>(xc, output, input, weights, bias, reset_output);
-      op_fma<1, getP<1>()>(xc, &md2(aoutput, 2, 0), input,
-          &md4(aweights, 0, 0, 2, 0), &md2(abias, 2, 0), reset_output);
-    } else if constexpr(O2 == 4 && T < 15) {
-      op_fma<2, getP<2>()>(xc, output, input, weights, bias, reset_output);
-      op_fma<2, getP<2>()>(xc, &md2(aoutput, 2, 0), input,
-          &md4(aweights, 0, 0, 2, 0), &md2(abias, 2, 0), reset_output);
-    } else if constexpr(O2 == 8 && T < 6) {
-      op_fma<5, getP<5>()>(xc, output, input, weights, bias, reset_output);
-      op_fma<3, getP<3>()>(xc, &md2(aoutput, 5, 0), input,
-          &md4(aweights, 0, 0, 5, 0), &md2(abias, 5, 0), reset_output);
-    } else if constexpr(O2 == 8 && T == 6) {
-      op_fma<4, getP<4>()>(xc, output, input, weights, bias, reset_output);
-      op_fma<4, getP<4>()>(xc, &md2(aoutput, 4, 0), input,
-          &md4(aweights, 0, 0, 4, 0), &md2(abias, 4, 0), reset_output);
-    } else if constexpr(O2 == 8 && T < 9) {
-      op_fma<3, getP<3>()>(xc, output, input, weights, bias, reset_output);
-      op_fma<3, getP<3>()>(xc, &md2(aoutput, 3, 0), input,
-          &md4(aweights, 0, 0, 3, 0), &md2(abias, 3, 0), reset_output);
-      op_fma<2, getP<2>()>(xc, &md2(aoutput, 6, 0), input,
-          &md4(aweights, 0, 0, 6, 0), &md2(abias, 6, 0), reset_output);
-    }
+    op_fma<2, getP<2>()>(xc, output, input, weights, bias, reset_output);
+    op_fma<1, getP<1>()>(xc, &md2(aoutput, 2, 0), input,
+        &md4(aweights, 0, 0, 2, 0), &md2(abias, 2, 0), reset_output);
   }
+
+  template <int O2 = O2, int T = T>
+  static inline
+      typename std::enable_if<O2 == 4 && (T >= 7 && T < 15), void>::type
+      execute(elx_conv_t<float> &xc, float *output, float *input,
+          float *weights, float *bias, bool reset_output)
+  {
+    MD2(float, aoutput, output, O2, T *V);
+    MD4(float, aweights, weights, xc.I2, V, O2, V);
+    MD2(float, abias, bias, O2, V);
+
+    op_fma<2, getP<2>()>(xc, output, input, weights, bias, reset_output);
+    op_fma<2, getP<2>()>(xc, &md2(aoutput, 2, 0), input,
+        &md4(aweights, 0, 0, 2, 0), &md2(abias, 2, 0), reset_output);
+  }
+
+  template <int O2 = O2, int T = T>
+  static inline
+      typename std::enable_if<O2 == 8 && (T >= 3 && T < 6), void>::type
+      execute(elx_conv_t<float> &xc, float *output, float *input,
+          float *weights, float *bias, bool reset_output)
+  {
+    MD2(float, aoutput, output, O2, T *V);
+    MD4(float, aweights, weights, xc.I2, V, O2, V);
+    MD2(float, abias, bias, O2, V);
+
+    op_fma<5, getP<5>()>(xc, output, input, weights, bias, reset_output);
+    op_fma<3, getP<3>()>(xc, &md2(aoutput, 5, 0), input,
+        &md4(aweights, 0, 0, 5, 0), &md2(abias, 5, 0), reset_output);
+  }
+
+  template <int O2 = O2, int T = T>
+  static inline typename std::enable_if<O2 == 8 && T == 6, void>::type execute(
+      elx_conv_t<float> &xc, float *output, float *input, float *weights,
+      float *bias, bool reset_output)
+  {
+    MD2(float, aoutput, output, O2, T *V);
+    MD4(float, aweights, weights, xc.I2, V, O2, V);
+    MD2(float, abias, bias, O2, V);
+
+    op_fma<4, getP<4>()>(xc, output, input, weights, bias, reset_output);
+    op_fma<4, getP<4>()>(xc, &md2(aoutput, 4, 0), input,
+        &md4(aweights, 0, 0, 4, 0), &md2(abias, 4, 0), reset_output);
+  }
+
+  template <int O2 = O2, int T = T>
+  static inline
+      typename std::enable_if<O2 == 8 && (T == 7 || T == 8), void>::type
+      execute(elx_conv_t<float> &xc, float *output, float *input,
+          float *weights, float *bias, bool reset_output)
+  {
+    MD2(float, aoutput, output, O2, T *V);
+    MD4(float, aweights, weights, xc.I2, V, O2, V);
+    MD2(float, abias, bias, O2, V);
+
+    op_fma<3, getP<3>()>(xc, output, input, weights, bias, reset_output);
+    op_fma<3, getP<3>()>(xc, &md2(aoutput, 3, 0), input,
+        &md4(aweights, 0, 0, 3, 0), &md2(abias, 3, 0), reset_output);
+    op_fma<2, getP<2>()>(xc, &md2(aoutput, 6, 0), input,
+        &md4(aweights, 0, 0, 6, 0), &md2(abias, 6, 0), reset_output);
+  }
+
 };
 
 
-}
+} // namespace euler
