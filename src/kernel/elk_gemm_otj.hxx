@@ -31,6 +31,16 @@ struct gemm_kernel_otj {
   {}
 };
 
+// O == 1: T + P <= 32
+// O > 1: O (T + P) + 1 <= 32
+template <int O, int T> struct para_traits {
+  static constexpr int value
+      = (O == 1 && T <= 28) || (O > 1 && (31 / O - T) >= 4)
+      ? 4
+      : (O == 1 && (T == 29 || T == 30)) || (O > 1 && (31 / O - T) >= 2) ? 2
+                                                                         : 1;
+};
+
 template <int... Kp>
 struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, GKF_CCC, 1,
     estl::integer_sequence<Kp...>> {
@@ -47,33 +57,6 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, GKF_CCC, 1,
   constexpr static auto with_bias = estl::get<5, bool, kparams>();
   constexpr static auto with_relu = estl::get<6, bool, kparams>();
   constexpr static auto with_sum = estl::get<7, bool, kparams>();
-
-  // O == 1: T + P <= 32
-  // O > 1: O (T + P) + 1 <= 32
-  template <int O>
-  static inline constexpr typename std::enable_if<
-      (O == 1 && T <= 28) || (O > 1 && (31 / O - T) >= 4), int>::type
-  getP()
-  {
-    return 4;
-  }
-  template <int O>
-  static inline constexpr
-      typename std::enable_if<(O == 1 && (T == 29 || T == 30))
-              || (O > 1 && (31 / O - T) >= 2 && (31 / O - T) < 4),
-          int>::type
-      getP()
-  {
-    return 2;
-  }
-  template <int O>
-  static inline constexpr
-      typename std::enable_if<(O == 1 && T == 31) || (O > 1 && (31 / O - T) == 1),
-          int>::type
-      getP()
-  {
-    return 1;
-  }
 
   template <int O, int P>
   static inline void op_fma(elx_conv_t<float> &xc, float *output,
@@ -152,7 +135,8 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, GKF_CCC, 1,
       execute(elx_conv_t<float> &xc, float *output, float *input,
           float *weights, float *bias, bool reset_output)
   {
-    op_fma<O2, getP<O2>()>(xc, output, input, weights, bias, reset_output);
+    op_fma<O2, para_traits<O2, T>::value>(
+        xc, output, input, weights, bias, reset_output);
   }
 
   template <int O2 = O2, int T = T>
@@ -165,8 +149,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, GKF_CCC, 1,
     MD4(float, aweights, weights, xc.I2, V, O2, V);
     MD2(float, abias, bias, O2, V);
 
-    op_fma<2, getP<2>()>(xc, output, input, weights, bias, reset_output);
-    op_fma<1, getP<1>()>(xc, &md2(aoutput, 2, 0), input,
+    op_fma<2, para_traits<2, T>::value>(
+        xc, output, input, weights, bias, reset_output);
+    op_fma<1, para_traits<1, T>::value>(xc, &md2(aoutput, 2, 0), input,
         &md4(aweights, 0, 0, 2, 0), &md2(abias, 2, 0), reset_output);
   }
 
@@ -180,8 +165,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, GKF_CCC, 1,
     MD4(float, aweights, weights, xc.I2, V, O2, V);
     MD2(float, abias, bias, O2, V);
 
-    op_fma<2, getP<2>()>(xc, output, input, weights, bias, reset_output);
-    op_fma<2, getP<2>()>(xc, &md2(aoutput, 2, 0), input,
+    op_fma<2, para_traits<2, T>::value>(
+        xc, output, input, weights, bias, reset_output);
+    op_fma<2, para_traits<2, T>::value>(xc, &md2(aoutput, 2, 0), input,
         &md4(aweights, 0, 0, 2, 0), &md2(abias, 2, 0), reset_output);
   }
 
@@ -195,8 +181,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, GKF_CCC, 1,
     MD4(float, aweights, weights, xc.I2, V, O2, V);
     MD2(float, abias, bias, O2, V);
 
-    op_fma<5, getP<5>()>(xc, output, input, weights, bias, reset_output);
-    op_fma<3, getP<3>()>(xc, &md2(aoutput, 5, 0), input,
+    op_fma<5, para_traits<5, T>::value>(
+        xc, output, input, weights, bias, reset_output);
+    op_fma<3, para_traits<3, T>::value>(xc, &md2(aoutput, 5, 0), input,
         &md4(aweights, 0, 0, 5, 0), &md2(abias, 5, 0), reset_output);
   }
 
@@ -209,8 +196,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, GKF_CCC, 1,
     MD4(float, aweights, weights, xc.I2, V, O2, V);
     MD2(float, abias, bias, O2, V);
 
-    op_fma<4, getP<4>()>(xc, output, input, weights, bias, reset_output);
-    op_fma<4, getP<4>()>(xc, &md2(aoutput, 4, 0), input,
+    op_fma<4, para_traits<4, T>::value>(
+        xc, output, input, weights, bias, reset_output);
+    op_fma<4, para_traits<4, T>::value>(xc, &md2(aoutput, 4, 0), input,
         &md4(aweights, 0, 0, 4, 0), &md2(abias, 4, 0), reset_output);
   }
 
@@ -224,13 +212,13 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, GKF_CCC, 1,
     MD4(float, aweights, weights, xc.I2, V, O2, V);
     MD2(float, abias, bias, O2, V);
 
-    op_fma<3, getP<3>()>(xc, output, input, weights, bias, reset_output);
-    op_fma<3, getP<3>()>(xc, &md2(aoutput, 3, 0), input,
+    op_fma<3, para_traits<3, T>::value>(
+        xc, output, input, weights, bias, reset_output);
+    op_fma<3, para_traits<3, T>::value>(xc, &md2(aoutput, 3, 0), input,
         &md4(aweights, 0, 0, 3, 0), &md2(abias, 3, 0), reset_output);
-    op_fma<2, getP<2>()>(xc, &md2(aoutput, 6, 0), input,
+    op_fma<2, para_traits<2, T>::value>(xc, &md2(aoutput, 6, 0), input,
         &md4(aweights, 0, 0, 6, 0), &md2(abias, 6, 0), reset_output);
   }
-
 };
 
 
