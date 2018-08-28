@@ -26,19 +26,120 @@ const int GKF_DDD = 0xddd;
 
 template <typename Type, int V, int I, int F, int S, typename KP>
 struct gemm_kernel_otj {
-  static inline void execute(elx_conv_t<float> &xc, float *output, float *input,
-      float *weights, float *bias, bool reset_output)
+  static inline void execute(
+      elx_conv_t<float> &, float *, float *, float *, float *, bool)
   {}
 };
 
+// Parallel level
+template <int O, int T, typename C = void> struct P_traits {};
+
 // O == 1: T + P <= 32
 // O > 1: O (T + P) + 1 <= 32
-template <int O, int T> struct para_traits {
-  static constexpr int value
-      = (O == 1 && T <= 28) || (O > 1 && (31 / O - T) >= 4)
-      ? 4
-      : (O == 1 && (T == 29 || T == 30)) || (O > 1 && (31 / O - T) >= 2) ? 2
-                                                                         : 1;
+template <int T>
+struct P_traits<1, T, typename std::enable_if<(T <= 28)>::type> {
+  static constexpr int P = 4;
+};
+
+template <int T>
+struct P_traits<1, T, typename std::enable_if<(T == 29 || T == 30)>::type> {
+  static constexpr int P = 2;
+};
+
+template <int T>
+struct P_traits<1, T, typename std::enable_if<(T >= 31)>::type> {
+  static constexpr int P = 1;
+};
+
+template <int O, int T>
+struct P_traits<O, T,
+    typename std::enable_if<(O > 1 && (31 / O - T) >= 4)>::type> {
+  static constexpr int P = 4;
+};
+
+template <int O, int T>
+struct P_traits<O, T,
+    typename std::enable_if<(
+        O > 1 && (31 / O - T == 2 || 31 / O - T == 3))>::type> {
+  static constexpr int P = 2;
+};
+
+template <int O, int T>
+struct P_traits<O, T,
+    typename std::enable_if<(O > 1 && (31 / O - T) == 1)>::type> {
+  static constexpr int P = 1;
+};
+
+// Jamming
+template <int O, int T, typename C = void> struct J_traits {};
+
+template <int T> struct J_traits<8, T, typename std::enable_if<T == 6>::type> {
+  static constexpr int J = 2;
+  static constexpr int O0 = 4;
+  static constexpr int O1 = 4;
+  static constexpr int O2 = 0;
+  static constexpr int P0 = P_traits<O0, T>::P;
+  static constexpr int P1 = P_traits<O1, T>::P;
+  static constexpr int P2 = 0;
+};
+
+template <int T>
+struct J_traits<8, T, typename std::enable_if<T == 7 || T == 8, void>::type> {
+  static constexpr int J = 3;
+  static constexpr int O0 = 3;
+  static constexpr int O1 = 3;
+  static constexpr int O2 = 2;
+  static constexpr int P0 = P_traits<O0, T>::P;
+  static constexpr int P1 = P_traits<O1, T>::P;
+  static constexpr int P2 = P_traits<O2, T>::P;
+};
+
+template <int T>
+struct J_traits<8, T, typename std::enable_if<(T >= 3 && T < 6), void>::type> {
+  static constexpr int J = 2;
+  static constexpr int O0 = 4;
+  static constexpr int O1 = 4;
+  static constexpr int O2 = 0;
+  static constexpr int P0 = P_traits<O0, T>::P;
+  static constexpr int P1 = P_traits<O1, T>::P;
+  static constexpr int P2 = 0;
+};
+
+template <int T>
+struct J_traits<4, T, typename std::enable_if<(T >= 7 && T < 15), void>::type> {
+  static constexpr int J = 2;
+  static constexpr int O0 = 2;
+  static constexpr int O1 = 2;
+  static constexpr int O2 = 0;
+  static constexpr int P0 = P_traits<O0, T>::P;
+  static constexpr int P1 = P_traits<O1, T>::P;
+  static constexpr int P2 = 0;
+};
+
+template <int T>
+struct J_traits<3, T,
+    typename std::enable_if<(T >= 10 && T < 15), void>::type> {
+  static constexpr int J = 2;
+  static constexpr int O0 = 2;
+  static constexpr int O1 = 1;
+  static constexpr int O2 = 0;
+  static constexpr int P0 = P_traits<O0, T>::P;
+  static constexpr int P1 = P_traits<O1, T>::P;
+  static constexpr int P2 = 0;
+};
+
+template <int O, int T>
+struct J_traits<O, T,
+    typename std::enable_if<(O == 1 && T < 32) || (O == 2 && T < 15)
+        || (O == 3 && T < 10) || (O == 4 && T < 7) || (O == 5 && T < 6)
+        || (O == 6 && T < 5) || (O == 7 && T < 4) || (O == 8 && T < 3)>::type> {
+  static constexpr int J = 1;
+  static constexpr int O0 = O;
+  static constexpr int O1 = 0;
+  static constexpr int O2 = 0;
+  static constexpr int P0 = P_traits<O0, T>::P;
+  static constexpr int P1 = 0;
+  static constexpr int P2 = 0;
 };
 
 template <int... Kp>
@@ -272,99 +373,52 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, GKF_CCC, 1,
   }
 
   template <int O2 = O2, int T = T>
-  static inline
-      typename std::enable_if<(O2 == 1 && T < 32) || (O2 == 2 && T < 15)
-              || (O2 == 3 && T < 10) || (O2 == 4 && T < 7) || (O2 == 5 && T < 6)
-              || (O2 == 6 && T < 5) || (O2 == 7 && T < 4) || (O2 == 8 && T < 3),
-          void>::type
-      execute(elx_conv_t<float> &xc, float *output, float *input,
-          float *weights, float *bias, bool reset_output)
+  static inline typename std::enable_if<(J_traits<O2, T>::J == 1)>::type
+  execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
+      float *bias, bool reset_output)
   {
-    op_fma<O2, para_traits<O2, T>::value>(
+    op_fma<J_traits<O2, T>::O0, J_traits<O2, T>::P0>(
         xc, output, input, weights, bias, reset_output);
   }
 
   template <int O2 = O2, int T = T>
-  static inline
-      typename std::enable_if<O2 == 3 && (T >= 10 && T < 15), void>::type
-      execute(elx_conv_t<float> &xc, float *output, float *input,
-          float *weights, float *bias, bool reset_output)
-  {
-    MD2(float, aoutput, output, O2, T *V);
-    MD4(float, aweights, weights, xc.I2, V, O2, V);
-    MD2(float, abias, bias, O2, V);
-
-    op_fma<2, para_traits<2, T>::value>(
-        xc, output, input, weights, bias, reset_output);
-    op_fma<1, para_traits<1, T>::value>(xc, &md2(aoutput, 2, 0), input,
-        &md4(aweights, 0, 0, 2, 0), &md2(abias, 2, 0), reset_output);
-  }
-
-  template <int O2 = O2, int T = T>
-  static inline
-      typename std::enable_if<O2 == 4 && (T >= 7 && T < 15), void>::type
-      execute(elx_conv_t<float> &xc, float *output, float *input,
-          float *weights, float *bias, bool reset_output)
-  {
-    MD2(float, aoutput, output, O2, T *V);
-    MD4(float, aweights, weights, xc.I2, V, O2, V);
-    MD2(float, abias, bias, O2, V);
-
-    op_fma<2, para_traits<2, T>::value>(
-        xc, output, input, weights, bias, reset_output);
-    op_fma<2, para_traits<2, T>::value>(xc, &md2(aoutput, 2, 0), input,
-        &md4(aweights, 0, 0, 2, 0), &md2(abias, 2, 0), reset_output);
-  }
-
-  template <int O2 = O2, int T = T>
-  static inline
-      typename std::enable_if<O2 == 8 && (T >= 3 && T < 6), void>::type
-      execute(elx_conv_t<float> &xc, float *output, float *input,
-          float *weights, float *bias, bool reset_output)
-  {
-    MD2(float, aoutput, output, O2, T *V);
-    MD4(float, aweights, weights, xc.I2, V, O2, V);
-    MD2(float, abias, bias, O2, V);
-
-    op_fma<5, para_traits<5, T>::value>(
-        xc, output, input, weights, bias, reset_output);
-    op_fma<3, para_traits<3, T>::value>(xc, &md2(aoutput, 5, 0), input,
-        &md4(aweights, 0, 0, 5, 0), &md2(abias, 5, 0), reset_output);
-  }
-
-  template <int O2 = O2, int T = T>
-  static inline typename std::enable_if<O2 == 8 && T == 6, void>::type execute(
-      elx_conv_t<float> &xc, float *output, float *input, float *weights,
+  static inline typename std::enable_if<(J_traits<O2, T>::J == 2)>::type
+  execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
       float *bias, bool reset_output)
   {
     MD2(float, aoutput, output, O2, T *V);
     MD4(float, aweights, weights, xc.I2, V, O2, V);
     MD2(float, abias, bias, O2, V);
 
-    op_fma<4, para_traits<4, T>::value>(
+    op_fma<J_traits<O2, T>::O0, J_traits<O2, T>::P0>(
         xc, output, input, weights, bias, reset_output);
-    op_fma<4, para_traits<4, T>::value>(xc, &md2(aoutput, 4, 0), input,
-        &md4(aweights, 0, 0, 4, 0), &md2(abias, 4, 0), reset_output);
+    op_fma<J_traits<O2, T>::O1, J_traits<O2, T>::P1>(xc,
+        &md2(aoutput, (J_traits<O2, T>::O0), 0), input,
+        &md4(aweights, 0, 0, (J_traits<O2, T>::O0), 0),
+        &md2(abias, (J_traits<O2, T>::O0), 0), reset_output);
   }
 
   template <int O2 = O2, int T = T>
-  static inline
-      typename std::enable_if<O2 == 8 && (T == 7 || T == 8), void>::type
-      execute(elx_conv_t<float> &xc, float *output, float *input,
-          float *weights, float *bias, bool reset_output)
+  static inline typename std::enable_if<(J_traits<O2, T>::J == 3)>::type
+  execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
+      float *bias, bool reset_output)
   {
     MD2(float, aoutput, output, O2, T *V);
     MD4(float, aweights, weights, xc.I2, V, O2, V);
     MD2(float, abias, bias, O2, V);
 
-    op_fma<3, para_traits<3, T>::value>(
+    op_fma<J_traits<O2, T>::O0, J_traits<O2, T>::P0>(
         xc, output, input, weights, bias, reset_output);
-    op_fma<3, para_traits<3, T>::value>(xc, &md2(aoutput, 3, 0), input,
-        &md4(aweights, 0, 0, 3, 0), &md2(abias, 3, 0), reset_output);
-    op_fma<2, para_traits<2, T>::value>(xc, &md2(aoutput, 6, 0), input,
-        &md4(aweights, 0, 0, 6, 0), &md2(abias, 6, 0), reset_output);
+    op_fma<J_traits<O2, T>::O1, J_traits<O2, T>::P1>(xc,
+        &md2(aoutput, (J_traits<O2, T>::O0), 0), input,
+        &md4(aweights, 0, 0, (J_traits<O2, T>::O0), 0),
+        &md2(abias, (J_traits<O2, T>::O0), 0), reset_output);
+    op_fma<J_traits<O2, T>::O2, J_traits<O2, T>::P2>(xc,
+        &md2(aoutput, (J_traits<O2, T>::O0 + J_traits<O2, T>::O1), 0), input,
+        &md4(aweights, 0, 0, (J_traits<O2, T>::O0 + J_traits<O2, T>::O1), 0),
+        &md2(abias, (J_traits<O2, T>::O0 + J_traits<O2, T>::O1), 0),
+        reset_output);
   }
 };
-
 
 } // namespace euler
