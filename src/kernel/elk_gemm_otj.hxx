@@ -135,6 +135,13 @@ struct J_traits<O, T,
   static constexpr int P2 = 0;
 };
 
+template <int F>
+struct F_traits {
+  static constexpr bool is_compact_input = (F & 0xF00) == 0xC00;
+  static constexpr bool is_compact_weights = (F & 0xF0) == 0xC0;
+  static constexpr bool is_compact_output = (F & 0xF) == 0xC;
+};
+
 template <typename Type, int V, int I, int S, typename KP>
 struct gemm_kernel_otj {
   static inline void execute(
@@ -167,8 +174,10 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
   {
     __m512 mmbcst, mmout[O][T], mmwei[O][P];
 
-    MD3(float, aoutput3, output, O, T, V);
-    MD4(float, ainput4, input, xc.I2, T, V/P, P);
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
+    MD2(float, aoutput, output, O, O_stride);
+    MD4(float, ainput4, input, xc.I2, T, V / P, P);
     MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
     MD2(float, abias2, bias, O, V);
 
@@ -189,9 +198,11 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
       }
     } else {
       // load output
-      for (int _O = 0; _O < O; ++_O)
+      for (int _O = 0; _O < O; ++_O) {
+        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         for (int _T = 0; _T < T; ++_T)
-          mmout[_O][_T] = _mm512_load_ps(&md3(aoutput3, _O, _T, 0));
+          mmout[_O][_T] = _mm512_load_ps(&md2(aoutput2, _T, 0));
+      }
     }
 
     for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
@@ -209,9 +220,11 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
     }
 
     // store output
-    for (int _O = 0; _O < O; ++_O)
+    for (int _O = 0; _O < O; ++_O) {
+      MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
       for (int _T = 0; _T < T; ++_T)
-        _mm512_store_ps(&md3(aoutput3, _O, _T, 0), mmout[_O][_T]);
+        _mm512_store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+    }
   }
 
   template <int O, int P>
@@ -220,8 +233,10 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
       float *bias, bool reset_output)
   {
     __m512 mmbcst, mmout[O][T], mmwei[O][P];
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD3(float, aoutput3, output, O, T, V);
+    MD2(float, aoutput, output, O, O_stride);
     MD4(float, ainput4, input, xc.I2, T, V/P, P);
     MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
     MD2(float, abias2, bias, O, V);
@@ -247,9 +262,11 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
       }
     } else {
       // load output
-      for (int _O = 0; _O < O; ++_O)
+      for (int _O = 0; _O < O; ++_O) {
+        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         for (int _T = 0; _T < T; ++_T)
-          mmout[_O][_T] = _mm512_load_ps(&md3(aoutput3, _O, _T, 0));
+          mmout[_O][_T] = _mm512_load_ps(&md2(aoutput2, _T, 0));
+      }
     }
 
     for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
@@ -278,9 +295,11 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
     }
 
     // store output
-    for (int _O = 0; _O < O; ++_O)
+    for (int _O = 0; _O < O; ++_O) {
+      MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
       for (int _T = 0; _T < T; ++_T)
-        _mm512_store_ps(&md3(aoutput3, _O, _T, 0), mmout[_O][_T]);
+        _mm512_store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+    }
   }
 
   template <int O, int P>
@@ -289,8 +308,10 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
       float *bias, bool reset_output)
   {
     __m512 mmbcst, mmout[O][T], mmwei[O][P];
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD3(float, aoutput3, output, O, T, V);
+    MD2(float, aoutput, output, O, O_stride);
     MD4(float, ainput4, input, xc.I2, T, V/P, P);
     MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
     MD2(float, abias2, bias, O, V);
@@ -317,9 +338,11 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
       }
     } else {
       // load output
-      for (int _O = 0; _O < O; ++_O)
+      for (int _O = 0; _O < O; ++_O) {
+        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         for (int _T = 0; _T < T; ++_T)
-          mmout[_O][_T] = _mm512_load_ps(&md3(aoutput3, _O, _T, 0));
+          mmout[_O][_T] = _mm512_load_ps(&md2(aoutput2, _T, 0));
+      }
     }
 
     for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
@@ -368,9 +391,11 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
     }
 
     // store output
-    for (int _O = 0; _O < O; ++_O)
+    for (int _O = 0; _O < O; ++_O) {
+      MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
       for (int _T = 0; _T < T; ++_T)
-        _mm512_store_ps(&md3(aoutput3, _O, _T, 0), mmout[_O][_T]);
+        _mm512_store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+    }
   }
 
   template <int O2 = O2, int T = T>
@@ -387,7 +412,10 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
   execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
       float *bias, bool reset_output)
   {
-    MD2(float, aoutput, output, O2, T *V);
+    const int O2_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
+
+    MD2(float, aoutput, output, O2, O2_stride);
     MD4(float, aweights, weights, xc.I2, V, O2, V);
     MD2(float, abias, bias, O2, V);
 
@@ -404,7 +432,10 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
   execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
       float *bias, bool reset_output)
   {
-    MD2(float, aoutput, output, O2, T *V);
+    const int O2_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
+
+    MD2(float, aoutput, output, O2, O2_stride);
     MD4(float, aweights, weights, xc.I2, V, O2, V);
     MD2(float, abias, bias, O2, V);
 
