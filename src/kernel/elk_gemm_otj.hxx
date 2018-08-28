@@ -59,8 +59,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, GKF_CCC, 1,
   constexpr static auto with_sum = estl::get<7, bool, kparams>();
 
   template <int O, int P>
-  static inline void op_fma(elx_conv_t<float> &xc, float *output,
-      float *input, float *weights, float *bias, bool reset_output)
+  static inline typename std::enable_if<P == 1, void>::type op_fma(
+      elx_conv_t<float> &xc, float *output, float *input, float *weights,
+      float *bias, bool reset_output)
   {
     __m512 mmbcst, mmout[O][T], mmwei[O][P];
 
@@ -69,13 +70,133 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, GKF_CCC, 1,
     MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
     MD2(float, abias2, bias, O, V);
 
-    if (P >= 2) {
-      // preload weights
-      for (int _O = 0; _O < O; ++_O) {
-        mmwei[_O][0] = _mm512_load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
-        if (P == 4)
-          mmwei[_O][1] = _mm512_load_ps(&md5(aweights5, 0, 0, 1, _O, 0));
+    if (reset_output) {
+      if (with_bias) {
+        // load bias
+        for (int _O = 0; _O < O; ++_O) {
+          __m512 tmp = _mm512_load_ps(&md2(abias2, _O, 0));
+          for (int _T = 0; _T < T; ++_T)
+            mmout[_O][_T] = tmp;
+        }
+      } else {
+        // clear output
+        __m512 tmp = _mm512_setzero_ps();
+        for (int _O = 0; _O < O; ++_O)
+          for (int _T = 0; _T < T; ++_T)
+            mmout[_O][_T] = tmp;
       }
+    } else {
+      // load output
+      for (int _O = 0; _O < O; ++_O)
+        for (int _T = 0; _T < T; ++_T)
+          mmout[_O][_T] = _mm512_load_ps(&md3(aoutput3, _O, _T, 0));
+    }
+
+    for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+      for (int _V = 0; _V < V / P; ++_V) {
+          for (int _O = 0; _O < O; ++_O)
+            mmwei[_O][0] = _mm512_load_ps(&md5(aweights5, _I2, _V, 0, _O, 0));
+          for (int _T = 0; _T < T; ++_T) {
+            mmbcst = _mm512_broadcastss_ps(
+                *(__m128 *)&md4(ainput4, _I2, _T, _V, 0));
+            for (int _O = 0; _O < O; ++_O)
+              mmout[_O][_T]
+                  = _mm512_fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+        }
+      }
+    }
+
+    // store output
+    for (int _O = 0; _O < O; ++_O)
+      for (int _T = 0; _T < T; ++_T)
+        _mm512_store_ps(&md3(aoutput3, _O, _T, 0), mmout[_O][_T]);
+  }
+
+  template <int O, int P>
+  static inline typename std::enable_if<P == 2, void>::type op_fma(
+      elx_conv_t<float> &xc, float *output, float *input, float *weights,
+      float *bias, bool reset_output)
+  {
+    __m512 mmbcst, mmout[O][T], mmwei[O][P];
+
+    MD3(float, aoutput3, output, O, T, V);
+    MD4(float, ainput4, input, xc.I2, T, V/P, P);
+    MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
+    MD2(float, abias2, bias, O, V);
+
+    // preload weights
+    for (int _O = 0; _O < O; ++_O)
+      mmwei[_O][0] = _mm512_load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
+
+    if (reset_output) {
+      if (with_bias) {
+        // load bias
+        for (int _O = 0; _O < O; ++_O) {
+          __m512 tmp = _mm512_load_ps(&md2(abias2, _O, 0));
+          for (int _T = 0; _T < T; ++_T)
+            mmout[_O][_T] = tmp;
+        }
+      } else {
+        // clear output
+        __m512 tmp = _mm512_setzero_ps();
+        for (int _O = 0; _O < O; ++_O)
+          for (int _T = 0; _T < T; ++_T)
+            mmout[_O][_T] = tmp;
+      }
+    } else {
+      // load output
+      for (int _O = 0; _O < O; ++_O)
+        for (int _T = 0; _T < T; ++_T)
+          mmout[_O][_T] = _mm512_load_ps(&md3(aoutput3, _O, _T, 0));
+    }
+
+    for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+      for (int _V = 0; _V < V / P; ++_V) {
+        // _P = 0
+        for (int _O = 0; _O < O; ++_O)
+          mmwei[_O][1] = _mm512_load_ps(&md5(aweights5, _I2, _V, 1, _O, 0));
+        for (int _T = 0; _T < T; ++_T) {
+          mmbcst
+              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _I2, _T, _V, 0));
+          for (int _O = 0; _O < O; ++_O)
+            mmout[_O][_T]
+                = _mm512_fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+        }
+        // _P = 1
+        for (int _O = 0; _O < O; ++_O)
+          mmwei[_O][0] = _mm512_load_ps(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
+        for (int _T = 0; _T < T; ++_T) {
+          mmbcst
+              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _I2, _T, _V, 1));
+          for (int _O = 0; _O < O; ++_O)
+            mmout[_O][_T]
+                = _mm512_fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
+        }
+      }
+    }
+
+    // store output
+    for (int _O = 0; _O < O; ++_O)
+      for (int _T = 0; _T < T; ++_T)
+        _mm512_store_ps(&md3(aoutput3, _O, _T, 0), mmout[_O][_T]);
+  }
+
+  template <int O, int P>
+  static inline typename std::enable_if<P == 4, void>::type op_fma(
+      elx_conv_t<float> &xc, float *output, float *input, float *weights,
+      float *bias, bool reset_output)
+  {
+    __m512 mmbcst, mmout[O][T], mmwei[O][P];
+
+    MD3(float, aoutput3, output, O, T, V);
+    MD4(float, ainput4, input, xc.I2, T, V/P, P);
+    MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
+    MD2(float, abias2, bias, O, V);
+
+    // preload weights
+    for (int _O = 0; _O < O; ++_O) {
+      mmwei[_O][0] = _mm512_load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
+      mmwei[_O][1] = _mm512_load_ps(&md5(aweights5, 0, 0, 1, _O, 0));
     }
     if (reset_output) {
       if (with_bias) {
@@ -101,21 +222,45 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, GKF_CCC, 1,
 
     for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
       for (int _V = 0; _V < V / P; ++_V) {
-        for (int _P = 0; _P < P; ++_P) {
-          // load weights
-          for (int _O = 0; _O < O; ++_O) {
-            const int p = (_P + P/2) % P;
-            const int v = _P >= P/2 ? _V + 1 : _V;
-            mmwei[_O][p] = _mm512_load_ps(&md5(aweights5, _I2, v, p, _O, 0));
-          }
-          // FMA
-          for (int _T = 0; _T < T; ++_T) {
-            mmbcst = _mm512_broadcastss_ps(
-                *(__m128 *)&md4(ainput4, _I2, _T, _V, _P));
-            for (int _O = 0; _O < O; ++_O)
-              mmout[_O][_T]
-                  = _mm512_fmadd_ps(mmwei[_O][_P], mmbcst, mmout[_O][_T]);
-          }
+        // _P = 0
+        for (int _O = 0; _O < O; ++_O)
+          mmwei[_O][2] = _mm512_load_ps(&md5(aweights5, _I2, _V, 2, _O, 0));
+        for (int _T = 0; _T < T; ++_T) {
+          mmbcst
+              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _I2, _T, _V, 0));
+          for (int _O = 0; _O < O; ++_O)
+            mmout[_O][_T]
+                = _mm512_fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+        }
+        for (int _O = 0; _O < O; ++_O)
+          mmwei[_O][3] = _mm512_load_ps(&md5(aweights5, _I2, _V, 3, _O, 0));
+        // _P = 1
+        for (int _T = 0; _T < T; ++_T) {
+          mmbcst
+              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _I2, _T, _V, 1));
+          for (int _O = 0; _O < O; ++_O)
+            mmout[_O][_T]
+                = _mm512_fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
+        }
+        // _P = 2
+        for (int _O = 0; _O < O; ++_O)
+          mmwei[_O][0] = _mm512_load_ps(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
+        for (int _T = 0; _T < T; ++_T) {
+          mmbcst
+              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _I2, _T, _V, 2));
+          for (int _O = 0; _O < O; ++_O)
+            mmout[_O][_T]
+                = _mm512_fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
+        }
+        // _P = 3
+        for (int _O = 0; _O < O; ++_O)
+          mmwei[_O][1] = _mm512_load_ps(&md5(aweights5, _I2, _V + 1, 1, _O, 0));
+        for (int _T = 0; _T < T; ++_T) {
+          mmbcst
+              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _I2, _T, _V, 3));
+          for (int _O = 0; _O < O; ++_O)
+            mmout[_O][_T]
+                = _mm512_fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
         }
       }
     }
