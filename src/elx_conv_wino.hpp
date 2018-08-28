@@ -84,7 +84,7 @@ public:
       int n = 1;
 
       if ( tiles_ > reg_min * (num_cpu -1) + 1 ) {
-        do {
+        do { /* need something exponential */
           tb_ = (tiles_ - 1) / (n ++ * num_cpu) + 1;
         } while (tb_ > reg_max);
       } else {
