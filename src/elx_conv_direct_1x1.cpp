@@ -216,8 +216,15 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
       else                                                                     \
         *func = gemm_ker_cls_<1, 0xCCC, O_, T_, false, false, false, false,    \
             false>::execute;                                                   \
-      break;                                                                   \
-    }
+    } else if (xopt_ == 0xb061) {                                              \
+      if (this->with_bias)                                                     \
+        *func = gemm_ker_cls_<1, 0xCCD, O_, T_, false, false, true, false,     \
+            false>::execute;                                                   \
+      else                                                                     \
+        *func = gemm_ker_cls_<1, 0xCCD, O_, T_, false, false, false, false,    \
+            false>::execute;                                                   \
+    }                                                                          \
+    break;
 
 #if 0
   #define GEMM_CASE(z, T_, O_) \
