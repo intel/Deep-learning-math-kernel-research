@@ -199,9 +199,10 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
     } else {
       // load output
       for (int _O = 0; _O < O; ++_O) {
-        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-        for (int _T = 0; _T < T; ++_T)
+        for (int _T = 0; _T < T; ++_T) {
+          MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
           mmout[_O][_T] = _mm512_load_ps(&md2(aoutput2, _T, 0));
+        }
       }
     }
 
@@ -221,9 +222,10 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
 
     // store output
     for (int _O = 0; _O < O; ++_O) {
-      MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-      for (int _T = 0; _T < T; ++_T)
+      for (int _T = 0; _T < T; ++_T) {
+        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         _mm512_store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+      }
     }
   }
 
@@ -263,9 +265,10 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
     } else {
       // load output
       for (int _O = 0; _O < O; ++_O) {
-        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-        for (int _T = 0; _T < T; ++_T)
+        for (int _T = 0; _T < T; ++_T) {
+          MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
           mmout[_O][_T] = _mm512_load_ps(&md2(aoutput2, _T, 0));
+        }
       }
     }
 
@@ -296,9 +299,10 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
 
     // store output
     for (int _O = 0; _O < O; ++_O) {
-      MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-      for (int _T = 0; _T < T; ++_T)
+      for (int _T = 0; _T < T; ++_T) {
+        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         _mm512_store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+      }
     }
   }
 
@@ -339,9 +343,10 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
     } else {
       // load output
       for (int _O = 0; _O < O; ++_O) {
-        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-        for (int _T = 0; _T < T; ++_T)
+        for (int _T = 0; _T < T; ++_T) {
+          MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
           mmout[_O][_T] = _mm512_load_ps(&md2(aoutput2, _T, 0));
+        }
       }
     }
 
@@ -392,9 +397,10 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
 
     // store output
     for (int _O = 0; _O < O; ++_O) {
-      MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-      for (int _T = 0; _T < T; ++_T)
+      for (int _T = 0; _T < T; ++_T) {
+        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         _mm512_store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+      }
     }
   }
 
