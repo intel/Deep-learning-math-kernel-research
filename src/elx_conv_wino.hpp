@@ -61,7 +61,7 @@ public:
   public:
     exe_plan(int tiles, int IC, int OC):
       tiles_(tiles), tb_(tiles), ocd_(1), icb_(IC/V), ocb_(OC/V),
-      weights_total(A * A * IC * OC * V * elem_sz), mode_(0xa061) {
+      weights_total(A * A * IC * OC * elem_sz), mode_(0xa061) {
     }
 
     inline bool bifurcate_oc() {
