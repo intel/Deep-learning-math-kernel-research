@@ -89,11 +89,17 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   bool input_is_bfmt_;
   bool weights_is_bfmt_;
   bool output_is_bfmt_;
+  bool input_as_bfmt_;
+  bool weights_as_bfmt_;
+  bool output_as_bfmt_;
 
   Type *tweights_;
   Type *tinput_;
   Type *toutput_;
   unsigned char *tinput_msk_;
+  Type *binput_; // blocked input
+  Type *bweights_;
+  Type *boutput_;
 
   unsigned int xopt_;
   int mthr_;

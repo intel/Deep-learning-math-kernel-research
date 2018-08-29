@@ -91,7 +91,6 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
     }
   }
 
-  // TODO: Ir, Or Tailing
   this->Ir = this->ic % V ? this->ic % V : V;
   this->Or = this->oc % V ? this->oc % V : V;
 
@@ -138,6 +137,7 @@ template <typename Type, const int V, const int I>
 int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
 {
   size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
+  size_t binput_size = 0, bweights_size = 0, boutput_size = 0;
   size_t l1_usage = 0, l2_usage = 0;
 
   stream_in_ = this->streaming_input
@@ -150,6 +150,9 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
   input_is_bfmt_ = this->input_fmt == nchw ? false : true;
   weights_is_bfmt_ = this->weights_fmt == oihw ? false : true;
   output_is_bfmt_ = this->output_fmt == nchw ? false : true;
+  input_as_bfmt_ = !input_is_bfmt_ && this->input_as_blocked;
+  weights_as_bfmt_ = !weights_is_bfmt_ && this->weights_as_blocked;
+  output_as_bfmt_ = !output_is_bfmt_ && this->output_as_blocked;
   is_bfmt_ = input_is_bfmt_ && weights_is_bfmt_ && output_is_bfmt_;
 
   if (this->ic4 > 1 && this->Ir != V) {
@@ -163,10 +166,20 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
     el_error("Unimplemented: only c060, a061, e061 mode support plain format\n");
   }
 
+  if (input_as_bfmt_)
+    binput_size = this->n * this->IC * this->ih * this->iw;
+  if (weights_as_bfmt_)
+    bweights_size = this->OC * this->IC;
+  if (output_as_bfmt_)
+    boutput_size = this->n * this->OC * this->oh * this->ow;
+
   tweights_ = nullptr;
   tinput_ = nullptr;
   toutput_ = nullptr;
   tinput_msk_ = nullptr;
+  binput_ = nullptr;
+  bweights_ = nullptr;
+  boutput_ = nullptr;
 
   l1_usage = sizeof(Type)
       * (this->O2 * this->I2 * V * V + this->T * V * (this->I2 + this->O2));
@@ -210,6 +223,12 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
     MEMALIGN64(&tinput_, tinput_size * sizeof(Type));
   if (toutput_size > 0)
     MEMALIGN64(&toutput_, toutput_size * sizeof(Type));
+  if (binput_size > 0)
+    MEMALIGN64(&binput_, binput_size * sizeof(Type));
+  if (bweights_size > 0)
+    MEMALIGN64(&bweights_, bweights_size * sizeof(Type));
+  if (boutput_size > 0)
+    MEMALIGN64(&boutput_, boutput_size * sizeof(Type));
 
   // dbg
   printf("nteams=%d, nthreads=%d, mthr_=%d\n", this->nteams, this->nthreads, mthr_);
@@ -460,6 +479,18 @@ elx_conv_direct_1x1_t<Type, V, I>::~elx_conv_direct_1x1_t()
   if (tinput_msk_ != nullptr) {
     free(tinput_msk_);
     tinput_msk_ = nullptr;
+  }
+  if (binput_ != nullptr) {
+    free(binput_);
+    binput_ = nullptr;
+  }
+  if (bweights_ != nullptr) {
+    free(bweights_);
+    bweights_ = nullptr;
+  }
+  if (boutput_ != nullptr) {
+    free(boutput_);
+    boutput_ = nullptr;
   }
 }
 
@@ -891,7 +922,7 @@ template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::trans_weights(
     Type *tweights, Type *weights)
 {
-  if (weights_is_bfmt_)
+  if (weights_is_bfmt_ || weights_as_bfmt_)
     __trans_weights_blocked(tweights, weights);
   else
     __trans_weights_plain(tweights, weights);
@@ -986,7 +1017,7 @@ template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::trans_input(
     Type *tinput, Type *input, int _ht, int _wt)
 {
-  if (input_is_bfmt_)
+  if (input_is_bfmt_ || input_as_bfmt_)
     __trans_input_blocked(tinput, input, _ht, _wt);
   else
     __trans_input_plain(tinput, input, _ht, _wt);
@@ -1086,7 +1117,7 @@ template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::trans_output(
     Type *output, Type *toutput, int _oc4, int _ht, int _wt)
 {
-  if (output_is_bfmt_)
+  if (output_is_bfmt_ || output_as_bfmt_)
     __trans_output_blocked(output, toutput, _oc4, _ht, _wt);
   else
     __trans_output_plain(output, toutput, _oc4, _ht, _wt);
@@ -1380,7 +1411,7 @@ template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::trans_input2(
     Type *tinput, Type *input, int _t2, int Tz)
 {
-  if (input_is_bfmt_)
+  if (input_is_bfmt_ || input_as_bfmt_)
     __trans_input_blocked2(tinput, input, _t2, Tz);
   else
     __trans_input_plain2(tinput, input, _t2, Tz);
@@ -1478,7 +1509,7 @@ template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::trans_output2(
     Type *output, Type *toutput, int _oc4, int _t2, int Tz)
 {
-  if (output_is_bfmt_)
+  if (output_is_bfmt_ || output_as_bfmt_)
     __trans_output_blocked2(output, toutput, _oc4, _t2, Tz);
   else
     __trans_output_plain2(output, toutput, _oc4, _t2, Tz);
@@ -1652,21 +1683,28 @@ void elx_conv_direct_1x1_t<Type, V, I>::execute(
   if (is_bfmt_)
     (this->*execute_opt_)(output, input, weights, bias);
   else {
-    Type *in  = (input_is_bfmt_ || xopt_ != 0xc060) ? input   : tinput_;
-    Type *wei = (weights_is_bfmt_ || xopt_ != 0xc060) ? weights : tweights_;
-    Type *out = (output_is_bfmt_ || xopt_ != 0xc060) ? output  : toutput_;
+    Type *in = input_as_bfmt_ ?
+        binput_ : (!weights_is_bfmt_ && xopt_ == 0xc060) ?
+        tinput_ : input;
+    Type *wei = weights_as_bfmt_ ?
+        bweights_ : (!weights_is_bfmt_ && xopt_ == 0xc060) ?
+        tweights_ : weights;
+    Type *out = output_as_bfmt_ ?
+        boutput_ : (!output_is_bfmt_ && xopt_ == 0xc060) ?
+        toutput_ : output;
 
-    if (!input_is_bfmt_ && xopt_ == 0xc060) {
+    if (input_as_bfmt_ || (!input_is_bfmt_ && xopt_ == 0xc060)) {
       trans_input_2_blocked(in, input);
     }
 
-    if (!weights_is_bfmt_ && xopt_ == 0xc060) {
+    if (weights_as_bfmt_ || (!weights_is_bfmt_ && xopt_ == 0xc060)) {
       trans_weights_2_blocked(wei, weights);
     }
 
+    // TODO: padding bias
     (this->*execute_opt_)(out, in, wei, bias);
 
-    if (!output_is_bfmt_ && xopt_ == 0xc060) {
+    if (output_as_bfmt_ || (!output_is_bfmt_ && xopt_ == 0xc060)) {
       trans_output_2_plain(output, out);
     }
   }
