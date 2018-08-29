@@ -623,55 +623,20 @@ template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::trans_output_2_plain(
     Type *output, Type *boutput)
 {
-  MD4(Type, aboutput4, boutput, this->n, this->oc2, this->oh * this->ow, V);
-  SET_EPI32(this->oh * this->ow)
-
-  if (this->Or == V) {
-    MD4(Type, aoutput4, output, this->n, this->oc2, V, this->oh * this->ow);
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-#pragma omp for nowait collapse(3)
-    iter_each(_n, this->n) {
-    iter_each(_oc2, this->oc2) {
-    iter_each(_t, this->oh * this->ow) {
-      if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
-         __m512 t = _mm512_load_ps(&md4(aboutput4, _n, _oc2, _t, 0));
-         constexpr int scale = sizeof(Type);
-         _mm512_i32scatter_ps(&md4(aoutput4, _n, _oc2, 0, _t), vindex, t, scale);
-      } else {
-#pragma omp simd
-        iter_each(_ov, V) {
-          md4(aoutput4, _n, _oc2, _ov, _t) = md4(aboutput4, _n, _oc2, _t, _ov);
-        }
+  MD5(Type, aboutput, boutput, this->n, this->oc2, this->oh, this->ow, V);
+  MD4(Type, aoutput, output, this->n, this->oc, this->oh, this->ow);
+#pragma omp parallel for collapse(3)
+  iter_each (_n, this->n) {
+  iter_each (_oc2, this->oc2) {
+  iter_each (_oh, this->oh) {
+    int v = _oc2 == this->oc2 - 1 ? this->Or : V;
+    iter_each (_V, v) {
+      iter_each (_ow, this->ow) {
+        md4(aoutput, _n, _oc2 * V + _V, _oh, _ow)
+          = md5(aboutput, _n, _oc2, _oh, _ow, _V);
       }
-    }}}
-  } else {
-    MD3(Type, aoutput3, output, this->n, this->oc, this->oh * this->ow);
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-#pragma omp for nowait collapse(3)
-    iter_each(_n, this->n) {
-    iter_each(_oc2, this->oc2) {
-    iter_each(_t, this->oh * this->ow) {
-      bool is_Or = _oc2 == this->oc2 - 1;
-      if (is_Or) {
-#pragma omp simd
-        iter_each(_ov, this->Or) {
-          md3(aoutput3, _n, (this->oc2 - 1) * V + _ov, _t)
-              = md4(aboutput4, _n, this->oc2 - 1, _t, _ov);
-        }
-      } else {
-        if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
-           __m512 t = _mm512_load_ps(&md4(aboutput4, _n, _oc2, _t, 0));
-           constexpr int scale = sizeof(Type);
-           _mm512_i32scatter_ps(&md3(aoutput3, _n, _oc2 * V, _t), vindex, t, scale);
-        } else {
-#pragma omp simd
-          iter_each(_ov, V) {
-            md3(aoutput3, _n, _oc2 * V + _ov, _t) = md4(aboutput4, _n, _oc2, _t, _ov);
-          }
-        }
-      }
-    }}}
-  }
+    }
+  }}}
 }
 
 template <typename Type, const int V, const int I>
