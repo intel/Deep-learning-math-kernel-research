@@ -158,10 +158,15 @@ public:
         gemmker_weights_footprint() + gemmker_output_footprint();
     }
 
+    inline std::size_t trans_output_footprint() const {
+      return elem_sz * K * K * ocb_ * V * tb_;
+    }
+
     inline std::size_t gemm_output_reuse_set() const {
       auto wtile_sz = elem_sz * A * A * icb_ * ocb_ * V * V;
       return wtile_sz + (gemmker_input_footprint() +
-        gemmker_output_footprint() * ocb_) * A * A;
+        gemmker_output_footprint() * ocb_) * A * A +
+        trans_output_footprint();
     }
 
     void dump() const {
