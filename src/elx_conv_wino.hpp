@@ -61,7 +61,7 @@ public:
   public:
     exe_plan(int tiles, int IC, int OC):
       tiles_(tiles), tb_(tiles), ocd_(1), icb_(IC/V), ocb_(OC/V),
-      weights_total(A * A * IC * OC * V * elem_sz) {
+      weights_total(A * A * IC * OC * V * elem_sz), mode_(0xa061) {
     }
 
     inline bool bifurcate_oc() {
@@ -125,7 +125,12 @@ public:
     }
 
     inline bool fit(int num_cpu, int num_socket, std::size_t l2, std::size_t l1) {
-      return threading_fit(num_cpu, num_socket, l2) && l2_fit(l2) && l1_fit(l1);
+      if (!(threading_fit(num_cpu, num_socket, l2) && l2_fit(l2) && l1_fit(l1))) {
+        mode_ = 0xa000;
+        // A000 execution tuning
+      }
+
+      return true;
     }
 
     // queries
@@ -179,6 +184,7 @@ public:
     const int tiles_;
     int tb_, ocd_, icb_, ocb_;
     std::size_t weights_total;
+    unsigned int mode_;
   };
 
   exe_plan execute_plan(int num_cpu, int num_socket, std::size_t l2, std::size_t l1) {
