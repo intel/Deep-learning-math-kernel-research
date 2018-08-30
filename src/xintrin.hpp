@@ -28,8 +28,9 @@ template <int V> struct _mm {
 #ifdef __AVX512F__
 template <> struct _mm<16> {
   static constexpr auto load_ps = _mm512_load_ps;
+  static constexpr auto store_ps = _mm512_store_ps;
   static constexpr auto setzero_ps = _mm512_setzero_ps;
-  static constexpr auto set_ps = _mm512_set_ps;
+  static constexpr auto set1_ps = _mm512_set1_ps;
   static constexpr auto add_ps = _mm512_add_ps;
   static constexpr auto sub_ps = _mm512_sub_ps;
   static constexpr auto mul_ps = _mm512_mul_ps;
@@ -46,8 +47,9 @@ template <> struct _mm<16> {
 #ifdef __AVX2__
 template <> struct _mm<8> {
   static constexpr auto load_ps = _mm256_load_ps;
+  static constexpr auto store_ps = _mm256_store_ps;
   static constexpr auto setzero_ps = _mm256_setzero_ps;
-  static constexpr auto set_ps = _mm256_set_ps;
+  static constexpr auto set1_ps = _mm256_set1_ps;
   static constexpr auto add_ps = _mm256_add_ps;
   static constexpr auto sub_ps = _mm256_sub_ps;
   static constexpr auto mul_ps = _mm256_mul_ps;

@@ -114,7 +114,7 @@ public:
       for (int _I2 = 0; _I2 < xc.I2 -1; ++_I2) {
 #       pragma unroll (V)
         for (int _V= 0; _V < V; ++_V) {
-          auto w = _mm<V>::_load_ps(&md4(atweights, _O2, _I2, _V, 0));
+          auto w = _mm<V>::load_ps(&md4(atweights, _O2, _I2, _V, 0));
 #         pragma unroll (T)
           for (int i=0; i < T; i++) {
             auto x = _mm<V>::set1_ps(md3(atinput, _I2, i, _V));
@@ -241,27 +241,27 @@ private:
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
 #       pragma unroll (8)
         for (int _V = 0; _V < V/4; ++_V) {
-          w1 = _mm512_load_ps(w_ptr);
+          w1 = _mm<V>::load_ps(w_ptr);
           w_ptr += V;
 #         pragma unroll (T)
           for (int i =0; i < T; ++i) {
-            auto x = _mm512_set1_ps(md4(atinput, _I2, i, _V, 0));
-            t[i] = _mm512_fmadd_ps(w0, x, t[i]);
+            auto x = _mm<V>::set1_ps(md4(atinput, _I2, i, _V, 0));
+            t[i] = _mm<V>::fmadd_ps(w0, x, t[i]);
           }
 
           asm volatile("" : : : "memory");
-          w0 = _mm512_load_ps(w_ptr);
+          w0 = _mm<V>::load_ps(w_ptr);
           w_ptr += V;
 #         pragma unroll (T)
           for (int i =0; i < T; ++i) {
-            auto x = _mm512_set1_ps(md4(atinput, _I2, i, _V, 1));
-            t[i] = _mm512_fmadd_ps(w1, x, t[i]);
+            auto x = _mm<V>::set1_ps(md4(atinput, _I2, i, _V, 1));
+            t[i] = _mm<V>::fmadd_ps(w1, x, t[i]);
           }
         }
       }
 #     pragma unroll (T)
       for (int i =0; i < T; i++) {
-        _mm512_store_ps(&md3(atoutput, _O2, i, 0), t[i]);
+        _mm<V>::store_ps(&md3(atoutput, _O2, i, 0), t[i]);
       }
     }
   }
@@ -279,29 +279,29 @@ private:
       if (zero_out) {
 #       pragma unroll (T)
         for (int i =0; i<T; i++) {
-          t[i] = _mm512_setzero_ps();
+          t[i] = _mm<V>::setzero_ps();
         }
       } else {
 #       pragma unroll (T)
         for (int i =0; i<T; i++) {
-          t[i] = _mm512_load_ps(&md3(atoutput, _O2, i, 0));
+          t[i] = _mm<V>::load_ps(&md3(atoutput, _O2, i, 0));
         }
       }
 
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
 #       pragma unroll (V)
         for (int _V = 0; _V < V; ++_V) {
-          auto w = _mm512_load_ps(&md4(atweights, _O2, _I2, _V, 0));
+          auto w = _mm<V>::load_ps(&md4(atweights, _O2, _I2, _V, 0));
 #         pragma unroll (T)
           for (int i =0; i < T; ++i) {
-            auto x = _mm512_set1_ps(md3(atinput, _I2, i, _V));
-            t[i] = _mm512_fmadd_ps(w, x, t[i]);
+            auto x = _mm<V>::set1_ps(md3(atinput, _I2, i, _V));
+            t[i] = _mm<V>::fmadd_ps(w, x, t[i]);
           }
         }
       }
 #     pragma unroll (T)
       for (int i=0; i < T; i++) {
-        _mm512_store_ps(&md3(atoutput, _O2, i, 0), t[i]);
+        _mm<V>::store_ps(&md3(atoutput, _O2, i, 0), t[i]);
       }
     }
   }
