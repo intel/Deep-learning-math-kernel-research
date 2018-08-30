@@ -458,7 +458,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
     }
 
     // store output
+#pragma unroll(O)
     for (int _O = 0; _O < O; ++_O) {
+#pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         _mm512_store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
