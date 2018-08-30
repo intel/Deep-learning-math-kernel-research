@@ -1,3 +1,4 @@
+#pragma once
 #include <x86intrin.h>
 
 template <int V> struct _mm_traits {
@@ -158,3 +159,15 @@ template <> struct _mm<8> {
 };
 #endif
 #endif
+template <int V> inline __m<V> operator +(__m<V> op1, __m<V> op2) noexcept {
+  return _mm<V>::add_ps(op1, op2);
+}
+template <int V> inline __m<V> operator -(__m<V> op1, __m<V> op2) noexcept {
+  return _mm<V>::sub_ps(op1, op2);
+}
+template <int V> inline __m<V> operator *(__m<V> op1, __m<V> op2) noexcept {
+  return _mm<V>::mul_ps(op1, op2);
+}
+template <int V> inline __m<V> operator ^(__m<V> op1, __m<V> op2) noexcept {
+  return _mm<V>::xor_ps(op1, op2);
+}
