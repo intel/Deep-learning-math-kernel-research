@@ -233,8 +233,8 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
         for (int _T = 0; _T < T; ++_T) {
 #pragma unroll(O)
           for (int _O = 0; _O < O; ++_O) {
-            MD3(float, ainput3, &md2(ainput, _I2, 0), T, V / P, P);
-            __m512 mmbcst = _mm512_set1_ps(md3(ainput3, _T, _V, 0));
+            MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
+            __m512 mmbcst = _mm512_set1_ps(md4(ainput4, _T, 0, _V, 0));
             mmout[_O][_T]
                 = _mm512_fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
@@ -328,9 +328,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD3(float, ainput3, &md2(ainput, _I2, 0), T, V / P, P);
+          MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
           __m512 mmbcst
-              = _mm512_broadcastss_ps(*(__m128 *)&md3(ainput3, _T, _V, 0));
+              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
 #pragma unroll(O)
           for (int _O = 0; _O < O; ++_O)
             mmout[_O][_T]
@@ -351,9 +351,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD3(float, ainput3, &md2(ainput, _I2, 0), T, V / P, P);
+          MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
           __m512 mmbcst
-              = _mm512_broadcastss_ps(*(__m128 *)&md3(ainput3, _T, _V, 1));
+              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
 #pragma unroll(O)
           for (int _O = 0; _O < O; ++_O)
             mmout[_O][_T]
@@ -449,15 +449,16 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD3(float, ainput3, &md2(ainput, _I2, 0), T, V / P, P);
+          MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
           __m512 mmbcst
-              = _mm512_broadcastss_ps(*(__m128 *)&md3(ainput3, _T, _V, 0));
+              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
 #pragma unroll(O)
           for (int _O = 0; _O < O; ++_O)
             mmout[_O][_T]
                 = _mm512_fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
         }
 #pragma unroll(O)
+        // _P = 1
         for (int _O = 0; _O < O; ++_O) {
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
@@ -468,12 +469,11 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
                 = _mm512_load_ps(&md6(aweights6, _O, 0, _I2, _V, 3, 0));
           }
         }
-        // _P = 1
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD3(float, ainput3, &md2(ainput, _I2, 0), T, V / P, P);
+          MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
           __m512 mmbcst
-              = _mm512_broadcastss_ps(*(__m128 *)&md3(ainput3, _T, _V, 1));
+              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
 #pragma unroll(O)
           for (int _O = 0; _O < O; ++_O)
             mmout[_O][_T]
@@ -494,9 +494,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD3(float, ainput3, &md2(ainput, _I2, 0), T, V / P, P);
+          MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
           __m512 mmbcst
-              = _mm512_broadcastss_ps(*(__m128 *)&md3(ainput3, _T, _V, 2));
+              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0,  _V, 2));
 #pragma unroll(O)
           for (int _O = 0; _O < O; ++_O)
             mmout[_O][_T]
@@ -517,9 +517,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD3(float, ainput3, &md2(ainput, _I2, 0), T, V / P, P);
+          MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
           __m512 mmbcst
-              = _mm512_broadcastss_ps(*(__m128 *)&md3(ainput3, _T, _V, 3));
+              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 3));
 #pragma unroll(O)
           for (int _O = 0; _O < O; ++_O)
             mmout[_O][_T]
