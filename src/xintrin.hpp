@@ -28,20 +28,49 @@ template <int V> struct _mm {
 #ifdef __AVX512F__
 #if defined(__ICC)
 template <> struct _mm<16> {
-  static constexpr auto load_ps = _mm512_load_ps;
-  static constexpr auto store_ps = _mm512_store_ps;
-  static constexpr auto setzero_ps = _mm512_setzero_ps;
-  static constexpr auto set1_ps = _mm512_set1_ps;
-  static constexpr auto add_ps = _mm512_add_ps;
-  static constexpr auto sub_ps = _mm512_sub_ps;
-  static constexpr auto mul_ps = _mm512_mul_ps;
-  static constexpr auto fmadd_ps = _mm512_fmadd_ps;
-  static constexpr auto fmsub_ps = _mm512_fmsub_ps;
-  static constexpr auto fnmadd_ps = _mm512_fnmadd_ps;
-  static constexpr auto fnmsub_ps = _mm512_fnmsub_ps;
-  static constexpr auto max_ps = _mm512_max_ps;
-  static constexpr auto xor_ps = _mm512_xor_ps;
-  static constexpr auto broadcastss_ps = _mm512_broadcastss_ps;
+  static constexpr int V = 16;
+  static inline __m<V> load_ps(void const *adrs) noexcept {
+    return _mm512_load_ps(adrs);
+  }
+  static inline void store_ps(void *adrs, __m<V> m) noexcept {
+    _mm512_store_ps(adrs, m);
+  }
+  static inline __m<V> setzero_ps(void) noexcept {
+    return _mm512_setzero_ps();
+  }
+  static inline __m<V> set1_ps(float e) noexcept {
+    return _mm512_set1_ps(e);
+  }
+  static inline __m<V> add_ps(__m<V> op1, __m<V> op2) noexcept {
+    return _mm512_add_ps(op1, op2);
+  }
+  static inline __m<V> sub_ps(__m<V> op1, __m<V> op2) noexcept {
+    return _mm512_sub_ps(op1, op2);
+  }
+  static inline __m<V> mul_ps(__m<V> op1, __m<V> op2) noexcept {
+    return _mm512_mul_ps(op1, op2);
+  }
+  static inline __m<V> fmadd_ps(__m<V> op1, __m<V> op2, __m<V> op3) noexcept {
+    return _mm512_fmadd_ps(op1, op2, op3);
+  }
+  static inline __m<V> fmsub_ps(__m<V> op1, __m<V> op2, __m<V> op3) noexcept {
+    return _mm512_fmsub_ps(op1, op2, op3);
+  }
+  static inline __m<V> fnmadd_ps(__m<V> op1, __m<V> op2, __m<V> op3) noexcept {
+    return _mm512_fnmadd_ps(op1, op2, op3);
+  }
+  static inline __m<V> fnmsub_ps(__m<V> op1, __m<V> op2, __m<V> op3) noexcept {
+    return _mm512_fnmsub_ps(op1, op2, op3);
+  }
+  static inline __m<V> max_ps(__m<V> op1, __m<V> op2) noexcept {
+    return _mm512_max_ps(op1, op2);
+  }
+  static inline __m<V> xor_ps(__m<V> op1, __m<V> op2) noexcept {
+    return _mm512_xor_ps(op1, op2);
+  }
+  static inline __m<V> broadcastss_ps(__m128 b) noexcept {
+    return _mm512_broadcastss_ps(b);
+  }
 };
 #else
 template <> struct _mm<16> {
@@ -66,20 +95,49 @@ template <> struct _mm<16> {
 #ifdef __AVX2__
 #ifdef __ICC
 template <> struct _mm<8> {
-  static constexpr auto load_ps = _mm256_load_ps;
-  static constexpr auto store_ps = _mm256_store_ps;
-  static constexpr auto setzero_ps = _mm256_setzero_ps;
-  static constexpr auto set1_ps = _mm256_set1_ps;
-  static constexpr auto add_ps = _mm256_add_ps;
-  static constexpr auto sub_ps = _mm256_sub_ps;
-  static constexpr auto mul_ps = _mm256_mul_ps;
-  static constexpr auto fmadd_ps = _mm256_fmadd_ps;
-  static constexpr auto fmsub_ps = _mm256_fmsub_ps;
-  static constexpr auto fnmadd_ps = _mm256_fnmadd_ps;
-  static constexpr auto fnmsub_ps = _mm256_fnmsub_ps;
-  static constexpr auto max_ps = _mm256_max_ps;
-  static constexpr auto xor_ps = _mm256_xor_ps;
-  static constexpr auto broadcastss_ps = _mm256_broadcastss_ps;
+  static constexpr int V = 8;
+  static inline __m<V> load_ps(float const *adrs) noexcept {
+    return _mm256_load_ps(adrs);
+  }
+  static inline void store_ps(float *adrs, __m<V> m) noexcept {
+    _mm256_store_ps(adrs, m);
+  }
+  static inline __m<V> setzero_ps(void) noexcept {
+    return _mm256_setzero_ps();
+  }
+  static inline __m<V> set1_ps(float e) noexcept {
+    return _mm256_set1_ps(e);
+  }
+  static inline __m<V> add_ps(__m<V> op1, __m<V> op2) noexcept {
+    return _mm256_add_ps(op1, op2);
+  }
+  static inline __m<V> sub_ps(__m<V> op1, __m<V> op2) noexcept {
+    return _mm256_sub_ps(op1, op2);
+  }
+  static inline __m<V> mul_ps(__m<V> op1, __m<V> op2) noexcept {
+    return _mm256_mul_ps(op1, op2);
+  }
+  static inline __m<V> fmadd_ps(__m<V> op1, __m<V> op2, __m<V> op3) noexcept {
+    return _mm256_fmadd_ps(op1, op2, op3);
+  }
+  static inline __m<V> fmsub_ps(__m<V> op1, __m<V> op2, __m<V> op3) noexcept {
+    return _mm256_fmsub_ps(op1, op2, op3);
+  }
+  static inline __m<V> fnmadd_ps(__m<V> op1, __m<V> op2, __m<V> op3) noexcept {
+    return _mm256_fnmadd_ps(op1, op2, op3);
+  }
+  static inline __m<V> fnmsub_ps(__m<V> op1, __m<V> op2, __m<V> op3) noexcept {
+    return _mm256_fnmsub_ps(op1, op2, op3);
+  }
+  static inline __m<V> max_ps(__m<V> op1, __m<V> op2) noexcept {
+    return _mm256_max_ps(op1, op2);
+  }
+  static inline __m<V> xor_ps(__m<V> op1, __m<V> op2) noexcept {
+    return _mm256_xor_ps(op1, op2);
+  }
+  static inline __m<V> broadcastss_ps(__m128 b) noexcept {
+    return _mm256_broadcastss_ps(b);
+  }
 };
 #else
 template <> struct _mm<8> {
