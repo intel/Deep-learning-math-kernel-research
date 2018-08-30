@@ -143,7 +143,7 @@ struct F_traits {
   static constexpr bool is_compact_output = (F & 0xF) == 0xC;
 };
 
-template <typename Type, int V, int I, int S, typename KP>
+template <typename Type, int V, int I, typename KP>
 struct gemm_kernel_otj {
   static inline void execute(
       elx_conv_t<float> &, float *, float *, float *, float *, bool)
@@ -151,22 +151,23 @@ struct gemm_kernel_otj {
 };
 
 template <int... Kp>
-struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512, 1,
+struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
     estl::integer_sequence<Kp...>> {
   using kparams = estl::integer_sequence<Kp...>;
-  static_assert(sizeof...(Kp) == 9,
-      "Kernel parameters must be Type, V, I, S, <F, O2, T, ...");
+  static_assert(sizeof...(Kp) == 10,
+      "Kernel parameters must be Type, V, I, <S, F, O2, T, ...");
 
   constexpr static auto V = 16;
-  constexpr static auto F = estl::get<0, int, kparams>();
-  constexpr static auto O2 = estl::get<1, int, kparams>();
-  constexpr static auto T = estl::get<2, int, kparams>();
-  constexpr static auto is_Ir = estl::get<3, bool, kparams>();
-  constexpr static auto is_Or = estl::get<4, bool, kparams>();
-  constexpr static auto is_Tr = estl::get<5, bool, kparams>();
-  constexpr static auto with_bias = estl::get<6, bool, kparams>();
-  constexpr static auto with_relu = estl::get<7, bool, kparams>();
-  constexpr static auto with_sum = estl::get<8, bool, kparams>();
+  constexpr static auto S = estl::get<0, int, kparams>();
+  constexpr static auto F = estl::get<1, int, kparams>();
+  constexpr static auto O2 = estl::get<2, int, kparams>();
+  constexpr static auto T = estl::get<3, int, kparams>();
+  constexpr static auto is_Ir = estl::get<4, bool, kparams>();
+  constexpr static auto is_Or = estl::get<5, bool, kparams>();
+  constexpr static auto is_Tr = estl::get<6, bool, kparams>();
+  constexpr static auto with_bias = estl::get<7, bool, kparams>();
+  constexpr static auto with_relu = estl::get<8, bool, kparams>();
+  constexpr static auto with_sum = estl::get<9, bool, kparams>();
 
   template <int O, int P>
   static inline typename std::enable_if<P == 1, void>::type op_fma(
