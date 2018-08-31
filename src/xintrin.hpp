@@ -5,6 +5,9 @@ template <int V> struct _mm_traits {
   typedef void vector_type;
 };
 
+template <int V> struct _mm {
+};
+
 #ifdef __AVX512F__
 template <> struct _mm_traits<16> {
   typedef __m512 vector_type;
@@ -23,11 +26,8 @@ template <> struct _mm_traits<4> {
 
 template <int V> using __m = typename _mm_traits<V>::vector_type;
 
-template <int V> struct _mm {
-};
-
 #ifdef __AVX512F__
-#if defined(__ICC)
+#if 1
 template <> struct _mm<16> {
   static constexpr int V = 16;
   static inline __m<V> load_ps(void const *adrs) noexcept {
@@ -41,6 +41,12 @@ template <> struct _mm<16> {
   }
   static inline __m<V> set1_ps(float e) noexcept {
     return _mm512_set1_ps(e);
+  }
+  static inline __m<V> set_ps(float e15, float e14, float e13, float e12,
+      float e11, float e10, float e9, float e8, float e7, float e6, float e5,
+      float e4, float e3, float e2, float e1, float e0) noexcept {
+    return _mm512_set_ps(e15, e14, e13, e12, e11, e10, e9, e8, e7, e6, e5, e4,
+        e3, e2, e1, e0);
   }
   static inline __m<V> add_ps(__m<V> op1, __m<V> op2) noexcept {
     return _mm512_add_ps(op1, op2);
@@ -74,6 +80,7 @@ template <> struct _mm<16> {
   }
 };
 #else
+/* ICC Bug! */
 template <> struct _mm<16> {
   static constexpr auto load_ps = _mm512_load_ps;
   static constexpr auto store_ps = _mm512_store_ps;
@@ -94,7 +101,7 @@ template <> struct _mm<16> {
 #endif
 
 #ifdef __AVX2__
-#ifdef __ICC
+#if 1
 template <> struct _mm<8> {
   static constexpr int V = 8;
   static inline __m<V> load_ps(float const *adrs) noexcept {
@@ -108,6 +115,10 @@ template <> struct _mm<8> {
   }
   static inline __m<V> set1_ps(float e) noexcept {
     return _mm256_set1_ps(e);
+  }
+  static inline __m<V> set_ps(float e7, float e6, float e5,
+      float e4, float e3, float e2, float e1, float e0) noexcept {
+    return _mm256_set_ps(e7, e6, e5, e4, e3, e2, e1, e0);
   }
   static inline __m<V> add_ps(__m<V> op1, __m<V> op2) noexcept {
     return _mm256_add_ps(op1, op2);
@@ -141,6 +152,7 @@ template <> struct _mm<8> {
   }
 };
 #else
+/* ICC Bug! */
 template <> struct _mm<8> {
   static constexpr auto load_ps = _mm256_load_ps;
   static constexpr auto store_ps = _mm256_store_ps;
