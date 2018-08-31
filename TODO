@@ -54,5 +54,7 @@ Conv_1x1 (2018-8-1): Done
 - Blocked format
 - TODO: plain format, IC/OC != 16x
 
-Merge GEMM kernel (2018-8-23):
-- Merge conv 1x1 gemm kernel with Winograd: CCC
+GEMM kernel (2018-8-23):
+- Rewrite gemm kernel with better readability and modularity
+- Apply new gemm kernel to conv1x1
+- Apply new gemm kernel to Winograd (TBD)
