@@ -52,8 +52,8 @@ struct P_traits<1, T, false,
   static constexpr int P = 2;
 };
 
-template <int T, bool has_Ir>
-struct P_traits<1, T, has_Ir, typename std::enable_if<(T >= 31)>::type> {
+template <int T>
+struct P_traits<1, T, false, typename std::enable_if<(T >= 31)>::type> {
   static constexpr int P = 1;
 };
 
@@ -70,9 +70,13 @@ struct P_traits<O, T, false,
   static constexpr int P = 2;
 };
 
-template <int O, int T, bool has_Ir>
-struct P_traits<O, T, has_Ir,
+template <int O, int T>
+struct P_traits<O, T, false,
     typename std::enable_if<(O > 1 && (31 / O - T) == 1)>::type> {
+  static constexpr int P = 1;
+};
+
+template <int O, int T> struct P_traits<O, T, true> {
   static constexpr int P = 1;
 };
 
