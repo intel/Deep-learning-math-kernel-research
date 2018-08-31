@@ -13,24 +13,24 @@ namespace euler {
 template <int V>
 inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, V, 6, 3>::
   __trans_weights(float atweights[A][A][V][V], float aweights[K][K][V][V]) {
-  auto z0 = _mm512_setzero_ps();
-  auto z1 = _mm512_set_ps(IMM_BCAST16(1.0f));
-  auto z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
-  auto z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
-  auto z6 = _mm512_set_ps(IMM_BCAST16(6.0f));
+  auto z0 = _mm<V>::setzero_ps();
+  auto z1 = _mm<V>::set1_ps(1.0f);
+  auto z2 = _mm<V>::set1_ps(2.0f);
+  auto z4 = _mm<V>::set1_ps(4.0f);
+  auto z6 = _mm<V>::set1_ps(6.0f);
 
-  auto z1_4 = _mm512_set_ps(IMM_BCAST16(1.0f / 4.0f));
-  auto z1_6 = _mm512_set_ps(IMM_BCAST16(1.0f / 6.0f));
-  auto z1_12 = _mm512_set_ps(IMM_BCAST16(1.0f / 12.0f));
-  auto z1_16 = _mm512_set_ps(IMM_BCAST16(1.0f / 16.0f));
-  auto z1_24 = _mm512_set_ps(IMM_BCAST16(1.0f / 24.0f));
-  auto z1_36 = _mm512_set_ps(IMM_BCAST16(1.0f / 36.0f));
-  auto z1_48 = _mm512_set_ps(IMM_BCAST16(1.0f / 48.0f));
-  auto z1_72 = _mm512_set_ps(IMM_BCAST16(1.0f / 72.0f));
-  auto z1_96 = _mm512_set_ps(IMM_BCAST16(1.0f / 96.0f));
-  auto z1_144 = _mm512_set_ps(IMM_BCAST16(1.0f / 144.0f));
-  auto z1_288 = _mm512_set_ps(IMM_BCAST16(1.0f / 288.0f));
-  auto z1_576 = _mm512_set_ps(IMM_BCAST16(1.0f / 576.0f));
+  auto z1_4 = _mm<V>::set1_ps(1.0f / 4.0f);
+  auto z1_6 = _mm<V>::set1_ps(1.0f / 6.0f);
+  auto z1_12 = _mm<V>::set1_ps(1.0f / 12.0f);
+  auto z1_16 = _mm<V>::set1_ps(1.0f / 16.0f);
+  auto z1_24 = _mm<V>::set1_ps(1.0f / 24.0f);
+  auto z1_36 = _mm<V>::set1_ps(1.0f / 36.0f);
+  auto z1_48 = _mm<V>::set1_ps(1.0f / 48.0f);
+  auto z1_72 = _mm<V>::set1_ps(1.0f / 72.0f);
+  auto z1_96 = _mm<V>::set1_ps(1.0f / 96.0f);
+  auto z1_144 = _mm<V>::set1_ps(1.0f / 144.0f);
+  auto z1_288 = _mm<V>::set1_ps(1.0f / 288.0f);
+  auto z1_576 = _mm<V>::set1_ps(1.0f / 576.0f);
 
   //Inputs
   __m<V> f00, f01, f02,

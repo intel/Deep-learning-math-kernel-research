@@ -15,9 +15,9 @@ template <bool ...conditions>
 inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, V, 6, 3>::
 __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
     float *bias, int hOA_end, int wOA_end) {
-  __m<V> z2 = _mm<V>::set_ps(IMM_BCAST16(2.0f));
-  __m<V> z4 = _mm<V>::set_ps(IMM_BCAST16(4.0f));
-  __m<V> z8 = _mm<V>::set_ps(IMM_BCAST16(8.0f));
+  __m<V> z2 = _mm<V>::set1_ps(2.0f);
+  __m<V> z4 = _mm<V>::set1_ps(4.0f);
+  __m<V> z8 = _mm<V>::set1_ps(8.0f);
 
   // Inputs
   __m<V> t00, t01, t02, t03, t04, t05,
@@ -65,8 +65,8 @@ __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
 #define T(_h, _w) atoutput[_w][_h]
 #define P(_h, _w) p_cb(_h, _w)
 #define t(m, n) t##m##n
-#define OP(m,n) t(m,n) = _mm512_load_ps(T(m, n))
-#define ISTORE(i, j) _mm512_store_ps(P(i, j), p##i##j)
+#define OP(m,n) t(m,n) = _mm<V>::load_ps(T(m, n))
+#define ISTORE(i, j) _mm<V>::store_ps(P(i, j), p##i##j)
 
   VECTOR_DEF(M6, M5);
 

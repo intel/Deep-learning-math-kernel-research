@@ -115,21 +115,21 @@ __trans_input( elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
 #define T(h, w) atinput[w][h]
 #define f(m, n) f##m##n
 #define OP(m,n) f(m, n) = F(m, n)
-#define ISTORE(i, j) _mm512_store_ps(T(i, j), t##i##j)
+#define ISTORE(i, j) _mm<V>::store_ps(T(i, j), t##i##j)
 
   VECTOR_DEF(M6, ME3);
 
-  auto z4 = _mm<V>::set_ps(IMM_BCAST16(4.0f));
-  auto z5 = _mm<V>::set_ps(IMM_BCAST16(5.0f));
+  auto z4 = _mm<V>::set1_ps(4.0f);
+  auto z5 = _mm<V>::set1_ps(5.0f);
 
   c1 = FMSUB(z4, f10, (FMSUB(z5, f12, f14)));
   c2 = FMSUB(z4, f20, (FMSUB(z5, f22, f24)));
   c3 = FMSUB(z4, f30, (FMSUB(z5, f32, f34)));
   c4 = FMSUB(z4, f40, (FMSUB(z5, f42, f44)));
 
-  auto z2 = _mm<V>::set_ps(IMM_BCAST16(2.0f));
-  auto z16 = _mm<V>::set_ps(IMM_BCAST16(16.0f));
-  auto z20 = _mm<V>::set_ps(IMM_BCAST16(20.0f));
+  auto z2 = _mm<V>::set1_ps(2.0f);
+  auto z16 = _mm<V>::set1_ps(16.0f);
+  auto z20 = _mm<V>::set1_ps(20.0f);
 
   t00 = FMADD(z16, f00, FNMADD(z20, f02, FMADD(z4, f04, FNMADD(z5, c2, c4))));
   ISTORE(0, 0);
@@ -223,7 +223,7 @@ __trans_input( elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
   c3 = FMADD(z2, b02, b06);
   c4 = FMADD(z2, b03, b07);
 
-  auto z8 = _mm<V>::set_ps(IMM_BCAST16(8.0f));
+  auto z8 = _mm<V>::set1_ps(8.0f);
 
   d00 = SUB(f04, f02);
   d01 = SUB(f03, f01);
