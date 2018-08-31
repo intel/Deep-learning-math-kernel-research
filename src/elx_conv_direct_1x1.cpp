@@ -3,7 +3,6 @@
 #include <x86intrin.h>
 #include "el_utils.hpp"
 #include "elx_conv_direct_1x1.hpp"
-#include "elk_conv_direct_1x1.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elk_conv_wino.hpp"
@@ -211,32 +210,32 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
   case T_:                                                                     \
     if (xopt_ == 0xa061) {                                                     \
       if (this->with_bias)                                                     \
-        *func = gemm_ker_cls_<I, 1, 0xCCC, O_, T_, false, true, false, false,  \
-            false>::execute;                                                   \
+        *func = gemm_ker_cls_<I, 1, GKF_CCC, O_, T_, false, true, false,       \
+            false, false>::execute;                                            \
       else                                                                     \
-        *func = gemm_ker_cls_<I, 1, 0xCCC, O_, T_, false, false, false, false, \
-            false>::execute;                                                   \
+        *func = gemm_ker_cls_<I, 1, GKF_CCC, O_, T_, false, false, false,      \
+            false, false>::execute;                                            \
     } else if (xopt_ == 0xb061) {                                              \
       if (this->with_bias)                                                     \
-        *func = gemm_ker_cls_<I, 1, 0xCCD, O_, T_, false, true, false, false,  \
-            false>::execute;                                                   \
+        *func = gemm_ker_cls_<I, 1, GKF_CCD, O_, T_, false, true, false,       \
+            false, false>::execute;                                            \
       else                                                                     \
-        *func = gemm_ker_cls_<I, 1, 0xCCD, O_, T_, false, false, false, false, \
-            false>::execute;                                                   \
+        *func = gemm_ker_cls_<I, 1, GKF_CCD, O_, T_, false, false, false,      \
+            false, false>::execute;                                            \
     } else if (xopt_ == 0xc060) {                                              \
       if (this->with_bias)                                                     \
-        *func = gemm_ker_cls_<I, 1, 0xDDD, O_, T_, false, true, false, false,  \
-            false>::execute;                                                   \
+        *func = gemm_ker_cls_<I, 1, GKF_DDD, O_, T_, false, true, false,       \
+            false, false>::execute;                                            \
       else                                                                     \
-        *func = gemm_ker_cls_<I, 1, 0xDDD, O_, T_, false, false, false, false, \
-            false>::execute;                                                   \
+        *func = gemm_ker_cls_<I, 1, GKF_DDD, O_, T_, false, false, false,      \
+            false, false>::execute;                                            \
     } else if (xopt_ == 0xd060) {                                              \
       if (this->with_bias)                                                     \
-        *func = gemm_ker_cls_<I, 2, 0xDDD, O_, T_, false, true, false, false,  \
-            false>::execute;                                                   \
+        *func = gemm_ker_cls_<I, 2, GKF_DDD, O_, T_, false, true, false,       \
+            false, false>::execute;                                            \
       else                                                                     \
-        *func = gemm_ker_cls_<I, 2, 0xDDD, O_, T_, false, false, false, false, \
-            false>::execute;                                                   \
+        *func = gemm_ker_cls_<I, 2, GKF_DDD, O_, T_, false, false, false,      \
+            false, false>::execute;                                            \
     }                                                                          \
     break;
 

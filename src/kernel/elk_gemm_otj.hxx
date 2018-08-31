@@ -13,19 +13,30 @@
 // F: format
 // V: vector size
 // I: ISA
-// has_Ir/Or/Tr: is the last IV, OV or T
+// has_Ir: has tailing ic
 // with_bias: has bias
 // with_relu: with relu fusion
 // with_sum: with sum fusion
+// is_streamout: enable streaming out output
 
 namespace euler {
 
+// GEMM kernel format
+// Input - weights - outputt
+// C: compact
+//    Input: I2, T, S, V
+//    Weights: I2, V, O2, V
+//    Output: O2, T, V
+// D: discrete
+//    Input: I2, ih, iw, V
+//    Weights: O2, ic2, V, V
+//    Output: O2, oh, ow, V
 const int GKF_CCC = 0xccc;
 const int GKF_CCD = 0xccd;
 const int GKF_DCD = 0xdcd;
 const int GKF_DDD = 0xddd;
 
-// Parallel level
+// (weights) pipeline length
 template <int O, int T, bool has_Ir, typename C = void> struct P_traits {};
 
 // O == 1: T + P <= 32
