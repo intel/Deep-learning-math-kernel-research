@@ -44,18 +44,10 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  template <int ISA, int S, int F, int O, int T, bool has_Ir, bool with_bias,
-      bool with_relu, bool with_sum, bool is_streamout>
-  using gemm_ker_cls_ = typename euler::gemm_kernel_otj<Type, V, ISA,
-      estl::integer_sequence<S, F, O, T, has_Ir, with_bias, with_relu,
-          with_sum, is_streamout>>;
-  using gemm_ker_fp_ = decltype(
-      gemm_ker_cls_<1, 1, 1, 1, 1, false, false, false, false, false>::execute);
-
-  gemm_ker_fp_ *ker_gemm_O_T_;
-  gemm_ker_fp_ *ker_gemm_Or_T_;
-  gemm_ker_fp_ *ker_gemm_O_Tr_;
-  gemm_ker_fp_ *ker_gemm_Or_Tr_;
+  gemm_kernel_binder::ker *ker_gemm_O_T_;
+  gemm_kernel_binder::ker *ker_gemm_Or_T_;
+  gemm_kernel_binder::ker *ker_gemm_O_Tr_;
+  gemm_kernel_binder::ker *ker_gemm_Or_Tr_;
 
   void (elx_conv_direct_1x1_t::*execute_opt_)(Type *, Type *, Type *, Type *);
 

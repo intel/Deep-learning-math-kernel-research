@@ -756,4 +756,85 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
   }
 };
 
+struct gemm_kernel_binder {
+  template <typename Type, int V, int I, int... Kp>
+  using gemm_ker_cls = typename euler::gemm_kernel_otj<Type, V, I,
+      estl::integer_sequence<Kp...>>;
+  using ker = decltype(gemm_ker_cls<int, 1, 1, 1, 1, 1, 1, false, false, false,
+      false, false>::execute);
+
+  template <typename Type, int V, int I, int S, int F, int... Kp>
+  static inline void bind(int O2, int T, ker **func)
+  {
+    switch (O2) {
+    case 1:
+      LOOP_FROM_TO(_T, 1, 32, {
+        if (T == _T)
+          (*func = gemm_ker_cls<Type, V, I, S, F, 1, _T, Kp...>::execute);
+      });
+      if (T >= 32)
+        el_error("gemm_kernel, O2 = 1, T >= 32 not supported");
+      break;
+    case 2:
+      LOOP_FROM_TO(_T, 1, 15, {
+        if (T == _T)
+          (*func = gemm_ker_cls<Type, V, I, S, F, 2, _T, Kp...>::execute);
+      });
+      if (T >= 15)
+        el_error("gemm_kernel, O2 = 2, T >= 15 not supported");
+      break;
+    case 3:
+      LOOP_FROM_TO(_T, 1, 15, {
+        if (T == _T)
+          (*func = gemm_ker_cls<Type, V, I, S, F, 3, _T, Kp...>::execute);
+      if (T >= 15)
+        el_error("gemm_kernel, O2 = 3, T >= 15 not supported");
+      });
+      break;
+    case 4:
+      LOOP_FROM_TO(_T, 1, 15, {
+        if (T == _T)
+          (*func = gemm_ker_cls<Type, V, I, S, F, 4, _T, Kp...>::execute);
+      });
+      if (T >= 15)
+        el_error("gemm_kernel, O2 = 4, T >= 15 not supported");
+      break;
+    case 5:
+      LOOP_FROM_TO(_T, 1, 6, {
+        if (T == _T)
+          (*func = gemm_ker_cls<Type, V, I, S, F, 5, _T, Kp...>::execute);
+      });
+      if (T >= 6)
+        el_error("gemm_kernel, O2 = 5, T >= 6 not supported");
+      break;
+    case 6:
+      LOOP_FROM_TO(_T, 1, 5, {
+        if (T == _T)
+          (*func = gemm_ker_cls<Type, V, I, S, F, 6, _T, Kp...>::execute);
+      });
+      if (T >= 5)
+        el_error("gemm_kernel, O2 = 6, T >= 5 not supported");
+      break;
+    case 7:
+      LOOP_FROM_TO(_T, 1, 4, {
+        if (T == _T)
+          (*func = gemm_ker_cls<Type, V, I, S, F, 7, _T, Kp...>::execute);
+      });
+      if (T >= 4)
+        el_error("gemm_kernel, O2 = 7, T >= 4 not supported");
+      break;
+    case 8:
+      LOOP_FROM_TO(_T, 1, 9, {
+        if (T == _T)
+          (*func = gemm_ker_cls<Type, V, I, S, F, 8, _T, Kp...>::execute);
+      });
+      if (T >= 9)
+        el_error("gemm_kernel, O2 = 8, T >= 9 not supported");
+      break;
+    default:
+      el_error("gemm_kenrel: O2 > 8 unsupported");
+    }
+  }
+};
+
 } // namespace euler

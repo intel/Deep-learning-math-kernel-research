@@ -205,109 +205,43 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 {
-
-#define GEMM_CASE(z, T_, O_)                                                   \
-  case T_:                                                                     \
-    if (xopt_ == 0xa061) {                                                     \
-      if (this->with_bias)                                                     \
-        *func = gemm_ker_cls_<I, 1, GKF_CCC, O_, T_, false, true, false,       \
-            false, false>::execute;                                            \
-      else                                                                     \
-        *func = gemm_ker_cls_<I, 1, GKF_CCC, O_, T_, false, false, false,      \
-            false, false>::execute;                                            \
-    } else if (xopt_ == 0xb061) {                                              \
-      if (this->with_bias)                                                     \
-        *func = gemm_ker_cls_<I, 1, GKF_CCD, O_, T_, false, true, false,       \
-            false, false>::execute;                                            \
-      else                                                                     \
-        *func = gemm_ker_cls_<I, 1, GKF_CCD, O_, T_, false, false, false,      \
-            false, false>::execute;                                            \
-    } else if (xopt_ == 0xc060) {                                              \
-      if (this->with_bias)                                                     \
-        *func = gemm_ker_cls_<I, 1, GKF_DDD, O_, T_, false, true, false,       \
-            false, false>::execute;                                            \
-      else                                                                     \
-        *func = gemm_ker_cls_<I, 1, GKF_DDD, O_, T_, false, false, false,      \
-            false, false>::execute;                                            \
-    } else if (xopt_ == 0xd060) {                                              \
-      if (this->with_bias)                                                     \
-        *func = gemm_ker_cls_<I, 2, GKF_DDD, O_, T_, false, true, false,       \
-            false, false>::execute;                                            \
-      else                                                                     \
-        *func = gemm_ker_cls_<I, 2, GKF_DDD, O_, T_, false, false, false,      \
-            false, false>::execute;                                            \
-    }                                                                          \
-    break;
-
-  auto bind_kernel = [&](int O2_, int T_, gemm_ker_fp_ **func) {
-    switch (O2_) {
-    case 1:
-      switch (T_) {
-        BOOST_PP_REPEAT_FROM_TO(1, 32, GEMM_CASE, 1);
-      default:
-        el_error("Convolution_direct_1x1: Unimplemented T>31 in O=1");
-        break;
-      }
+  auto bind_kernel = [&](int O2, int T, gemm_kernel_binder::ker **func) {
+    switch (xopt_) {
+    case (0xa061):
+      if (this->with_bias)
+        gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCC, false, true, false,
+            false, false>(O2, T, func);
+      else
+        gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCC, false, false, false,
+            false, false>(O2, T, func);
       break;
-    case 2:
-      switch (T_) {
-        BOOST_PP_REPEAT_FROM_TO(1, 15, GEMM_CASE, 2);
-      default:
-        el_error("Convolution_direct_1x1: Unimplemented T>14 in O=2");
-        break;
-      }
+    case (0xb061):
+      if (this->with_bias)
+        gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCD, false, true, false,
+            false, false>(O2, T, func);
+      else
+        gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCD, false, false, false,
+            false, false>(O2, T, func);
       break;
-    case 3:
-      switch (T_) {
-        BOOST_PP_REPEAT_FROM_TO(1, 15, GEMM_CASE, 3);
-      default:
-        el_error("Convolution_direct_1x1: Unimplemented T>14 in O=3");
-        break;
-      }
+    case (0xc060):
+      if (this->with_bias)
+        gemm_kernel_binder::bind<Type, V, I, 1, GKF_DDD, false, true, false,
+            false, false>(O2, T, func);
+      else
+        gemm_kernel_binder::bind<Type, V, I, 1, GKF_DDD, false, false, false,
+            false, false>(O2, T, func);
       break;
-    case 4:
-      switch (T_) {
-        BOOST_PP_REPEAT_FROM_TO(1, 15, GEMM_CASE, 4);
-      default:
-        el_error("Convolution_direct_1x1: Unimplemented T>14 in O=4");
-        break;
-      }
+    case (0xd060):
+      if (this->with_bias)
+        gemm_kernel_binder::bind<Type, V, I, 2, GKF_DDD, false, true, false,
+            false, false>(O2, T, func);
+      else
+        gemm_kernel_binder::bind<Type, V, I, 2, GKF_DDD, false, false, false,
+            false, false>(O2, T, func);
       break;
-    case 5:
-      switch (T_) {
-        BOOST_PP_REPEAT_FROM_TO(1, 6, GEMM_CASE, 5);
-      default:
-        el_error("Convolution_direct_1x1: Unimplemented T>5 in O=5");
-        break;
-      }
-      break;
-    case 6:
-      switch (T_) {
-        BOOST_PP_REPEAT_FROM_TO(1, 5, GEMM_CASE, 6);
-      default:
-        el_error("Convolution_direct_1x1: Unimplemented T>4 in O=6");
-        break;
-      }
-      break;
-    case 7:
-      switch (T_) {
-        BOOST_PP_REPEAT_FROM_TO(1, 4, GEMM_CASE, 7);
-      default:
-        el_error("Convolution_direct_1x1: Unimplemented T>3 in O=7");
-        break;
-      }
-      break;
-    case 8:
-      switch (T_) {
-        BOOST_PP_REPEAT_FROM_TO(1, 9, GEMM_CASE, 8);
-      default:
-        el_error("Convolution_direct_1x1: Unimplemented T>8 in O=8");
-        break;
-      }
-      break;
-
     default:
-      el_error("O2 > 8 unsupported");
+      el_error("Unknown xopt");
+      break;
     }
   };
 
@@ -328,7 +262,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
     EXECUTE_CASE(c060);
     EXECUTE_CASE(d060);
   default:
-    el_error("Unimplemented");
+    el_error("Unimplemented xopt");
     break;
   }
 }
