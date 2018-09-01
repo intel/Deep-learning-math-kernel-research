@@ -95,6 +95,10 @@ elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
   if (this->O2 == 0) this->O2 = 2; // TODO: O2 selection
   if (this->T == 0)  this->T = 18; // TODO: T selection
 
+  // TODO: tuning
+  this->O = 1;
+  this->O1 = this->O2;
+
   // Tailing
   this->Tr = this->t % this->T ? this->t % this->T : this->T;
   this->Ir = this->ic % V ? this->ic % V : V;
@@ -463,20 +467,20 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
       template trans_outputa_th<no, no, no, no>;
 
   auto bind_gemm_kernel =
-    [&](int O2, int T, bool has_Ir, gemm_kernel_binder::ker **func) {
+    [&](int O, int T, bool has_Ir, gemm_kernel_binder::ker **func) {
     if (this->Ir != V && has_Ir) {
       gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCC, true, false, false,
-          false, false>(O2, T, func);
+          false, false>(O, T, func);
     } else {
       gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCC, false, false, false,
-          false, false>(O2, T, func);
+          false, false>(O, T, func);
     }
   };
 
-  bind_gemm_kernel(this->O2, this->T, false, &ker_gemm_);
-  bind_gemm_kernel(this->O2, this->Tr, false, &ker_gemm0_);
-  bind_gemm_kernel(this->O2, this->T, true, &ker_gemm_tail_);
-  bind_gemm_kernel(this->O2, this->Tr, true, &ker_gemm0_tail_);
+  bind_gemm_kernel(this->O, this->T, false, &ker_gemm_);
+  bind_gemm_kernel(this->O, this->Tr, false, &ker_gemm0_);
+  bind_gemm_kernel(this->O, this->T, true, &ker_gemm_tail_);
+  bind_gemm_kernel(this->O, this->Tr, true, &ker_gemm0_tail_);
 
 #define EXECUTE_CASE(n)                                                      \
   case 0x##n:                                                                \
@@ -665,7 +669,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
         iter_each (_hA, A) {
         iter_each (_iV, V) {
           _mm512_stream_ps(&md10(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
-                               _I2, _iV, _O2, 0),
+                               _O2, _I2, _iV, 0),
               *((__m512 *)&aout[_wA][_hA][_iV][0]));
         }}}
       } else {
@@ -673,7 +677,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
         iter_each (_hA, A) {
         iter_each (_iV, V) {
           _mm512_store_ps(&md10(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
-                              _I2, _iV, _O2, 0),
+                              _O2, _I2, _iV, 0),
               *((__m512 *)&aout[_wA][_hA][_iV][0]));
         }}}
       }
@@ -683,7 +687,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
       iter_each (_iV, V) {
 #pragma omp simd
       iter_each (_oV, V) {
-        md10(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _I2, _iV, _O2, _oV)
+        md10(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O2, _I2, _iV, _oV)
             = aout[_wA][_hA][_iV][_oV];
       }}}}
     }
@@ -696,7 +700,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_blocked(
 {
   // oc2, ic2, hK, wK, V, V => oc4, ic4, oc3, ic3, wA, hA, O2, I2, V, V
   MD10(Type, aweights, weights, oc4, this->oc3, this->O2, this->ic4, this->ic3, this->I2, K, K, V, V);
-  MD10(Type, atweights, tweights, oc4, this->ic4, this->oc3, this->ic3, A, A, this->I2, V, this->O2, V);
+  MD10(Type, atweights, tweights, oc4, this->ic4, this->oc3, this->ic3, A, A, this->O2, this->I2, V, V);
 
 #pragma omp for nowait collapse(6) schedule(static)
   iter_each (_oc4, oc4) {
@@ -716,7 +720,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_blocked(
         iter_each (_hA, A) {
         iter_each (_iV, V) {
           _mm512_stream_ps(&md10(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
-                               _I2, _iV, _O2, 0),
+                               _O2, _I2, _iV, 0),
               *((__m512 *)&aout[_wA][_hA][_iV][0]));
         }}}
       } else {
@@ -724,7 +728,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_blocked(
         iter_each (_hA, A) {
         iter_each (_iV, V) {
           _mm512_store_ps(&md10(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
-                              _I2, _iV, _O2, 0),
+                              _O2, _I2, _iV, 0),
               *((__m512 *)&aout[_wA][_hA][_iV][0]));
         }}}
       }
@@ -734,7 +738,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_blocked(
       iter_each (_iV, V) {
 #pragma omp simd
         iter_each (_oV, V)
-          md10(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _I2, _iV, _O2, _oV)
+          md10(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O2, _I2, _iV, _oV)
               = aout[_wA][_hA][_iV][_oV];
       }}}
     }
@@ -757,7 +761,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsa_blocked(
 {
   // oc2, ic2, hK, wK, V, V => oc4, ic4, wA, hA, oc3, ic3, O2, I2, V, V
   MD10(Type, aweights, weights, this->oc4, this->oc3, this->O2, this->ic4, this->ic3, this->I2, K, K, V, V);
-  MD10(Type, atweights, tweights, this->oc4, this->ic4, A, A, this->oc3, this->ic3, this->I2, V, this->O2, V);
+  MD10(Type, atweights, tweights, this->oc4, this->ic4, A, A, this->oc3, this->ic3, this->O2, this->I2, V, V);
 
 #pragma omp for nowait collapse(6) schedule(static)
   iter_each (_oc4, this->oc4) {
@@ -777,7 +781,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsa_blocked(
         iter_each (_hA, A) {
         iter_each (_iV, V) {
           _mm512_stream_ps(&md10(atweights, _oc4, _ic4, _wA, _hA, _oc3, _ic3,
-                               _I2, _iV, _O2, 0),
+                               _O2, _I2, _iV, 0),
               *((__m512 *)&aout[_wA][_hA][_iV][0]));
         }}}
       } else {
@@ -785,7 +789,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsa_blocked(
         iter_each (_hA, A) {
         iter_each (_iV, V) {
           _mm512_store_ps(&md10(atweights, _oc4, _ic4, _wA, _hA, _oc3, _ic3,
-                              _I2, _iV, _O2, 0),
+                              _O2, _I2, _iV, 0),
               *((__m512 *)&aout[_wA][_hA][_iV][0]));
         }}}
       }
@@ -795,7 +799,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsa_blocked(
       iter_each (_iV, V) {
 #pragma omp simd
       iter_each (_oV, V) {
-        md10(atweights, _oc4, _ic4, _wA, _hA, _oc3, _ic3, _I2, _iV, _O2, _oV)
+        md10(atweights, _oc4, _ic4, _wA, _hA, _oc3, _ic3, _O2, _I2, _iV, _oV)
             = aout[_wA][_hA][_iV][_oV];
       }}}}
     }
@@ -808,7 +812,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsa_plain(
 {
   // oc2, ic2, hK, wK, V, V => oc4, ic4, wA, hA, oc3, ic3, O2, I2, V, V
   MD10(Type, aweights, weights, this->oc4, this->oc3, this->O2, V, this->ic4, this->ic3, this->I2, V, K, K);
-  MD10(Type, atweights, tweights, this->oc4, this->ic4, A, A, this->oc3, this->ic3, this->I2, V, this->O2, V);
+  MD10(Type, atweights, tweights, this->oc4, this->ic4, A, A, this->oc3, this->ic3, this->O2, this->I2, V, V);
 
   SET_EPI32(this->ic * this->kh * this->kw)
 
@@ -897,7 +901,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsa_plain(
         iter_each (_hA, A) {
         iter_each (_iV, V) {
           _mm512_stream_ps(&md10(atweights, _oc4, _ic4, _wA, _hA, _oc3, _ic3,
-                               _I2, _iV, _O2, 0),
+                               _O2, _I2, _iV, 0),
               *((__m512 *)&aout[_wA][_hA][_iV][0]));
         }}}
       } else {
@@ -905,7 +909,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsa_plain(
         iter_each (_hA, A) {
         iter_each (_iV, V) {
           _mm512_store_ps(&md10(atweights, _oc4, _ic4, _wA, _hA, _oc3, _ic3,
-                              _I2, _iV, _O2, 0),
+                              _O2, _I2, _iV, 0),
               *((__m512 *)&aout[_wA][_hA][_iV][0]));
         }}}
       }
@@ -915,7 +919,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsa_plain(
       iter_each (_iV, V) {
 #pragma omp simd
       iter_each (_oV, V) {
-        md10(atweights, _oc4, _ic4, _wA, _hA, _oc3, _ic3, _I2, _iV, _O2, _oV)
+        md10(atweights, _oc4, _ic4, _wA, _hA, _oc3, _ic3, _O2, _I2, _iV, _oV)
             = aout[_wA][_hA][_iV][_oV];
       }}}}
     }

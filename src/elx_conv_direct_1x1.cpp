@@ -47,6 +47,11 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   if (this->I2 == 0) this->I2 = this->ic2;
   if (this->O2 == 0) this->O2 = 3;
   if (this->T == 0)  this->T = 1;
+
+  // TODO: need a better tuning
+  this->O = this->O2;
+  this->O1 = 1;
+
   this->oc4 = this->oc4 == 0 ? 1 : this->oc4;
   this->ic4 = this->ic4 == 0 ? 1 : this->ic4;
 
@@ -205,39 +210,39 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 {
-  auto bind_kernel = [&](int O2, int T, gemm_kernel_binder::ker **func) {
+  auto bind_kernel = [&](int O, int T, gemm_kernel_binder::ker **func) {
     switch (xopt_) {
     case (0xa061):
       if (this->with_bias)
         gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCC, false, true, false,
-            false, false>(O2, T, func);
+            false, false>(O, T, func);
       else
         gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCC, false, false, false,
-            false, false>(O2, T, func);
+            false, false>(O, T, func);
       break;
     case (0xb061):
       if (this->with_bias)
         gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCD, false, true, false,
-            false, false>(O2, T, func);
+            false, false>(O, T, func);
       else
         gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCD, false, false, false,
-            false, false>(O2, T, func);
+            false, false>(O, T, func);
       break;
     case (0xc060):
       if (this->with_bias)
         gemm_kernel_binder::bind<Type, V, I, 1, GKF_DDD, false, true, false,
-            false, false>(O2, T, func);
+            false, false>(O, T, func);
       else
         gemm_kernel_binder::bind<Type, V, I, 1, GKF_DDD, false, false, false,
-            false, false>(O2, T, func);
+            false, false>(O, T, func);
       break;
     case (0xd060):
       if (this->with_bias)
         gemm_kernel_binder::bind<Type, V, I, 2, GKF_DDD, false, true, false,
-            false, false>(O2, T, func);
+            false, false>(O, T, func);
       else
         gemm_kernel_binder::bind<Type, V, I, 2, GKF_DDD, false, false, false,
-            false, false>(O2, T, func);
+            false, false>(O, T, func);
       break;
     default:
       el_error("Unknown xopt");
