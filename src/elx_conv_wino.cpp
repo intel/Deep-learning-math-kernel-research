@@ -91,13 +91,11 @@ elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
   wA_end_ = (this->iw + this->lp) - (this->wt - 1) * (A - K + 1) - 1;
 
   // TODO: santize user settings
-  if (this->I2 == 0) this->I2 = 4; // TODO: I2 selection
-  if (this->O2 == 0) this->O2 = 2; // TODO: O2 selection
-  if (this->T == 0)  this->T = 18; // TODO: T selection
-
-  // TODO: tuning
-  this->O = 1;
-  this->O1 = this->O2;
+  if (this->O == 0) this->O = 1; // TODO: O selection
+  if (this->O1 == 0) this->O1 = 1; // TODO: O1 selection
+  if (this->I2 == 0) this->I2 = 1; // TODO: I2 selection
+  if (this->T == 0)  this->T = 1; // TODO: T selection
+  this->O2 = this->O * this->O1;
 
   // Tailing
   this->Tr = this->t % this->T ? this->t % this->T : this->T;
@@ -143,7 +141,7 @@ elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
   printf("############################################################\n");
   printf("T=%d, Tr=%d, t2=%d, t=%d\n", this->T, this->Tr, this->t2, this->t);
   printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic4=%d, IC=%d\n", this->V, this->Ir, this->I2, this->ic3, this->ic4, this->IC);
-  printf("V=%d, Or=%d, O2=%d, oc3=%d, oc4=%d, OC=%d\n", this->V, this->Or, this->O2, this->oc3, this->oc4, this->OC);
+  printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), oc3=%d, oc4=%d, OC=%d\n", this->V, this->Or, this->O2, this->O, this->O1, this->oc3, this->oc4, this->OC);
 
 #ifdef DEBUG
   if (this->V * this->I2 * this->ic3 * this->ic4 != this->IC) {

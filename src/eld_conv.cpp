@@ -21,8 +21,9 @@ eld_conv_t<F>::eld_conv_t() {
   with_bias = false;
   xc        = nullptr;
   threading = {0, 0};
-  blocking  = {0, 0, 0};
   execution_mode = 0;
+  blocking  = {0, 0};
+  flatting  = {0, 0};
   partition = {1, 1};
   streaming_hint = {0, 0, 0};
   format_as_blocked = {false, false, false};
