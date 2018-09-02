@@ -3,7 +3,6 @@
 #include <x86intrin.h>
 #include "el_utils.hpp"
 #include "elx_conv_direct_1x1.hpp"
-#include "elk_conv_direct_1x1.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elk_conv_wino.hpp"
@@ -206,48 +205,47 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 {
+
 #define GEMM_CASE(z, T_, O_)                                                   \
   case T_:                                                                     \
-    if (this->hs == 1 && xopt_ == 0xc060) {                                    \
+    if (xopt_ == 0xa061) {                                                     \
       if (this->with_bias)                                                     \
-        *func = convolution_direct_1x1_kernel<Type, 1, O_, T_, SSS, V, I,      \
-            BIAS(true), RELU(false), SUM(false)>::gemm;                        \
+        *func = gemm_ker_cls_<I, 1, GKF_CCC, O_, T_, false, true, false,       \
+            false, false>::execute;                                            \
       else                                                                     \
-        *func = convolution_direct_1x1_kernel<Type, 1, O_, T_, SSS, V, I,      \
-            BIAS(false), RELU(false), SUM(false)>::gemm;                       \
-    } else if (this->hs == 2 && xopt_ == 0xd060) {                             \
-      if (this->with_bias)                                                     \
-        *func = convolution_direct_1x1_kernel<Type, 2, O_, T_, SSS, V, I,      \
-            BIAS(true), RELU(false), SUM(false)>::gemm;                        \
-      else                                                                     \
-        *func = convolution_direct_1x1_kernel<Type, 2, O_, T_, SSS, V, I,      \
-            BIAS(false), RELU(false), SUM(false)>::gemm;                       \
+        *func = gemm_ker_cls_<I, 1, GKF_CCC, O_, T_, false, false, false,      \
+            false, false>::execute;                                            \
     } else if (xopt_ == 0xb061) {                                              \
       if (this->with_bias)                                                     \
-        *func = convolution_direct_1x1_kernel<Type, 1, O_, T_, CCS, V, I,      \
-            BIAS(true), RELU(false), SUM(false)>::gemm;                        \
+        *func = gemm_ker_cls_<I, 1, GKF_CCD, O_, T_, false, true, false,       \
+            false, false>::execute;                                            \
       else                                                                     \
-        *func = convolution_direct_1x1_kernel<Type, 1, O_, T_, CCS, V, I,      \
-            BIAS(false), RELU(false), SUM(false)>::gemm;                       \
-    } else if (xopt_ == 0xa061) {                                              \
+        *func = gemm_ker_cls_<I, 1, GKF_CCD, O_, T_, false, false, false,      \
+            false, false>::execute;                                            \
+    } else if (xopt_ == 0xc060) {                                              \
       if (this->with_bias)                                                     \
-        *func = convolution_direct_1x1_kernel<Type, 1, O_, T_, CCC, V, I,      \
-            BIAS(true), RELU(false), SUM(false)>::gemm;                        \
+        *func = gemm_ker_cls_<I, 1, GKF_DDD, O_, T_, false, true, false,       \
+            false, false>::execute;                                            \
       else                                                                     \
-        *func = convolution_direct_1x1_kernel<Type, 1, O_, T_, CCC, V, I,      \
-            BIAS(false), RELU(false), SUM(false)>::gemm;                       \
+        *func = gemm_ker_cls_<I, 1, GKF_DDD, O_, T_, false, false, false,      \
+            false, false>::execute;                                            \
+    } else if (xopt_ == 0xd060) {                                              \
+      if (this->with_bias)                                                     \
+        *func = gemm_ker_cls_<I, 2, GKF_DDD, O_, T_, false, true, false,       \
+            false, false>::execute;                                            \
+      else                                                                     \
+        *func = gemm_ker_cls_<I, 2, GKF_DDD, O_, T_, false, false, false,      \
+            false, false>::execute;                                            \
     }                                                                          \
     break;
 
-  auto bind_kernel = [&](int O2_, int T_,
-                  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, 0, V, I,
-                           false, false, false>::gemm) **func) {
+  auto bind_kernel = [&](int O2_, int T_, gemm_ker_fp_ **func) {
     switch (O2_) {
     case 1:
       switch (T_) {
-        BOOST_PP_REPEAT_FROM_TO(1, 33, GEMM_CASE, 1);
+        BOOST_PP_REPEAT_FROM_TO(1, 32, GEMM_CASE, 1);
       default:
-        el_error("Convolution_direct_1x1: Unimplemented T>32 in O=1");
+        el_error("Convolution_direct_1x1: Unimplemented T>31 in O=1");
         break;
       }
       break;
