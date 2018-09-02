@@ -61,8 +61,8 @@ inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, V, 6, 3>::
 #define F(h, w) aweights[h][w][_V]
 #define T(h, w) atweights[w][h][_V]
 #define f(m, n) f##m##n
-#define OP(m,n) f(m,n) = _mm512_load_ps(F(m, n))
-#define ISTORE(i, j) _mm512_store_ps(T(i, j), t##i##j)
+#define OP(m,n) f(m,n) = _mm<V>::load_ps(F(m, n))
+#define ISTORE(i, j) _mm<V>::store_ps(T(i, j), t##i##j)
 
   for (int _V = 0; _V < V; ++_V) {
     VECTOR_DEF(M3, (0));

@@ -12,18 +12,23 @@
 #include "kernel/elk_conv_wino_3x3_3x3_input.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_output.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_weights.hxx"
-#include "kernel/elk_conv_wino_4x4_3x3_input.hxx"
-#include "kernel/elk_conv_wino_4x4_3x3_output.hxx"
-#include "kernel/elk_conv_wino_4x4_3x3_weights.hxx"
+
+#include "kernel/elk_conv_wino_4x4_3x3_input.xsimd.hxx"
+#include "kernel/elk_conv_wino_4x4_3x3_output.xsimd.hxx"
+#include "kernel/elk_conv_wino_4x4_3x3_weights.xsimd.hxx"
+
 #include "kernel/elk_conv_wino_5x5_3x3_input.hxx"
 #include "kernel/elk_conv_wino_5x5_3x3_output.hxx"
 #include "kernel/elk_conv_wino_5x5_3x3_weights.hxx"
+
 #include "kernel/elk_conv_wino_3x3_3x3_input_gen.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_output_gen.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_weights_gen.hxx"
+
 #include "kernel/elk_conv_wino_4x4_3x3_input_gen.hxx"
 #include "kernel/elk_conv_wino_4x4_3x3_output_gen.hxx"
 #include "kernel/elk_conv_wino_4x4_3x3_weights_gen.hxx"
+
 #include "kernel/elk_conv_wino_5x5_3x3_input_gen.hxx"
 #include "kernel/elk_conv_wino_5x5_3x3_output_gen.hxx"
 #include "kernel/elk_conv_wino_5x5_3x3_weights_gen.hxx"
@@ -385,12 +390,21 @@ template class elx_conv_wino_t<float, 6, 3, 16, ISA_GENERIC>;
 template class elx_conv_wino_t<float, 6, 3, 16, ISA_COSIM_AVX512>;
 template class elx_conv_wino_t<float, 7, 3, 16, ISA_GENERIC>;
 template class elx_conv_wino_t<float, 7, 3, 16, ISA_COSIM_AVX512>;
+// template class elx_conv_wino_t<float, 5, 3, 8, ISA_GENERIC>;
+// template class elx_conv_wino_t<float, 5, 3, 8, ISA_COSIM_AVX512>;
+// template class elx_conv_wino_t<float, 6, 3, 8, ISA_GENERIC>;
+// template class elx_conv_wino_t<float, 6, 3, 8, ISA_COSIM_AVX512>;
+// template class elx_conv_wino_t<float, 7, 3, 8, ISA_GENERIC>;
+// template class elx_conv_wino_t<float, 7, 3, 8, ISA_COSIM_AVX512>;
 #endif
 
 // template class elx_conv_wino_t<float, 4, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<float, 5, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<float, 6, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<float, 7, 3, 16, ISA_SKX_AVX512>;
+// template class elx_conv_wino_t<float, 5, 3, 8, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<float, 6, 3, 8, ISA_SKX_AVX512>;
+// template class elx_conv_wino_t<float, 7, 3, 8, ISA_SKX_AVX512>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_WINO_HPP__

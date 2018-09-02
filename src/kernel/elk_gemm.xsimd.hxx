@@ -149,7 +149,7 @@ private:
     for (int _O2 = 0; _O2 < xc.O2; ++_O2) {
       __m<V> t[T];
       float *w_ptr = &md4(atweights, _O2, 0, 0, 0);
-      __m512 w0, w1, w2, w3;
+      __m<V> w0, w1, w2, w3;
       w0 = _mm<V>::load_ps(w_ptr);
       w_ptr += V;
       w1 = _mm<V>::load_ps(w_ptr);
@@ -274,7 +274,7 @@ private:
     MD3(float, atoutput, toutput, xc.O2, T, V);
 
     for (int _O2 = 0; _O2 < xc.O2; ++ _O2) {
-      __m512 t[T];
+      __m<V> t[T];
 
       if (zero_out) {
 #       pragma unroll (T)

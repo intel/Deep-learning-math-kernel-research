@@ -8,11 +8,12 @@
 #include "elk_conv_wino.hpp"
 
 namespace euler {
-template <int V>
-class convolution_winograd_kernel_base<float, ISA_SKX_AVX512, V, 6, 3> {
+template <int v>
+class convolution_winograd_kernel_base<float, ISA_SKX_AVX512, v, 6, 3> {
   template <typename Type, int ...configs>
     friend class convolution_winograd_kernel_base;
 protected:
+  constexpr static int V = v;
   constexpr static int I = ISA_SKX_AVX512;
   constexpr static int A = 6;
   constexpr static int K = 3;
