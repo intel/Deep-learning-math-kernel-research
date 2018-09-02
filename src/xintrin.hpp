@@ -3,6 +3,7 @@
 
 template <int V> struct _mm_traits {
   typedef void vector_type;
+  typedef void vector_itype;
 };
 
 template <int V> struct _mm {
@@ -11,20 +12,24 @@ template <int V> struct _mm {
 #ifdef __AVX512F__
 template <> struct _mm_traits<16> {
   typedef __m512 vector_type;
+  typedef __m512i vector_itype;
 };
 #endif
 
 #ifdef __AVX2__
 template <> struct _mm_traits<8> {
   typedef __m256 vector_type;
+  typedef __m256i vector_itype;
 };
 #endif
 
 template <> struct _mm_traits<4> {
   typedef __m128 vector_type;
+  typedef __m128i vector_itype;
 };
 
 template <int V> using __m = typename _mm_traits<V>::vector_type;
+template <int V> using __i = typename _mm_traits<V>::vector_itype;
 
 #ifdef __AVX512F__
 #if 1
@@ -39,8 +44,23 @@ template <> struct _mm<16> {
   static inline void stream_ps(float *adrs, __m<V> m) noexcept {
     _mm512_stream_ps(adrs, m);
   }
+  static inline void i32scatter_ps(void *adrs, __i<V> vidx,
+      __m<V> m, int scale) noexcept {
+    _mm512_i32scatter_ps(adrs, vidx, m, scale);
+  }
+  static inline __m<V> i32gather_ps(__i<V> vidx, void *adrs, int scale)
+  noexcept {
+    return _mm512_i32gather_ps(vidx, adrs, scale);
+  }
   static inline __m<V> setzero_ps(void) noexcept {
     return _mm512_setzero_ps();
+  }
+  static inline __i<V> set_epi32(int e15, int e14, int e13, int e12,
+      int e11, int e10, int e9, int e8,
+      int e7, int e6, int e5, int e4,
+      int e3, int e2, int e1, int e0) noexcept {
+    return _mm512_set_epi32(e15, e14, e13, e12, e11, e10, e9, e8,
+        e7, e6, e5, e4, e3, e2, e1, e0);
   }
   static inline __m<V> set1_ps(float e) noexcept {
     return _mm512_set1_ps(e);
@@ -116,11 +136,28 @@ template <> struct _mm<8> {
   static inline void stream_ps(float *adrs, __m<V> m) noexcept {
     _mm256_stream_ps(adrs, m);
   }
+  static inline void i32scatter_ps(void *adrs, __i<V> vidx,
+      __m<V> m, int scale) noexcept {
+    _mm256_i32scatter_ps(adrs, vidx, m, scale);
+  }
+  static inline __m<V> i32gather_ps(__i<V> vidx, const float *adrs, int scale)
+  noexcept {
+    return _mm256_i32gather_ps(adrs, vidx, scale);
+  }
   static inline __m<V> setzero_ps(void) noexcept {
     return _mm256_setzero_ps();
   }
   static inline __m<V> set1_ps(float e) noexcept {
     return _mm256_set1_ps(e);
+  }
+  static inline __i<V> set_epi32(int, int, int, int, int, int, int, int,
+      int e7, int e6, int e5, int e4,
+      int e3, int e2, int e1, int e0) noexcept {
+    return _mm256_set_epi32(e7, e6, e5, e4, e3, e2, e1, e0);
+  }
+  static inline __i<V> set_epi32(int e7, int e6, int e5, int e4,
+      int e3, int e2, int e1, int e0) noexcept {
+    return _mm256_set_epi32(e7, e6, e5, e4, e3, e2, e1, e0);
   }
   static inline __m<V> set_ps(float e7, float e6, float e5,
       float e4, float e3, float e2, float e1, float e0) noexcept {

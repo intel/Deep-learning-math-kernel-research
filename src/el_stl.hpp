@@ -212,10 +212,10 @@ struct mm_regs_arange {
 // Regs array/matrix
 //
 // /* Allocate a 4*8 ZMM matrix */
-// mm_regs_matrix<__m512, 4, 8> mm;
+// mm_regs_matrix<__m<V>, 4, 8> mm;
 //
 // /* Indexing */
-// mm.get<3, 4>() = _mm512_set1_ps(0.0f);
+// mm.get<3, 4>() = _mm<V>::set1_ps(0.0f);
 //
 
 }
