@@ -842,7 +842,7 @@ struct gemm_kernel_binder {
           (*func = gemm_ker_cls<Type, V, I, S, F, 1, _T, Kp...>::execute);
       });
       if (T >= 32)
-        el_error("gemm_kernel, O = 1, T >= 32 not supported");
+        el_error("gemm_kernel: O = 1, T >= 32 not supported");
       break;
     case 2:
       LOOP_FROM_TO(_T, 1, 15, {
@@ -850,15 +850,15 @@ struct gemm_kernel_binder {
           (*func = gemm_ker_cls<Type, V, I, S, F, 2, _T, Kp...>::execute);
       });
       if (T >= 15)
-        el_error("gemm_kernel, O = 2, T >= 15 not supported");
+        el_error("gemm_kernel: O = 2, T >= 15 not supported");
       break;
     case 3:
       LOOP_FROM_TO(_T, 1, 15, {
         if (T == _T)
           (*func = gemm_ker_cls<Type, V, I, S, F, 3, _T, Kp...>::execute);
-      if (T >= 15)
-        el_error("gemm_kernel, O = 3, T >= 15 not supported");
       });
+      if (T >= 15)
+        el_error("gemm_kernel: O = 3, T >= 15 not supported");
       break;
     case 4:
       LOOP_FROM_TO(_T, 1, 15, {
@@ -866,7 +866,7 @@ struct gemm_kernel_binder {
           (*func = gemm_ker_cls<Type, V, I, S, F, 4, _T, Kp...>::execute);
       });
       if (T >= 15)
-        el_error("gemm_kernel, O = 4, T >= 15 not supported");
+        el_error("gemm_kernel: O = 4, T >= 15 not supported");
       break;
     case 5:
       LOOP_FROM_TO(_T, 1, 6, {
@@ -874,7 +874,7 @@ struct gemm_kernel_binder {
           (*func = gemm_ker_cls<Type, V, I, S, F, 5, _T, Kp...>::execute);
       });
       if (T >= 6)
-        el_error("gemm_kernel, O = 5, T >= 6 not supported");
+        el_error("gemm_kernel: O = 5, T >= 6 not supported");
       break;
     case 6:
       LOOP_FROM_TO(_T, 1, 5, {
@@ -882,7 +882,7 @@ struct gemm_kernel_binder {
           (*func = gemm_ker_cls<Type, V, I, S, F, 6, _T, Kp...>::execute);
       });
       if (T >= 5)
-        el_error("gemm_kernel, O = 6, T >= 5 not supported");
+        el_error("gemm_kernel: O = 6, T >= 5 not supported");
       break;
     case 7:
       LOOP_FROM_TO(_T, 1, 4, {
@@ -890,7 +890,7 @@ struct gemm_kernel_binder {
           (*func = gemm_ker_cls<Type, V, I, S, F, 7, _T, Kp...>::execute);
       });
       if (T >= 4)
-        el_error("gemm_kernel, O = 7, T >= 4 not supported");
+        el_error("gemm_kernel: O = 7, T >= 4 not supported");
       break;
     case 8:
       LOOP_FROM_TO(_T, 1, 9, {
@@ -898,7 +898,7 @@ struct gemm_kernel_binder {
           (*func = gemm_ker_cls<Type, V, I, S, F, 8, _T, Kp...>::execute);
       });
       if (T >= 9)
-        el_error("gemm_kernel, O = 8, T >= 9 not supported");
+        el_error("gemm_kernel: O = 8, T >= 9 not supported");
       break;
     default:
       el_error("gemm_kenrel: O > 8 unsupported");
