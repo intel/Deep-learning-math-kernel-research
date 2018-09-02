@@ -36,6 +36,9 @@ template <> struct _mm<16> {
   static inline void store_ps(void *adrs, __m<V> m) noexcept {
     _mm512_store_ps(adrs, m);
   }
+  static inline void stream_ps(float *adrs, __m<V> m) noexcept {
+    _mm512_stream_ps(adrs, m);
+  }
   static inline __m<V> setzero_ps(void) noexcept {
     return _mm512_setzero_ps();
   }
@@ -109,6 +112,9 @@ template <> struct _mm<8> {
   }
   static inline void store_ps(float *adrs, __m<V> m) noexcept {
     _mm256_store_ps(adrs, m);
+  }
+  static inline void stream_ps(float *adrs, __m<V> m) noexcept {
+    _mm256_stream_ps(adrs, m);
   }
   static inline __m<V> setzero_ps(void) noexcept {
     return _mm256_setzero_ps();
