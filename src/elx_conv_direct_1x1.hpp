@@ -29,6 +29,9 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   inline void __trans_input_blocked(Type *tinput, Type *input, int _ht, int _wt);
   void trans_input(Type *tinput, Type *input, int _ht, int _wt);
 
+  inline void __trans_pad_input_plain(Type *tinput, Type *input, int _ht, int _wt);
+  inline void __trans_pad_input_blocked(Type *tinput, Type *input, int _ht, int _wt);
+
   inline void __trans_input_plain2(Type *tinput, Type *input, int _t2, int Tz);
   inline void __trans_input_blocked2(Type *tinput, Type *input, int _t2, int Tz);
   void trans_input2(Type *tinput, Type *input, int _t2, int Tz);
