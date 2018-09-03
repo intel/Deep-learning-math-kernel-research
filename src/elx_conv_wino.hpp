@@ -13,9 +13,9 @@
 #include "kernel/elk_conv_wino_3x3_3x3_output.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_weights.hxx"
 
-#include "kernel/elk_conv_wino_4x4_3x3_input.xsimd.hxx"
-#include "kernel/elk_conv_wino_4x4_3x3_output.xsimd.hxx"
-#include "kernel/elk_conv_wino_4x4_3x3_weights.xsimd.hxx"
+#include "kernel/elk_conv_wino_4x4_3x3_input.hxx"
+#include "kernel/elk_conv_wino_4x4_3x3_output.hxx"
+#include "kernel/elk_conv_wino_4x4_3x3_weights.hxx"
 
 #include "kernel/elk_conv_wino_5x5_3x3_input.hxx"
 #include "kernel/elk_conv_wino_5x5_3x3_output.hxx"
