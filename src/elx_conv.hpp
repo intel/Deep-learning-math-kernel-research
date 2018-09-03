@@ -38,7 +38,7 @@ struct elx_conv_t {
   // padding (IC/OC) & tailing dimensions: Ir, Or, Tr
   int IC, OC, Ir, Or, Tr, O2r, oc3r;
   // 2nd/r3d level cache blocking unit(in pack) to ic, oc
-  int I2, O2, I3, O3;
+  int I2, O, O1, O2, I3, O3;
   // padding
   int lp, rp, tp, bp;
   // stride

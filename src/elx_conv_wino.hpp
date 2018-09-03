@@ -8,7 +8,7 @@
 #include "elx_conv.hpp"
 #include "euler.hpp"
 #include "elk_conv_wino.hpp"
-#include "kernel/elk_gemm.xsimd.hxx"
+#include "kernel/elk_gemm_otj.xsimd.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_input.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_output.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_weights.hxx"
@@ -293,14 +293,11 @@ private:
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  decltype(
-      gemm_kernel<Type, I, V, 1>::gemm) *ker_gemm_;
-  decltype(
-      gemm_kernel<Type, I, V, 1>::gemm) *ker_gemm0_;
-  decltype(
-      gemm_kernel<Type, I, V, 1>::gemm) *ker_gemm_tail_;
-  decltype(
-      gemm_kernel<Type, I, V, 1>::gemm) *ker_gemm0_tail_;
+  gemm_kernel_binder::ker *ker_gemm_;
+  gemm_kernel_binder::ker *ker_gemm0_;
+  gemm_kernel_binder::ker *ker_gemm_tail_;
+  gemm_kernel_binder::ker *ker_gemm0_tail_;
+
   decltype(
       convolution_winograd_kernel<
         Type, I, V, A, K>::template trans_input<no>) *ker_trans_input_;

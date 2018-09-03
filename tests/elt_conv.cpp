@@ -20,7 +20,8 @@ int prop_kind = forward_inference, alg = CONV_WINOGRAD;
 int input_format = nChw16c, weights_format = OIhw16i16o, output_format = nChw16c;
 int nteams = 0, nthreads = 0;
 int execution_mode = 0;
-int blk_i = 0, blk_o = 0, blk_t = 0;
+int flt_o = 1, flt_t = 1;
+int blk_i = 1, blk_o = 1;
 int pat_i = 1, pat_o = 1;
 int tile_size = 7;
 int streaming_weights = 0, streaming_input = 0, streaming_output = 0;
@@ -51,7 +52,8 @@ int main(int argc, char **argv)
   desc.prop_kind = prop_kind;
   desc.threading = { nteams, nthreads };
   desc.execution_mode = execution_mode;
-  desc.blocking = { blk_i, blk_o, blk_t };
+  desc.flatting = { flt_o, flt_t };
+  desc.blocking = { blk_i, blk_o };
   desc.partition = { pat_i, pat_o };
   desc.streaming_hint
       = { streaming_weights, streaming_input, streaming_output };
@@ -126,9 +128,10 @@ int parse_cmd_options(int argc, char **argv) {
     ("nteams", po::value<int>(&nteams), "Number of thread team")
     ("nthreads", po::value<int>(&nthreads), "Number of threads per team")
     ("execution-mode", po::value<std::string>(), "Execution mode")
+    ("flt-o", po::value<int>(&flt_o), "OC flatting")
+    ("flt-t", po::value<int>(&flt_t), "Tile flatting")
     ("blk-i", po::value<int>(&blk_i), "IC blocking")
     ("blk-o", po::value<int>(&blk_o), "OC blocking")
-    ("blk-t", po::value<int>(&blk_t), "Tile blocking")
     ("pat-i", po::value<int>(&pat_i), "Partition on ic")
     ("pat-o", po::value<int>(&pat_o), "Partition on oc")
     ("streaming-weights", po::value<int>(&streaming_weights), "Streaming hint for winograd transformed weights")
@@ -215,12 +218,13 @@ int parse_cmd_options(int argc, char **argv) {
          "mb:%d, ic:%d, ih:%d, iw:%d, oc:%d, oh:%d, ow:%d, kh:%d, kw:%d, "
          "ph:%d, pw:%d, sh:%d, sw:%d, dh:%d, dw:%d\n"
          "with_bias:%d, with_relu:%d, validate_results:%d\n"
-         "blk_i:%d, blk_o:%d, blk_t:%d, pat_i:%d, pat_o:%d\n"
+         "flt_o:%d, flt_t:%d, blk_i:%d, blk_o:%d, pat_i:%d, pat_o:%d\n"
          "streaming-hint:%d, %d, %d\n"
          "nteams:%d, nthreads:%d\n"
          "execution-mode:%x\n",
       mb, ic, ih, iw, oc, oh, ow, kh, kw, ph, pw, sh, sw, dh, dw,
-      with_bias, with_relu, validate_results, blk_i, blk_o, blk_t, pat_i, pat_o,
+      with_bias, with_relu, validate_results,
+      flt_o, flt_t, blk_i, blk_o, pat_i, pat_o,
       streaming_weights, streaming_input, streaming_output,
       nteams, nthreads, execution_mode);
 

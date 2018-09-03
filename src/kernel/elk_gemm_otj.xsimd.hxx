@@ -8,7 +8,7 @@
 
 // Type: data type
 // S: stride
-// O2: OC blocking
+// O: OC blocking unit
 // T: tile blocking unit
 // F: format
 // V: vector size
@@ -25,12 +25,12 @@ namespace euler {
 // Input - weights - outputt
 // C: compact
 //    Input: I2, T, S, V
-//    Weights: I2, V, O2, V
-//    Output: O2, T, V
+//    Weights: O1, I2, V, O, V
+//    Output: O1, O, T, V
 // D: discrete
 //    Input: I2, ih, iw, V
-//    Weights: O2, ic2, V, V
-//    Output: O2, oh, ow, V
+//    Weights: O1, O, ic2, V, V
+//    Output: O1, O, oh, ow, V
 const int GKF_CCC = 0xccc;
 const int GKF_CCD = 0xccd;
 const int GKF_DCD = 0xdcd;
@@ -52,8 +52,8 @@ struct P_traits<1, T, false,
   static constexpr int P = 2;
 };
 
-template <int T, bool has_Ir>
-struct P_traits<1, T, has_Ir, typename std::enable_if<(T >= 31)>::type> {
+template <int T>
+struct P_traits<1, T, false, typename std::enable_if<(T >= 31)>::type> {
   static constexpr int P = 1;
 };
 
@@ -70,9 +70,13 @@ struct P_traits<O, T, false,
   static constexpr int P = 2;
 };
 
-template <int O, int T, bool has_Ir>
-struct P_traits<O, T, has_Ir,
+template <int O, int T>
+struct P_traits<O, T, false,
     typename std::enable_if<(O > 1 && (31 / O - T) == 1)>::type> {
+  static constexpr int P = 1;
+};
+
+template <int O, int T> struct P_traits<O, T, true> {
   static constexpr int P = 1;
 };
 
@@ -170,11 +174,11 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     estl::integer_sequence<Kp...>> {
   using kparams = estl::integer_sequence<Kp...>;
   static_assert(sizeof...(Kp) == 9,
-      "Kernel parameters must be Type, V, I, <S, F, O2, T, ...>");
+      "Kernel parameters must be Type, V, I, <S, F, O, T, ...>");
 
   constexpr static auto S = estl::get<0, int, kparams>();
   constexpr static auto F = estl::get<1, int, kparams>();
-  constexpr static auto O2 = estl::get<2, int, kparams>();
+  constexpr static auto O = estl::get<2, int, kparams>();
   constexpr static auto T = estl::get<3, int, kparams>();
   constexpr static auto has_Ir = estl::get<4, bool, kparams>();
   constexpr static auto with_bias = estl::get<5, bool, kparams>();
@@ -183,53 +187,53 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
   constexpr static auto is_streamout = estl::get<8, bool, kparams>();
 
   // Jamming components
-  constexpr static int J = J_traits<O2, T, has_Ir>::J;
-  constexpr static int JO0 = J_traits<O2, T, has_Ir>::O0;
-  constexpr static int JP0 = J_traits<O2, T, has_Ir>::P0;
-  constexpr static int JO1 = J_traits<O2, T, has_Ir>::O1;
-  constexpr static int JP1 = J_traits<O2, T, has_Ir>::P1;
-  constexpr static int JO2 = J_traits<O2, T, has_Ir>::O2;
-  constexpr static int JP2 = J_traits<O2, T, has_Ir>::P2;
+  constexpr static int J = J_traits<O, T, has_Ir>::J;
+  constexpr static int JO0 = J_traits<O, T, has_Ir>::O0;
+  constexpr static int JP0 = J_traits<O, T, has_Ir>::P0;
+  constexpr static int JO1 = J_traits<O, T, has_Ir>::O1;
+  constexpr static int JP1 = J_traits<O, T, has_Ir>::P1;
+  constexpr static int JO2 = J_traits<O, T, has_Ir>::O2;
+  constexpr static int JP2 = J_traits<O, T, has_Ir>::P2;
 
-  template <int O, int P>
+  template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
   op_fma(elx_conv_t<float> &xc, float *output, float *input, float *weights,
       float *bias, bool reset_output)
   {
-    __m<V> mmout[O][T], mmwei[O][P];
+    __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(float, aoutput, output, O, O_stride);
+    MD2(float, aoutput, output, JO, O_stride);
     MD2(float, ainput, input, xc.I2, I2_stride);
-    MD2(float, abias2, bias, O, V);
+    MD2(float, abias2, bias, JO, V);
 
     if (reset_output) {
       if (with_bias) {
         // load bias
-#       pragma unroll(O)
-        for (int _O = 0; _O < O; ++_O) {
-          auto tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
-#         pragma unroll(T)
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
+          __m<V> tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
+#pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
         }
       } else {
         // clear output
-        auto tmp = _mm<V>::setzero_ps();
-#       pragma unroll(O)
-        for (int _O = 0; _O < O; ++_O)
-#         pragma unroll(T)
+        __m<V> tmp = _mm<V>::setzero_ps();
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O)
+#pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
       }
     } else {
       // load output
-#     pragma unroll(O)
-      for (int _O = 0; _O < O; ++_O) {
-#       pragma unroll(T)
+#pragma unroll(JO)
+      for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
           mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
@@ -238,25 +242,25 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
 
     for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#     pragma nounroll
+#pragma nounroll
       for (int _V = 0; _V < V / P; ++_V) {
-#       pragma unroll(O)
-        for (int _O = 0; _O < O; ++_O) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
+            MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
             mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 0, _O, 0));
           } else {
-            MD6(float, aweights6, weights, O, xc.ic34, xc.I2, V / P, P, V);
+            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
             mmwei[_O][0]
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
           }
         }
-#       pragma unroll(T)
+#pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-#         pragma unroll(O)
-          for (int _O = 0; _O < O; ++_O) {
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O) {
             MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-            auto mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
+            __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
@@ -265,9 +269,9 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
 
     // store output
-#   pragma unroll(O)
-    for (int _O = 0; _O < O; ++_O) {
-#     pragma unroll(T)
+#pragma unroll(JO)
+    for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         if (is_streamout)
@@ -278,45 +282,45 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
   }
 
-  template <int O, int P>
+  template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == true), void>::type
   op_fma(elx_conv_t<float> &xc, float *output, float *input, float *weights,
       float *bias, bool reset_output)
   {
-    __m<V> mmout[O][T], mmwei[O][P];
+    __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(float, aoutput, output, O, O_stride);
+    MD2(float, aoutput, output, JO, O_stride);
     MD2(float, ainput, input, xc.I2, I2_stride);
-    MD2(float, abias2, bias, O, V);
+    MD2(float, abias2, bias, JO, V);
 
     if (reset_output) {
       if (with_bias) {
         // load bias
-#       pragma unroll(O)
-        for (int _O = 0; _O < O; ++_O) {
-          auto tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
-#         pragma unroll(T)
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
+          __m<V> tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
+#pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
         }
       } else {
         // clear output
-        auto tmp = _mm<V>::setzero_ps();
-#       pragma unroll(O)
-        for (int _O = 0; _O < O; ++_O)
-#         pragma unroll(T)
+        __m<V> tmp = _mm<V>::setzero_ps();
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O)
+#pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
       }
     } else {
       // load output
-#     pragma unroll(O)
-      for (int _O = 0; _O < O; ++_O) {
-#       pragma unroll(T)
+#pragma unroll(JO)
+      for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
           mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
@@ -325,25 +329,25 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
 
     for (int _I2 = 0; _I2 < xc.I2 - 1; ++_I2) {
-#     pragma nounroll
+#pragma nounroll
       for (int _V = 0; _V < V; ++_V) {
-#       pragma unroll(O)
-        for (int _O = 0; _O < O; ++_O) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V, 1, O2, V);
+            MD5(float, aweights5, weights, xc.I2, V, 1, O, V);
             mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 0, _O, 0));
           } else {
-            MD6(float, aweights6, weights, O, xc.ic34, xc.I2, V, 1, V);
+            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V, 1, V);
             mmwei[_O][0]
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
           }
         }
-#       pragma unroll(T)
+#pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-#         pragma unroll(O)
-          for (int _O = 0; _O < O; ++_O) {
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O) {
             MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V, 1);
-            auto mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
+            __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
@@ -352,25 +356,25 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
     // Ir
     {
-#     pragma nounroll
+#pragma nounroll
       for (int _V = 0; _V < xc.Ir; ++_V) {
-#       pragma unroll(O)
-        for (int _O = 0; _O < O; ++_O) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V, 1, O2, V);
+            MD5(float, aweights5, weights, xc.I2, V, 1, O, V);
             mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, xc.I2 - 1, _V, 0, _O, 0));
           } else {
-            MD6(float, aweights6, weights, O, xc.ic34, xc.I2, V, 1, V);
+            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V, 1, V);
             mmwei[_O][0]
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, xc.I2 - 1, _V, 0, 0));
           }
         }
-#       pragma unroll(T)
+#pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-#         pragma unroll(O)
-          for (int _O = 0; _O < O; ++_O) {
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O) {
             MD4(float, ainput4, &md2(ainput, xc.I2 - 1, 0), T, S, V, 1);
-            auto mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
+            __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
@@ -380,9 +384,9 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
 
     // store output
-#   pragma unroll(O)
-    for (int _O = 0; _O < O; ++_O) {
-#     pragma unroll(T)
+#pragma unroll(JO)
+    for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         if (is_streamout)
@@ -394,29 +398,29 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
   }
 
 
-  template <int O, int P>
+  template <int JO, int P>
   static inline typename std::enable_if<P == 2, void>::type op_fma(
       elx_conv_t<float> &xc, float *output, float *input, float *weights,
       float *bias, bool reset_output)
   {
-    __m<V> mmout[O][T], mmwei[O][P];
+    __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(float, aoutput, output, O, O_stride);
+    MD2(float, aoutput, output, JO, O_stride);
     MD2(float, ainput, input, xc.I2, I2_stride);
-    MD2(float, abias2, bias, O, V);
+    MD2(float, abias2, bias, JO, V);
 
     // preload weights
-#   pragma unroll(O)
-    for (int _O = 0; _O < O; ++_O) {
+#pragma unroll(JO)
+    for (int _O = 0; _O < JO; ++_O) {
       if (F_traits<F>::is_compact_weights) {
-        MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
+        MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
         mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
       } else {
-        MD6(float, aweights6, weights, O, xc.ic34, xc.I2, V / P, P, V);
+        MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
         mmwei[_O][0] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 0, 0));
       }
     }
@@ -424,27 +428,27 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     if (reset_output) {
       if (with_bias) {
         // load bias
-#       pragma unroll(O)
-        for (int _O = 0; _O < O; ++_O) {
-          auto tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
-#         pragma unroll(T)
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
+          __m<V> tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
+#pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
         }
       } else {
         // clear output
-        auto tmp = _mm<V>::setzero_ps();
-#       pragma unroll(O)
-        for (int _O = 0; _O < O; ++_O)
-#         pragma unroll(T)
+        __m<V> tmp = _mm<V>::setzero_ps();
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O)
+#pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
       }
     } else {
       // load output
-#     pragma unroll(O)
-      for (int _O = 0; _O < O; ++_O) {
-#       pragma unroll(T)
+#pragma unroll(JO)
+      for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
           mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
@@ -453,50 +457,50 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
 
     for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#     pragma nounroll
+#pragma nounroll
       for (int _V = 0; _V < V / P; ++_V) {
         // _P = 0
-#       pragma unroll(O)
-        for (int _O = 0; _O < O; ++_O) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
+            MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
             mmwei[_O][1] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 1, _O, 0));
           } else {
-            MD6(float, aweights6, weights, O, xc.ic34, xc.I2, V / P, P, V);
+            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
             mmwei[_O][1]
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 1, 0));
           }
         }
-#       pragma unroll(T)
+#pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          auto mmbcst
+          __m<V> mmbcst
               = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
-#         pragma unroll(O)
-          for (int _O = 0; _O < O; ++_O)
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
         }
         // _P = 1
-#       pragma unroll(O)
-        for (int _O = 0; _O < O; ++_O) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
+            MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
             mmwei[_O][0]
                 = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
           } else {
-            MD6(float, aweights6, weights, O, xc.ic34, xc.I2, V / P, P, V);
+            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
             mmwei[_O][0]
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
           }
         }
-#       pragma unroll(T)
+#pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          auto mmbcst
+          __m<V> mmbcst
               = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
-#         pragma unroll(O)
-          for (int _O = 0; _O < O; ++_O)
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
         }
@@ -504,9 +508,9 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
 
     // store output
-#   pragma unroll(O)
-    for (int _O = 0; _O < O; ++_O) {
-#     pragma unroll(T)
+#pragma unroll(JO)
+    for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         if (is_streamout)
@@ -517,30 +521,30 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
   }
 
-  template <int O, int P>
+  template <int JO, int P>
   static inline typename std::enable_if<P == 4, void>::type op_fma(
       elx_conv_t<float> &xc, float *output, float *input, float *weights,
       float *bias, bool reset_output)
   {
-    __m<V> mmout[O][T], mmwei[O][P];
+    __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(float, aoutput, output, O, O_stride);
+    MD2(float, aoutput, output, JO, O_stride);
     MD2(float, ainput, input, xc.I2, I2_stride);
-    MD2(float, abias2, bias, O, V);
+    MD2(float, abias2, bias, JO, V);
 
     // preload weights
-#   pragma unroll(O)
-    for (int _O = 0; _O < O; ++_O) {
+#pragma unroll(JO)
+    for (int _O = 0; _O < JO; ++_O) {
       if (F_traits<F>::is_compact_weights) {
-        MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
+        MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
         mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
         mmwei[_O][1] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 1, _O, 0));
       } else {
-        MD6(float, aweights6, weights, O, xc.ic34, xc.I2, V / P, P, V);
+        MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
         mmwei[_O][0] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 0, 0));
         mmwei[_O][1] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 1, 0));
       }
@@ -548,27 +552,27 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     if (reset_output) {
       if (with_bias) {
         // load bias
-#       pragma unroll(O)
-        for (int _O = 0; _O < O; ++_O) {
-          auto tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
-#         pragma unroll(T)
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
+          __m<V> tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
+#pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
         }
       } else {
         // clear output
-        auto tmp = _mm<V>::setzero_ps();
-#       pragma unroll(O)
-        for (int _O = 0; _O < O; ++_O)
-#         pragma unroll(T)
+        __m<V> tmp = _mm<V>::setzero_ps();
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O)
+#pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
       }
     } else {
       // load output
-#     pragma unroll(O)
-      for (int _O = 0; _O < O; ++_O) {
-#       pragma unroll(T)
+#pragma unroll(JO)
+      for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
           mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
@@ -577,95 +581,95 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
 
     for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#     pragma nounroll
+#pragma nounroll
       for (int _V = 0; _V < V / P; ++_V) {
         // _P = 0
-#       pragma unroll(O)
-        for (int _O = 0; _O < O; ++_O) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
+            MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
             mmwei[_O][2] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 2, _O, 0));
           } else {
-            MD6(float, aweights6, weights, O, xc.ic34, xc.I2, V / P, P, V);
+            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
             mmwei[_O][2]
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 2, 0));
           }
         }
-#       pragma unroll(T)
+#pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          auto mmbcst
+          __m<V> mmbcst
               = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
-#         pragma unroll(O)
-          for (int _O = 0; _O < O; ++_O)
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
         }
-#       pragma unroll(O)
+#pragma unroll(JO)
         // _P = 1
-        for (int _O = 0; _O < O; ++_O) {
+        for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
+            MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
             mmwei[_O][3] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 3, _O, 0));
           } else {
-            MD6(float, aweights6, weights, O, xc.ic34, xc.I2, V / P, P, V);
+            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
             mmwei[_O][3]
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 3, 0));
           }
         }
-#       pragma unroll(T)
+#pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          auto mmbcst
+          __m<V> mmbcst
               = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
-#         pragma unroll(O)
-          for (int _O = 0; _O < O; ++_O)
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
         }
         // _P = 2
-#       pragma unroll(O)
-        for (int _O = 0; _O < O; ++_O) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
+            MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
             mmwei[_O][0]
                 = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
           } else {
-            MD6(float, aweights6, weights, O, xc.ic34, xc.I2, V / P, P, V);
+            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
             mmwei[_O][0]
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
           }
         }
-#       pragma unroll(T)
+#pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          auto mmbcst
+          __m<V> mmbcst
               = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0,  _V, 2));
-#         pragma unroll(O)
-          for (int _O = 0; _O < O; ++_O)
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
         }
         // _P = 3
-#       pragma unroll(O)
-        for (int _O = 0; _O < O; ++_O) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
+            MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
             mmwei[_O][1]
                 = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 1, _O, 0));
           } else {
-            MD6(float, aweights6, weights, O, xc.ic34, xc.I2, V / P, P, V);
+            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
             mmwei[_O][1]
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 1, 0));
           }
         }
-#       pragma unroll(T)
+#pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          auto mmbcst
+          __m<V> mmbcst
               = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 3));
-#         pragma unroll(O)
-          for (int _O = 0; _O < O; ++_O)
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
         }
@@ -673,9 +677,9 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
 
     // store output
-#   pragma unroll(O)
-    for (int _O = 0; _O < O; ++_O) {
-#     pragma unroll(T)
+#pragma unroll(JO)
+    for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         if (is_streamout)
@@ -686,71 +690,218 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
   }
 
-  template <int O2 = O2, int T = T>
-  static inline typename std::enable_if<(J_traits<O2, T, has_Ir>::J == 1)>::type
+  template <int O = O, int T = T>
+  static inline typename std::enable_if<(J_traits<O, T, has_Ir>::J == 1)
+      && (F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
       float *bias, bool reset_output)
   {
-    op_fma<JO0, JP0>(xc, output, input, weights, bias, reset_output);
-  }
-
-  template <int O2 = O2, int T = T>
-  static inline typename std::enable_if<(J_traits<O2, T, has_Ir>::J == 2)>::type
-  execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
-      float *bias, bool reset_output)
-  {
-    const int O2_stride
+    const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(float, aoutput, output, O2, O2_stride);
-    MD2(float, abias, bias, O2, V);
+    MD2(float, aweights, weights, xc.O1, xc.I2 *V *O *V);
+    MD2(float, aoutput, output, xc.O1, O * O_stride);
+    MD2(float, abias, bias, xc.O1, O * V);
 
-    op_fma<JO0, JP0>(xc, output, input, weights, bias, reset_output);
-
-    if (F_traits<F>::is_compact_weights) {
-      MD4(float, aweights, weights, xc.I2, V, O2, V);
-      op_fma<JO1, JP1>(xc, &md2(aoutput, JO0, 0), input,
-          &md4(aweights, 0, 0, JO0, 0), &md2(abias, JO0, 0), reset_output);
-    } else {
-      MD3(float, aweights, weights, O2, xc.ic34, xc.I2 *V *V);
-      op_fma<JO1, JP1>(xc, &md2(aoutput, JO0, 0), input,
-          &md3(aweights, JO0, 0, 0), &md2(abias, JO0, 0), reset_output);
+    for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
+      op_fma<JO0, JP0>(xc, &md2(aoutput, _O1, 0), input, &md2(aweights, _O1, 0),
+          &md2(abias, _O1, 0), reset_output);
     }
   }
 
-  template <int O2 = O2, int T = T>
-  static inline typename std::enable_if<(J_traits<O2, T, has_Ir>::J == 3)>::type
+  template <int O = O, int T = T>
+  static inline typename std::enable_if<(J_traits<O, T, has_Ir>::J == 1)
+      && !(F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
       float *bias, bool reset_output)
   {
-    const int O2_stride
+    const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(float, aoutput, output, O2, O2_stride);
-    MD2(float, abias, bias, O2, V);
+    MD2(float, aweights, weights, xc.O1, O * xc.IC * V);
+    MD2(float, aoutput, output, xc.O1, O * O_stride);
+    MD2(float, abias, bias, xc.O1, O * V);
 
-    op_fma<JO0, JP0>(xc, output, input, weights, bias, reset_output);
-
-    if (F_traits<F>::is_compact_weights) {
-      MD4(float, aweights, weights, xc.I2, V, O2, V);
-      op_fma<JO1, JP1>(xc, &md2(aoutput, JO0, 0), input,
-          &md4(aweights, 0, 0, JO0, 0), &md2(abias, JO0, 0), reset_output);
-    } else {
-      MD3(float, aweights, weights, O2, xc.ic34, xc.I2 *V *V);
-      op_fma<JO1, JP1>(xc, &md2(aoutput, JO0, 0), input,
-          &md3(aweights, JO0, 0, 0), &md2(abias, JO0, 0), reset_output);
+    for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
+      op_fma<JO0, JP0>(xc, &md2(aoutput, _O1, 0), input, &md2(aweights, _O1, 0),
+          &md2(abias, _O1, 0), reset_output);
     }
+  }
 
-    if (F_traits<F>::is_compact_weights) {
-      MD4(float, aweights, weights, xc.I2, V, O2, V);
-      op_fma<JO2, JP2>(xc, &md2(aoutput, JO0 + JO1, 0), input,
-          &md4(aweights, 0, 0, JO0 + JO1, 0), &md2(abias, JO0 + JO1, 0),
+  template <int O = O, int T = T>
+  static inline typename std::enable_if<(J_traits<O, T, has_Ir>::J == 2)
+      && (F_traits<F>::is_compact_weights)>::type
+  execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
+      float *bias, bool reset_output)
+  {
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
+
+    MD4(float, aweights, weights, xc.O1, xc.I2 * V, O, V);
+    MD3(float, aoutput, output, xc.O1, O, O_stride);
+    MD3(float, abias, bias, xc.O1, O, V);
+
+    for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
+      op_fma<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
+          &md4(aweights, _O1, 0, 0, 0), &md3(abias, _O1, 0, 0),
           reset_output);
-    } else {
-      MD3(float, aweights, weights, O2, xc.ic34, xc.I2 *V *V);
-      op_fma<JO2, JP2>(xc, &md2(aoutput, JO0 + JO1, 0), input,
-          &md3(aweights, JO0 + JO1, 0, 0), &md2(abias, JO0 + JO1, 0),
+      op_fma<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
+          &md4(aweights, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
           reset_output);
+    }
+  }
+
+  template <int O = O, int T = T>
+  static inline typename std::enable_if<(J_traits<O, T, has_Ir>::J == 2)
+      && !(F_traits<F>::is_compact_weights)>::type
+  execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
+      float *bias, bool reset_output)
+  {
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
+
+    MD3(float, aweights, weights, xc.O1, O, xc.IC * V);
+    MD3(float, aoutput, output, xc.O1, O, O_stride);
+    MD3(float, abias, bias, xc.O1, O, V);
+
+    for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
+      op_fma<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
+          &md3(aweights, _O1, 0, 0), &md3(abias, _O1, 0, 0), reset_output);
+      op_fma<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
+          &md3(aweights, _O1, JO0, 0), &md3(abias, _O1, JO0, 0),
+          reset_output);
+    }
+  }
+
+  template <int O = O, int T = T>
+  static inline typename std::enable_if<(J_traits<O, T, has_Ir>::J == 3)
+      && (F_traits<F>::is_compact_weights)>::type
+  execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
+      float *bias, bool reset_output)
+  {
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
+
+    MD4(float, aweights, weights, xc.O1, xc.I2 * V, O, V);
+    MD3(float, aoutput, output, xc.O1, O, O_stride);
+    MD3(float, abias, bias, xc.O1, O, V);
+
+    for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
+      op_fma<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
+          &md4(aweights, _O1, 0, 0, 0), &md3(abias, _O1, 0, 0),
+          reset_output);
+      op_fma<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
+          &md4(aweights, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
+          reset_output);
+      op_fma<JO2, JP2>(xc, &md3(aoutput, _O1, JO0 + JO1, 0), input,
+          &md4(aweights, _O1, 0, JO0 + JO1, 0),
+          &md3(abias, _O1, JO0 + JO1, 0), reset_output);
+    }
+  }
+
+  template <int O = O, int T = T>
+  static inline typename std::enable_if<(J_traits<O, T, has_Ir>::J == 3)
+      && !(F_traits<F>::is_compact_weights)>::type
+  execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
+      float *bias, bool reset_output)
+  {
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
+
+    MD3(float, aweights, weights, xc.O1, O, xc.IC * V);
+    MD3(float, aoutput, output, xc.O1, O, O_stride);
+    MD3(float, abias, bias, xc.O1, O, V);
+
+    for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
+      op_fma<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
+          &md3(aweights, _O1, 0, 0), &md3(abias, _O1, 0, 0), reset_output);
+      op_fma<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
+          &md3(aweights, _O1, JO0, 0), &md3(abias, _O1, JO0, 0),
+          reset_output);
+      op_fma<JO2, JP2>(xc, &md3(aoutput, _O1, JO0 + JO1, 0), input,
+          &md3(aweights, _O1, JO0 + JO1, 0), &md3(abias, _O1, JO0 + JO1, 0),
+          reset_output);
+    }
+  }
+};
+
+struct gemm_kernel_binder {
+  template <typename Type, int V, int I, int... Kp>
+  using gemm_ker_cls = typename euler::gemm_kernel_otj<Type, V, I,
+      estl::integer_sequence<Kp...>>;
+  using ker = decltype(gemm_ker_cls<int, 1, 1, 1, 1, 1, 1, false, false, false,
+      false, false>::execute);
+
+  template <typename Type, int V, int I, int S, int F, int... Kp>
+  static inline void bind(int O, int T, ker **func)
+  {
+    switch (O) {
+    case 1:
+      LOOP_FROM_TO(_T, 1, 32, {
+        if (T == _T)
+          (*func = gemm_ker_cls<Type, V, I, S, F, 1, _T, Kp...>::execute);
+      });
+      if (T >= 32)
+        el_error("gemm_kernel, O = 1, T >= 32 not supported");
+      break;
+    case 2:
+      LOOP_FROM_TO(_T, 1, 15, {
+        if (T == _T)
+          (*func = gemm_ker_cls<Type, V, I, S, F, 2, _T, Kp...>::execute);
+      });
+      if (T >= 15)
+        el_error("gemm_kernel, O = 2, T >= 15 not supported");
+      break;
+    case 3:
+      LOOP_FROM_TO(_T, 1, 15, {
+        if (T == _T)
+          (*func = gemm_ker_cls<Type, V, I, S, F, 3, _T, Kp...>::execute);
+      if (T >= 15)
+        el_error("gemm_kernel, O = 3, T >= 15 not supported");
+      });
+      break;
+    case 4:
+      LOOP_FROM_TO(_T, 1, 15, {
+        if (T == _T)
+          (*func = gemm_ker_cls<Type, V, I, S, F, 4, _T, Kp...>::execute);
+      });
+      if (T >= 15)
+        el_error("gemm_kernel, O = 4, T >= 15 not supported");
+      break;
+    case 5:
+      LOOP_FROM_TO(_T, 1, 6, {
+        if (T == _T)
+          (*func = gemm_ker_cls<Type, V, I, S, F, 5, _T, Kp...>::execute);
+      });
+      if (T >= 6)
+        el_error("gemm_kernel, O = 5, T >= 6 not supported");
+      break;
+    case 6:
+      LOOP_FROM_TO(_T, 1, 5, {
+        if (T == _T)
+          (*func = gemm_ker_cls<Type, V, I, S, F, 6, _T, Kp...>::execute);
+      });
+      if (T >= 5)
+        el_error("gemm_kernel, O = 6, T >= 5 not supported");
+      break;
+    case 7:
+      LOOP_FROM_TO(_T, 1, 4, {
+        if (T == _T)
+          (*func = gemm_ker_cls<Type, V, I, S, F, 7, _T, Kp...>::execute);
+      });
+      if (T >= 4)
+        el_error("gemm_kernel, O = 7, T >= 4 not supported");
+      break;
+    case 8:
+      LOOP_FROM_TO(_T, 1, 9, {
+        if (T == _T)
+          (*func = gemm_ker_cls<Type, V, I, S, F, 8, _T, Kp...>::execute);
+      });
+      if (T >= 9)
+        el_error("gemm_kernel, O = 8, T >= 9 not supported");
+      break;
+    default:
+      el_error("gemm_kenrel: O > 8 unsupported");
     }
   }
 };

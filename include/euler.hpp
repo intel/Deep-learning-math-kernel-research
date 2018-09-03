@@ -90,8 +90,9 @@ struct eld_conv_t {
     struct { int nteams, nthreads;} threading;
     // Execution mode
     int execution_mode;
-    // Blocking: 2nd level blocking unit
-    struct { int i, o, t; } blocking;
+    // Flatting/Blocking/Partition
+    struct { int o, t; } flatting;
+    struct { int i, o; } blocking;
     struct { int i, o; } partition;
     // Streaming hint: STORE_DEFAULT | STORE_NORMAL | STORE_STREAMING
     struct { int weights, input, output; } streaming_hint;
