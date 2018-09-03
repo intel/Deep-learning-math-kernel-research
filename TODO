@@ -52,4 +52,12 @@ Conv_1x1 (2018-8-1): Done
 - Uni-stride: kernel=1x1, stride=1, padding=0
 - Stride=2, padding=0
 - Blocked format
-- TODO: plain format, IC/OC != 16x
+- plain format, IC/OC != 16x
+- TODO: code clean and Perf tuning
+- TODO: padding support
+
+GEMM kernel (2018-8-23): Done
+- Rewrite gemm kernel with better readability and modularity
+- Apply new gemm kernel to conv1x1
+- Apply new gemm kernel to Winograd
+- TODO: Perf tuning for Winograd

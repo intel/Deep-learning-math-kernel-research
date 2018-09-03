@@ -49,19 +49,20 @@ public:
 #define skx_8180  28
 
 using tuner_test_tile_5 = tuner_test<float, euler::ISA_SKX_AVX512, 16, 5, 3>;
+using tuner_test_tile_6 = tuner_test<float, euler::ISA_SKX_AVX512, 16, 6, 3>;
+
 TEST_P(tuner_test_tile_5, tile_5) {
   auto p = testing::TestWithParam<tuner_test_parameters>::GetParam();
   auto plan = p_xc_->execute_plan(skx_8180, p.sockets_, l2, l1);
 
-  auto blk_t = plan.tb_;
-  auto pat_o = plan.ocd_;
-  auto blk_i = plan.icb_;
-  auto blk_o = plan.ocb_;
+  EXPECT_EQ(plan.mode_, p.mode);
 
-  EXPECT_EQ(blk_t, p.blk_t);
-  EXPECT_EQ(pat_o, p.pat_o);
-  EXPECT_EQ(blk_i, p.blk_i);
-  EXPECT_EQ(blk_o, p.blk_o);
+  if (plan.mode_ == 0xa061) {
+    EXPECT_EQ(plan.tb_, p.blk_t);
+    EXPECT_EQ(plan.ocd_, p.pat_o);
+    EXPECT_EQ(plan.icb_, p.blk_i);
+    EXPECT_EQ(plan.ocb_, p.blk_o);
+  }
 }
 
 using ttp = tuner_test_parameters;
@@ -71,8 +72,8 @@ INSTANTIATE_TEST_CASE_P(resnet_n1, tuner_test_tile_5,
     /* resnet-n1-8180-1s-wino-f3_3 */
     ttp {l1, l2, l3, skx_8180, 1, 64, 56, 64, 56, 1, 0xa040, 13, 1, 4, 4}
     , ttp {l1, l2, l3, skx_8180, 1, 128, 28, 128, 28, 1, 0xa061, 15, 4, 8, 2}
-    // , ttp {l1, l2, l3, skx_8180, 1, 256, 14, 256, 14, 1, 0xa000, 25, 1, 8, 4}
-    // , ttp {l1, l2, l3, skx_8180, 1, 512, 7, 512, 7, 1, 0xa000, 9, 1, 8, 4}
+    , ttp {l1, l2, l3, skx_8180, 1, 256, 14, 256, 14, 1, 0xa000, 25, 1, 8, 4}
+    , ttp {l1, l2, l3, skx_8180, 1, 512, 7, 512, 7, 1, 0xa000, 9, 1, 8, 4}
     /* resnet-n1-8180-2s-wino-f3_3 */
     // , ttp {l1, l2, l3, skx_8180, 2, 64, 56, 64, 56, 1, 0xa061, 13, 2, 4, 2}
     // , ttp {l1, l2, l3, skx_8180, 2, 128, 28, 128, 28, 1, 0xa061, 15, 8, 8, 2}
@@ -87,10 +88,46 @@ INSTANTIATE_TEST_CASE_P(vgg_n1, tuner_test_tile_5,
     , ttp {l1, l2, l3, skx_8180, 1, 64, 112, 128, 112, 1, 0xa061, 26, 2, 4, 4}
     , ttp {l1, l2, l3, skx_8180, 1, 128, 112, 128, 112, 1, 0xa061, 26, 4, 8, 2}
     , ttp {l1, l2, l3, skx_8180, 1, 128, 56, 256, 56, 1, 0xa061, 26, 8, 8, 2}
-    , ttp {l1, l2, l3, skx_8180, 1, 256, 56, 256, 56, 1, 0xa061, 26, 2, 8, 8}
-    , ttp {l1, l2, l3, skx_8180, 1, 256, 28, 512, 56, 1, 0xa000, 25, 2, 8, 4}
-    , ttp {l1, l2, l3, skx_8180, 1, 512, 28, 512, 56, 1, 0xa000, 26, 2, 8, 4}
-    , ttp {l1, l2, l3, skx_8180, 1, 512, 14, 512, 14, 1, 0xa000, 25, 2, 8, 4}
+    , ttp {l1, l2, l3, skx_8180, 1, 256, 56, 256, 56, 1, 0xa000, 26, 1, 8, 8}
+    , ttp {l1, l2, l3, skx_8180, 1, 256, 28, 512, 56, 1, 0xa000, 25, 1, 8, 4}
+    , ttp {l1, l2, l3, skx_8180, 1, 512, 28, 512, 56, 1, 0xa000, 26, 1, 8, 4}
+    , ttp {l1, l2, l3, skx_8180, 1, 512, 14, 512, 14, 1, 0xa000, 25, 1, 8, 4}
+    /* vgg-n1-8180-2s-wino-f3_3 */
+    // , ttp {l1, l2, l3, skx_8180, 2, 64, 224, 64, 224, 1, 0xa040, 29, 1, 4, 4}
+    // , ttp {l1, l2, l3, skx_8180, 2, 64, 112, 128, 112, 1, 0xa040, 26, 1, 8, 4}
+    // , ttp {l1, l2, l3, skx_8180, 2, 128, 112, 128, 112, 1, 0xa040, 26, 1, 8, 8}
+    // , ttp {l1, l2, l3, skx_8180, 2, 128, 56, 512, 56, 1, 0xa061, 26, 4, 8, 4}
+    // , ttp {l1, l2, l3, skx_8180, 2, 256, 56, 256, 56, 1, 0xa061, 26, 4, 8, 4}
+    // , ttp {l1, l2, l3, skx_8180, 2, 256, 28, 512, 56, 1, 0xa000, 25, 2, 8, 4}
+    // , ttp {l1, l2, l3, skx_8180, 2, 512, 28, 512, 56, 1, 0xa000, 26, 2, 8, 4}
+    // , ttp {l1, l2, l3, skx_8180, 2, 512, 14, 512, 14, 1, 0xa000, 25, 2, 8, 4}
+));
+
+INSTANTIATE_TEST_CASE_P(resnet_n1, tuner_test_tile_6,
+  ::testing::Values(
+    /* resnet-n1-8180-1s-wino-f4_3 */
+    ttp {l1, l2, l3, skx_8180, 1, 64, 56, 64, 56, 1, 0xa061, 14, 2, 4, 2}
+    , ttp {l1, l2, l3, skx_8180, 1, 128, 28, 128, 28, 1, 0xa061, 7, 4, 8, 2}
+    , ttp {l1, l2, l3, skx_8180, 1, 256, 14, 256, 14, 1, 0xa000, 25, 1, 8, 4}
+    , ttp {l1, l2, l3, skx_8180, 1, 512, 7, 512, 7, 1, 0xa000, 9, 1, 8, 4}
+    /* resnet-n1-8180-2s-wino-f3_3 */
+    // , ttp {l1, l2, l3, skx_8180, 2, 64, 56, 64, 56, 1, 0xa061, 13, 2, 4, 2}
+    // , ttp {l1, l2, l3, skx_8180, 2, 128, 28, 128, 28, 1, 0xa061, 15, 8, 8, 2}
+    // , ttp {l1, l2, l3, skx_8180, 2, 256, 14, 256, 14, 1, 0xa000, 9, 4, 8, 1}
+    // , ttp {l1, l2, l3, skx_8180, 2, 512, 7, 512, 7, 1, 0xa000, 9, 4, 8, 4}
+));
+
+INSTANTIATE_TEST_CASE_P(vgg_n1, tuner_test_tile_6,
+  ::testing::Values(
+    /* vgg-n1-8180-1s-wino-f4_3 */
+    ttp {l1, l2, l3, skx_8180, 1, 64, 224, 64, 224, 1, 0xa061, 28, 2, 4, 2}
+    , ttp {l1, l2, l3, skx_8180, 1, 64, 112, 128, 112, 1, 0xa061, 28, 4, 4, 2}
+    , ttp {l1, l2, l3, skx_8180, 1, 128, 112, 128, 112, 1, 0xa061, 28, 8, 8, 1}
+    , ttp {l1, l2, l3, skx_8180, 1, 128, 56, 256, 56, 1, 0xa061, 28, 16, 8, 1}
+    , ttp {l1, l2, l3, skx_8180, 1, 256, 56, 256, 56, 1, 0xa000, 28, 1, 8, 8}
+    , ttp {l1, l2, l3, skx_8180, 1, 256, 28, 512, 56, 1, 0xa000, 25, 1, 8, 4}
+    , ttp {l1, l2, l3, skx_8180, 1, 512, 28, 512, 56, 1, 0xa000, 26, 1, 8, 4}
+    , ttp {l1, l2, l3, skx_8180, 1, 512, 14, 512, 14, 1, 0xa000, 25, 1, 8, 4}
     /* vgg-n1-8180-2s-wino-f3_3 */
     // , ttp {l1, l2, l3, skx_8180, 2, 64, 224, 64, 224, 1, 0xa040, 29, 1, 4, 4}
     // , ttp {l1, l2, l3, skx_8180, 2, 64, 112, 128, 112, 1, 0xa040, 26, 1, 8, 4}

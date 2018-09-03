@@ -8,33 +8,40 @@
 #include "elx_conv.hpp"
 #include "euler.hpp"
 #include "elk_conv_wino.hpp"
-#include "kernel/elk_gemm.hxx"
+#include "kernel/elk_gemm_otj.hxx"
+
 #include "kernel/elk_conv_wino_2x2_3x3_input.hxx"
 #include "kernel/elk_conv_wino_2x2_3x3_output.hxx"
 #include "kernel/elk_conv_wino_2x2_3x3_weights.hxx"
+
 #include "kernel/elk_conv_wino_3x3_3x3_input.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_output.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_weights.hxx"
+
 #include "kernel/elk_conv_wino_4x4_3x3_input.hxx"
 #include "kernel/elk_conv_wino_4x4_3x3_output.hxx"
 #include "kernel/elk_conv_wino_4x4_3x3_weights.hxx"
+
 #include "kernel/elk_conv_wino_5x5_3x3_input.hxx"
 #include "kernel/elk_conv_wino_5x5_3x3_output.hxx"
 #include "kernel/elk_conv_wino_5x5_3x3_weights.hxx"
+
 #include "kernel/elk_conv_wino_2x2_3x3_input_gen.hxx"
 #include "kernel/elk_conv_wino_2x2_3x3_output_gen.hxx"
 #include "kernel/elk_conv_wino_2x2_3x3_weights_gen.hxx"
+
 #include "kernel/elk_conv_wino_3x3_3x3_input_gen.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_output_gen.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_weights_gen.hxx"
+
 #include "kernel/elk_conv_wino_4x4_3x3_input_gen.hxx"
 #include "kernel/elk_conv_wino_4x4_3x3_output_gen.hxx"
 #include "kernel/elk_conv_wino_4x4_3x3_weights_gen.hxx"
+
 #include "kernel/elk_conv_wino_5x5_3x3_input_gen.hxx"
 #include "kernel/elk_conv_wino_5x5_3x3_output_gen.hxx"
 #include "kernel/elk_conv_wino_5x5_3x3_weights_gen.hxx"
 
-#include "kernel/elk_gemm.cosim.hxx"
 #include "kernel/elk_conv_wino_kernels.cosim.hxx"
 
 namespace euler {
@@ -67,7 +74,7 @@ public:
   public:
     exe_plan(int tiles, int IC, int OC):
       tiles_(tiles), tb_(tiles), ocd_(1), icb_(IC/V), ocb_(OC/V),
-      weights_total(A * A * IC * OC * V * elem_sz) {
+      weights_total(A * A * IC * OC * elem_sz), mode_(0xa061) {
     }
 
     inline bool bifurcate_oc() {
@@ -131,7 +138,12 @@ public:
     }
 
     inline bool fit(int num_cpu, int num_socket, std::size_t l2, std::size_t l1) {
-      return threading_fit(num_cpu, num_socket, l2) && l2_fit(l2) && l1_fit(l1);
+      if (!(threading_fit(num_cpu, num_socket, l2) && l2_fit(l2) && l1_fit(l1))) {
+        mode_ = 0xa000;
+        // A000 execution tuning
+      }
+
+      return true;
     }
 
     // queries
@@ -164,10 +176,15 @@ public:
         gemmker_weights_footprint() + gemmker_output_footprint();
     }
 
+    inline std::size_t trans_output_footprint() const {
+      return elem_sz * K * K * ocb_ * V * tb_;
+    }
+
     inline std::size_t gemm_output_reuse_set() const {
       auto wtile_sz = elem_sz * A * A * icb_ * ocb_ * V * V;
       return wtile_sz + (gemmker_input_footprint() +
-        gemmker_output_footprint() * ocb_) * A * A;
+        gemmker_output_footprint() * ocb_) * A * A +
+        trans_output_footprint();
     }
 
     void dump() const {
@@ -180,6 +197,7 @@ public:
     const int tiles_;
     int tb_, ocd_, icb_, ocb_;
     std::size_t weights_total;
+    unsigned int mode_;
   };
 
   exe_plan execute_plan(int num_cpu, int num_socket, std::size_t l2, std::size_t l1) {
@@ -283,14 +301,11 @@ private:
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  decltype(
-      gemm_kernel<Type, I, V, 1>::gemm) *ker_gemm_;
-  decltype(
-      gemm_kernel<Type, I, V, 1>::gemm) *ker_gemm0_;
-  decltype(
-      gemm_kernel<Type, I, V, 1>::gemm) *ker_gemm_tail_;
-  decltype(
-      gemm_kernel<Type, I, V, 1>::gemm) *ker_gemm0_tail_;
+  gemm_kernel_binder::ker *ker_gemm_;
+  gemm_kernel_binder::ker *ker_gemm0_;
+  gemm_kernel_binder::ker *ker_gemm_tail_;
+  gemm_kernel_binder::ker *ker_gemm0_tail_;
+
   decltype(
       convolution_winograd_kernel<
         Type, I, V, A, K>::template trans_input<no>) *ker_trans_input_;
@@ -381,11 +396,20 @@ template class elx_conv_wino_t<float, 6, 3, 16, ISA_GENERIC>;
 template class elx_conv_wino_t<float, 6, 3, 16, ISA_COSIM_AVX512>;
 template class elx_conv_wino_t<float, 7, 3, 16, ISA_GENERIC>;
 template class elx_conv_wino_t<float, 7, 3, 16, ISA_COSIM_AVX512>;
+// template class elx_conv_wino_t<float, 5, 3, 8, ISA_GENERIC>;
+// template class elx_conv_wino_t<float, 5, 3, 8, ISA_COSIM_AVX512>;
+// template class elx_conv_wino_t<float, 6, 3, 8, ISA_GENERIC>;
+// template class elx_conv_wino_t<float, 6, 3, 8, ISA_COSIM_AVX512>;
+// template class elx_conv_wino_t<float, 7, 3, 8, ISA_GENERIC>;
+// template class elx_conv_wino_t<float, 7, 3, 8, ISA_COSIM_AVX512>;
 #endif
 template class elx_conv_wino_t<float, 4, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<float, 5, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<float, 6, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<float, 7, 3, 16, ISA_SKX_AVX512>;
+// template class elx_conv_wino_t<float, 5, 3, 8, ISA_SKX_AVX512>;
+// template class elx_conv_wino_t<float, 6, 3, 8, ISA_SKX_AVX512>;
+// template class elx_conv_wino_t<float, 7, 3, 8, ISA_SKX_AVX512>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_WINO_HPP__
