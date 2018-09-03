@@ -1,6 +1,6 @@
 #pragma once
 #include <assert.h>
-#include <x86intrin.h>
+#include "xintrin.hpp"
 #include "elk_def.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
@@ -8,13 +8,13 @@
 #include "elk_conv_wino.hpp"
 
 namespace euler {
-template <>
-class convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 6, 3> {
+template <int v>
+class convolution_winograd_kernel_base<float, ISA_SKX_AVX512, v, 6, 3> {
   template <typename Type, int ...configs>
     friend class convolution_winograd_kernel_base;
 protected:
+  constexpr static int V = v;
   constexpr static int I = ISA_SKX_AVX512;
-  constexpr static int V = 16;
   constexpr static int A = 6;
   constexpr static int K = 3;
 
@@ -44,45 +44,65 @@ protected:
       float aweights[K][K][V][V]);
 };
 
+#undef ADD
+#undef SUB
+#undef MUL
+#undef FMADD
+#undef FMSUB
+#undef FNMADD
+#undef FNMSUB
+#undef MAX
+#undef XOR
+
+#define ADD     _mm<V>::add_ps
+#define SUB     _mm<V>::sub_ps
+#define MUL     _mm<V>::mul_ps
+#define FMADD   _mm<V>::fmadd_ps
+#define FMSUB   _mm<V>::fmsub_ps
+#define FNMADD  _mm<V>::fnmadd_ps
+#define FNMSUB  _mm<V>::fnmsub_ps
+#define MAX     _mm<V>::max_ps
+#define XOR     _mm<V>::xor_ps
+
+template <int V>
 template <bool is_border>
-inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 6, 3>::__trans_input( elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
+inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, V, 6, 3>::
+__trans_input( elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
     int hT_start, int hT_end, int wT_start, int wT_end) {
 
   // Inputs
-  __m512 f00, f01, f02, f03, f04, f05,
+  __m<V> f00, f01, f02, f03, f04, f05,
          f10, f11, f12, f13, f14, f15,
          f20, f21, f22, f23, f24, f25,
          f30, f31, f32, f33, f34, f35,
          f40, f41, f42, f43, f44, f45,
          f50, f51, f52, f53, f54, f55;
   // Cache
-  __m512 c1, c2, c3, c4;
+  __m<V> c1, c2, c3, c4;
   // Buffer
-  __m512 a00, a01, a02, a03;
-  __m512 b00, b01, b02, b03, b04, b05, b06, b07;
-  __m512 d00, d01, d02, d03;
+  __m<V> a00, a01, a02, a03;
+  __m<V> b00, b01, b02, b03, b04, b05, b06, b07;
+  __m<V> d00, d01, d02, d03;
   // Outputs
-  __m512 t00, t01, t02, t03, t04, t05,
+  __m<V> t00, t01, t02, t03, t04, t05,
          t10, t11, t12, t13, t14, t15,
          t20, t21, t22, t23, t24, t25,
          t30, t31, t32, t33, t34, t35,
          t40, t41, t42, t43, t44, t45,
          t50, t51, t52, t53, t54, t55;
 
-  __m512 z0 = _mm512_setzero_ps();
-
   auto f_cb = [&](int _h, int _w) {
     if (wT_end == -1) {
-      MD3(float, ainput, input, A, A, 16);
-      return _mm512_load_ps(&md3(ainput, _h, _w, 0));
+      MD3(float, ainput, input, A, A, V);
+      return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
     } else {
-      MD3(float, ainput, input, xc.ih, xc.iw, 16);
+      MD3(float, ainput, input, xc.ih, xc.iw, V);
       if (is_border
-          && (_h < hT_start || _w < wT_start || _h > hT_end
-                 || _w > wT_end))
-        return z0;
+          && (_h < hT_start || _w < wT_start || _h > hT_end || _w > wT_end)) {
+        return _mm<V>::setzero_ps();
+      }
       else
-        return _mm512_load_ps(&md3(ainput, _h, _w, 0));
+        return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
     }
   };
 
@@ -96,21 +116,21 @@ inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 6, 3>::_
 #define T(h, w) atinput[w][h]
 #define f(m, n) f##m##n
 #define OP(m,n) f(m, n) = F(m, n)
-#define ISTORE(i, j) _mm512_store_ps(T(i, j), t##i##j)
+#define ISTORE(i, j) _mm<V>::store_ps(T(i, j), t##i##j)
 
   VECTOR_DEF(M6, ME3);
 
-  __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
-  __m512 z5 = _mm512_set_ps(IMM_BCAST16(5.0f));
+  auto z4 = _mm<V>::set1_ps(4.0f);
+  auto z5 = _mm<V>::set1_ps(5.0f);
 
   c1 = FMSUB(z4, f10, (FMSUB(z5, f12, f14)));
   c2 = FMSUB(z4, f20, (FMSUB(z5, f22, f24)));
   c3 = FMSUB(z4, f30, (FMSUB(z5, f32, f34)));
   c4 = FMSUB(z4, f40, (FMSUB(z5, f42, f44)));
 
-  __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
-  __m512 z16 = _mm512_set_ps(IMM_BCAST16(16.0f));
-  __m512 z20 = _mm512_set_ps(IMM_BCAST16(20.0f));
+  auto z2 = _mm<V>::set1_ps(2.0f);
+  auto z16 = _mm<V>::set1_ps(16.0f);
+  auto z20 = _mm<V>::set1_ps(20.0f);
 
   t00 = FMADD(z16, f00, FNMADD(z20, f02, FMADD(z4, f04, FNMADD(z5, c2, c4))));
   ISTORE(0, 0);
@@ -204,7 +224,7 @@ inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 6, 3>::_
   c3 = FMADD(z2, b02, b06);
   c4 = FMADD(z2, b03, b07);
 
-  __m512 z8 = _mm512_set_ps(IMM_BCAST16(8.0f));
+  auto z8 = _mm<V>::set1_ps(8.0f);
 
   d00 = SUB(f04, f02);
   d01 = SUB(f03, f01);
@@ -274,8 +294,9 @@ inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 6, 3>::_
   ISTORE(5, 5);
 }
 
+template <int V>
 template <bool is_border>
-inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 6, 3>::
+inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, V, 6, 3>::
 __trans_inputa(
     elx_conv_t<float> &xc, float atinput[A][A][V], float *input, int wA,
     int hT_start, int hT_end, int wT_start, int wT_end) {

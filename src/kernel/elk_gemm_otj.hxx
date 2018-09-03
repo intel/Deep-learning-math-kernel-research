@@ -1,6 +1,6 @@
 #pragma once
 
-#include <x86intrin.h>
+#include "xintrin.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
@@ -169,14 +169,13 @@ struct gemm_kernel_otj {
   {}
 };
 
-template <int... Kp>
-struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
+template <int V, int... Kp>
+struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     estl::integer_sequence<Kp...>> {
   using kparams = estl::integer_sequence<Kp...>;
   static_assert(sizeof...(Kp) == 9,
       "Kernel parameters must be Type, V, I, <S, F, O, T, ...>");
 
-  constexpr static auto V = 16;
   constexpr static auto S = estl::get<0, int, kparams>();
   constexpr static auto F = estl::get<1, int, kparams>();
   constexpr static auto O = estl::get<2, int, kparams>();
@@ -201,7 +200,7 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
   op_fma(elx_conv_t<float> &xc, float *output, float *input, float *weights,
       float *bias, bool reset_output)
   {
-    __m512 mmout[JO][T], mmwei[JO][P];
+    __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
     const int O_stride
@@ -216,14 +215,14 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
         // load bias
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          __m512 tmp = _mm512_load_ps(&md2(abias2, _O, 0));
+          __m<V> tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
 #pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
         }
       } else {
         // clear output
-        __m512 tmp = _mm512_setzero_ps();
+        __m<V> tmp = _mm<V>::setzero_ps();
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O)
 #pragma unroll(T)
@@ -237,7 +236,7 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-          mmout[_O][_T] = _mm512_load_ps(&md2(aoutput2, _T, 0));
+          mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
         }
       }
     }
@@ -249,11 +248,11 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
         for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
-            mmwei[_O][0] = _mm512_load_ps(&md5(aweights5, _I2, _V, 0, _O, 0));
+            mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 0, _O, 0));
           } else {
             MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
             mmwei[_O][0]
-                = _mm512_load_ps(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
+                = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
           }
         }
 #pragma unroll(T)
@@ -261,9 +260,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-            __m512 mmbcst = _mm512_set1_ps(md4(ainput4, _T, 0, _V, 0));
+            __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
             mmout[_O][_T]
-                = _mm512_fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+                = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
         }
       }
@@ -276,9 +275,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         if (is_streamout)
-          _mm512_stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+          _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
         else
-          _mm512_store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+          _mm<V>::store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
       }
     }
   }
@@ -288,7 +287,7 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
   op_fma(elx_conv_t<float> &xc, float *output, float *input, float *weights,
       float *bias, bool reset_output)
   {
-    __m512 mmout[JO][T], mmwei[JO][P];
+    __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
     const int O_stride
@@ -303,14 +302,14 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
         // load bias
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          __m512 tmp = _mm512_load_ps(&md2(abias2, _O, 0));
+          __m<V> tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
 #pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
         }
       } else {
         // clear output
-        __m512 tmp = _mm512_setzero_ps();
+        __m<V> tmp = _mm<V>::setzero_ps();
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O)
 #pragma unroll(T)
@@ -324,7 +323,7 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-          mmout[_O][_T] = _mm512_load_ps(&md2(aoutput2, _T, 0));
+          mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
         }
       }
     }
@@ -336,11 +335,11 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
         for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V, 1, O, V);
-            mmwei[_O][0] = _mm512_load_ps(&md5(aweights5, _I2, _V, 0, _O, 0));
+            mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 0, _O, 0));
           } else {
             MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V, 1, V);
             mmwei[_O][0]
-                = _mm512_load_ps(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
+                = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
           }
         }
 #pragma unroll(T)
@@ -348,9 +347,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V, 1);
-            __m512 mmbcst = _mm512_set1_ps(md4(ainput4, _T, 0, _V, 0));
+            __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
             mmout[_O][_T]
-                = _mm512_fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+                = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
         }
       }
@@ -363,11 +362,11 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
         for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V, 1, O, V);
-            mmwei[_O][0] = _mm512_load_ps(&md5(aweights5, xc.I2 - 1, _V, 0, _O, 0));
+            mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, xc.I2 - 1, _V, 0, _O, 0));
           } else {
             MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V, 1, V);
             mmwei[_O][0]
-                = _mm512_load_ps(&md6(aweights6, _O, 0, xc.I2 - 1, _V, 0, 0));
+                = _mm<V>::load_ps(&md6(aweights6, _O, 0, xc.I2 - 1, _V, 0, 0));
           }
         }
 #pragma unroll(T)
@@ -375,9 +374,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             MD4(float, ainput4, &md2(ainput, xc.I2 - 1, 0), T, S, V, 1);
-            __m512 mmbcst = _mm512_set1_ps(md4(ainput4, _T, 0, _V, 0));
+            __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
             mmout[_O][_T]
-                = _mm512_fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+                = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
         }
       }
@@ -391,9 +390,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         if (is_streamout)
-          _mm512_stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+          _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
         else
-          _mm512_store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+          _mm<V>::store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
       }
     }
   }
@@ -404,7 +403,7 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
       elx_conv_t<float> &xc, float *output, float *input, float *weights,
       float *bias, bool reset_output)
   {
-    __m512 mmout[JO][T], mmwei[JO][P];
+    __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
     const int O_stride
@@ -419,10 +418,10 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
     for (int _O = 0; _O < JO; ++_O) {
       if (F_traits<F>::is_compact_weights) {
         MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
-        mmwei[_O][0] = _mm512_load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
+        mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
       } else {
         MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-        mmwei[_O][0] = _mm512_load_ps(&md6(aweights6, _O, 0, 0, 0, 0, 0));
+        mmwei[_O][0] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 0, 0));
       }
     }
 
@@ -431,14 +430,14 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
         // load bias
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          __m512 tmp = _mm512_load_ps(&md2(abias2, _O, 0));
+          __m<V> tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
 #pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
         }
       } else {
         // clear output
-        __m512 tmp = _mm512_setzero_ps();
+        __m<V> tmp = _mm<V>::setzero_ps();
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O)
 #pragma unroll(T)
@@ -452,7 +451,7 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-          mmout[_O][_T] = _mm512_load_ps(&md2(aoutput2, _T, 0));
+          mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
         }
       }
     }
@@ -465,22 +464,22 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
         for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
-            mmwei[_O][1] = _mm512_load_ps(&md5(aweights5, _I2, _V, 1, _O, 0));
+            mmwei[_O][1] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 1, _O, 0));
           } else {
             MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
             mmwei[_O][1]
-                = _mm512_load_ps(&md6(aweights6, _O, 0, _I2, _V, 1, 0));
+                = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 1, 0));
           }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m512 mmbcst
-              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
+          __m<V> mmbcst
+              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
-                = _mm512_fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+                = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
         }
         // _P = 1
 #pragma unroll(JO)
@@ -488,22 +487,22 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
             mmwei[_O][0]
-                = _mm512_load_ps(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
+                = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
           } else {
             MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
             mmwei[_O][0]
-                = _mm512_load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
+                = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
           }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m512 mmbcst
-              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
+          __m<V> mmbcst
+              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
-                = _mm512_fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
+                = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
         }
       }
     }
@@ -515,9 +514,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         if (is_streamout)
-          _mm512_stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+          _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
         else
-          _mm512_store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+          _mm<V>::store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
       }
     }
   }
@@ -527,7 +526,7 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
       elx_conv_t<float> &xc, float *output, float *input, float *weights,
       float *bias, bool reset_output)
   {
-    __m512 mmout[JO][T], mmwei[JO][P];
+    __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
     const int O_stride
@@ -542,12 +541,12 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
     for (int _O = 0; _O < JO; ++_O) {
       if (F_traits<F>::is_compact_weights) {
         MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
-        mmwei[_O][0] = _mm512_load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
-        mmwei[_O][1] = _mm512_load_ps(&md5(aweights5, 0, 0, 1, _O, 0));
+        mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
+        mmwei[_O][1] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 1, _O, 0));
       } else {
         MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-        mmwei[_O][0] = _mm512_load_ps(&md6(aweights6, _O, 0, 0, 0, 0, 0));
-        mmwei[_O][1] = _mm512_load_ps(&md6(aweights6, _O, 0, 0, 0, 1, 0));
+        mmwei[_O][0] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 0, 0));
+        mmwei[_O][1] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 1, 0));
       }
     }
     if (reset_output) {
@@ -555,14 +554,14 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
         // load bias
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          __m512 tmp = _mm512_load_ps(&md2(abias2, _O, 0));
+          __m<V> tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
 #pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
         }
       } else {
         // clear output
-        __m512 tmp = _mm512_setzero_ps();
+        __m<V> tmp = _mm<V>::setzero_ps();
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O)
 #pragma unroll(T)
@@ -576,7 +575,7 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-          mmout[_O][_T] = _mm512_load_ps(&md2(aoutput2, _T, 0));
+          mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
         }
       }
     }
@@ -589,44 +588,44 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
         for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
-            mmwei[_O][2] = _mm512_load_ps(&md5(aweights5, _I2, _V, 2, _O, 0));
+            mmwei[_O][2] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 2, _O, 0));
           } else {
             MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
             mmwei[_O][2]
-                = _mm512_load_ps(&md6(aweights6, _O, 0, _I2, _V, 2, 0));
+                = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 2, 0));
           }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m512 mmbcst
-              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
+          __m<V> mmbcst
+              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
-                = _mm512_fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+                = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
         }
 #pragma unroll(JO)
         // _P = 1
         for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
-            mmwei[_O][3] = _mm512_load_ps(&md5(aweights5, _I2, _V, 3, _O, 0));
+            mmwei[_O][3] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 3, _O, 0));
           } else {
             MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
             mmwei[_O][3]
-                = _mm512_load_ps(&md6(aweights6, _O, 0, _I2, _V, 3, 0));
+                = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 3, 0));
           }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m512 mmbcst
-              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
+          __m<V> mmbcst
+              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
-                = _mm512_fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
+                = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
         }
         // _P = 2
 #pragma unroll(JO)
@@ -634,22 +633,22 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
             mmwei[_O][0]
-                = _mm512_load_ps(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
+                = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
           } else {
             MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
             mmwei[_O][0]
-                = _mm512_load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
+                = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
           }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m512 mmbcst
-              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0,  _V, 2));
+          __m<V> mmbcst
+              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0,  _V, 2));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
-                = _mm512_fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
+                = _mm<V>::fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
         }
         // _P = 3
 #pragma unroll(JO)
@@ -657,22 +656,22 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
             mmwei[_O][1]
-                = _mm512_load_ps(&md5(aweights5, _I2, _V + 1, 1, _O, 0));
+                = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 1, _O, 0));
           } else {
             MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
             mmwei[_O][1]
-                = _mm512_load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 1, 0));
+                = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 1, 0));
           }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m512 mmbcst
-              = _mm512_broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 3));
+          __m<V> mmbcst
+              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 3));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
-                = _mm512_fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
+                = _mm<V>::fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
         }
       }
     }
@@ -684,9 +683,9 @@ struct gemm_kernel_otj<float, 16, ISA_SKX_AVX512,
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         if (is_streamout)
-          _mm512_stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+          _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
         else
-          _mm512_store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+          _mm<V>::store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
       }
     }
   }

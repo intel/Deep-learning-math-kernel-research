@@ -10,38 +10,39 @@
 
 namespace euler {
 
-inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 6, 3>::
+template <int V>
+inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, V, 6, 3>::
   __trans_weights(float atweights[A][A][V][V], float aweights[K][K][V][V]) {
-  __m512 z0 = _mm512_setzero_ps();
-  __m512 z1 = _mm512_set_ps(IMM_BCAST16(1.0f));
-  __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
-  __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
-  __m512 z6 = _mm512_set_ps(IMM_BCAST16(6.0f));
+  auto z0 = _mm<V>::setzero_ps();
+  auto z1 = _mm<V>::set1_ps(1.0f);
+  auto z2 = _mm<V>::set1_ps(2.0f);
+  auto z4 = _mm<V>::set1_ps(4.0f);
+  auto z6 = _mm<V>::set1_ps(6.0f);
 
-  __m512 z1_4 = _mm512_set_ps(IMM_BCAST16(1.0f / 4.0f));
-  __m512 z1_6 = _mm512_set_ps(IMM_BCAST16(1.0f / 6.0f));
-  __m512 z1_12 = _mm512_set_ps(IMM_BCAST16(1.0f / 12.0f));
-  __m512 z1_16 = _mm512_set_ps(IMM_BCAST16(1.0f / 16.0f));
-  __m512 z1_24 = _mm512_set_ps(IMM_BCAST16(1.0f / 24.0f));
-  __m512 z1_36 = _mm512_set_ps(IMM_BCAST16(1.0f / 36.0f));
-  __m512 z1_48 = _mm512_set_ps(IMM_BCAST16(1.0f / 48.0f));
-  __m512 z1_72 = _mm512_set_ps(IMM_BCAST16(1.0f / 72.0f));
-  __m512 z1_96 = _mm512_set_ps(IMM_BCAST16(1.0f / 96.0f));
-  __m512 z1_144 = _mm512_set_ps(IMM_BCAST16(1.0f / 144.0f));
-  __m512 z1_288 = _mm512_set_ps(IMM_BCAST16(1.0f / 288.0f));
-  __m512 z1_576 = _mm512_set_ps(IMM_BCAST16(1.0f / 576.0f));
+  auto z1_4 = _mm<V>::set1_ps(1.0f / 4.0f);
+  auto z1_6 = _mm<V>::set1_ps(1.0f / 6.0f);
+  auto z1_12 = _mm<V>::set1_ps(1.0f / 12.0f);
+  auto z1_16 = _mm<V>::set1_ps(1.0f / 16.0f);
+  auto z1_24 = _mm<V>::set1_ps(1.0f / 24.0f);
+  auto z1_36 = _mm<V>::set1_ps(1.0f / 36.0f);
+  auto z1_48 = _mm<V>::set1_ps(1.0f / 48.0f);
+  auto z1_72 = _mm<V>::set1_ps(1.0f / 72.0f);
+  auto z1_96 = _mm<V>::set1_ps(1.0f / 96.0f);
+  auto z1_144 = _mm<V>::set1_ps(1.0f / 144.0f);
+  auto z1_288 = _mm<V>::set1_ps(1.0f / 288.0f);
+  auto z1_576 = _mm<V>::set1_ps(1.0f / 576.0f);
 
   //Inputs
-  __m512 f00, f01, f02,
+  __m<V> f00, f01, f02,
          f10, f11, f12,
          f20, f21, f22;
   // Cache
-  __m512 c0, c1, c2;
+  __m<V> c0, c1, c2;
   // Buffer
-  __m512 a00, a01;
-  __m512 b00, b01, b02, b03, b04, b05;
+  __m<V> a00, a01;
+  __m<V> b00, b01, b02, b03, b04, b05;
   // Outputs
-  __m512 t00, t01, t02, t03, t04, t05,
+  __m<V> t00, t01, t02, t03, t04, t05,
          t10, t11, t12, t13, t14, t15,
          t20, t21, t22, t23, t24, t25,
          t30, t31, t32, t33, t34, t35,
@@ -60,10 +61,10 @@ inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 6, 3>::
 #define F(h, w) aweights[h][w][_V]
 #define T(h, w) atweights[w][h][_V]
 #define f(m, n) f##m##n
-#define OP(m,n) f(m,n) = _mm512_load_ps(F(m, n))
-#define ISTORE(i, j) _mm512_store_ps(T(i, j), t##i##j)
+#define OP(m,n) f(m,n) = _mm<V>::load_ps(F(m, n))
+#define ISTORE(i, j) _mm<V>::store_ps(T(i, j), t##i##j)
 
-  for (int _V = 0; _V < 16; ++_V) {
+  for (int _V = 0; _V < V; ++_V) {
     VECTOR_DEF(M3, (0));
 
     t00 = MUL(z1_16, f00);

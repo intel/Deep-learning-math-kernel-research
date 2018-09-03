@@ -8,7 +8,7 @@
 #include "elx_conv.hpp"
 #include "euler.hpp"
 #include "elk_conv_wino.hpp"
-#include "kernel/elk_gemm_otj.xsimd.hxx"
+#include "kernel/elk_gemm_otj.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_input.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_output.hxx"
 #include "kernel/elk_conv_wino_3x3_3x3_weights.hxx"
@@ -33,7 +33,6 @@
 #include "kernel/elk_conv_wino_5x5_3x3_output_gen.hxx"
 #include "kernel/elk_conv_wino_5x5_3x3_weights_gen.hxx"
 
-#include "kernel/elk_gemm.cosim.hxx"
 #include "kernel/elk_conv_wino_kernels.cosim.hxx"
 
 namespace euler {
@@ -400,7 +399,7 @@ template class elx_conv_wino_t<float, 5, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<float, 6, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<float, 7, 3, 16, ISA_SKX_AVX512>;
 // template class elx_conv_wino_t<float, 5, 3, 8, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<float, 6, 3, 8, ISA_SKX_AVX512>;
+// template class elx_conv_wino_t<float, 6, 3, 8, ISA_SKX_AVX512>;
 // template class elx_conv_wino_t<float, 7, 3, 8, ISA_SKX_AVX512>;
 
 }  // namespace euler
