@@ -92,6 +92,7 @@ protected:
       Type aweights[K][K][V][V]);
 };
 
+/*
 template <typename Type, int ...configs>
 class gemm_kernel_base {
   constexpr static int c_[] {configs...};
@@ -112,6 +113,7 @@ public:
       elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights,
       bool zero_out);
 };
+*/
 
 template <typename Type, int ...configs>
 class convolution_winograd_kernel :
@@ -167,6 +169,7 @@ public:
   }
 };
 
+/*
 template <typename Type, int ...configs>
 class gemm_kernel :
   public gemm_kernel_base<Type, configs...> {
@@ -186,7 +189,7 @@ public:
     super::__gemm_tail(xc, toutput, tinput, tweights, zero_out);
   }
 };
-
+*/
 } // namespace euler
 
 #endif // __ELK_CONV_HPP__

@@ -24,7 +24,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/googletest/googlemock/include)
 
 file(GLOB PRIM_TEST_CASES_SRC
-  elk_gemm.cpp elk_trans_input.cpp elk_trans_output.cpp
+  elk_trans_input.cpp elk_trans_output.cpp
   elk_trans_weights.cpp parameter_tuner.cpp)
 
 foreach(TEST_FILE ${PRIM_TEST_CASES_SRC})
