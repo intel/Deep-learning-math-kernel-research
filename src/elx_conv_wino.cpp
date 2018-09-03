@@ -28,13 +28,15 @@ namespace euler {
 // -------------+-------------------+--------------+---------------
 //     A0e0     |        _          |  t + o + wA  |    _
 // -------------+-------------------+--------------+---------------
-//     A073     |        _          |  t + o + i   |  I + O
+//     A072     |        _          |  i + t + o   |    O
 // -------------+-------------------+--------------+---------------
 //     A448     |        t          |      t       |    W
 // -------------+-------------------+--------------+---------------
 //     A241     |        o          |      t       |    I
 // -------------+-------------------+--------------+---------------
 //     A000     |        _          |      _       |    _
+// -------------+-------------------+--------------+---------------
+//     A010     |        _          |      i       |    _
 // -------------+-------------------+--------------+---------------
 //     A201     |        o          |      _       |    I
 // -------------+-------------------+--------------+---------------
@@ -167,7 +169,7 @@ template <typename Type, const int A, const int K, const int V, const int I>
 int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
 {
   size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
-  size_t routput_size = 0, toutputa_size = 0;
+  size_t toutputa_size = 0;
   size_t binput_size = 0, bweights_size = 0, boutput_size = 0;
   size_t l1_usage = 0, l2_usage = 0;
 
@@ -257,8 +259,6 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
   tinput_ = nullptr;
   toutput_ = nullptr;
   toutputa_ = nullptr;
-  routput_ = nullptr;
-  routput_cntr_ = nullptr;
   binput_ = nullptr;
   bweights_ = nullptr;
   boutput_ = nullptr;
@@ -270,6 +270,13 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
   case 0xa000:
     tweights_size = A * A * this->IC * this->OC;
     tinput_size = A * A * this->IC * this->t;
+    toutput_size = A * A * this->OC * this->t;
+    l2_usage = this->IC * this->OC / this->oc3
+        + this->T * (this->IC + this->OC / this->oc3);
+    break;
+  case 0xa010:
+    tweights_size = A * A * this->IC * this->OC;
+    tinput_size = A * A * this->ic3 * this->I2 * V * this->t;
     toutput_size = A * A * this->OC * this->t;
     l2_usage = this->IC * this->OC / this->oc3
         + this->T * (this->IC + this->OC / this->oc3);
@@ -294,12 +301,10 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
     l2_usage = tweights_size / this->oc4
         + A * A * this->T * (this->IC + this->OC / this->oc4);
     break;
-  case 0xa073:
+  case 0xa072:
     tweights_size = A * A * this->IC * this->OC;
     tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_;
-    toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_;
-    routput_size = this->n * this->OC * this->oh * this->ow * (this->ic4 - 1);
-    routput_cntr_ = (unsigned char *)malloc(this->t2 * this->oc4);
+    toutput_size = A * A * this->OC * this->t;
     l2_usage = tweights_size / this->ic4 / this->oc4
         + A * A * this->T * (this->IC / this->ic4 + this->OC / this->oc4);
     break;
@@ -354,8 +359,6 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
     MEMALIGN64(&tinput_, tinput_size * sizeof(Type));
   if (toutput_size > 0)
     MEMALIGN64(&toutput_, toutput_size * sizeof(Type));
-  if (routput_size > 0)
-    MEMALIGN64(&routput_, routput_size * sizeof(Type));
   if (toutputa_size > 0)
     MEMALIGN64(&toutputa_, toutputa_size * sizeof(Type));
   if (binput_size > 0)
@@ -495,8 +498,9 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
   EXECUTE_CASE(a061);
   EXECUTE_CASE(a0e1);
   EXECUTE_CASE(a0e0);
-  EXECUTE_CASE(a073);
+  EXECUTE_CASE(a072);
   EXECUTE_CASE(a000);
+  EXECUTE_CASE(a010);
   default:
     el_error("Unimplemented");
     break;
@@ -516,14 +520,6 @@ elx_conv_wino_t<Type, A, K, V, I>::~elx_conv_wino_t() {
   if (toutput_ != nullptr) {
     free(toutput_);
     toutput_ = nullptr;
-  }
-  if (routput_ != nullptr) {
-    free(routput_);
-    routput_ = nullptr;
-  }
-  if (routput_cntr_ != nullptr) {
-    free(routput_cntr_);
-    routput_cntr_ = nullptr;
   }
   if (toutputa_ != nullptr) {
     free(toutputa_);
@@ -1128,7 +1124,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_blocked(
 {
   // n, ic2, ih, iw, V => t2, wA, hA, ic3, I2, T, V
   MD7(Type, ainput, input, this->n, this->ic4, this->ic3, this->I2, this->ih, this->iw, V);
-  MD2(Type, atinput2, tinput, this->t2, A * A * this->T * this->IC);
+  MD2(Type, atinput2, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * V);
 
 #pragma omp for nowait collapse(3)
   iter_each (_t2, this->t2) {
@@ -1181,7 +1177,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_plain(
     Type * __restrict tinput, Type * __restrict input)
 {
   // n, ic2, ih, iw, V => t2, wA, hA, ic3, I2, T, V
-  MD2(Type, atinput2, tinput, this->t2, A * A * this->T * this->IC);
+  MD2(Type, atinput2, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * V);
 
   SET_EPI32(this->ih * this->iw)
 
@@ -1500,7 +1496,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_inputa(
 // toutput:  t2, oc4 | A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::gemm(
-    Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz)
+    Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz, int _ic4)
 {
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
   auto ker_gemm_tail = (_t2 == this->t2 - 1) ? ker_gemm0_tail_ : ker_gemm_tail_;
@@ -1512,15 +1508,19 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
   iter_each (_wA, A) {
     iter_each (_hA, A) {
       iter_each (_oc3, this->oc3) {
-        iter_each (_ic3, this->ic3 - 1) {
+        bool last_ic4 = _ic4 == this->ic4 - 1;
+        int ic3 = last_ic4 ? this->ic3 - 1 : this->ic3;
+        iter_each (_ic3, ic3) {
           ker_gemm(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
               &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
-              &md5(atweights, _oc3, _ic3, _wA, _hA, 0), nullptr, _ic3 == 0);
+              &md5(atweights, _oc3, _ic3, _wA, _hA, 0), nullptr, _ic3 == 0 && _ic4 == 0);
         }
-        ker_gemm_tail(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-            &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
-            &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0), nullptr,
-            this->ic3 == 1);
+        if (last_ic4) {
+          ker_gemm_tail(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+              &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
+              &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0), nullptr,
+             this->ic3 == 1 && this->ic4 == 1);
+        }
       }
     }
   }
@@ -1531,9 +1531,9 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
 // toutput:  t2, A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::gemm(
-    Type * __restrict toutput, Type * __restrict tinput, Type * __restrict tweights)
+    Type * __restrict toutput, Type * __restrict tinput, Type * __restrict tweights, int _ic4)
 {
-  MD2(Type, atinput2, tinput, this->t2, A * A * this->T * this->IC);
+  MD2(Type, atinput2, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * V);
   MD2(Type, atoutput2, toutput, this->t2, A * A * this->T * this->oc3 * this->O2 * V);
   MD5(Type, atweights, tweights, this->oc3, this->ic3, A, A, this->O2 * this->I2 * V * V);
 
@@ -1548,16 +1548,20 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
               = (_t2 == this->t2 - 1) ? ker_gemm0_tail_ : ker_gemm_tail_;
           MD6(Type, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2, Tz, V);
           MD6(Type, atoutput6, &md2(atoutput2, _t2, 0), A, A, this->oc3, this->O2, Tz, V);
+          bool last_ic4 = _ic4 == this->ic4 - 1;
+          int ic3 = last_ic4 ? this->ic3 - 1 : this->ic3;
 
-          iter_each (_ic3, this->ic3 - 1) {
+          iter_each (_ic3, ic3) {
             ker_gemm(*this, &md6(atoutput6, _wA, _hA, _oc3, 0, 0, 0),
                 &md6(atinput6, _wA, _hA, _ic3, 0, 0, 0),
-                &md5(atweights, _oc3, _ic3, _wA, _hA, 0), nullptr, _ic3 == 0);
+                &md5(atweights, _oc3, _ic3, _wA, _hA, 0), nullptr, _ic3 == 0 && _ic4 == 0);
           }
-          ker_gemm_tail(*this, &md6(atoutput6, _wA, _hA, _oc3, 0, 0, 0),
-              &md6(atinput6, _wA, _hA, this->ic3 - 1, 0, 0, 0),
-              &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0), nullptr,
-              this->ic3 == 1);
+          if (last_ic4) {
+            ker_gemm_tail(*this, &md6(atoutput6, _wA, _hA, _oc3, 0, 0, 0),
+                &md6(atinput6, _wA, _hA, this->ic3 - 1, 0, 0, 0),
+                &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0), nullptr,
+                this->ic3 == 1 && this->ic4 == 1);
+          }
         }
       }
     }
@@ -1727,193 +1731,6 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_output(
     __trans_output_blocked(output, toutput, bias, _t2, Tz);
   else
     __trans_output_plain(output, toutput, bias, _t2, Tz);
-}
-
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_blocked(Type *output,
-    Type *output_tmp, Type *toutput, Type *bias, int _t2, int Tz, int ic4,
-    int oc4, bool inline_reduce)
-{
-  MD6(Type, atoutput, toutput, A, A, this->ic4, this->oc3 * this->O2 / this->ic4, Tz, V);
-  MD7(Type, aoutput, output, this->n, this->oc4, this->ic4, this->oc3 * this->O2 / this->ic4, this->oh, this->ow, V);
-  MD7(Type, aoutput_tmp, output_tmp, this->n, this->oc4, this->ic4, this->oc3 * this->O2 / this->ic4, this->oh, this->ow, V);
-  MD8(Type, aroutput, routput_, this->ic4, this->n, this->oc4, this->ic4, this->oc3 * this->O2 / this->ic4, this->oh, this->ow, V);
-  MD4(Type, abias, bias, this->oc4, this->ic4, this->oc3 * this->O2 / this->ic4, V);
-
-  // TODO: pause
-  auto sync_on = [this](int _t2, int oc4) {
-    MD2(unsigned char, cntr, routput_cntr_, this->t2, this->oc4);
-#pragma omp atomic
-    md2(cntr, _t2, oc4)++;
-    unsigned char c = 0;
-#pragma omp atomic read
-    c = md2(cntr, _t2, oc4);
-    while (c != this->ic4) {
-      _mm_pause();
-#pragma omp atomic read
-      c = md2(cntr, _t2, oc4);
-    }
-  };
-
-  alignas(64) Type ain[A][A][V];
-
-  iter_each (_ic4, this->ic4) {
-    iter_each (_oc, this->oc3 * this->O2/this->ic4) {
-      iter_each (_T, Tz) {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-#pragma omp simd
-        iter_each (_V, V) {
-          ain[_wA][_hA][_V] = md6(atoutput, _wA, _hA, _ic4, _oc, _T, _V);
-        }}}
-        int _n, _oh, _ow, _hOA_end, _wOA_end;
-        t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
-        Type *out = &md7(aoutput_tmp, _n, oc4, _ic4, _oc, _oh, _ow, 0);
-
-        if (bias == nullptr) {
-          if (_hOA_end < A - K || _wOA_end < A - K)
-            ker_trans_output0_nobias_(*this, out, ain, nullptr, _hOA_end, _wOA_end);
-          else
-            ker_trans_output_nobias_(*this, out, ain, nullptr, A - K, A - K);
-        } else {
-          if (_hOA_end < A - K || _wOA_end < A - K)
-            ker_trans_output0_(*this, out, ain, &md4(abias, oc4, _ic4, _oc, 0),
-                _hOA_end, _wOA_end);
-          else
-            ker_trans_output_(
-                *this, out, ain, &md4(abias, oc4, _ic4, _oc, 0), A - K, A - K);
-        }
-      }
-    }
-  }
-
-  if (inline_reduce) {
-    sync_on(_t2, oc4);
-
-    iter_each (_oc, this->oc3 * this->O2 / this->ic4) {
-    iter_each (_T, Tz) {
-      int _n, _oh, _ow, _hOA_end, _wOA_end;
-      t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
-      iter_each (_hA, _hOA_end + 1) {
-      iter_each (_wA, _wOA_end + 1) {
-      for (int __ic4 = 1; __ic4 < this->ic4; __ic4++) {
-#pragma omp simd
-      iter_each (_V, V) {
-        md7(aoutput, _n, oc4, ic4, _oc, _oh + _hA, _ow + _wA, _V) +=
-          md8(aroutput, __ic4 - 1, _n, oc4, ic4, _oc, _oh + _hA, _ow + _wA, _V);
-      }}}}
-    }}
-  }
-}
-
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(Type *output,
-    Type * __restrict output_tmp, Type * __restrict toutput, Type *bias, int _t2, int Tz, int ic4,
-    int oc4, bool inline_reduce)
-{
-  MD6(Type, atoutput, toutput, A, A, this->ic4, this->oc3 * this->O2 / this->ic4, Tz, V);
-  MD8(Type, aroutput, routput_, this->ic4, this->n, this->oc4, this->ic4, this->oc3 * this->O2 / this->ic4, this->oh, this->ow, V);
-  MD4(Type, abias, bias, this->oc4, this->ic4, this->oc3 * this->O2 / this->ic4, V);
-
-  alignas(64) Type ain[A][A][V];
-  alignas(64) Type aout[A - K + 1][A - K + 1][V];
-  SET_EPI32(this->oh * this->ow)
-
-  auto writeout_v = [&](int _ic4, int _oc, int _T,
-                      Type aout[A - K + 1][A - K + 1][V]) {
-    MD7(Type, aoutput, output_tmp, this->n, this->oc4, this->ic4, this->oc3 * this->O2 / this->ic4, V, this->oh, this->ow);
-
-    int _n, _oh, _ow, _hOA_end, _wOA_end;
-    t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
-
-    for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
-      for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
-        if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
-          __m<V> t = _mm<V>::load_ps(aout[_hA][_wA]);
-          constexpr auto scale = sizeof(Type);
-          _mm<V>::i32scatter_ps(
-              &md7(aoutput, _n, oc4, _ic4, _oc, 0, _oh + _hA, _ow + _wA),
-              vindex, t, scale);
-        } else {
-#pragma omp simd
-          iter_each (_V, V)
-            md7(aoutput, _n, oc4, _ic4, _oc, _V, _oh + _hA, _ow + _wA)
-                = aout[_hA][_wA][_V];
-        }
-      }
-    }
-  };
-
-  auto writeout_r = [&](int _oc, int _T, Type aout[A - K + 1][A - K + 1][V]) {
-    MD4(Type, aoutput, output_tmp, this->n, this->oc, this->oh, this->ow);
-
-    assert(this->ic4 == 1 && this->oc4 == 1);
-
-    int _n, _oh, _ow, _hOA_end, _wOA_end;
-    t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
-
-    bool is_Or =  _oc == this->oc2  - 1;
-
-    for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
-      for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
-        if (is_Or) {
-#pragma omp simd
-          iter_each (_V, this->Or)
-            md4(aoutput, _n, _oc * V + _V, _oh + _hA, _ow + _wA)
-                = aout[_hA][_wA][_V];
-        } else {
-          if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
-            __m<V> t = _mm<V>::load_ps(aout[_hA][_wA]);
-            constexpr auto scale = sizeof(Type);
-            _mm<V>::i32scatter_ps(
-                &md4(aoutput, _n, _oc * V, _oh + _hA, _ow + _wA),
-                vindex, t, scale);
-          } else {
-#pragma omp simd
-            iter_each (_V, V)
-              md4(aoutput, _n, _oc * V + _V, _oh + _hA, _ow + _wA)
-                  = aout[_hA][_wA][_V];
-          }
-        }
-      }
-    }
-  };
-
-  iter_each (_ic4, this->ic4) {
-  iter_each (_oc, this->oc3 * this->O2/this->ic4) {
-    iter_each (_T, Tz) {
-      iter_each (_wA, A) {
-      iter_each (_hA, A) {
-#pragma omp simd
-      iter_each (_V, V) {
-        ain[_wA][_hA][_V] = md6(atoutput, _wA, _hA, _ic4, _oc, _T, _V);
-      }}}
-
-      if (bias == nullptr)
-        ker_trans_output_nobias_(*this, (Type *)aout, ain, nullptr, 0, -1);
-      else
-        ker_trans_output_(
-            *this, (Type *)aout, ain, &md4(abias, oc4, _ic4, _oc, 0), 0, -1);
-
-      if (this->Or != V)
-        writeout_r(_oc, _T, aout);
-      else
-        writeout_v(_ic4, _oc, _T, aout);
-    }
-  }}
-}
-
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::trans_output(Type *output,
-    Type *output_tmp, Type *toutput, Type *bias, int _t2, int Tz, int ic4,
-    int oc4, bool inline_reduce)
-{
-  if (output_is_bfmt_ || output_as_bfmt_)
-    __trans_output_blocked(
-        output, output_tmp, toutput, bias, _t2, Tz, ic4, oc4, inline_reduce);
-  else
-    __trans_output_plain(
-        output, output_tmp, toutput, bias, _t2, Tz, ic4, oc4, false);
 }
 
 // toutput:  mthr | hA/A, oc3, O2, T, V
@@ -2425,66 +2242,47 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a0e0(
 // tinputs:  t2,      ic4 | A, A, ic3, I2, T, V
 // toutput:  t2, oc4      | A, A, oc3, O2, T, V
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__execute_a073(
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_a072(
     Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
   MD2(Type, atinput2, tinput_, mthr_, A * A * this->T * this->ic3 * this->I2 * V);
-  MD2(Type, atoutput2, toutput_, mthr_, A * A * this->T * this->oc3 * this->O2 * V);
+  MD2(Type, atoutput2, toutput_, this->t2, this->oc4 * A * A * this->T * this->oc3 * this->O2 * V);
   MD3(Type, atweights3, tweights_, this->oc4, this->ic4, A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
 
   MD3(Type, ainput, input, this->n, this->ic4, this->ih * this->iw * this->ic3 * this->I2 * V);
-  MD5(Type, aroutput, routput_, this->ic4, this->n, this->oc4, this->oh * this->ow * this->oc3 * this->O2, V);
-  MD4(Type, aoutput, output, this->n, this->oc4, this->oh * this->ow * this->oc3 * this->O2, V);
+  MD3(Type, aoutput, output, this->n, this->oc4, this->oh * this->ow * this->oc3 * this->O2 * V);
   MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-  bool inline_reduce = (output_is_bfmt_ || output_as_bfmt_) && (this->ic4 > 1)
-      && ((this->O2 * this->oc3) % 2 == 0)
-      && (mthr_ >= this->t2 * this->oc4 * this->ic4);
-
-  memset(routput_cntr_, 0, this->t2 * this->oc4);
-
+  if (is_first_run_) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
-  {
-    if (is_first_run_) {
-      trans_weights(tweights_, weights, this->oc4);
-#pragma omp barrier
-    }
-#pragma omp for nowait collapse(3)
-    iter_each (_t2, this->t2) {
-      iter_each (_oc4, this->oc4) {
-        iter_each (_ic4, this->ic4) {
-          int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-          size_t ithr = omp_get_thread_num();
-          trans_input(&md2(atinput2, ithr, 0), &md3(ainput, 0, _ic4, 0), _t2, Tz);
-          gemm(&md2(atoutput2, ithr, 0), &md2(atinput2, ithr, 0), &md3(atweights3, _oc4, _ic4, 0), _t2, Tz);
-          if (_ic4 == 0)
-            trans_output(output, output, &md2(atoutput2, ithr, 0), bias, _t2, Tz, _ic4,
-                _oc4, inline_reduce);
-          else
-            trans_output(output, &md5(aroutput, _ic4 - 1, 0, 0, 0, 0), &md2(atoutput2, ithr, 0),
-                nullptr, _t2, Tz, _ic4, _oc4, inline_reduce);
+    trans_weights(tweights_, weights, this->oc4);
+  }
+
+  iter_each(_ic4, this->ic4) {
+    int last_ic4 = -1, last_t2 = -1;
+#pragma omp parallel num_threads(mthr_) proc_bind(close) firstprivate(last_ic4, last_t2)
+#pragma omp for nowait collapse(2)
+    iter_each(_t2, this->t2) {
+      iter_each(_oc4, this->oc4) {
+        int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+        size_t ithr = omp_get_thread_num();
+        MD2(Type, atoutput3, &md2(atoutput2, _t2, 0), this->oc4, A * A * Tz * this->oc3 * this->O2 * V);
+
+        if (last_ic4 != _ic4 || last_t2 != _t2) {
+          trans_input(
+              &md2(atinput2, ithr, 0), &md3(ainput, 0, _ic4, 0), _t2, Tz);
+          last_t2 = _t2;
+          last_ic4 = _ic4;
         }
-      }
-    }
-    if (!inline_reduce) {
-#pragma omp barrier
-#pragma omp for nowait collapse(3)
-      for (size_t _n = 0; _n < this->n; ++_n) {
-        for (size_t _oc4 = 0; _oc4 < this->oc4; ++_oc4) {
-          for (size_t _i = 0; _i < this->oc3 * this->O2 * this->oh * this->ow;
-               ++_i) {
-            for (size_t _ic4 = 1; _ic4 < this->ic4; ++_ic4) {
-#pragma omp simd
-              for (size_t _V = 0; _V < V; ++_V) {
-                md4(aoutput, _n, _oc4, _i, _V)
-                    += md5(aroutput, _ic4 - 1, _n, _oc4, _i, _V);
-              }
-            }
-          }
-        }
+        gemm(&md2(atoutput3, _oc4, 0), &md2(atinput2, ithr, 0),
+            &md3(atweights3, _oc4, _ic4, 0), _t2, Tz, _ic4);
+        if (_ic4 == this->ic4 - 1)
+          trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput3, _oc4, 0),
+              &md2(abias, _oc4, 0), _t2, Tz);
       }
     }
   }
+
   if (inference_acc_)
     is_first_run_ = false;
 }
@@ -2539,6 +2337,33 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a000(
 #pragma omp barrier
     trans_output(output, toutput_, bias);
   }
+  if (inference_acc_) is_first_run_ = false;
+}
+
+
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_a010(
+    Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
+{
+  MD3(Type, ainput, input, this->n, this->ic4, this->ih * this->iw * this->ic3 * this->I2 * V);
+  MD2(Type, atweights, tweights_, this->ic4, A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
+
+  if (is_first_run_) {
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+    trans_weights(tweights_, weights);
+  }
+
+  iter_each(_ic4, this->ic4)
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+  {
+    trans_input(tinput_, &md3(ainput, 0, _ic4, 0));
+#pragma omp barrier
+    gemm(toutput_, tinput_, &md2(atweights, _ic4, 0), _ic4);
+  }
+
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+  trans_output(output, toutput_, bias);
+
   if (inference_acc_) is_first_run_ = false;
 }
 

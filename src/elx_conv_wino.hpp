@@ -243,12 +243,13 @@ public:
 
 private:
   void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a010(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a040(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a060(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a061(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a0e1(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a0e0(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a073(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a072(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a201(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a241(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a448(Type *output, Type *input, Type *weights, Type *bias);
@@ -277,13 +278,6 @@ private:
   inline void __trans_outputa_bh_blocked(Type *output, Type *toutputa, Type *bias);
   void trans_outputa_bh(Type *output, Type *toutputa, Type *bias);
 
-  inline void __trans_output_plain(Type *res, Type *output, Type *toutput,
-      Type *bias, int _t2, int Tz, int ic4, int oc4, bool inline_reduce);
-  inline void __trans_output_blocked(Type *res, Type *output, Type *toutput,
-      Type *bias, int _t2, int Tz, int ic4, int oc4, bool inline_reduce);
-  void trans_output(Type *res, Type *output, Type *toutput, Type *bias,
-      int _t2, int Tz, int ic4, int oc4, bool inline_reduce);
-
   void trans_outputa_th(Type *toutputa, Type *toutput, int Tz);
 
   inline void __trans_weights_plain(Type *tweights, Type *weights, int oc4);
@@ -294,8 +288,8 @@ private:
   inline void __trans_weightsa_blocked(Type *tweights, Type *weights);
   void trans_weightsa(Type *tweights, Type *weights);
 
-  void gemm(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
-  void gemm(Type *toutput, Type *tinput, Type *tweights);
+  void gemm(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz, int _ic4 = 0);
+  void gemm(Type *toutput, Type *tinput, Type *tweights, int _ic4 = 0);
   void gemma(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
 
   int prepare_execute_opt();
@@ -369,12 +363,10 @@ private:
   Type *tweights_;
   Type *tinput_;
   Type *toutput_;
-  Type *routput_; // reduce output
   Type *toutputa_;
   Type *binput_; // blocked input
   Type *bweights_;
   Type *boutput_;
-  unsigned char *routput_cntr_;
 
   int hOA_end_;
   int wOA_end_;
