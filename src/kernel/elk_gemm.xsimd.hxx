@@ -167,7 +167,7 @@ private:
       }
 
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#       pragma unroll (4)
+#       pragma unroll (V/4)
         for (int _V = 0; _V < V/4; ++_V) {
           w2 = _mm<V>::load_ps(w_ptr);
           w_ptr += V;
@@ -239,8 +239,8 @@ private:
       }
 
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#       pragma unroll (8)
-        for (int _V = 0; _V < V/4; ++_V) {
+#       pragma unroll (V/2)
+        for (int _V = 0; _V < V/2; ++_V) {
           w1 = _mm<V>::load_ps(w_ptr);
           w_ptr += V;
 #         pragma unroll (T)

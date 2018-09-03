@@ -1,6 +1,6 @@
 #pragma once
 
-#include <xintrin.hpp>
+#include "xintrin.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
@@ -209,27 +209,27 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     if (reset_output) {
       if (with_bias) {
         // load bias
-#pragma unroll(O)
+#       pragma unroll(O)
         for (int _O = 0; _O < O; ++_O) {
           auto tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
-#pragma unroll(T)
+#         pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
         }
       } else {
         // clear output
         auto tmp = _mm<V>::setzero_ps();
-#pragma unroll(O)
+#       pragma unroll(O)
         for (int _O = 0; _O < O; ++_O)
-#pragma unroll(T)
+#         pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
       }
     } else {
       // load output
-#pragma unroll(O)
+#     pragma unroll(O)
       for (int _O = 0; _O < O; ++_O) {
-#pragma unroll(T)
+#       pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
           mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
@@ -238,9 +238,9 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
 
     for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#pragma nounroll
+#     pragma nounroll
       for (int _V = 0; _V < V / P; ++_V) {
-#pragma unroll(O)
+#       pragma unroll(O)
         for (int _O = 0; _O < O; ++_O) {
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
@@ -251,9 +251,9 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
           }
         }
-#pragma unroll(T)
+#       pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-#pragma unroll(O)
+#         pragma unroll(O)
           for (int _O = 0; _O < O; ++_O) {
             MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
             auto mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
@@ -265,9 +265,9 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
 
     // store output
-#pragma unroll(O)
+#   pragma unroll(O)
     for (int _O = 0; _O < O; ++_O) {
-#pragma unroll(T)
+#     pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         if (is_streamout)
@@ -296,27 +296,27 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     if (reset_output) {
       if (with_bias) {
         // load bias
-#pragma unroll(O)
+#       pragma unroll(O)
         for (int _O = 0; _O < O; ++_O) {
           auto tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
-#pragma unroll(T)
+#         pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
         }
       } else {
         // clear output
         auto tmp = _mm<V>::setzero_ps();
-#pragma unroll(O)
+#       pragma unroll(O)
         for (int _O = 0; _O < O; ++_O)
-#pragma unroll(T)
+#         pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
       }
     } else {
       // load output
-#pragma unroll(O)
+#     pragma unroll(O)
       for (int _O = 0; _O < O; ++_O) {
-#pragma unroll(T)
+#       pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
           mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
@@ -325,9 +325,9 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
 
     for (int _I2 = 0; _I2 < xc.I2 - 1; ++_I2) {
-#pragma nounroll
+#     pragma nounroll
       for (int _V = 0; _V < V; ++_V) {
-#pragma unroll(O)
+#       pragma unroll(O)
         for (int _O = 0; _O < O; ++_O) {
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V, 1, O2, V);
@@ -338,9 +338,9 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
           }
         }
-#pragma unroll(T)
+#       pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-#pragma unroll(O)
+#         pragma unroll(O)
           for (int _O = 0; _O < O; ++_O) {
             MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V, 1);
             auto mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
@@ -352,9 +352,9 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
     // Ir
     {
-#pragma nounroll
+#     pragma nounroll
       for (int _V = 0; _V < xc.Ir; ++_V) {
-#pragma unroll(O)
+#       pragma unroll(O)
         for (int _O = 0; _O < O; ++_O) {
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V, 1, O2, V);
@@ -365,9 +365,9 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, xc.I2 - 1, _V, 0, 0));
           }
         }
-#pragma unroll(T)
+#       pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-#pragma unroll(O)
+#         pragma unroll(O)
           for (int _O = 0; _O < O; ++_O) {
             MD4(float, ainput4, &md2(ainput, xc.I2 - 1, 0), T, S, V, 1);
             auto mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
@@ -380,9 +380,9 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
 
     // store output
-#pragma unroll(O)
+#   pragma unroll(O)
     for (int _O = 0; _O < O; ++_O) {
-#pragma unroll(T)
+#     pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         if (is_streamout)
@@ -410,7 +410,7 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     MD2(float, abias2, bias, O, V);
 
     // preload weights
-#pragma unroll(O)
+#   pragma unroll(O)
     for (int _O = 0; _O < O; ++_O) {
       if (F_traits<F>::is_compact_weights) {
         MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
@@ -424,27 +424,27 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     if (reset_output) {
       if (with_bias) {
         // load bias
-#pragma unroll(O)
+#       pragma unroll(O)
         for (int _O = 0; _O < O; ++_O) {
           auto tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
-#pragma unroll(T)
+#         pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
         }
       } else {
         // clear output
         auto tmp = _mm<V>::setzero_ps();
-#pragma unroll(O)
+#       pragma unroll(O)
         for (int _O = 0; _O < O; ++_O)
-#pragma unroll(T)
+#         pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
       }
     } else {
       // load output
-#pragma unroll(O)
+#     pragma unroll(O)
       for (int _O = 0; _O < O; ++_O) {
-#pragma unroll(T)
+#       pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
           mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
@@ -453,10 +453,10 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
 
     for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#pragma nounroll
+#     pragma nounroll
       for (int _V = 0; _V < V / P; ++_V) {
         // _P = 0
-#pragma unroll(O)
+#       pragma unroll(O)
         for (int _O = 0; _O < O; ++_O) {
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
@@ -467,18 +467,18 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 1, 0));
           }
         }
-#pragma unroll(T)
+#       pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
           auto mmbcst
               = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
-#pragma unroll(O)
+#         pragma unroll(O)
           for (int _O = 0; _O < O; ++_O)
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
         }
         // _P = 1
-#pragma unroll(O)
+#       pragma unroll(O)
         for (int _O = 0; _O < O; ++_O) {
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
@@ -490,12 +490,12 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
           }
         }
-#pragma unroll(T)
+#       pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
           auto mmbcst
               = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
-#pragma unroll(O)
+#         pragma unroll(O)
           for (int _O = 0; _O < O; ++_O)
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
@@ -504,9 +504,9 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
 
     // store output
-#pragma unroll(O)
+#   pragma unroll(O)
     for (int _O = 0; _O < O; ++_O) {
-#pragma unroll(T)
+#     pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         if (is_streamout)
@@ -533,7 +533,7 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     MD2(float, abias2, bias, O, V);
 
     // preload weights
-#pragma unroll(O)
+#   pragma unroll(O)
     for (int _O = 0; _O < O; ++_O) {
       if (F_traits<F>::is_compact_weights) {
         MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
@@ -548,27 +548,27 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     if (reset_output) {
       if (with_bias) {
         // load bias
-#pragma unroll(O)
+#       pragma unroll(O)
         for (int _O = 0; _O < O; ++_O) {
           auto tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
-#pragma unroll(T)
+#         pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
         }
       } else {
         // clear output
         auto tmp = _mm<V>::setzero_ps();
-#pragma unroll(O)
+#       pragma unroll(O)
         for (int _O = 0; _O < O; ++_O)
-#pragma unroll(T)
+#         pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
       }
     } else {
       // load output
-#pragma unroll(O)
+#     pragma unroll(O)
       for (int _O = 0; _O < O; ++_O) {
-#pragma unroll(T)
+#       pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
           mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
@@ -577,10 +577,10 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
 
     for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#pragma nounroll
+#     pragma nounroll
       for (int _V = 0; _V < V / P; ++_V) {
         // _P = 0
-#pragma unroll(O)
+#       pragma unroll(O)
         for (int _O = 0; _O < O; ++_O) {
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
@@ -591,17 +591,17 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 2, 0));
           }
         }
-#pragma unroll(T)
+#       pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
           auto mmbcst
               = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
-#pragma unroll(O)
+#         pragma unroll(O)
           for (int _O = 0; _O < O; ++_O)
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
         }
-#pragma unroll(O)
+#       pragma unroll(O)
         // _P = 1
         for (int _O = 0; _O < O; ++_O) {
           if (F_traits<F>::is_compact_weights) {
@@ -613,18 +613,18 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 3, 0));
           }
         }
-#pragma unroll(T)
+#       pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
           auto mmbcst
               = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
-#pragma unroll(O)
+#         pragma unroll(O)
           for (int _O = 0; _O < O; ++_O)
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
         }
         // _P = 2
-#pragma unroll(O)
+#       pragma unroll(O)
         for (int _O = 0; _O < O; ++_O) {
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
@@ -636,18 +636,18 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
           }
         }
-#pragma unroll(T)
+#       pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
           auto mmbcst
               = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0,  _V, 2));
-#pragma unroll(O)
+#         pragma unroll(O)
           for (int _O = 0; _O < O; ++_O)
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
         }
         // _P = 3
-#pragma unroll(O)
+#       pragma unroll(O)
         for (int _O = 0; _O < O; ++_O) {
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V / P, P, O2, V);
@@ -659,12 +659,12 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
                 = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 1, 0));
           }
         }
-#pragma unroll(T)
+#       pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
           auto mmbcst
               = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 3));
-#pragma unroll(O)
+#         pragma unroll(O)
           for (int _O = 0; _O < O; ++_O)
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
@@ -673,9 +673,9 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     }
 
     // store output
-#pragma unroll(O)
+#   pragma unroll(O)
     for (int _O = 0; _O < O; ++_O) {
-#pragma unroll(T)
+#     pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         if (is_streamout)

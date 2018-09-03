@@ -6,7 +6,7 @@
 #include "elx_conv.hpp"
 #include "euler.hpp"
 #include "elk_conv_wino.hpp"
-#include "kernel/elk_gemm_otj.hxx"
+#include "kernel/elk_gemm_otj.xsimd.hxx"
 
 namespace euler {
 
@@ -83,6 +83,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
 };
 
 template class elx_conv_direct_1x1_t<float, 16, ISA_SKX_AVX512>;
+template class elx_conv_direct_1x1_t<float, 8, ISA_SKX_AVX512>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_DIRECT_1X1_HPP__

@@ -1,6 +1,6 @@
 #include <functional>
 #include <string.h>
-#include <x86intrin.h>
+#include "xintrin.hpp"
 #include "el_utils.hpp"
 #include "elx_conv_direct_1x1.hpp"
 #include "el_def.hpp"
@@ -442,14 +442,14 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_blocked(
               iter_each (_O2, this->O2) {
                 if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
                   if (stream_wei_)
-                    _mm512_stream_ps(&md8(atweights, _oc4, _ic4, _oc3, _ic3,
+                    _mm<V>::stream_ps(&md8(atweights, _oc4, _ic4, _oc3, _ic3,
                                          _I2, _iV, _O2, 0),
-                        *(__m512 *)&md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3,
+                        *(__m<V> *)&md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3,
                             _I2, _iV, 0));
                   else
-                    _mm512_store_ps(&md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2,
+                    _mm<V>::store_ps(&md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2,
                                         _iV, _O2, 0),
-                        *(__m512 *)&md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3,
+                        *(__m<V> *)&md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3,
                             _I2, _iV, 0));
                 } else {
 #pragma omp simd
