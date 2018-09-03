@@ -73,7 +73,8 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
   desc.prop_kind = prop_kind;
   desc.threading = {nteams, nthreads};
   desc.execution_mode = execution_mode;
-  desc.blocking = {blk_i, blk_o, blk_t};
+  desc.flatting = {1, blk_t};
+  desc.blocking = {blk_i, blk_o};
   desc.partition = {pat_i, pat_o};
   desc.streaming_hint = {streaming_weights, streaming_input, streaming_output};
   desc.format_as_blocked = {input_as_blocked, weights_as_blocked,
