@@ -28,7 +28,7 @@ function build() {
 function conv_test() {
   # Default
   n=1; i=0; o=0; h=0; w=0; H=0; W=0; k=3; K=3; p=1; P=1; s=1; S=1
-  b=1; r=0; v=1; a=wino; blk_i=0; blk_o=0; blk_t=0; pat_i=1; pat_o=1
+  b=1; r=0; v=1; a=wino; flt_o=0; flt_t=0; blk_i=0; blk_o=0; pat_i=1; pat_o=1
   tile_size=5; nteams=0; nthreads=0; execution_mode=0
   streaming_weights=0; streaming_input=0; streaming_output=0
   input_format=nChw16c; weights_format=OIhw16i16o; output_format=nChw16c
@@ -72,6 +72,14 @@ function conv_test() {
             ;;
           execution-mode=*) execution_mode=${OPTARG#*=}
             ;;
+          flt-o) flt_o="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          flt-o=*) flt_o=${OPTARG#*=}
+            ;;
+          flt-t) flt_t="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          flt-t=*) flt_t=${OPTARG#*=}
+            ;;
           blk-i) blk_i="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
             ;;
           blk-i=*) blk_i=${OPTARG#*=}
@@ -79,10 +87,6 @@ function conv_test() {
           blk-o) blk_o="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
             ;;
           blk-o=*) blk_o=${OPTARG#*=}
-            ;;
-          blk-t) blk_t="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-            ;;
-          blk-t=*) blk_t=${OPTARG#*=}
             ;;
           pat-i) pat_i="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
             ;;
@@ -140,7 +144,7 @@ function conv_test() {
   set -v
   eval $OMP_ENV $ROOT_DIR/$build_dir/tests/elt_conv \
     -n$n -i$i -o$o -h$h -w$w -H$H -W$W -k$k -K$K -p$p -P$P -s$s -S$S \
-    -b$b -r$r -v$v -a$a --blk-i=$blk_i --blk-o=$blk_o --blk-t=$blk_t \
+    -b$b -r$r -v$v -a$a --flt-o=$flt_o --flt-t=$flt_t --blk-i=$blk_i --blk-o=$blk_o \
     --pat-i=$pat_i --pat-o=$pat_o --tile-size=$tile_size \
     --nteams=$nteams --nthreads=$nthreads --execution-mode=$execution_mode \
     --streaming-weights=$streaming_weights \

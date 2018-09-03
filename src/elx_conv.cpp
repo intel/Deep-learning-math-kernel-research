@@ -41,9 +41,11 @@ elx_conv_t<Type>::elx_conv_t(eld_conv_t<Type> &dc) {
   this->execution_mode = dc.execution_mode;
 
   /* Automatical parameters */
+  this->O = dc.flatting.o;
+  this->T = dc.flatting.t;
+
   this->I2 = dc.blocking.i;
-  this->O2 = dc.blocking.o;
-  this->T = dc.blocking.t;
+  this->O1 = dc.blocking.o;
 
   this->ic4 = dc.partition.i;
   this->oc4 = dc.partition.o;
@@ -65,6 +67,16 @@ int elx_conv(eld_conv_t<T> &desc, T *output, T *input, T *weights, T *bias) {
   if (input == nullptr || weights == nullptr || output == nullptr
       || (desc.with_bias && bias == nullptr)) {
     el_error("Parameter error");
+    return ELX_GENERAL_ERROR;
+  }
+
+  int r_pad = desc.strides.w * (desc.dims.output.w - 1) + desc.dims.weights.w -
+              desc.dims.input.w - desc.pads.l;
+  if (r_pad < 0) {
+    r_pad = 0;
+  }
+  if (r_pad != desc.pads.r) {
+    el_error("Padding parameter error");
     return ELX_GENERAL_ERROR;
   }
 

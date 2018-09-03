@@ -37,6 +37,9 @@ if(${CMAKE_BUILD_TYPE} MATCHES "Debug")
   set(WITH_TEST ON)
   set(WITH_GTEST ON)
   set(WITH_GK ON)
+else(${CMAKE_BUILD_TYPE} MATCHES "Profiling")
+  message(STATUS "Build type is Profiling")
+  set(__profiling ON)
 endif()
 
 include("cmake/flags.cmake")
@@ -45,7 +48,6 @@ include("cmake/required.cmake")
 # find src files
 file (GLOB __euler_source
   src/eld_conv.cpp
-  src/elk_conv_direct_1x1.cpp
   src/elx_conv.cpp
   src/elx_conv_wino.cpp
   src/elx_conv_direct_1x1.cpp)

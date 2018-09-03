@@ -110,6 +110,6 @@ val_conv
 $ROOT_DIR/scripts/run.sh -c $resnet50_res5a_branch2b -v1 -n1 \
   --execution-mode=0xa000 \
   --nteams=1 --nthreads=18 \
-  --blk-i=2 --blk-o=2 --blk-t=18 --tile-size=4
+  --blk-i=2 --blk-o=2 --flt-t=18 --tile-size=4
 
 set +x

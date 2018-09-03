@@ -6,7 +6,7 @@
 #include "elx_conv.hpp"
 #include "euler.hpp"
 #include "elk_conv_wino.hpp"
-#include "elk_conv_direct_1x1.hpp"
+#include "kernel/elk_gemm_otj.hxx"
 
 namespace euler {
 
@@ -58,23 +58,14 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, 0, V, I, false, false,
-      false>::gemm) *ker_gemm_O_T_;
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, 0, V, I, false, false,
-      false>::gemm) *ker_gemm_Or_T_;
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, 0, V, I, false, false,
-      false>::gemm) *ker_gemm_O_Tr_;
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, 0, V, I, false, false,
-      false>::gemm) *ker_gemm_Or_Tr_;
-
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, 0, V, I, false, false,
-      false>::gemm) *ker_gemm_tail_O_T_;
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, 0, V, I, false, false,
-      false>::gemm) *ker_gemm_tail_Or_T_;
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, 0, V, I, false, false,
-      false>::gemm) *ker_gemm_tail_O_Tr_;
-  decltype(convolution_direct_1x1_kernel<Type, 1, 1, 1, 0, V, I, false, false,
-      false>::gemm) *ker_gemm_tail_Or_Tr_;
+  gemm_kernel_binder::ker *ker_gemm_I_O_T_;
+  gemm_kernel_binder::ker *ker_gemm_I_O_Tr_;
+  gemm_kernel_binder::ker *ker_gemm_I_OrT_;
+  gemm_kernel_binder::ker *ker_gemm_I_OrTr_;
+  gemm_kernel_binder::ker *ker_gemm_IrO_T_;
+  gemm_kernel_binder::ker *ker_gemm_IrO_Tr_;
+  gemm_kernel_binder::ker *ker_gemm_IrOrT_;
+  gemm_kernel_binder::ker *ker_gemm_IrOrTr_;
 
   void (elx_conv_direct_1x1_t::*execute_opt_)(Type *, Type *, Type *, Type *);
 
