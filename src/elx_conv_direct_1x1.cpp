@@ -58,10 +58,20 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   this->ic2 = this->IC / V;
   this->oc2 = this->OC / V;
 
+  this->no_pad_ = this->lp == 0 && this->rp == 0 && this->tp == 0 && this->bp == 0;
+  if (!this->no_pad_) {
+    if (xopt_ != 0xa061)
+      el_error("Only 0xa061 support padding");
+    bool shape_ok =
+      (this->oh == (this->ih - 1 + this->tp + this->bp) / this->hs + 1) &&
+      (this->ow == (this->iw - 1 + this->lp + this->rp) / this->ws + 1);
+    if (!shape_ok)
+      el_error("Unmatched paddding shape not supported by a061");
+  }
+
   // t3, t2, (T, Tr)
   if (xopt_ == 0xc060 || xopt_ == 0xe061) {
-    bool shape_ok = this->hs == 1 && this->ws == 1 && this->lp == 0
-        && this->rp == 0 && this->tp == 0 && this->bp == 0;
+    bool shape_ok = this->hs == 1 && this->ws == 1 && this->no_pad_;
     if (!shape_ok)
       el_error("Shape not supported by c060");
 
@@ -74,8 +84,7 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
     this->Tr = this->nt % this->T ? this->nt % this->T : this->T;
   } else if (xopt_ == 0xd060 || xopt_ == 0xb061 || xopt_ == 0xa061) {
     if (xopt_ == 0xd060) {
-      bool shape_ok = this->hs == 2 && this->ws == 2 && this->lp == 0
-          && this->rp == 0 && this->tp == 0 && this->bp == 0;
+      bool shape_ok = this->hs == 2 && this->ws == 2 && this->no_pad_;
       if (!shape_ok)
         el_error("Shape not supported by d060");
     }
@@ -87,8 +96,8 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
     this->Tr = this->T; // No Tr support
     this->t = this->nt * this->n;
 
-    if (this->ht * this->hs != this->ih
-        || this->wt * this->ws * this->T != this->iw) {
+    if (this->no_pad_ && (this->ht * this->hs != this->ih
+        || this->wt * this->ws * this->T != this->iw)) {
       el_error("Unimplemented non-unitride shape or blocking");
     }
   }
@@ -242,74 +251,47 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 {
+#define BIND_KERNEL_4(S, F)                                             \
+  if (has_Ir) {                                                         \
+    if (this->with_bias)                                                \
+      gemm_kernel_binder::bind<Type, V, I, S, F, true, true, false,     \
+          false, false>(O, T, func);                                    \
+    else                                                                \
+      gemm_kernel_binder::bind<Type, V, I, S, F, true, false, false,    \
+          false, false>(O, T, func);                                    \
+  } else {                                                              \
+    if (this->with_bias)                                                \
+      gemm_kernel_binder::bind<Type, V, I, S, F, false, true, false,    \
+          false, false>(O, T, func);                                    \
+    else                                                                \
+      gemm_kernel_binder::bind<Type, V, I, S, F, false, false, false,   \
+          false, false>(O, T, func);                                    \
+  }
+
+#define BIND_KERNEL_2(S, F)                                             \
+  if (this->with_bias)                                                  \
+    gemm_kernel_binder::bind<Type, V, I, S, F, false, true, false,      \
+        false, false>(O, T, func);                                      \
+  else                                                                  \
+    gemm_kernel_binder::bind<Type, V, I, S, F, false, false, false,     \
+        false, false>(O, T, func);                                      \
+
   auto bind_kernel = [&](int O, int T, gemm_kernel_binder::ker **func, bool has_Ir) {
     switch (xopt_) {
     case (0xa061):
-      if (has_Ir) {
-        if (this->with_bias)
-          gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCC, true, true, false,
-              false, false>(O, T, func);
-        else
-          gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCC, true, false, false,
-              false, false>(O, T, func);
-      } else {
-        if (this->with_bias)
-          gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCC, false, true, false,
-              false, false>(O, T, func);
-        else
-          gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCC, false, false, false,
-              false, false>(O, T, func);
-      }
+      BIND_KERNEL_4(1, GKF_CCC)
       break;
     case (0xe061):
-      if (has_Ir) {
-        if (this->with_bias)
-          gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCC, true, true, false,
-              false, false>(O, T, func);
-        else
-          gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCC, true, false, false,
-              false, false>(O, T, func);
-      } else {
-        if (this->with_bias)
-          gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCC, false, true, false,
-              false, false>(O, T, func);
-        else
-          gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCC, false, false, false,
-              false, false>(O, T, func);
-      }
+      BIND_KERNEL_4(1, GKF_CCC)
       break;
     case (0xb061):
-      if (this->with_bias)
-        gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCD, false, true, false,
-            false, false>(O, T, func);
-      else
-        gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCD, false, false, false,
-            false, false>(O, T, func);
+      BIND_KERNEL_2(1, GKF_CCD)
       break;
     case (0xc060):
-      if (has_Ir) {
-       if (this->with_bias)
-         gemm_kernel_binder::bind<Type, V, I, 1, GKF_DDD, true, true, false,
-             false, false>(O, T, func);
-       else
-         gemm_kernel_binder::bind<Type, V, I, 1, GKF_DDD, true, false, false,
-             false, false>(O, T, func);
-      } else {
-        if (this->with_bias)
-          gemm_kernel_binder::bind<Type, V, I, 1, GKF_DDD, false, true, false,
-              false, false>(O, T, func);
-        else
-          gemm_kernel_binder::bind<Type, V, I, 1, GKF_DDD, false, false, false,
-              false, false>(O, T, func);
-      }
+      BIND_KERNEL_4(1, GKF_DDD)
       break;
     case (0xd060):
-      if (this->with_bias)
-        gemm_kernel_binder::bind<Type, V, I, 2, GKF_DDD, false, true, false,
-            false, false>(O, T, func);
-      else
-        gemm_kernel_binder::bind<Type, V, I, 2, GKF_DDD, false, false, false,
-            false, false>(O, T, func);
+      BIND_KERNEL_2(2, GKF_DDD)
       break;
     default:
       el_error("Unknown xopt");
@@ -787,29 +769,59 @@ template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::__trans_input_blocked(
     Type *tinput, Type *input, int _ht, int _wt)
 {
-  // ic3, I2, ht, hs, wt, T, ws, V -> ht, wt | ic3, I2, T, V
-  MD8(Type, ainput, input, this->ic3, this->I2, this->ht, this->hs, this->wt, this->T, this->ws, V);
   MD4(Type, atinput, tinput, this->ic3, this->I2, this->T, V);
 
-  iter_each (_ic3, this->ic3) {
+  if (this->no_pad_) {
+    // ic3, I2, ht, hs, wt, T, ws, V -> ht, wt | ic3, I2, T, V
+    MD8(Type, ainput, input, this->ic3, this->I2, this->ht, this->hs, this->wt, this->T, this->ws, V);
+    iter_each (_ic3, this->ic3) {
     iter_each (_I2, this->I2) {
-      iter_each (_T, this->T) {
+    iter_each (_T, this->T) {
+      if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
+        if (stream_in_)
+          _mm<V>::stream_ps(&md4(atinput, _ic3, _I2, _T, 0),
+               *((__m<V> *)&md8(ainput, _ic3, _I2, _ht, 0, _wt, _T, 0, 0)));
+        else
+          _mm<V>::store_ps(&md4(atinput, _ic3, _I2, _T, 0),
+               *((__m<V> *)&md8(ainput, _ic3, _I2, _ht, 0, _wt, _T, 0, 0)));
+      } else {
+#pragma omp simd
+        iter_each (_V, V) {
+          md4(atinput, _ic3, _I2, _T, _V)
+              = md8(ainput, _ic3, _I2, _ht, 0, _wt, _T, 0, _V);
+        }
+      }
+    }}}
+  } else {
+    MD5(Type, ainput, input, this->ic3, this->I2, this->ih, this->iw, V);
+    int _ih = _ht * this->hs - this->tp;
+    iter_each (_ic3, this->ic3) {
+    iter_each (_I2, this->I2) {
+    iter_each (_T, this->T) {
+      int _iw = _wt * (this->ws * this->T) + _T * this->ws - this->lp;
+
+      if (_ih < 0 || _ih >= this->ih || _iw < 0 || _iw >= this->iw) {
+#pragma omp simd
+        iter_each (_V, V) {
+          md4(atinput, _ic3, _I2, _T, _V) = 0.0f;
+        }
+      } else {
         if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
           if (stream_in_)
             _mm<V>::stream_ps(&md4(atinput, _ic3, _I2, _T,0),
-                 *((__m<V> *)&md8(ainput, _ic3, _I2, _ht, 0, _wt, _T, 0, 0)));
+               *((__m<V> *)&md5(ainput, _ic3, _I2, _ih, _iw, 0)));
           else
             _mm<V>::store_ps(&md4(atinput, _ic3, _I2, _T,0),
-                 *((__m<V> *)&md8(ainput, _ic3, _I2, _ht, 0, _wt, _T, 0, 0)));
+               *((__m<V> *)&md5(ainput, _ic3, _I2, _ih, _iw, 0)));
         } else {
-#pragma omp simd
+ #pragma omp simd
           iter_each (_V, V) {
             md4(atinput, _ic3, _I2, _T, _V)
-                = md8(ainput, _ic3, _I2, _ht, 0, _wt, _T, 0, _V);
+              = md5(ainput, _ic3, _I2, _ih, _iw, _V);
           }
         }
       }
-    }
+    }}}
   }
 }
 

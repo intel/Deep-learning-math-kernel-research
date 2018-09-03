@@ -69,6 +69,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
 
   void (elx_conv_direct_1x1_t::*execute_opt_)(Type *, Type *, Type *, Type *);
 
+  bool no_pad_;
   bool is_first_run_;
   bool inference_acc_;
 
