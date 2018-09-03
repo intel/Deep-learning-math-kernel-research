@@ -46,11 +46,35 @@ template <> struct _mm<16> {
   }
   static inline void i32scatter_ps(void *adrs, __i<V> vidx,
       __m<V> m, int scale) noexcept {
-    _mm512_i32scatter_ps(adrs, vidx, m, scale);
+    switch (scale) {
+      case 1:
+        _mm512_i32scatter_ps(adrs, vidx, m, 1);
+        break;
+      case 2:
+        _mm512_i32scatter_ps(adrs, vidx, m, 2);
+        break;
+      case 4:
+        _mm512_i32scatter_ps(adrs, vidx, m, 4);
+        break;
+      case 8:
+        _mm512_i32scatter_ps(adrs, vidx, m, 8);
+        break;
+    }
   }
   static inline __m<V> i32gather_ps(__i<V> vidx, void *adrs, int scale)
   noexcept {
-    return _mm512_i32gather_ps(vidx, adrs, scale);
+    switch (scale) {
+      case 1:
+        return _mm512_i32gather_ps(vidx, adrs, 1);
+      case 2:
+        return _mm512_i32gather_ps(vidx, adrs, 2);
+      case 4:
+        return _mm512_i32gather_ps(vidx, adrs, 4);
+      case 8:
+        return _mm512_i32gather_ps(vidx, adrs, 8);
+    }
+
+    return _mm512_i32gather_ps(vidx, adrs, 1);
   }
   static inline __m<V> setzero_ps(void) noexcept {
     return _mm512_setzero_ps();
@@ -138,11 +162,31 @@ template <> struct _mm<8> {
   }
   static inline void i32scatter_ps(void *adrs, __i<V> vidx,
       __m<V> m, int scale) noexcept {
-    _mm256_i32scatter_ps(adrs, vidx, m, scale);
+    switch(scale) {
+      case 1:
+        _mm256_i32scatter_ps(adrs, vidx, m, 1);
+      case 2:
+        _mm256_i32scatter_ps(adrs, vidx, m, 2);
+      case 4:
+        _mm256_i32scatter_ps(adrs, vidx, m, 4);
+      case 8:
+        _mm256_i32scatter_ps(adrs, vidx, m, 8);
+    }
   }
   static inline __m<V> i32gather_ps(__i<V> vidx, const float *adrs, int scale)
   noexcept {
-    return _mm256_i32gather_ps(adrs, vidx, scale);
+    switch (scale) {
+      case 1:
+        return _mm256_i32gather_ps(adrs, vidx, 1);
+      case 2:
+        return _mm256_i32gather_ps(adrs, vidx, 2);
+      case 4:
+        return _mm256_i32gather_ps(adrs, vidx, 4);
+      case 8:
+        return _mm256_i32gather_ps(adrs, vidx, 8);
+    }
+
+    return _mm256_i32gather_ps(adrs, vidx, 1);
   }
   static inline __m<V> setzero_ps(void) noexcept {
     return _mm256_setzero_ps();

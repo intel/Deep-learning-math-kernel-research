@@ -20,7 +20,8 @@ enum {
 #define __ICC_COMPILER __INTEL_COMPILER
 #define __CLANG_COMPILER __clang__
 
-#ifdef __ICC_COMPILER
+// XXX: do we need this?
+#if __ICC_COMPILER
 #define ENABLE_AVX512F() _allow_cpu_features(_FEATURE_AVX512F)
 #define pragma_opt_core_avx512                                                 \
   _Pragma("optimization_parameter target_arch=CORE-AVX512")
