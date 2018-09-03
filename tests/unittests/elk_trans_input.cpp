@@ -88,7 +88,7 @@ class elkTransInputTest
           ::testing::tuple<int, int, int, int, int, bool, bool, int>> {};
 
 INSTANTIATE_TEST_CASE_P(elk_trans_input_test_common_params, elkTransInputTest,
-                        Combine(Values(5, 6, 7), // tile-size
+                        Combine(Values(4, 5, 6, 7), // tile-size
                                 Values(0xa040, 0xa061, 0xa448, 0xa241, 0xa000,
                                        0xa201, 0xa0e0,
                                        0xa0e1),           // execution-mode
@@ -113,18 +113,25 @@ TEST_P(elkTransInputTest, combineTest) {
   bool test_with_relu = ::testing::get<6>(GetParam());
   int test_mb = ::testing::get<7>(GetParam());
   switch (test_tile_size) {
+  case 4:
+        test_elk_trans_input<float, 4, 3, 16, ISA_SKX_AVX512>(
+        test_perf, show_diff, test_execution_mode, test_input_format,
+        test_weights_format, test_output_format, test_with_bias, test_with_relu,
+        test_mb);
+    break;
+
   case 5:
     test_elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);
     break;
-//   case 6:
+  case 6:
 //     test_elk_trans_input<float, 6, 3, 16, ISA_SKX_AVX512>(
 //         test_perf, show_diff, test_execution_mode, test_input_format,
 //         test_weights_format, test_output_format, test_with_bias, test_with_relu,
 //         test_mb);
-//     break;
+    break;
   case 7:
     test_elk_trans_input<float, 7, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,

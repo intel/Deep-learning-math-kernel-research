@@ -62,20 +62,25 @@ void test_elk_trans_weights(bool perf, bool show_diff) {
 
 class elkTransWeightsTest : public ::testing::TestWithParam<int> {};
 INSTANTIATE_TEST_CASE_P(elk_elk_trans_test, elkTransWeightsTest,
-                        testing::Values(5, 6, 7));
+                        testing::Values(4, 5, 6, 7));
 bool test_perf = false;
 bool show_diff = false;
 TEST_P(elkTransWeightsTest, combineTest) {
   int test_tile_size = GetParam();
   switch (test_tile_size) {
+  case 4:
+    test_elk_trans_weights<float, 4, 3, 16, ISA_SKX_AVX512>(test_perf,
+                                                            show_diff);
+    break;
+
   case 5:
     test_elk_trans_weights<float, 5, 3, 16, ISA_SKX_AVX512>(test_perf,
                                                             show_diff);
     break;
-//   case 6:
+  case 6:
 //     test_elk_trans_weights<float, 6, 3, 16, ISA_SKX_AVX512>(test_perf,
 //                                                             show_diff);
-//     break;
+    break;
   case 7:
     test_elk_trans_weights<float, 7, 3, 16, ISA_SKX_AVX512>(test_perf,
                                                             show_diff);
