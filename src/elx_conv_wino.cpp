@@ -1,11 +1,11 @@
 #include <string.h>
-#include "xintrin.hpp"
+#include "el_intrin.hpp"
 #include "el_utils.hpp"
-#include "elx_conv_wino.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elk_conv_wino.hpp"
 #include "elx_conv.hpp"
+#include "elx_conv_wino.hpp"
 #include "euler.hpp"
 
 namespace euler {
@@ -353,6 +353,7 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
 
   l2_usage *= sizeof(Type);
 
+#define WEIGHTS_MAX_PRELOAD 4
   if (tweights_size > 0)
     MEMALIGN64(&tweights_, (tweights_size + WEIGHTS_MAX_PRELOAD * V) * sizeof(Type));
   if (tinput_size > 0)

@@ -1,9 +1,9 @@
 #pragma once
 #include <assert.h>
-#include "xintrin.hpp"
-#include "elk_def.hpp"
+#include "el_intrin.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
+#include "elk_def.hpp"
 #include "elx_conv.hpp"
 #include "elk_conv_wino.hpp"
 

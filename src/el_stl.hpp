@@ -1,5 +1,4 @@
-#ifndef __EL_STL_HPP__
-#define __EL_STL_HPP__
+#pragma once
 
 #include <type_traits>
 #include <boost/preprocessor/repetition/repeat_from_to.hpp>
@@ -246,6 +245,23 @@ struct mm_regs_arange {
 // mm.get<3, 4>() = _mm<V>::set1_ps(0.0f);
 //
 
+template <typename T, typename U> inline bool any_of(T val, U last)
+{ return val == last; }
+template <typename T, typename U, typename... Args> inline bool any_of(
+    T val, U first, Args... rest) {
+  return (val == first) || any_of(val, rest...);
 }
 
-#endif // __EL_STL_HPP__
+template <typename T, typename... Args> inline bool none_of(
+    T val, Args... args) {
+  return !any_of(val, args...);
+}
+
+template <typename T, typename U> inline bool all_of(T val, U last)
+{ return val == last; }
+template <typename T, typename U, typename... Args> inline bool all_of(
+    T val, U first, Args... rest) {
+  return (val == first) && all_of(val, rest...);
+}
+
+}

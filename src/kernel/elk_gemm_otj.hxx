@@ -1,10 +1,10 @@
 #pragma once
 
-#include "xintrin.hpp"
+#include "el_intrin.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
-#include "elx_conv.hpp"
 #include "el_stl.hpp"
+#include "elx_conv.hpp"
 
 // Type: data type
 // S: stride

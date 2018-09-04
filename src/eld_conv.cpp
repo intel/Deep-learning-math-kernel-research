@@ -54,9 +54,9 @@ int eld_conv_t<F>::setup() {
   const int fmt_blocked_weights = OIhw16i16o;
 
   bool format_okay
-      = any_of(formats.input, nchw, fmt_blocked_data)
-      && any_of(formats.weights, oihw, fmt_blocked_weights)
-      && any_of(formats.output, nchw, fmt_blocked_data);
+      = estl::any_of(formats.input, nchw, fmt_blocked_data)
+      && estl::any_of(formats.weights, oihw, fmt_blocked_weights)
+      && estl::any_of(formats.output, nchw, fmt_blocked_data);
 
   if (!format_okay) {
     el_error("Data format error");
@@ -85,7 +85,7 @@ int eld_conv_t<F>::setup() {
   // TODO: Check CPUID
   xc = nullptr;
 
-  if (none_of(prop_kind,
+  if (estl::none_of(prop_kind,
         forward_training,
         forward_inference,
         backward_data,
