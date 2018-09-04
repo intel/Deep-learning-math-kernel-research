@@ -1,3 +1,4 @@
+#include <memory>
 #include "gtest/gtest.h"
 #include "euler.hpp"
 #include "el_def.hpp"
