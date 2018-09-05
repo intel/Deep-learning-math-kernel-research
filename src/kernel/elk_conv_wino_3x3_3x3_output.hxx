@@ -19,22 +19,22 @@ namespace euler {
 #define AVX512_CALCULATE_C_2(z, n, nil)                                        \
   c##n = FMADD(z4, t##n##3, ADD(ADD(t##n##1, t##n##2), t##n##4));
 #define AVX512_CALCULATE_P(n)                                                  \
-  __m512 p0##n = ADD(ADD(ADD(c0, c1), c2), c3);                                \
-  if (with_bias)                                                              \
-    p0##n = ADD(p0##n, *(__m512*)bias);                                        \
-  if (with_relu) {                                                            \
+  __m<V> p0##n = ADD(ADD(ADD(c0, c1), c2), c3);                                \
+  if (with_bias)                                                               \
+    p0##n = ADD(p0##n, *(__m<V>*)bias);                                        \
+  if (with_relu) {                                                             \
     zero = XOR(zero, zero);                                                    \
     p0##n = MAX(p0##n, zero);                                                  \
   }                                                                            \
-  __m512 p1##n = FMADD(z2, c3, SUB(c2, c1));                                   \
-  if (with_bias)                                                              \
-    p1##n = ADD(p1##n, *(__m512*)bias);                                        \
-  if (with_relu)                                                              \
+  __m<V> p1##n = FMADD(z2, c3, SUB(c2, c1));                                   \
+  if (with_bias)                                                               \
+    p1##n = ADD(p1##n, *(__m<V>*)bias);                                        \
+  if (with_relu)                                                               \
     p1##n = MAX(p1##n, zero);                                                  \
-  __m512 p2##n = FMADD(z4, c3, ADD(ADD(c1, c2), c4));                          \
-  if (with_bias)                                                              \
-    p2##n = ADD(p2##n, *(__m512*)bias);                                        \
-  if (with_relu)                                                              \
+  __m<V> p2##n = FMADD(z4, c3, ADD(ADD(c1, c2), c4));                          \
+  if (with_bias)                                                               \
+    p2##n = ADD(p2##n, *(__m<V>*)bias);                                        \
+  if (with_relu)                                                               \
     p2##n = MAX(p2##n, zero);                                                  \
 
 template <bool ...conditions>
@@ -65,14 +65,14 @@ __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
 #define T(_h, _w) atoutput[_w][_h]
 #define P(_h, _w) p_cb(_h, _w)
 
-  __m512 c0, c1, c2, c3, c4, zero;
-  __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
-  __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
+  __m<V> c0, c1, c2, c3, c4, zero;
+  __m<V> z2 = _mm<V>::set_ps(IMM_BCAST16(2.0f));
+  __m<V> z4 = _mm<V>::set_ps(IMM_BCAST16(4.0f));
 
 #undef t
 #undef OP
 #define t(m, n) t##m##n
-#define OP(m,n) __m512 t(m,n) = _mm512_load_ps(T(m, n))
+#define OP(m,n) __m<V> t(m,n) = _mm<V>::load_ps(T(m, n))
   MATRIX_DEF(5, 5);
 
   BOOST_PP_REPEAT(5, AVX512_CALCULATE_C_0, nil);
@@ -86,7 +86,7 @@ __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
 
 #undef OP
 #define p(m, n) p##m##n
-#define OP(m,n) _mm512_store_ps(P(m, n), p(m, n))
+#define OP(m,n) _mm<V>::store_ps(P(m, n), p(m, n))
   MATRIX_DEF(3, 3);
 }
 
@@ -107,27 +107,27 @@ __trans_outputa_th(elx_conv_t<float> &xc, float *toutputa, float *toutput,
 #define T(_h) &md4(atoutput, _h, 0, 0, 0)
 #define P(_h) &md2(atoutputa, _h, 0)
 
-  __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
-  __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
+  __m<V> z2 = _mm<V>::set_ps(IMM_BCAST16(2.0f));
+  __m<V> z4 = _mm<V>::set_ps(IMM_BCAST16(4.0f));
 
-  __m512 t0 = _mm512_load_ps(T(0));
-  __m512 t1 = _mm512_load_ps(T(1));
-  __m512 t2 = _mm512_load_ps(T(2));
-  __m512 t3 = _mm512_load_ps(T(3));
-  __m512 t4 = _mm512_load_ps(T(4));
+  __m<V> t0 = _mm<V>::load_ps(T(0));
+  __m<V> t1 = _mm<V>::load_ps(T(1));
+  __m<V> t2 = _mm<V>::load_ps(T(2));
+  __m<V> t3 = _mm<V>::load_ps(T(3));
+  __m<V> t4 = _mm<V>::load_ps(T(4));
 
-  __m512 p0 = ADD(ADD(ADD(t0, t1), t2), t3);
-  __m512 p1 = SUB(ADD(MUL(z2, t3), t2), t1);
-  __m512 p2 = ADD(ADD(ADD(MUL(z4, t3), t2), t1), t4);
+  __m<V> p0 = ADD(ADD(ADD(t0, t1), t2), t3);
+  __m<V> p1 = SUB(ADD(MUL(z2, t3), t2), t1);
+  __m<V> p2 = ADD(ADD(ADD(MUL(z4, t3), t2), t1), t4);
 
   if (stream_out) {
-    _mm512_stream_ps(P(0), p0);
-    _mm512_stream_ps(P(1), p1);
-    _mm512_stream_ps(P(2), p2);
+    _mm<V>::stream_ps(P(0), p0);
+    _mm<V>::stream_ps(P(1), p1);
+    _mm<V>::stream_ps(P(2), p2);
   } else {
-    _mm512_store_ps(P(0), p0);
-    _mm512_store_ps(P(1), p1);
-    _mm512_store_ps(P(2), p2);
+    _mm<V>::store_ps(P(0), p0);
+    _mm<V>::store_ps(P(1), p1);
+    _mm<V>::store_ps(P(2), p2);
   }
 }
 
@@ -165,69 +165,69 @@ __trans_outputa_bh(elx_conv_t<float> &xc, float *output,
 #define T(_h, _w) atoutput[_w][_h]
 #define P(_h, _w) p_cb(_h, _w)
 
-  // __m512 c0, c1, c2, c3, c4;
-  __m512 z2 = _mm512_set_ps(IMM_BCAST16(2.0f));
-  __m512 z4 = _mm512_set_ps(IMM_BCAST16(4.0f));
+  // __m<V> c0, c1, c2, c3, c4;
+  __m<V> z2 = _mm<V>::set_ps(IMM_BCAST16(2.0f));
+  __m<V> z4 = _mm<V>::set_ps(IMM_BCAST16(4.0f));
 
-  __m512 t0, t1, t2, t3, t4, p0, p1, p2, zero;
-  t0 = _mm512_load_ps(T(0,0));
-  t1 = _mm512_load_ps(T(0,1));
-  t2 = _mm512_load_ps(T(0,2));
-  t3 = _mm512_load_ps(T(0,3));
-  t4 = _mm512_load_ps(T(0,4));
+  __m<V> t0, t1, t2, t3, t4, p0, p1, p2, zero;
+  t0 = _mm<V>::load_ps(T(0,0));
+  t1 = _mm<V>::load_ps(T(0,1));
+  t2 = _mm<V>::load_ps(T(0,2));
+  t3 = _mm<V>::load_ps(T(0,3));
+  t4 = _mm<V>::load_ps(T(0,4));
 
   p0 = ADD(ADD(ADD(t0, t1), t2), t3);
-  if (with_bias) p0 = ADD(p0, *(__m512*)bias);
+  if (with_bias) p0 = ADD(p0, *(__m<V>*)bias);
   if (with_relu) { zero = XOR(zero, zero); p0 = MAX(p0, zero); }
   p1 = SUB(ADD(MUL(z2, t3), t2), t1);
-  if (with_bias) p1 = ADD(p1, *(__m512*)bias);
+  if (with_bias) p1 = ADD(p1, *(__m<V>*)bias);
   if (with_relu) p1 = MAX(p1, zero);
   p2 = ADD(ADD(ADD(MUL(z4, t3), t1), t2), t4);
-  if (with_bias) p2 = ADD(p2, *(__m512*)bias);
+  if (with_bias) p2 = ADD(p2, *(__m<V>*)bias);
   if (with_relu) p2 = MAX(p2, zero);
 
-  _mm512_store_ps(P(0,0), p0);
-  _mm512_store_ps(P(0,1), p1);
-  _mm512_store_ps(P(0,2), p2);
+  _mm<V>::store_ps(P(0,0), p0);
+  _mm<V>::store_ps(P(0,1), p1);
+  _mm<V>::store_ps(P(0,2), p2);
 
-  t0 = _mm512_load_ps(T(1,0));
-  t1 = _mm512_load_ps(T(1,1));
-  t2 = _mm512_load_ps(T(1,2));
-  t3 = _mm512_load_ps(T(1,3));
-  t4 = _mm512_load_ps(T(1,4));
+  t0 = _mm<V>::load_ps(T(1,0));
+  t1 = _mm<V>::load_ps(T(1,1));
+  t2 = _mm<V>::load_ps(T(1,2));
+  t3 = _mm<V>::load_ps(T(1,3));
+  t4 = _mm<V>::load_ps(T(1,4));
 
   p0 = ADD(ADD(ADD(t0, t1), t2), t3);
-  if (with_bias) p0 = ADD(p0, *(__m512*)bias);
+  if (with_bias) p0 = ADD(p0, *(__m<V>*)bias);
   if (with_relu) p0 = MAX(p0, zero);
   p1 = SUB(ADD(MUL(z2, t3), t2), t1);
-  if (with_bias) p1 = ADD(p1, *(__m512*)bias);
+  if (with_bias) p1 = ADD(p1, *(__m<V>*)bias);
   if (with_relu) p1 = MAX(p1, zero);
   p2 = ADD(ADD(ADD(MUL(z4, t3), t1), t2), t4);
-  if (with_bias) p2 = ADD(p2, *(__m512*)bias);
+  if (with_bias) p2 = ADD(p2, *(__m<V>*)bias);
   if (with_relu) p2 = MAX(p2, zero);
 
-  _mm512_store_ps(P(1,0), p0);
-  _mm512_store_ps(P(1,1), p1);
-  _mm512_store_ps(P(1,2), p2);
+  _mm<V>::store_ps(P(1,0), p0);
+  _mm<V>::store_ps(P(1,1), p1);
+  _mm<V>::store_ps(P(1,2), p2);
 
-  t0 = _mm512_load_ps(T(2,0));
-  t1 = _mm512_load_ps(T(2,1));
-  t2 = _mm512_load_ps(T(2,2));
-  t3 = _mm512_load_ps(T(2,3));
-  t4 = _mm512_load_ps(T(2,4));
+  t0 = _mm<V>::load_ps(T(2,0));
+  t1 = _mm<V>::load_ps(T(2,1));
+  t2 = _mm<V>::load_ps(T(2,2));
+  t3 = _mm<V>::load_ps(T(2,3));
+  t4 = _mm<V>::load_ps(T(2,4));
 
   p0 = ADD(ADD(ADD(t0, t1), t2), t3);
-  if (with_bias) p0 = ADD(p0, *(__m512*)bias);
+  if (with_bias) p0 = ADD(p0, *(__m<V>*)bias);
   if (with_relu) p0 = MAX(p0, zero);
   p1 = SUB(ADD(MUL(z2, t3), t2), t1);
-  if (with_bias) p1 = ADD(p1, *(__m512*)bias);
+  if (with_bias) p1 = ADD(p1, *(__m<V>*)bias);
   if (with_relu) p1 = MAX(p1, zero);
   p2 = ADD(ADD(ADD(MUL(z4, t3), t1), t2), t4);
-  if (with_bias) p2 = ADD(p2, *(__m512*)bias);
+  if (with_bias) p2 = ADD(p2, *(__m<V>*)bias);
   if (with_relu) p2 = MAX(p2, zero);
 
-  _mm512_store_ps(P(2,0), p0);
-  _mm512_store_ps(P(2,1), p1);
-  _mm512_store_ps(P(2,2), p2);
+  _mm<V>::store_ps(P(2,0), p0);
+  _mm<V>::store_ps(P(2,1), p1);
+  _mm<V>::store_ps(P(2,2), p2);
 }
 } // namespace euler
