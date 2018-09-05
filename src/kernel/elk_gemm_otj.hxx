@@ -165,7 +165,7 @@ struct F_traits {
 template <typename Type, int V, int I, typename KP>
 struct gemm_kernel_otj {
   static inline void execute(
-      elx_conv_t<float> &, float *, float *, float *, float *, bool)
+      elx_conv_t<float> &, float *, float *, float *, float *, bool, bool)
   {}
 };
 
@@ -198,7 +198,7 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
   op_fma(elx_conv_t<float> &xc, float *output, float *input, float *weights,
-      float *bias, bool reset_output)
+      float *bias, bool reset_output, bool fuse_relu)
   {
     __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
@@ -274,6 +274,10 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        if (fuse_relu) {
+          __m<V> zero = _mm<V>::setzero_ps();
+          mmout[_O][_T] = _mm<V>::max_ps(mmout[_O][_T], zero);
+        }
         if (is_streamout)
           _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
         else
@@ -285,7 +289,7 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == true), void>::type
   op_fma(elx_conv_t<float> &xc, float *output, float *input, float *weights,
-      float *bias, bool reset_output)
+      float *bias, bool reset_output, bool fuse_relu)
   {
     __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
@@ -389,6 +393,10 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        if (fuse_relu) {
+          __m<V> zero = _mm<V>::setzero_ps();
+          mmout[_O][_T] = _mm<V>::max_ps(mmout[_O][_T], zero);
+        }
         if (is_streamout)
           _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
         else
@@ -401,7 +409,7 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
   template <int JO, int P>
   static inline typename std::enable_if<P == 2, void>::type op_fma(
       elx_conv_t<float> &xc, float *output, float *input, float *weights,
-      float *bias, bool reset_output)
+      float *bias, bool reset_output, bool fuse_relu)
   {
     __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
@@ -513,6 +521,10 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        if (fuse_relu) {
+          __m<V> zero = _mm<V>::setzero_ps();
+          mmout[_O][_T] = _mm<V>::max_ps(mmout[_O][_T], zero);
+        }
         if (is_streamout)
           _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
         else
@@ -524,7 +536,7 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
   template <int JO, int P>
   static inline typename std::enable_if<P == 4, void>::type op_fma(
       elx_conv_t<float> &xc, float *output, float *input, float *weights,
-      float *bias, bool reset_output)
+      float *bias, bool reset_output, bool fuse_relu)
   {
     __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
@@ -682,6 +694,10 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
         MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        if (fuse_relu) {
+          __m<V> zero = _mm<V>::setzero_ps();
+          mmout[_O][_T] = _mm<V>::max_ps(mmout[_O][_T], zero);
+        }
         if (is_streamout)
           _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
         else
@@ -694,7 +710,7 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir>::J == 1)
       && (F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
-      float *bias, bool reset_output)
+      float *bias, bool reset_output, bool fuse_relu)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
@@ -705,7 +721,7 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       op_fma<JO0, JP0>(xc, &md2(aoutput, _O1, 0), input, &md2(aweights, _O1, 0),
-          &md2(abias, _O1, 0), reset_output);
+          &md2(abias, _O1, 0), reset_output, fuse_relu);
     }
   }
 
@@ -713,7 +729,7 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir>::J == 1)
       && !(F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
-      float *bias, bool reset_output)
+      float *bias, bool reset_output, bool fuse_relu)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
@@ -724,7 +740,7 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       op_fma<JO0, JP0>(xc, &md2(aoutput, _O1, 0), input, &md2(aweights, _O1, 0),
-          &md2(abias, _O1, 0), reset_output);
+          &md2(abias, _O1, 0), reset_output, fuse_relu);
     }
   }
 
@@ -732,7 +748,7 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir>::J == 2)
       && (F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
-      float *bias, bool reset_output)
+      float *bias, bool reset_output, bool fuse_relu)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
@@ -744,10 +760,10 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       op_fma<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
           &md4(aweights, _O1, 0, 0, 0), &md3(abias, _O1, 0, 0),
-          reset_output);
+          reset_output, fuse_relu);
       op_fma<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
           &md4(aweights, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
-          reset_output);
+          reset_output, fuse_relu);
     }
   }
 
@@ -755,7 +771,7 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir>::J == 2)
       && !(F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
-      float *bias, bool reset_output)
+      float *bias, bool reset_output, bool fuse_relu)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
@@ -766,10 +782,11 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       op_fma<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
-          &md3(aweights, _O1, 0, 0), &md3(abias, _O1, 0, 0), reset_output);
+          &md3(aweights, _O1, 0, 0), &md3(abias, _O1, 0, 0),
+          reset_output, fuse_relu);
       op_fma<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
           &md3(aweights, _O1, JO0, 0), &md3(abias, _O1, JO0, 0),
-          reset_output);
+          reset_output, fuse_relu);
     }
   }
 
@@ -777,7 +794,7 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir>::J == 3)
       && (F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
-      float *bias, bool reset_output)
+      float *bias, bool reset_output, bool fuse_relu)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
@@ -789,13 +806,13 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       op_fma<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
           &md4(aweights, _O1, 0, 0, 0), &md3(abias, _O1, 0, 0),
-          reset_output);
+          reset_output, fuse_relu);
       op_fma<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
           &md4(aweights, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
-          reset_output);
+          reset_output, fuse_relu);
       op_fma<JO2, JP2>(xc, &md3(aoutput, _O1, JO0 + JO1, 0), input,
           &md4(aweights, _O1, 0, JO0 + JO1, 0),
-          &md3(abias, _O1, JO0 + JO1, 0), reset_output);
+          &md3(abias, _O1, JO0 + JO1, 0), reset_output, fuse_relu);
     }
   }
 
@@ -803,7 +820,7 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir>::J == 3)
       && !(F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_t<float> &xc, float *output, float *input, float *weights,
-      float *bias, bool reset_output)
+      float *bias, bool reset_output, bool fuse_relu)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
@@ -814,13 +831,14 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       op_fma<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
-          &md3(aweights, _O1, 0, 0), &md3(abias, _O1, 0, 0), reset_output);
+          &md3(aweights, _O1, 0, 0), &md3(abias, _O1, 0, 0),
+          reset_output, fuse_relu);
       op_fma<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
           &md3(aweights, _O1, JO0, 0), &md3(abias, _O1, JO0, 0),
-          reset_output);
+          reset_output, fuse_relu);
       op_fma<JO2, JP2>(xc, &md3(aoutput, _O1, JO0 + JO1, 0), input,
           &md3(aweights, _O1, JO0 + JO1, 0), &md3(abias, _O1, JO0 + JO1, 0),
-          reset_output);
+          reset_output, fuse_relu);
     }
   }
 };

@@ -55,12 +55,16 @@ __trans_output(elx_conv_t<float> &xc, float *output,
 
     P(0,0) = T(0,0) + T(0,1) + T(0,2) + C(0) + C(1);
     if (with_bias) P(0, 0) += B;
+    if (with_relu) P(0, 0) = P(0, 0) > 0 ? P(0, 0) : 0;
     P(1,0) = C(1) - C(0) + T(3,0) + T(3,1) + T(3,2);
     if (with_bias) P(1, 0) += B;
+    if (with_relu) P(1, 0) = P(1, 0) > 0 ? P(1, 0) : 0;
     P(0,1) = T(0,2) - T(0,1) + T(0,3) + C(2) + C(3);
+    if (with_relu) P(0, 1) = P(0, 1) > 0 ? P(0, 1) : 0;
     if (with_bias) P(0, 1) += B;
     P(1,1) = C(3) - C(2) - T(3,1) + T(3,2) + T(3,3);
     if (with_bias) P(1, 1) += B;
+    if (with_relu) P(1, 1) = P(1, 1) > 0 ? P(1, 1) : 0;
   }
 }
 
@@ -88,11 +92,13 @@ __trans_outputa_th(elx_conv_t<float> &xc, float *toutputa, float *toutput,
 }
 
 
-#define GENERIC_CALCULATE_TILE_4(z, n, nil)    \
-  P(n, 0) = T(n, 0) + T(n, 1) + T(n, 2);       \
-  if (with_bias) P(n, 0) += B;                 \
-  P(n, 1) = T(n, 2) - T(n, 1) + T(n, 3);       \
-  if (with_bias) P(n, 1) += B;
+#define GENERIC_CALCULATE_TILE_4(z, n, nil)            \
+  P(n, 0) = T(n, 0) + T(n, 1) + T(n, 2);               \
+  if (with_bias) P(n, 0) += B;                         \
+  if (with_relu) P(n, 0) = P(n, 0) > 0 ? P(n, 0) : 0;  \
+  P(n, 1) = T(n, 2) - T(n, 1) + T(n, 3);               \
+  if (with_bias) P(n, 1) += B;                         \
+  if (with_relu) P(n, 1) = P(n, 1) > 0 ? P(n, 1) : 0;
 
 // template <const bool is_border_, const bool with_bias_>
 // Params:

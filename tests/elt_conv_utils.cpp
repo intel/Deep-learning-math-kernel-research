@@ -23,9 +23,17 @@ namespace test {
     for (size_t i = 0; i < desc.sizes.input; i++) {
       (*input)[i] = rand() % 20 - 4;
     }
+    if (desc.with_relu) {
 #pragma omp parallel for
-    for (size_t i = 0; i < desc.sizes.weights; i++) {
-      (*weights)[i] = rand() % 32;
+      for (size_t i = 0; i < desc.sizes.weights; i++) {
+        (*weights)[i] =  - rand() % 32;
+        if (i % 3 == 1)
+          (*weights)[i] = - (*weights)[i];
+      }
+    } else {
+      for (size_t i = 0; i < desc.sizes.weights; i++) {
+        (*weights)[i] = rand() % 32;
+      }
     }
 #pragma omp parallel for
     for (size_t i = 0; i < desc.sizes.bias; i++) {
@@ -81,6 +89,7 @@ namespace test {
 
 #define MAX_PRINT_ERRORS (20)
     size_t errors = 0;
+    double acc = desc.with_relu ? 1.0 : 1e-5;
 
 #pragma omp parallel for collapse(3)
     iter_each (_n, dims.n) {
@@ -91,8 +100,20 @@ namespace test {
             iter_each (_v, v) {
               double delta = fabs(
                   md5(aout, _n, _C, _h, _w, _v) - md5(aref, _n, _C, _h, _w, _v));
+              if (md5(aref, _n, _C, _h, _w, _v) == 0 ||
+                  md5(aout, _n, _C, _h, _w, _v) == 0) {
+                if (delta < acc)
+                  continue;
+                else if (errors < MAX_PRINT_ERRORS) {
+                  printf("Not equal!: [%d][%d][%d][%d][%d]: %f != %f (ref), "
+                         "delta=%g, acc=%g\n",
+                      _n, _C, _h, _w, _v, md5(aout, _n, _C, _h, _w, _v),
+                      md5(aref, _n, _C, _h, _w, _v), delta, acc);
+                  errors++;
+                }
+              }
               double rel_diff = delta / fabs(md5(aref, _n, _C, _h, _w, _v));
-              if (rel_diff > 1e-5) {
+              if (rel_diff > acc) {
                 if (errors < MAX_PRINT_ERRORS) {
                   printf("Not equal!: [%d][%d][%d][%d][%d]: %f != %f (ref), "
                          "delta=%g, rel_diff=%g\n",
@@ -100,7 +121,7 @@ namespace test {
                       md5(aref, _n, _C, _h, _w, _v), delta, rel_diff);
                 }
                 errors++;
-              }
+	      }
             }
           }
         }
@@ -125,6 +146,7 @@ namespace test {
 
 #define MAX_PRINT_ERRORS (20)
     size_t errors = 0;
+    double acc = desc.with_relu ? 1.0 : 1e-5;
 
 #pragma omp parallel for collapse(3)
     iter_each (_n, dims.n) {
@@ -133,8 +155,20 @@ namespace test {
           iter_each (_w, dims.w) {
             double delta = fabs(
                 md4(aout, _n, _c, _h, _w) - md4(aref, _n, _c, _h, _w));
+            if (md4(aout, _n, _c, _h, _w) == 0 ||
+                md4(aref, _n, _c, _h, _w) == 0) {
+              if (delta < acc)
+                continue;
+              else if (errors < MAX_PRINT_ERRORS) {
+                printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
+                       "delta=%g, acc=%g\n",
+                    _n, _c, _h, _w, md4(aout, _n, _c, _h, _w),
+                    md4(aref, _n, _c, _h, _w), delta, acc);
+                errors++;
+              }
+            }
             double rel_diff = delta / fabs(md4(aref, _n, _c, _h, _w));
-            if (rel_diff > 1e-5) {
+            if (rel_diff > acc) {
               if (errors < MAX_PRINT_ERRORS) {
                 printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
                        "delta=%g, rel_diff=%g\n",
@@ -142,7 +176,7 @@ namespace test {
                     md4(aref, _n, _c, _h, _w), delta, rel_diff);
               }
               errors++;
-            }
+	    }
           }
         }
       }

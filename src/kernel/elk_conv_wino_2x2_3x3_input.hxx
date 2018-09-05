@@ -55,21 +55,21 @@ inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 4, 3>::_
     elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
     int hT_start, int hT_end, int wT_start, int wT_end) {
   ENABLE_AVX512F();
-  
+
   // Inputs
-    __m512 f00, f01, f02, f03, f10, f11, f12, f13, f20, f21, f22, f23,
-           f30, f31, f32, f33;         
+    __m<V> f00, f01, f02, f03, f10, f11, f12, f13, f20, f21, f22, f23,
+           f30, f31, f32, f33;
   // Cache
-  __m512 c1, c2;
+  __m<V> c1, c2;
   // Outputs
-  __m512 t00, t01, t02, t03, t10, t11, t12, t13, t20, t21, t22, t23,
+  __m<V> t00, t01, t02, t03, t10, t11, t12, t13, t20, t21, t22, t23,
       t30, t31, t32, t33;
 
-  __m512 z0 = _mm512_setzero_ps();
+  __m<V> z0 = _mm<V>::setzero_ps();
   auto f_cb = [&](int _h, int _w) {
     if (wT_end == -1) {
       MD3(float, ainput, input, A, A, 16);
-      return _mm512_load_ps(&md3(ainput, _h, _w, 0));
+      return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
     } else {
       MD3(float, ainput, input, xc.ih, xc.iw, 16);
       if (is_border
@@ -77,7 +77,7 @@ inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 4, 3>::_
                  || _w > wT_end))
         return z0;
       else
-        return _mm512_load_ps(&md3(ainput, _h, _w, 0));
+        return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
     }
   };
 
@@ -97,46 +97,46 @@ inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 4, 3>::_
    c1 = SUB(f12, f10);
    c2 = SUB(f20, f22);
    t00 =  SUB(SUB(f00, f02), c2);
-   _mm512_store_ps(T(0, 0), t00);
+   _mm<V>::store_ps(T(0, 0), t00);
    t10 = ADD(c1, c2);
-   _mm512_store_ps(T(1, 0), t10);
+   _mm<V>::store_ps(T(1, 0), t10);
    t20 = SUB(c2, c1);
-   _mm512_store_ps(T(2, 0), t20);
+   _mm<V>::store_ps(T(2, 0), t20);
    t30 = ADD(c1, SUB(f30, f32));
-   _mm512_store_ps(T(3, 0), t30);
+   _mm<V>::store_ps(T(3, 0), t30);
 
    c1 = SUB(f12, f11);
    c2 = SUB(f22, f21);
    t01 = SUB(SUB(f02, f01), c2);
-   _mm512_store_ps(T(0, 1), t01);
+   _mm<V>::store_ps(T(0, 1), t01);
    t11 = SUB(c2, c1);
-   _mm512_store_ps(T(1, 1), t11);
+   _mm<V>::store_ps(T(1, 1), t11);
    t21 = ADD(c2, c1);
-   _mm512_store_ps(T(2, 1), t21);
+   _mm<V>::store_ps(T(2, 1), t21);
    t31 = SUB(SUB(f32, f31), c1);
-   _mm512_store_ps(T(3, 1), t31);
+   _mm<V>::store_ps(T(3, 1), t31);
 
    c1 = ADD(f11, f12);
    c2 = ADD(f21, f22);
    t02 = SUB(ADD(f01, f02), c2);
-   _mm512_store_ps(T(0, 2), t02);
+   _mm<V>::store_ps(T(0, 2), t02);
    t12 = SUB(c2, c1);
-   _mm512_store_ps(T(1, 2), t12);
+   _mm<V>::store_ps(T(1, 2), t12);
    t22 = ADD(c2, c1);
-   _mm512_store_ps(T(2, 2), t22);
+   _mm<V>::store_ps(T(2, 2), t22);
    t32 = SUB(ADD(f31, f32), c1);
-   _mm512_store_ps(T(3, 2), t32);
+   _mm<V>::store_ps(T(3, 2), t32);
 
    c1 = SUB(f11, f13);
    c2 = SUB(f23, f21);
    t03 = SUB(SUB(f03, f01), c2);
-   _mm512_store_ps(T(0, 3), t03);
+   _mm<V>::store_ps(T(0, 3), t03);
    t13 = ADD(c1, c2);
-   _mm512_store_ps(T(1, 3), t13);
+   _mm<V>::store_ps(T(1, 3), t13);
    t23 = SUB(c2, c1);
-   _mm512_store_ps(T(2, 3), t23);
+   _mm<V>::store_ps(T(2, 3), t23);
    t33 = ADD(SUB(c1, f31), f33);
-   _mm512_store_ps(T(3, 3), t33);
+   _mm<V>::store_ps(T(3, 3), t33);
 }
 
 
@@ -151,19 +151,19 @@ __trans_inputa(
     int hT_start, int hT_end, int wT_start, int wT_end) {
   ENABLE_AVX512F();
   // Inputs
-    __m512 f00, f01, f02, f03, f10, f11, f12, f13, f20, f21, f22, f23,
+    __m<V> f00, f01, f02, f03, f10, f11, f12, f13, f20, f21, f22, f23,
            f30, f31, f32, f33;   
  // Cache
-  __m512 c1, c2;
+  __m<V> c1, c2;
   // Outputs
-  __m512 t00, t01, t02, t03, t10, t11, t12, t13, t20, t21, t22, t23,
+  __m<V> t00, t01, t02, t03, t10, t11, t12, t13, t20, t21, t22, t23,
       t30, t31, t32, t33;
 
-  __m512 z0 = _mm512_setzero_ps();
+  __m<V> z0 = _mm<V>::setzero_ps();
   auto f_cb = [&](int _h, int _w) {
     if (wT_end == -1) {
       MD3(float, ainput, input, A, A, 16);
-      return _mm512_load_ps(&md3(ainput,_h, _w, 0));
+      return _mm<V>::load_ps(&md3(ainput,_h, _w, 0));
     } else {
       MD3(float, ainput, input, xc.ih, xc.iw, 16);
       if (is_border
@@ -171,7 +171,7 @@ __trans_inputa(
                  || _w > wT_end))
         return z0;
       else
-        return _mm512_load_ps(&md3(ainput,_h, _w, 0));
+        return _mm<V>::load_ps(&md3(ainput,_h, _w, 0));
     }
   };
 
@@ -195,13 +195,13 @@ __trans_inputa(
     c1 = SUB(f12, f10);
     c2 = SUB(f20, f22);
     t00 =  SUB(SUB(f00, f02), c2);
-    _mm512_store_ps(T(0, 0), t00);
+    _mm<V>::store_ps(T(0, 0), t00);
     t10 = ADD(c1, c2);
-    _mm512_store_ps(T(1, 0), t10);
+    _mm<V>::store_ps(T(1, 0), t10);
     t20 = SUB(c2, c1);
-    _mm512_store_ps(T(2, 0), t20);
+    _mm<V>::store_ps(T(2, 0), t20);
     t30 = ADD(c1, SUB(f30, f32));
-    _mm512_store_ps(T(3, 0), t30);
+    _mm<V>::store_ps(T(3, 0), t30);
 
     break;
 
@@ -209,13 +209,13 @@ __trans_inputa(
     c1 = SUB(f12, f11);
     c2 = SUB(f22, f21);
     t01 = SUB(SUB(f02, f01), c2);
-    _mm512_store_ps(T(0, 1), t01);
+    _mm<V>::store_ps(T(0, 1), t01);
     t11 = SUB(c2, c1);
-    _mm512_store_ps(T(1, 1), t11);
+    _mm<V>::store_ps(T(1, 1), t11);
     t21 = ADD(c2, c1);
-    _mm512_store_ps(T(2, 1), t21);
+    _mm<V>::store_ps(T(2, 1), t21);
     t31 = SUB(SUB(f32, f31), c1);
-    _mm512_store_ps(T(3, 1), t31);
+    _mm<V>::store_ps(T(3, 1), t31);
 
     break;
 
@@ -223,13 +223,13 @@ __trans_inputa(
     c1 = ADD(f11, f12);
     c2 = ADD(f21, f22);
     t02 = SUB(ADD(f01, f02), c2);
-    _mm512_store_ps(T(0, 2), t02);
+    _mm<V>::store_ps(T(0, 2), t02);
     t12 = SUB(c2, c1);
-    _mm512_store_ps(T(1, 2), t12);
+    _mm<V>::store_ps(T(1, 2), t12);
     t22 = ADD(c2, c1);
-    _mm512_store_ps(T(2, 2), t22);
+    _mm<V>::store_ps(T(2, 2), t22);
     t32 = SUB(ADD(f31, f32), c1);
-    _mm512_store_ps(T(3, 2), t32);
+    _mm<V>::store_ps(T(3, 2), t32);
 
     break;
 
@@ -237,13 +237,13 @@ __trans_inputa(
     c1 = SUB(f11, f13);
     c2 = SUB(f23, f21);
     t03 = SUB(SUB(f03, f01), c2);
-    _mm512_store_ps(T(0, 3), t03);
+    _mm<V>::store_ps(T(0, 3), t03);
     t13 = ADD(c1, c2);
-    _mm512_store_ps(T(1, 3), t13);
+    _mm<V>::store_ps(T(1, 3), t13);
     t23 = SUB(c2, c1);
-    _mm512_store_ps(T(2, 3), t23);
+    _mm<V>::store_ps(T(2, 3), t23);
     t33 = ADD(SUB(c1, f31), f33);
-    _mm512_store_ps(T(3, 3), t33);
+    _mm<V>::store_ps(T(3, 3), t33);
     break;
   }
 }

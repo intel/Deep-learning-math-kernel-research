@@ -114,15 +114,12 @@ namespace euler {
 //
 // iter_each (O_, O)
 //   iter_each (_T, T)
-//     if (with_relu) zmm_out(O_, T_) = MAX(zmm_out(O_, T_), zero);
 //     _mm512_store_ps(&md3(aoutput3, O_, _T, 0), zmm_out[O_][_T]);
 #define MM_STORE_OUTPUT(O_, T_)                                                \
-  if (with_relu) zero = XOR(zero, zero);                                       \
   BOOST_PP_REPEAT(O_, _MM_STORE_OUTPUT, T_);
 #define _MM_STORE_OUTPUT(z, O_, T_)                                            \
   BOOST_PP_REPEAT(T_, __MM_STORE_OUTPUT, O_);
 #define __MM_STORE_OUTPUT(z, T_, O_)                                           \
-  if (with_relu) zmm_out(O_, T_) = MAX(zmm_out(O_, T_), zero);                 \
   _mm512_store_ps(&md3(aoutput2, O_, T_, 0), zmm_out(O_, T_));
 
 #define K_GEMM_FMA_P1(O2_, O_, T_, Os_)                                        \

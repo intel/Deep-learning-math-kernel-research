@@ -1513,13 +1513,14 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
         iter_each (_ic3, ic3) {
           ker_gemm(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
               &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
-              &md5(atweights, _oc3, _ic3, _wA, _hA, 0), nullptr, _ic3 == 0 && _ic4 == 0);
+              &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
+	      nullptr, _ic3 == 0 && _ic4 == 0, false);
         }
         if (last_ic4) {
           ker_gemm_tail(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
               &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
-              &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0), nullptr,
-             this->ic3 == 1 && this->ic4 == 1);
+              &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
+	      nullptr, this->ic3 == 1 && this->ic4 == 1, false);
         }
       }
     }
@@ -1554,13 +1555,14 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
           iter_each (_ic3, ic3) {
             ker_gemm(*this, &md6(atoutput6, _wA, _hA, _oc3, 0, 0, 0),
                 &md6(atinput6, _wA, _hA, _ic3, 0, 0, 0),
-                &md5(atweights, _oc3, _ic3, _wA, _hA, 0), nullptr, _ic3 == 0 && _ic4 == 0);
+                &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
+		nullptr, _ic3 == 0 && _ic4 == 0, false);
           }
           if (last_ic4) {
             ker_gemm_tail(*this, &md6(atoutput6, _wA, _hA, _oc3, 0, 0, 0),
                 &md6(atinput6, _wA, _hA, this->ic3 - 1, 0, 0, 0),
-                &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0), nullptr,
-                this->ic3 == 1 && this->ic4 == 1);
+                &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
+		nullptr, this->ic3 == 1 && this->ic4 == 1, false);
           }
         }
       }
@@ -1587,12 +1589,13 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemma(
       iter_each (_ic3, this->ic3 - 1) {
         ker_gemm(*this, &md5(atoutput, _hA, _oc3, 0, 0, 0),
             &md5(atinput, _hA, _ic3, 0, 0, 0),
-            &md4(atweights, _hA, _oc3, _ic3, 0), nullptr, _ic3 == 0);
+            &md4(atweights, _hA, _oc3, _ic3, 0),
+	    nullptr, _ic3 == 0, false);
       }
       ker_gemm_tail(*this, &md5(atoutput, _hA, _oc3, 0, 0, 0),
           &md5(atinput, _hA, this->ic3 - 1, 0, 0, 0),
-          &md4(atweights, _hA, _oc3, this->ic3 - 1, 0), nullptr,
-          this->ic3 == 1);
+          &md4(atweights, _hA, _oc3, this->ic3 - 1, 0),
+	  nullptr, this->ic3 == 1, false);
     }
   }
 }
