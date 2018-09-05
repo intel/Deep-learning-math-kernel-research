@@ -8,10 +8,10 @@
 source ./scripts/best_configs/common.sh $@
 
 # googlenet_v3:conv_1_1_conv2d, ['ic', '32', 'ih', '149', 'oc', '32', 'oh', '147', 'kh', '3']
-NSOCKETS=1 ./scripts/run.sh -c -i32 -h149 -o32 -H147 -n1 --blk-i=2 --blk-o=2 --flt-t=33 --tile-size=7 --execution-mode=0xa040 --output-as-blocked=true -p0 -P0 $COMMON 
+NSOCKETS=1 ./scripts/run.sh -c -i32 -h149 -o32 -H147 -n1 --blk-i=2 --blk-o=2 --flt-t=17 --tile-size=7 --execution-mode=0xa040 --output-as-blocked=true -p0 -P0 $COMMON 
 sleep 1
 # googlenet_v3:conv_2_2_conv2d, ['ic', '32', 'ih', '147', 'oc', '64', 'oh', '147', 'kh', '3', 'ph', '1']
-NSOCKETS=1 ./scripts/run.sh -c -i32 -h147 -o64 -H147 -n1 --blk-i=2 --blk-o=4 --flt-t=33 --tile-size=7 --execution-mode=0xa040 --output-as-blocked=true $COMMON  
+NSOCKETS=1 ./scripts/run.sh -c -i32 -h147 -o64 -H147 -n1 --blk-i=2 --blk-o=4 --flt-t=17 --tile-size=7 --execution-mode=0xa040 --output-as-blocked=true $COMMON  
 sleep 1
 # googlenet_v3:conv_4_4_conv2d, ['ic', '80', 'ih', '73', 'oc', '192', 'oh', '71', 'kh', '3']
 NSOCKETS=1 ./scripts/run.sh -c -i80 -h73 -o192 -H71 -n1 --blk-i=5 --blk-o=2 --pat-o=3 --flt-t=9 --tile-size=7 --execution-mode=0xa061 --output-as-blocked=true -p0 -P0 $COMMON 

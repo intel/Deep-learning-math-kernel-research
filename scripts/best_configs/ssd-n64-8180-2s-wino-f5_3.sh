@@ -7,7 +7,7 @@
 source ./scripts/best_configs/common.sh $@
 
 #"ssd_300_voc0712:conv1_1":ic3 ih300 oc64 oh300 kh3 ph1n"
-NSOCKETS=2 ./scripts/run.sh -c -i3 -h300 -o64 -H300 -n64 --tile-size=7 --execution-mode=0xa061 --blk-i=1 --blk-o=4 --flt-t=33 $COMMON 
+NSOCKETS=2 ./scripts/run.sh -c -i3 -h300 -o64 -H300 -n64 --tile-size=7 --execution-mode=0xa061 --blk-i=1 --blk-o=4 --flt-t=17 $COMMON 
 sleep 1
 #"ssd_300_voc0712:conv1_2":ic64 ih300 oc64 oh300 kh3 ph1n"
 NSOCKETS=2 ./scripts/run.sh -c -i64 -h300 -o64 -H300 -n64 --tile-size=7 --execution-mode=0xa061 --blk-i=4 --blk-o=4 --flt-t=13 $COMMON 
