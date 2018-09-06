@@ -97,6 +97,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   Type *boutput_;
 
   unsigned int xopt_;
+  int attr_;
   int mthr_;
 };
 

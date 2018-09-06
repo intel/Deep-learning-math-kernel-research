@@ -58,8 +58,8 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   this->ic2 = this->IC / V;
   this->oc2 = this->OC / V;
 
-  this->no_pad_ = this->lp == 0 && this->rp == 0 && this->tp == 0 && this->bp == 0;
-  if (!this->no_pad_) {
+  no_pad_ = this->lp == 0 && this->rp == 0 && this->tp == 0 && this->bp == 0;
+  if (!no_pad_) {
     if (xopt_ != 0xa061)
       el_error("Only 0xa061 support padding");
     bool shape_ok =
@@ -71,7 +71,7 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
 
   // t3, t2, (T, Tr)
   if (xopt_ == 0xc060 || xopt_ == 0xe061) {
-    bool shape_ok = this->hs == 1 && this->ws == 1 && this->no_pad_;
+    bool shape_ok = this->hs == 1 && this->ws == 1 && no_pad_;
     if (!shape_ok)
       el_error("Shape not supported by c060");
 
@@ -84,7 +84,7 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
     this->Tr = this->nt % this->T ? this->nt % this->T : this->T;
   } else if (xopt_ == 0xd060 || xopt_ == 0xb061 || xopt_ == 0xa061) {
     if (xopt_ == 0xd060) {
-      bool shape_ok = this->hs == 2 && this->ws == 2 && this->no_pad_;
+      bool shape_ok = this->hs == 2 && this->ws == 2 && no_pad_;
       if (!shape_ok)
         el_error("Shape not supported by d060");
     }
@@ -96,7 +96,7 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
     this->Tr = this->T; // No Tr support
     this->t = this->nt * this->n;
 
-    if (this->no_pad_ && (this->ht * this->hs != this->ih
+    if (no_pad_ && (this->ht * this->hs != this->ih
         || this->wt * this->ws * this->T != this->iw)) {
       el_error("Unimplemented non-unitride shape or blocking");
     }
@@ -129,10 +129,12 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
     el_error("ic4 != 1 not support in 0xa061 and 0xe061");
   }
 
+  attr_ = 0x0;
   is_first_run_ = true;
   inference_acc_ = false;
   mthr_ = omp_get_max_threads();
   inference_acc_ = this->prop_kind == forward_inference;
+  attr_ = this->with_bias ? set_attr(attr_, bias_idx) : attr_;
 
   prepare_execute_opt();
   bind_execute_functions();
@@ -251,47 +253,32 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 {
-#define BIND_KERNEL_4(S, F)                                             \
+#define BIND_KERNEL_2(S, F)                                             \
   if (has_Ir) {                                                         \
-    if (this->with_bias)                                                \
-      gemm_kernel_binder::bind<Type, V, I, S, F, true, true, false,     \
-          false, false>(O, T, func);                                    \
-    else                                                                \
-      gemm_kernel_binder::bind<Type, V, I, S, F, true, false, false,    \
-          false, false>(O, T, func);                                    \
+    gemm_kernel_binder::bind<Type, V, I, S, F, true>(O, T, func);       \
   } else {                                                              \
-    if (this->with_bias)                                                \
-      gemm_kernel_binder::bind<Type, V, I, S, F, false, true, false,    \
-          false, false>(O, T, func);                                    \
-    else                                                                \
-      gemm_kernel_binder::bind<Type, V, I, S, F, false, false, false,   \
-          false, false>(O, T, func);                                    \
+    gemm_kernel_binder::bind<Type, V, I, S, F, false>(O, T, func);      \
   }
 
-#define BIND_KERNEL_2(S, F)                                             \
-  if (this->with_bias)                                                  \
-    gemm_kernel_binder::bind<Type, V, I, S, F, false, true, false,      \
-        false, false>(O, T, func);                                      \
-  else                                                                  \
-    gemm_kernel_binder::bind<Type, V, I, S, F, false, false, false,     \
-        false, false>(O, T, func);                                      \
+#define BIND_KERNEL_1(S, F)                                             \
+  gemm_kernel_binder::bind<Type, V, I, S, F, false>(O, T, func);
 
   auto bind_kernel = [&](int O, int T, gemm_kernel_binder::ker **func, bool has_Ir) {
     switch (xopt_) {
     case (0xa061):
-      BIND_KERNEL_4(1, GKF_CCC)
+      BIND_KERNEL_2(1, GKF_CCC)
       break;
     case (0xe061):
-      BIND_KERNEL_4(1, GKF_CCC)
+      BIND_KERNEL_2(1, GKF_CCC)
       break;
     case (0xb061):
-      BIND_KERNEL_2(1, GKF_CCD)
+      BIND_KERNEL_1(1, GKF_CCD)
       break;
     case (0xc060):
-      BIND_KERNEL_4(1, GKF_DDD)
+      BIND_KERNEL_2(1, GKF_DDD)
       break;
     case (0xd060):
-      BIND_KERNEL_2(2, GKF_DDD)
+      BIND_KERNEL_1(2, GKF_DDD)
       break;
     default:
       el_error("Unknown xopt");
@@ -526,7 +513,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_c060(Type *output, Type *input,
 
   int oc3 = _oc4 == this->oc4 - 1 ? this->oc3r : this->oc3;
   iter_each (_ic3, this->ic3 - 1) {
-    bool reset = _ic4 == 0 && _ic3 == 0;
+    int attr = _ic4 == 0 && _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
     MD2(Type, ainput2, &md2(ainput, _ic3, 0), this->t2, this->T * V);
     iter_each (_oc3, oc3) {
       MD2(Type, aoutput2, &md2(aoutput, _oc3, 0), this->t2, this->T * V);
@@ -534,20 +521,20 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_c060(Type *output, Type *input,
         if (_t2 == this->t2 - 1)
           ker_gemm_I_OrTr_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
               &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-              reset, false);
+              attr);
         else
           ker_gemm_I_OrT_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
               &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-              reset, false);
+              attr);
       } else {
         if (_t2 == this->t2 - 1)
           ker_gemm_I_O_Tr_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
               &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-              reset, false);
+              attr);
         else
           ker_gemm_I_O_T_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
               &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-              reset, false);
+              attr);
       }
     }
   }
@@ -561,8 +548,10 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_c060(Type *output, Type *input,
   auto k_g_O_T_ = (this->Ir != V && _oc4 == this->oc4 - 1) ?
       ker_gemm_IrO_T_ : ker_gemm_I_O_T_;
 
-  bool reset = _ic4 == 0 && this->ic3 == 1;
-  bool fuse_relu  = this->with_relu && _ic4 == this->ic4 - 1;
+  auto attr = _ic4 == 0 && this->ic3 == 1 ?
+      set_attr(attr_, r_output_idx) : attr_;
+  attr  = this->with_relu && _ic4 == this->ic4 - 1 ?
+      set_attr(attr, relu_idx) : attr;
   MD2(Type, ainput2, &md2(ainput, this->ic3 - 1, 0), this->t2, this->T * V);
   iter_each (_oc3, oc3) {
     MD2(Type, aoutput2, &md2(aoutput, _oc3, 0), this->t2, this->T * V);
@@ -570,20 +559,20 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_c060(Type *output, Type *input,
       if (_t2 == this->t2 - 1)
         k_g_Or_Tr_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
             &md5(aweights, _oc3, 0, _ic4, this->ic3 - 1, 0), &md2(abias, _oc3, 0),
-            reset, fuse_relu);
+            attr);
       else
         k_g_Or_T_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
             &md5(aweights, _oc3, 0, _ic4, this->ic3 - 1, 0), &md2(abias, _oc3, 0),
-            reset, fuse_relu);
+            attr);
     } else {
       if (_t2 == this->t2 - 1)
         k_g_O_Tr_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
             &md5(aweights, _oc3, 0, _ic4, this->ic3 - 1, 0), &md2(abias, _oc3, 0),
-            reset, fuse_relu);
+            attr);
       else
         k_g_O_T_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
             &md5(aweights, _oc3, 0, _ic4, this->ic3 - 1, 0), &md2(abias, _oc3, 0),
-            reset, fuse_relu);
+            attr);
     }
   }
 }
@@ -959,7 +948,7 @@ template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::trans_input(
     Type *tinput, Type *input, int _ht, int _wt)
 {
-  if (this->no_pad_) {
+  if (no_pad_) {
     if (input_is_bfmt_ || input_as_bfmt_)
       __trans_input_blocked(tinput, input, _ht, _wt);
     else
@@ -1083,13 +1072,14 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_b061(Type *output, Type *input,
   MD2(Type, abias, bias, this->oc3, this->O2 * V);
 
   iter_each (_ic3, this->ic3) {
-    bool reset = _ic4 == 0 && _ic3 == 0;
-    bool fuse_relu = this->with_relu
-        && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1;
+    int attr = _ic4 == 0 && _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+    attr = this->with_relu
+        && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 ?
+        set_attr(attr, relu_idx) : attr;
     iter_each (_oc3, this->oc3) {
       ker_gemm_I_O_T_(*this, &md5(aoutput, _oc3, 0, 0, 0, 0),
           &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), reset, fuse_relu);
+          &md2(abias, _oc3, 0), attr);
     }
   }
 }
@@ -1107,19 +1097,20 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_a061(Type *output, Type *input,
   MD2(Type, abias, bias, this->oc3, this->O2 * V);
 
   iter_each (_ic3, this->ic3 - 1) {
-    bool reset = _ic4 == 0 && _ic3 == 0;
+    int attr = _ic4 == 0 && _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
     iter_each (_oc3, this->oc3) {
       ker_gemm_I_O_T_(*this, &md2(aoutput, _oc3, 0),
           &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), reset, false);
+          &md2(abias, _oc3, 0), attr);
     }
   }
-  bool reset = _ic4 == 0 && this->ic3 == 1;
-  bool fuse_relu = this->with_relu && _ic4 == this->ic4 - 1;
+  int attr = _ic4 == 0 && this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
+  attr = this->with_relu && _ic4 == this->ic4 - 1 ?
+      (set_attr(attr, relu_idx)) : attr;
   iter_each (_oc3, this->oc3) {
     ker_gemm_IrO_T_(*this, &md2(aoutput, _oc3, 0),
         &md2(ainput, this->ic3 - 1, 0), &md3(aweights, _oc3, this->ic3 - 1, 0),
-        &md2(abias, _oc3, 0), reset, fuse_relu);
+        &md2(abias, _oc3, 0), attr);
   }
 }
 
@@ -1458,18 +1449,19 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_e061(Type *output, Type *input,
       ker_gemm_IrO_Tr_ : ker_gemm_IrO_T_;
 
   iter_each (_ic3, this->ic3 - 1) {
-    bool reset = _ic3 == 0;
+    int attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
     iter_each (_oc3, this->oc3) {
       ker_gemm(*this, &md2(aoutput, _oc3, 0),
           &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), reset, false);
+          &md2(abias, _oc3, 0), attr);
     }
   }
-  bool reset = this->ic3 == 1;
+  int attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
+  attr = this->with_relu ? set_attr(attr, relu_idx) : attr;
   iter_each(_oc3, this->oc3) {
     ker_gemm_tail(*this, &md2(aoutput, _oc3, 0),
         &md2(ainput, this->ic3 - 1, 0), &md3(aweights, _oc3, this->ic3 - 1, 0),
-        &md2(abias, _oc3, 0), reset, this->with_relu);
+        &md2(abias, _oc3, 0), attr);
   }
 }
 
@@ -1548,9 +1540,10 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_d060(Type *output, Type *input,
   MD2(Type, abias, bias, this->oc3, this->O2 * V);
 
   iter_each (_ic3, this->ic3) {
-    bool reset = _ic4 == 0 && _ic3 == 0;
-    bool fuse_relu = this->with_relu
-        && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1;
+    int attr = _ic4 == 0 && _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+    attr = this->with_relu
+        && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 ?
+        set_attr(attr, relu_idx) : attr;
     int oc3 = _oc4 == this->oc4 - 1 ? this->oc3r : this->oc3;
 
     iter_each (_oc3, oc3) {
@@ -1558,12 +1551,12 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_d060(Type *output, Type *input,
         ker_gemm_I_OrT_(*this, &md5(aoutput, _oc3, 0, 0, 0, 0),
             &md5(ainput, _ic3, 0, 0, 0, 0),
             &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-            reset, fuse_relu);
+            attr);
       } else {
         ker_gemm_I_O_T_(*this, &md5(aoutput, _oc3, 0, 0, 0, 0),
             &md5(ainput, _ic3, 0, 0, 0, 0),
             &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-            reset, fuse_relu);
+            attr);
       }
     }
   }
