@@ -72,24 +72,22 @@ int main(int argc, char **argv)
 
   // 3. execute convolution
   size_t num_ops = test::cal_ops(desc);
-  int iterations = validate_results ? 1 : test::cal_iterations(num_ops);
-  float flush_overhead_duration = 0;
-  time_start(conv);
-  for (int n = 0; n < iterations; ++n) {
+  size_t num_iters = validate_results ? 1 : test::cal_iterations(num_ops);
+  test::timer timer;
+  for (auto n = 0; n < num_iters; ++n) {
+    timer.start();
     if (ELX_OK != elx_conv<float>(desc, output, input, weights, bias)) {
       printf("Fail: Convolution execution error!\n");
       test::teardown_conv_data(input, weights, output, bias);
       return -1;
     }
+    timer.stop();
 
     if (reality_case) {
-      auto fod_start = Time::now();
       test::flush_all_memory();
-      auto fod_end = Time::now();
-      flush_overhead_duration += Duration(fod_end - fod_start).count();
     }
   }
-  time_end(conv, iterations, num_ops, flush_overhead_duration);
+  timer.report_tflops("conv", num_iters, num_ops);
 
   // 4. cosim, setdown
   if (validate_results) {

@@ -1,9 +1,9 @@
-#include "euler.hpp"
+#pragma once
 #include <chrono>
 #include <cxxabi.h>
+#include <iostream>
+#include "euler.hpp"
 
-#ifndef __ELT_UTILS_HPP__
-#define __ELT_UTILS_HPP__
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::duration<float, std::milli> Duration;
@@ -15,27 +15,49 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
                   bool input_as_blocked, bool weights_as_blocked,
                   bool output_as_blocked, bool with_bias, bool with_relu);
 
-#define time_start(name) Time::time_point __s##name = Time::now();
-#define time_end(name, iterations, num_ops, deduction)                         \
-  Time::time_point __e##name = Time::now();                                    \
-  double ms = (Duration(__e##name - __s##name).count() - deduction) /          \
-      iterations;                                                              \
-  double tflops = num_ops / ms / 1e9;                                          \
-  printf("%s: iterations=%d, ops=%ld, time=%.4f ms, tflops=%g\n", #name,       \
-      iterations, (unsigned long)num_ops, ms, tflops);
-
 // Test timing
 #define TT(name, iters, perf, expr)                                            \
   do {                                                                         \
-    time_start(name);                                                          \
+    test::timer timer;                                                         \
+    timer.start();                                                             \
     for (int i = 0; i < iters; i++) {                                          \
       (expr);                                                                  \
     }                                                                          \
     if (perf) {                                                                \
-      time_end(name, iters, 0, 0);                                             \
+      timer.stop();                                                            \
+      timer.report_tflops(name, iters, 0);                                     \
     }                                                                          \
   } while (0)
 
 #define MEMALIGN64(ptr, size) posix_memalign((void **)(ptr), 64, size)
 
-#endif // __ELT_UTILS_HPP__
+namespace euler {
+namespace test {
+
+  class timer {
+public:
+    timer(): duration_(0.0) { }
+    void start() { start_ = Time::now(); }
+    void stop()
+    {
+      Time::time_point end = Time::now();
+      double d = Duration(end - start_).count();
+      duration_ += d;
+    }
+    double duration() { return duration_; }
+    void report_tflops(const char *name, size_t num_iters, size_t num_ops)
+    {
+      double ms = duration_ / num_iters;
+      double tflops = num_ops / ms / 1e6;
+      std::cout << name << ": num_iters=" << num_iters
+                << ", num_ops=" << num_ops << ", ms=" << ms
+                << ", tflops=" << tflops << "\n";
+    }
+
+private:
+    Time::time_point start_;
+    double duration_;
+  };
+
+}
+}

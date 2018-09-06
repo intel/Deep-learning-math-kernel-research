@@ -92,7 +92,8 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
   // 3. execute convolution
   int iterations = validate_results ? 1 : 6400 / mb;
   size_t num_ops = test::cal_ops(desc);
-  time_start(conv);
+  test::timer timer;
+  timer.start();
   for (int n = 0; n < iterations; ++n) {
     if (ELX_OK != elx_conv<float>(desc, output, input, weights, bias)) {
       printf("Fail: Convolution execution error!\n");
@@ -100,7 +101,8 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
       return -1;
     }
   }
-  time_end(conv, iterations, num_ops, 0);
+  timer.stop();
+  timer.report_tflops("conv", iterations, num_ops);
 
   // 4. cosim, setdown
   bool validation_pass = true;
