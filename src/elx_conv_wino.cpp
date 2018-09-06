@@ -1069,9 +1069,11 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_blocked(
   MD6(Type, atinput, tinput, A, A, this->ic3, this->I2, Tz, V);
 
   alignas(64) Type aout[A][A][V];
+
   auto res = std::div(_t2 * this->T, this->nt);
   auto _n = res.quot;
   auto _t_off = res.rem;
+
   iter_each (_ic3, this->ic3) {
   iter_each (_I2, this->I2) {
   input_tile_iter<A, K> t2spati_o(_t_off, this->ht, this->wt, this->ih, this->iw,
@@ -1080,16 +1082,6 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_blocked(
   iter_each (_T, Tz) {
     auto _ih = t2spati_o.anchor_t_;
     auto _iw = t2spati_o.anchor_l_;
-    /*
-    int n_, i_h, i_w, _hA_start, _wA_start, _hA_end, _wA_end;
-    t2spati(_t2, _T, n_, i_h, i_w, _hA_start, _hA_end, _wA_start, _wA_end);
-
-    if (n_ == _n && i_w == _iw && i_h == _ih && _hA_start == t2spati_o.t_ && _hA_end == t2spati_o.d_
-        && _wA_start == t2spati_o.l_ && _wA_end == t2spati_o.r_) {
-      //
-    } else
-      printf("=================not match===============");
-      */
 
     Type *in = &md7(ainput, _n, 0, _ic3, _I2, _ih, _iw, 0);
     if (!t2spati_o.is_border())
@@ -1722,9 +1714,14 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_blocked(
 
   alignas(64) Type ain[A][A][V];
 
+  auto res = std::div(_t2 * this->T, this->nt);
+  auto _n = res.quot;
+  auto _t_off = res.rem;
+
   iter_each (_oc3, this->oc3) {
   iter_each (_O2, this->O2) {
-  iter_each (_T, Tz) {
+    output_tile_iter<A, K> t2spato_o(_t_off, this->ht, this->wt, this->oh, this->ow);
+  for (int _T; _T < Tz; _T++) {
     iter_each (_wA, A) {
     iter_each (_hA, A) {
 #pragma omp simd
@@ -1732,14 +1729,17 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_blocked(
       ain[_wA][_hA][_V] = md6(atoutput, _wA, _hA, _oc3, _O2, _T, _V);
     }}}
 
-    int _n, _oh, _ow, _hOA_end, _wOA_end;
-    t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
+    auto _oh = t2spato_o.t_;
+    auto _ow = t2spato_o.l_;
     Type *out = &md7(aoutput, _n, 0, _oc3, _O2, _oh, _ow, 0);
 
-    if (_hOA_end < A - K || _wOA_end < A - K)
-      ker_trans_output0_(*this, out, ain, &md3(abias, _oc3, _O2, 0), _hOA_end, _wOA_end);
+    if (t2spato_o.is_border())
+      ker_trans_output0_(*this, out, ain, &md3(abias, _oc3, _O2, 0),
+          t2spato_o.d_, t2spato_o.r_);
     else
       ker_trans_output_(*this, out, ain, &md3(abias, _oc3, _O2, 0), A - K, A - K);
+
+    ++t2spato_o;
   }}}
 }
 

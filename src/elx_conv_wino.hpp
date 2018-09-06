@@ -416,7 +416,7 @@ public:
     if ( -- tile_w_ >= 0) {
       anchor_l_ -= output_line;
     } else {
-      tile_w_ = wt_;
+      tile_w_ = wt_ -1;
       anchor_l_ = wt_ * output_line - lp_;
       tile_h_ --;
       anchor_t_ -= output_line;
@@ -454,6 +454,78 @@ public:
   int hA_end_, wA_end_;
   int tile_h_, tile_w_;
   int anchor_t_, anchor_l_;
+  int t_, l_, d_, r_;
+};
+
+template <int A, int K>
+class output_tile_iter {
+  constexpr static int output_line = A - K +1;
+public:
+  output_tile_iter(int t_init, int ht, int wt, int oh, int ow, int tp, int lp)
+    : ht_(ht), wt_(wt), tp_(tp), lp_(lp),
+    h_end_(oh - (ht -1) * output_line -1),
+    w_end_(ow - (wt -1) * output_line -1),
+    tile_h_(t_init / wt),
+    tile_w_(t_init % wt),
+    t_(tile_h_ * output_line),
+    l_(tile_w_ * output_line),
+    d_ (tile_h_ < ht -1 ? A -K : h_end_),
+    r_ (tile_w_ < wt -1 ? A -K : w_end_) {}
+
+  inline output_tile_iter &operator ++() {
+    if ( ++ tile_w_ < wt_) {
+      l_ += output_line;
+    } else {
+      tile_w_ = 0;
+      l_ = 0;
+      tile_h_ ++;
+      t_ += output_line;
+      d_ = tile_h_ < ht_ - 1 ? A -K : h_end_;
+    }
+
+    r_ = tile_w_ < wt_ - 1 ? A -K : w_end_;
+    return *this;
+  }
+
+  inline output_tile_iter &operator --() {
+    if ( -- tile_w_ >= 0) {
+      l_ -= output_line;
+    } else {
+      tile_w_ = wt_ -1;
+      l_ = wt_ * output_line - lp_;
+      tile_h_ --;
+      t_ -= output_line;
+      t_ = tile_h_ > 0 ? 0 : tp_;
+      d_ = tile_h_ < ht_ - 1 ? A -K : h_end_;
+    }
+
+    l_ = tile_w_ > 0 ? 0 : lp_;
+    r_ = tile_w_ < wt_ - 1 ? A -K : w_end_;
+    return *this;
+  }
+
+  inline void reset(int t = 0) {
+    auto res = std::div(t, wt_);
+    tile_h_ = res.quot;
+    tile_w_ = res.rem;
+
+    t_ = tile_h_ * output_line;
+    l_ = tile_w_ * output_line;
+
+    d_ = tile_h_ < ht_ -1 ? A -K : h_end_;
+    r_ = tile_w_ < wt_ -1 ? A -K : w_end_;
+  }
+  
+  inline bool is_border() const {
+    return r_ < A - K || d_ < A - K;
+  }
+
+protected:
+  int ht_, wt_, tp_, lp_;
+
+public:
+  int h_end_, w_end_;
+  int tile_h_, tile_w_;
   int t_, l_, d_, r_;
 };
 
