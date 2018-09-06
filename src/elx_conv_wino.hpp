@@ -461,8 +461,8 @@ template <int A, int K>
 class output_tile_iter {
   constexpr static int output_line = A - K +1;
 public:
-  output_tile_iter(int t_init, int ht, int wt, int oh, int ow, int tp, int lp)
-    : ht_(ht), wt_(wt), tp_(tp), lp_(lp),
+  output_tile_iter(int t_init, int ht, int wt, int oh, int ow)
+    : ht_(ht), wt_(wt),
     h_end_(oh - (ht -1) * output_line -1),
     w_end_(ow - (wt -1) * output_line -1),
     tile_h_(t_init / wt),
@@ -492,14 +492,12 @@ public:
       l_ -= output_line;
     } else {
       tile_w_ = wt_ -1;
-      l_ = wt_ * output_line - lp_;
+      l_ = wt_ * output_line;
       tile_h_ --;
       t_ -= output_line;
-      t_ = tile_h_ > 0 ? 0 : tp_;
       d_ = tile_h_ < ht_ - 1 ? A -K : h_end_;
     }
 
-    l_ = tile_w_ > 0 ? 0 : lp_;
     r_ = tile_w_ < wt_ - 1 ? A -K : w_end_;
     return *this;
   }
@@ -521,7 +519,7 @@ public:
   }
 
 protected:
-  int ht_, wt_, tp_, lp_;
+  int ht_, wt_;
 
 public:
   int h_end_, w_end_;

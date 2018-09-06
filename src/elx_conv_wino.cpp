@@ -1721,7 +1721,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_blocked(
   iter_each (_oc3, this->oc3) {
   iter_each (_O2, this->O2) {
     output_tile_iter<A, K> t2spato_o(_t_off, this->ht, this->wt, this->oh, this->ow);
-  for (int _T; _T < Tz; _T++) {
+  iter_each (_T, Tz) {
     iter_each (_wA, A) {
     iter_each (_hA, A) {
 #pragma omp simd
@@ -1733,13 +1733,24 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_blocked(
     auto _ow = t2spato_o.l_;
     Type *out = &md7(aoutput, _n, 0, _oc3, _O2, _oh, _ow, 0);
 
+    /*
+    int n_, o_h, o_w, hOA__end, wOA__end;
+    t2spato(_t2, _T, n_, o_h, o_w, hOA__end, wOA__end);
+
+    if (n_ != _n || o_h != _oh || o_w != _ow || hOA__end != t2spato_o.d_ || wOA__end != t2spato_o.r_)
+      printf("========================here===================\n");
+
+    if (t2spato_o.is_border() != (hOA__end < A - K || wOA__end < A - K))
+      printf("==========================there=================\n");
+      */
+
     if (t2spato_o.is_border())
       ker_trans_output0_(*this, out, ain, &md3(abias, _oc3, _O2, 0),
           t2spato_o.d_, t2spato_o.r_);
     else
       ker_trans_output_(*this, out, ain, &md3(abias, _oc3, _O2, 0), A - K, A - K);
 
-    ++t2spato_o;
+    ++ t2spato_o;
   }}}
 }
 
