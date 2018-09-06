@@ -383,17 +383,17 @@ class input_tile_iter {
   constexpr static int output_line = A - K +1;
 public:
   input_tile_iter(int t_init, int ht, int wt, int h, int w, int tp, int lp)
-    : ht_(ht), wt_(wt),
+    : ht_(ht), wt_(wt), tp_(tp), lp_(lp),
     hA_end_(h + tp - (ht -1) * output_line -1),
     wA_end_(w + lp - (wt -1) * output_line -1),
     tile_h_(t_init / wt),
     tile_w_(t_init % wt),
     anchor_t_(tile_h_ * output_line - tp),
     anchor_l_(tile_w_ * output_line - lp),
-    t_ (anchor_t_ > 0 ? 0 : tp),
-    l_ (anchor_l_ > 0 ? 0 : lp),
-    d_ (anchor_t_ < ht -1 ? A -1 : hA_end_),
-    r_ (anchor_l_ < wt -1 ? A -1 : wA_end_) {}
+    t_ (tile_h_ > 0 ? 0 : tp),
+    l_ (tile_w_ > 0 ? 0 : lp),
+    d_ (tile_h_ < ht -1 ? A -1 : hA_end_),
+    r_ (tile_w_ < wt -1 ? A -1 : wA_end_) {}
 
   inline input_tile_iter &operator ++() {
     if ( ++ tile_w_ < wt_) {
@@ -403,12 +403,12 @@ public:
       anchor_l_ = -lp_;
       tile_h_ ++;
       anchor_t_ += output_line;
-      t_ = anchor_t_ > 0 ? 0 : tp_;
-      d_ = anchor_t_ < ht_ - 1 ? A -1 : hA_end_;
+      t_ = tile_h_ > 0 ? 0 : tp_;
+      d_ = tile_h_ < ht_ - 1 ? A -1 : hA_end_;
     }
 
-    l_ = anchor_l_ > 0 ? 0 : lp_;
-    r_ = anchor_l_ < wt_ - 1 ? A -1 : wA_end_;
+    l_ = tile_w_ > 0 ? 0 : lp_;
+    r_ = tile_w_ < wt_ - 1 ? A -1 : wA_end_;
     return *this;
   }
 
@@ -420,13 +420,27 @@ public:
       anchor_l_ = wt_ * output_line - lp_;
       tile_h_ --;
       anchor_t_ -= output_line;
-      t_ = anchor_t_ > 0 ? 0 : tp_;
-      d_ = anchor_t_ < ht_ - 1 ? A -1 : hA_end_;
+      t_ = tile_h_ > 0 ? 0 : tp_;
+      d_ = tile_h_ < ht_ - 1 ? A -1 : hA_end_;
     }
 
-    l_ = anchor_l_ > 0 ? 0 : lp_;
-    r_ = anchor_l_ < wt_ - 1 ? A -1 : wA_end_;
+    l_ = tile_w_ > 0 ? 0 : lp_;
+    r_ = tile_w_ < wt_ - 1 ? A -1 : wA_end_;
     return *this;
+  }
+
+  inline void reset(int t = 0) {
+    auto res = std::div(t, wt_);
+    tile_h_ = res.quot;
+    tile_w_ = res.rem;
+
+    anchor_t_ = tile_h_ * output_line - tp_;
+    anchor_l_ = tile_w_ * output_line - lp_;
+
+    t_ = tile_h_ > 0 ? 0 : tp_;
+    l_ = tile_w_ > 0 ? 0 : lp_;
+    d_ = tile_h_ < ht_ -1 ? A -1 : hA_end_;
+    r_ = tile_w_ < wt_ -1 ? A -1 : wA_end_;
   }
 
   inline bool is_border() const {
@@ -434,7 +448,7 @@ public:
   }
 
 protected:
-  int wt_, ht_, tp_, lp_;
+  int ht_, wt_, tp_, lp_;
 
 public:
   int hA_end_, wA_end_;

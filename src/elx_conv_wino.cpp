@@ -1069,17 +1069,27 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_blocked(
   MD6(Type, atinput, tinput, A, A, this->ic3, this->I2, Tz, V);
 
   alignas(64) Type aout[A][A][V];
-  auto res = std::div(_t2, this->T);
-  auto _n = res.quo;
+  auto res = std::div(_t2 * this->T, this->nt);
+  auto _n = res.quot;
   auto _t_off = res.rem;
+  iter_each (_ic3, this->ic3) {
+  iter_each (_I2, this->I2) {
   input_tile_iter<A, K> t2spati_o(_t_off, this->ht, this->wt, this->ih, this->iw,
       this->tp, this->lp);
 
-  iter_each (_ic3, this->ic3) {
-  iter_each (_I2, this->I2) {
   iter_each (_T, Tz) {
     auto _ih = t2spati_o.anchor_t_;
     auto _iw = t2spati_o.anchor_l_;
+    /*
+    int n_, i_h, i_w, _hA_start, _wA_start, _hA_end, _wA_end;
+    t2spati(_t2, _T, n_, i_h, i_w, _hA_start, _hA_end, _wA_start, _wA_end);
+
+    if (n_ == _n && i_w == _iw && i_h == _ih && _hA_start == t2spati_o.t_ && _hA_end == t2spati_o.d_
+        && _wA_start == t2spati_o.l_ && _wA_end == t2spati_o.r_) {
+      //
+    } else
+      printf("=================not match===============");
+      */
 
     Type *in = &md7(ainput, _n, 0, _ic3, _I2, _ih, _iw, 0);
     if (!t2spati_o.is_border())
