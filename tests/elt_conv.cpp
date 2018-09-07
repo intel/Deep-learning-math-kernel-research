@@ -28,6 +28,7 @@ int streaming_weights = 0, streaming_input = 0, streaming_output = 0;
 bool input_as_blocked = false, weights_as_blocked = false, output_as_blocked = false;
 
 bool validate_results = false;
+bool reality_case = true;
 
 int main(int argc, char **argv)
 {
@@ -72,6 +73,7 @@ int main(int argc, char **argv)
   // 3. execute convolution
   size_t num_ops = test::cal_ops(desc);
   int iterations = validate_results ? 1 : test::cal_iterations(num_ops);
+  float flush_overhead_duration = 0;
   time_start(conv);
   for (int n = 0; n < iterations; ++n) {
     if (ELX_OK != elx_conv<float>(desc, output, input, weights, bias)) {
@@ -79,8 +81,15 @@ int main(int argc, char **argv)
       test::teardown_conv_data(input, weights, output, bias);
       return -1;
     }
+
+    if (reality_case) {
+      auto fod_start = Time::now();
+      test::flush_all_memory();
+      auto fod_end = Time::now();
+      flush_overhead_duration += Duration(fod_end - fod_start).count();
+    }
   }
-  time_end(conv, iterations, num_ops);
+  time_end(conv, iterations, num_ops, flush_overhead_duration);
 
   // 4. cosim, setdown
   if (validate_results) {
@@ -123,6 +132,7 @@ int parse_cmd_options(int argc, char **argv) {
     ("validate-results,v", po::value<bool>(&validate_results), "on|off. Validate correctness. Default: off")
     ("with-bias,b", po::value<bool>(&with_bias), "on|off. With bias. Default: on")
     ("with-relu,r", po::value<bool>(&with_relu), "on|off. With relu. Default: off")
+    ("reality-case,x", po::value<bool>(&reality_case), "on|off. Real senario. Default: off")
     ("alg,a", po::value<std::string>(), "auto|wino|direct|direct_1x1. Algorithm. Default: wino")
     ("tile-size", po::value<int>(&tile_size), "Winograd tile size: 5")
     ("nteams", po::value<int>(&nteams), "Number of thread team")
@@ -254,6 +264,7 @@ int parse_cmd_options(int argc, char **argv) {
       fmt_str[weights_format], fmt_str[output_format]);
   printf("input-as-blocked:%d, weights_as_blocked:%d, output_as_blocked:%d\n",
       input_as_blocked, weights_as_blocked, output_as_blocked);
+  printf("reality_case: %d\n", reality_case);
 
   if (mb <= 0 || ic <= 0 || ih <= 0 || iw <= 0 || oc <= 0 || oh <= 0
       || ow <= 0 || kh <= 0 || kw <= 0) {

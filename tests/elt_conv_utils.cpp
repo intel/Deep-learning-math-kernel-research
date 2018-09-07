@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <math.h>
+#include <omp.h>
+#include <memory.h>
 #include "elt_conv_utils.hpp"
 
 namespace euler {
@@ -516,5 +518,17 @@ namespace test {
 
   template int ref_convolution2d_block16<float>(
       eld_conv_t<float> &, float *, float *, float *, float *);
+
+  void flush_all_memory() {
+    auto mthr_ = omp_get_max_threads();
+    int flush_blk = 2 * 1024 * 1024;
+    char *flush_base = (char *)malloc(flush_blk * mthr_);
+    # pragma omp parallel num_threads(mthr_)
+    {
+      auto ithr = omp_get_thread_num();
+      memset((void *)(flush_base + ithr * flush_blk), 0xc, flush_blk);
+    }
+    free(flush_base);
+  }
 }
 }

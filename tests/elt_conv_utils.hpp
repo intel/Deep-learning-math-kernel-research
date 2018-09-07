@@ -63,6 +63,8 @@ namespace test {
   template <typename Type>
   int ref_convolution2d_blocked(eld_conv_t<Type> &desc, Type *output,
       Type *input, Type *weights, Type *bias);
+
+  void flush_all_memory();
 }
 }
 

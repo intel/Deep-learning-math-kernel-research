@@ -16,9 +16,10 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
                   bool output_as_blocked, bool with_bias, bool with_relu);
 
 #define time_start(name) Time::time_point __s##name = Time::now();
-#define time_end(name, iterations, num_ops)                                    \
+#define time_end(name, iterations, num_ops, deduction)                         \
   Time::time_point __e##name = Time::now();                                    \
-  double ms = Duration(__e##name - __s##name).count() / iterations;            \
+  double ms = (Duration(__e##name - __s##name).count() - deduction) /          \
+      iterations;                                                              \
   double tflops = num_ops / ms / 1e9;                                          \
   printf("%s: iterations=%d, ops=%ld, time=%.4f ms, tflops=%g\n", #name,       \
       iterations, (unsigned long)num_ops, ms, tflops);

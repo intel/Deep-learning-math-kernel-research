@@ -100,7 +100,7 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
       return -1;
     }
   }
-  time_end(conv, iterations, num_ops);
+  time_end(conv, iterations, num_ops, 0);
 
   // 4. cosim, setdown
   bool validation_pass = true;

@@ -28,14 +28,14 @@ function build() {
 function conv_test() {
   # Default
   n=1; i=0; o=0; h=0; w=0; H=0; W=0; k=3; K=3; p=1; P=1; s=1; S=1
-  b=1; r=0; v=1; a=wino; flt_o=0; flt_t=0; blk_i=0; blk_o=0; pat_i=1; pat_o=1
+  b=1; r=0; v=1; x=0; a=wino; flt_o=0; flt_t=0; blk_i=0; blk_o=0; pat_i=1; pat_o=1
   tile_size=5; nteams=0; nthreads=0; execution_mode=0
   streaming_weights=0; streaming_input=0; streaming_output=0
   input_format=nChw16c; weights_format=OIhw16i16o; output_format=nChw16c
   input_as_blocked=0; weights_as_blocked=0; output_as_blocked=0
 
   OPTIND=1
-  while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:a:-:" opt; do
+  while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:x:a:-:" opt; do
     case "$opt" in
       n) n=$OPTARG ;;
       i) i=$OPTARG ;;
@@ -54,6 +54,7 @@ function conv_test() {
       r) r=$OPTARG ;;
       v) v=$OPTARG ;;
       a) a=$OPTARG ;;
+      x) x=$OPTARG ;;
       -)
         case "${OPTARG}" in
           alg) a="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
@@ -144,7 +145,7 @@ function conv_test() {
   set -v
   eval $OMP_ENV $ROOT_DIR/$build_dir/tests/elt_conv \
     -n$n -i$i -o$o -h$h -w$w -H$H -W$W -k$k -K$K -p$p -P$P -s$s -S$S \
-    -b$b -r$r -v$v -a$a --flt-o=$flt_o --flt-t=$flt_t --blk-i=$blk_i --blk-o=$blk_o \
+    -b$b -r$r -v$v -x$x -a$a --flt-o=$flt_o --flt-t=$flt_t --blk-i=$blk_i --blk-o=$blk_o \
     --pat-i=$pat_i --pat-o=$pat_o --tile-size=$tile_size \
     --nteams=$nteams --nthreads=$nthreads --execution-mode=$execution_mode \
     --streaming-weights=$streaming_weights \
