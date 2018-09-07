@@ -103,6 +103,7 @@ struct eld_conv_t {
     eld_conv_t();
     ~eld_conv_t();
     int setup();
+    void clflush();
 
     // Auto computed by setup()
     struct { size_t input, weights, output, bias; } byte_sizes;

@@ -48,7 +48,7 @@ public:
     void report_tflops(const char *name, size_t num_iters, size_t num_ops)
     {
       double ms = duration_ / num_iters;
-      double tflops = num_ops / ms / 1e6;
+      double tflops = num_ops / ms / 1e9;
       std::cout << name << ": num_iters=" << num_iters
                 << ", num_ops=" << num_ops << ", ms=" << ms
                 << ", tflops=" << tflops << "\n";

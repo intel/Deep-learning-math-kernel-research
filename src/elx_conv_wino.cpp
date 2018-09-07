@@ -354,8 +354,10 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
   l2_usage *= sizeof(Type);
 
 #define WEIGHTS_MAX_PRELOAD 4
-  if (tweights_size > 0)
+  if (tweights_size > 0) {
     MEMALIGN64(&tweights_, (tweights_size + WEIGHTS_MAX_PRELOAD * V) * sizeof(Type));
+    tweights_size_ = (tweights_size + WEIGHTS_MAX_PRELOAD * V) * sizeof(Type);
+  }
   if (tinput_size > 0)
     MEMALIGN64(&tinput_, tinput_size * sizeof(Type));
   if (toutput_size > 0)
@@ -2546,6 +2548,21 @@ void elx_conv_wino_t<Type, A, K, V, I>::execute(
       }}}
     }
   }
+}
+
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_t<Type, A, K, V, I>::clflush() {
+  auto mthr_ = omp_get_max_threads();
+  # pragma omp parallel num_threads(mthr_)
+  {
+    char *cache_line_base = (char *)tweights_;
+    char *end = (char *)tweights_ + tweights_size_;
+    while (cache_line_base < end) {
+      _mm_clflush(cache_line_base);
+      cache_line_base += 64;
+    }
+  }
+  return;
 }
 
 } // namespace euler

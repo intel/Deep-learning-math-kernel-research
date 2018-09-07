@@ -154,4 +154,9 @@ int eld_conv_t<F>::setup() {
   return ELD_OK;
 }
 
+template <typename F>
+void eld_conv_t<F>::clflush() {
+  xc->clflush();
+}
+
 }  // namespace euler

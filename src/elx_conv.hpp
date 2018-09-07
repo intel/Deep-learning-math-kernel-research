@@ -76,6 +76,8 @@ struct elx_conv_t {
 
   virtual void execute(Type *output, Type *input, Type *weights, Type *bias)
       = 0;
+
+  virtual void clflush() { return; }
 };
 
 template struct elx_conv_t<float>;

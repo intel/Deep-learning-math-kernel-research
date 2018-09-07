@@ -72,7 +72,8 @@ int main(int argc, char **argv)
 
   // 3. execute convolution
   size_t num_ops = test::cal_ops(desc);
-  size_t num_iters = validate_results ? 1 : test::cal_iterations(num_ops);
+  size_t num_iters = validate_results ? 1 :
+      reality_case ? 256 : test::cal_iterations(num_ops);
   test::timer timer;
   for (auto n = 0; n < num_iters; ++n) {
     timer.start();
@@ -83,9 +84,8 @@ int main(int argc, char **argv)
     }
     timer.stop();
 
-    if (reality_case) {
-      test::flush_all_memory();
-    }
+    if (reality_case)
+      test::flush_all_memory(desc);
   }
   timer.report_tflops("conv", num_iters, num_ops);
 
@@ -262,7 +262,7 @@ int parse_cmd_options(int argc, char **argv) {
       fmt_str[weights_format], fmt_str[output_format]);
   printf("input-as-blocked:%d, weights_as_blocked:%d, output_as_blocked:%d\n",
       input_as_blocked, weights_as_blocked, output_as_blocked);
-  printf("reality_case: %d\n", reality_case);
+  printf("reality_case:%d\n", reality_case);
 
   if (mb <= 0 || ic <= 0 || ih <= 0 || iw <= 0 || oc <= 0 || oh <= 0
       || ow <= 0 || kh <= 0 || kw <= 0) {

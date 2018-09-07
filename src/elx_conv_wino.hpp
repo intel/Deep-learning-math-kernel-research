@@ -70,6 +70,8 @@ public:
 
   virtual void execute(Type *output, Type *input, Type *weights, Type *bias);
 
+  virtual void clflush();
+
   class exe_plan {
   public:
     exe_plan(int tiles, int IC, int OC):
@@ -360,6 +362,7 @@ private:
   bool weights_as_bfmt_;
   bool output_as_bfmt_;
   int mthr_;
+  size_t tweights_size_;
   Type *tweights_;
   Type *tinput_;
   Type *toutput_;

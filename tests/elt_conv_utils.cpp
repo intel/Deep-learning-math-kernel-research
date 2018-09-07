@@ -510,6 +510,11 @@ namespace test {
     return 0;
   }
 
+  template <typename Type>
+  void flush_all_memory(eld_conv_t<Type> &desc) {
+    desc.clflush();
+  }
+
   template int compare_conv_results<float>(
       eld_conv_t<float> &, float *, float *);
 
@@ -519,16 +524,6 @@ namespace test {
   template int ref_convolution2d_block16<float>(
       eld_conv_t<float> &, float *, float *, float *, float *);
 
-  void flush_all_memory() {
-    auto mthr_ = omp_get_max_threads();
-    int flush_blk = 2 * 1024 * 1024;
-    char *flush_base = (char *)malloc(flush_blk * mthr_);
-    # pragma omp parallel num_threads(mthr_)
-    {
-      auto ithr = omp_get_thread_num();
-      memset((void *)(flush_base + ithr * flush_blk), 0xc, flush_blk);
-    }
-    free(flush_base);
-  }
+  template void flush_all_memory<float>(eld_conv_t<float> &desc);
 }
 }
