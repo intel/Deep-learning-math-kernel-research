@@ -32,7 +32,7 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
       (expr);                                                                  \
     }                                                                          \
     if (perf) {                                                                \
-      time_end(name, iters, 0);                                                \
+      time_end(name, iters, 0, 0);                                             \
     }                                                                          \
   } while (0)
 
