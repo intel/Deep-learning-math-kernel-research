@@ -19,6 +19,8 @@ eld_conv_t<F>::eld_conv_t() {
   tile_size = 0;
   with_relu = false;
   with_bias = false;
+  with_ip_sum = false;
+  with_op_sum = false;
   xc        = nullptr;
   threading = {0, 0};
   execution_mode = 0;

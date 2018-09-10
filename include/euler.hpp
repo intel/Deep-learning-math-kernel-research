@@ -82,7 +82,8 @@ struct eld_conv_t {
 
     bool with_relu;
     bool with_bias;
-    bool with_sum;
+    bool with_ip_sum;
+    bool with_op_sum;
     bool is_inference;
 
     // Performance:

@@ -39,6 +39,12 @@ namespace test {
     for (size_t i = 0; i < desc.sizes.bias; i++) {
       (*bias)[i] = rand() % 100;
     }
+    if (desc.with_ip_sum) {
+#pragma omp parallel for
+      for (size_t i = 0; i < desc.sizes.output; i++) {
+        (*output)[i] = rand() % 10;
+      }
+    }
   }
 
   void teardown_conv_data(
@@ -221,7 +227,7 @@ namespace test {
     float iter = 5e12 / num_ops;
     return std::max((int)iter, 1024);
   }
- 
+
   template <typename Type>
   reorder<Type, nchw, nChw16c>::reorder(
       Type *dst, Type *src, int n, int c, int h, int w)
@@ -370,7 +376,7 @@ namespace test {
       return -1;
     }
 
-    Type *tinput = nullptr, *tweights = nullptr, *toutput = nullptr;
+    Type *tinput = nullptr, *tweights = nullptr, *toutput = nullptr, *tsum = nullptr;
     if (desc.formats.input == nChw16c) {
       tinput = (Type *)malloc(desc.byte_sizes.input);
       reorder<Type, nchw, nChw16c>(tinput, input, n, ic, ih, iw);
@@ -379,20 +385,25 @@ namespace test {
       tweights = (Type *)malloc(desc.byte_sizes.weights);
       reorder<Type, oihw, OIhw16i16o>(tweights, weights, oc, ic, kh, kw);
     }
+
+    toutput = (Type *)malloc(desc.byte_sizes.output);
+
     if (desc.formats.output == nChw16c) {
-      toutput = (Type *)malloc(desc.byte_sizes.output);
+      tsum = (Type *)malloc(desc.byte_sizes.output);
+      reorder<Type, nchw, nChw16c>(tsum, output, n, oc, oh, ow);
     }
 
     MD4(Type, ainput, desc.formats.input == nchw ? input : tinput, n, ic, ih, iw);
     MD4(Type, aweights, desc.formats.weights == oihw ? weights : tweights, oc, ic, kh, kw);
-    MD4(Type, aoutput, desc.formats.output == nchw ? output : toutput, n, oc, oh, ow);
+    MD4(Type, atsum, desc.formats.output == nchw ? output : tsum, n, oc, oh, ow);
+    MD4(Type, atoutput, toutput, n, oc, oh, ow);
 
 #pragma omp parallel for collapse(4)
     iter_each (_n, n) {
       iter_each (_oc, oc) {
         iter_each (_oh, oh) {
           iter_each (_ow, ow) {
-            md4(aoutput, _n, _oc, _oh, _ow) = desc.with_bias ? bias[_oc] : 0.0f;
+            md4(atoutput, _n, _oc, _oh, _ow) = desc.with_bias ? bias[_oc] : 0.0f;
             iter_each (_ic, ic) {
               iter_each (_kh, kh) {
                 int _ih = _oh * sh - pt + _kh * dh;
@@ -402,22 +413,36 @@ namespace test {
                   int _iw = _ow * sw - pl + _kw * dw;
                   if (_iw < 0 || _iw >= iw)
                     continue;
-                  md4(aoutput, _n, _oc, _oh, _ow)
+                  md4(atoutput, _n, _oc, _oh, _ow)
                       += md4(ainput, _n, _ic, _ih, _iw)
                       * md4(aweights, _oc, _ic, _kh, _kw);
                 }
               }
             }
-            md4(aoutput, _n, _oc, _oh, _ow) =
-                desc.with_relu && md4(aoutput, _n, _oc, _oh, _ow) < 0.0f ?
-                0.0f : md4(aoutput, _n, _oc, _oh, _ow);
+            md4(atoutput, _n, _oc, _oh, _ow) =
+                desc.with_relu && md4(atoutput, _n, _oc, _oh, _ow) < 0.0f ?
+                0.0f : md4(atoutput, _n, _oc, _oh, _ow);
+            if (desc.with_ip_sum)
+              md4(atoutput, _n, _oc, _oh, _ow) += md4(atsum, _n, _oc, _oh, _ow);
           }
         }
       }
     }
 
-    if (desc.formats.output == nChw16c)
+    if (desc.formats.output == nChw16c) {
       reorder<Type, nChw16c, nchw>(output, toutput, n, oc, oh, ow);
+    } else {
+#pragma omp parallel for collapse(4)
+      iter_each (_n, n) {
+        iter_each (_oc, oc) {
+          iter_each (_oh, oh) {
+            iter_each (_ow, ow) {
+              md4(atsum, _n, _oc, _oh, _ow) = md4(atoutput, _n, _oc, _oh, _ow);
+            }
+          }
+        }
+      }
+    }
 
     if (tinput != nullptr)
       free(tinput);
@@ -425,6 +450,8 @@ namespace test {
       free(tweights);
     if (toutput != nullptr)
       free(toutput);
+    if (tsum != nullptr)
+      free(tsum);
 
     return 0;
   }
@@ -469,6 +496,9 @@ namespace test {
     int Or = desc.dims.output.c % 16 ?  desc.dims.output.c % 16 : 16;
     int Ir = desc.dims.input.c % 16 ? desc.dims.input.c % 16 : 16;
 
+    Type *tmp_output = (Type *)malloc(desc.byte_sizes.output);
+    MD5(Type, atmp_output, tmp_output, n, OC, oh, ow, 16);
+
 #pragma omp parallel for collapse(4)
     iter_each (_n, n) {
       iter_each (_OC, OC) {
@@ -476,7 +506,7 @@ namespace test {
           iter_each (_ow, ow) {
             int ov = _OC == OC - 1 ? Or : 16;
             iter_each (_ov, ov) {
-              md5(aoutput, _n, _OC, _oh, _ow, _ov)
+              md5(atmp_output, _n, _OC, _oh, _ow, _ov)
                   = desc.with_bias ? bias[_OC * 16 + _ov] : 0.0f;
               iter_each (_IC, IC) {
                 int iv = _IC == IC - 1 ? Ir : 16;
@@ -489,22 +519,31 @@ namespace test {
                       int _iw = _ow * sw - pl + _kw * dw;
                       if (_iw < 0 || _iw >= iw)
                         continue;
-                      md5(aoutput, _n, _OC, _oh, _ow, _ov)
+                      md5(atmp_output, _n, _OC, _oh, _ow, _ov)
                           += md5(ainput, _n, _IC, _ih, _iw, _iv)
                           * md6(aweights, _OC, _IC, _kh, _kw, _iv, _ov);
                     }
                   }
                 }
               }
-              md5(aoutput, _n, _OC, _oh, _ow, _ov) =
+              md5(atmp_output, _n, _OC, _oh, _ow, _ov) =
                   desc.with_relu &&
-                  md5(aoutput, _n, _OC, _oh, _ow, _ov) < 0.0f ?
-                  0.0f : md5(aoutput, _n, _OC, _oh, _ow, _ov);
+                  md5(atmp_output, _n, _OC, _oh, _ow, _ov) < 0.0f ?
+                  0.0f : md5(atmp_output, _n, _OC, _oh, _ow, _ov);
+              if (desc.with_ip_sum)
+                md5(aoutput, _n, _OC, _oh, _ow, _ov) +=
+                  md5(atmp_output, _n, _OC, _oh, _ow, _ov);
+              else
+                md5(aoutput, _n, _OC, _oh, _ow, _ov) =
+                  md5(atmp_output, _n, _OC, _oh, _ow, _ov);
             }
           }
         }
       }
     }
+
+    if (tmp_output != nullptr)
+      free(tmp_output);
     return 0;
   }
 

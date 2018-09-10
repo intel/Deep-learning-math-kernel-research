@@ -32,7 +32,8 @@ elx_conv_t<Type>::elx_conv_t(eld_conv_t<Type> &dc) {
   this->output_fmt = dc.formats.output;
   this->with_relu = dc.with_relu;
   this->with_bias = dc.with_bias;
-  this->with_sum = dc.with_sum;
+  this->with_ip_sum = dc.with_ip_sum;
+  this->with_op_sum = dc.with_op_sum;
 
   this->prop_kind = dc.prop_kind;
 

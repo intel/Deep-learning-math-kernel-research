@@ -5,6 +5,7 @@ ROOT_DIR="$(dirname $(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd))"
 function usage() {
 cat <<!
   -p   Use plain format.
+  -s   Inplace sum
   -t   Tile size
   -h   This page.
 !
@@ -14,14 +15,18 @@ input_format=nChw16c
 weights_format=OIhw16i16o
 output_format=nChw16c
 tile_size=5
+with_ip_sum=0
 
 OPTIND=1
-while getopts "pt:h" opt; do
+while getopts "pst:h" opt; do
   case $opt in
     p)
       input_format=nchw
       weights_format=oihw
       output_format=nchw
+      ;;
+    s)
+      with_ip_sum=1
       ;;
     t)
       tile_size=$OPTARG
@@ -46,7 +51,8 @@ function __val_conv() {
     --input-format=$input_format \
     --weights-format=$weights_format \
     --output-format=$output_format \
-    --tile-size=$tile_size 
+    --with-ip-sum=$with_ip_sum    \
+    --tile-size=$tile_size
 
   if [ $? != 0 ]; then
     echo "XXXXX FAILURE: XXXXX"

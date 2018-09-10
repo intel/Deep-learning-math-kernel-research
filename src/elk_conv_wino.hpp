@@ -22,12 +22,12 @@ namespace euler {
 // I: ISA
 // with_bias: has bias
 template <bool ...conditions> struct cd_traits {
-  enum {border_ind = 0, bias_ind, relu_ind, sum_ind};
+  enum {border_ind = 0, bias_ind, relu_ind, ip_sum_ind, op_sum_ind};
   constexpr static int c_[] {conditions...};
   constexpr static bool is_border = c_[border_ind];
   constexpr static bool with_bias = c_[bias_ind];
   constexpr static bool with_relu = c_[relu_ind];
-  constexpr static bool with_sum = c_[sum_ind];
+  constexpr static bool with_ip_sum = c_[ip_sum_ind];
   static_assert(sizeof...(conditions) == 4,
       "Template argument error! Please specify if border, bias, relu, sum...");
 };
