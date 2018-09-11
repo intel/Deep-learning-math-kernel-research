@@ -221,6 +221,18 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
       }
+      // load output
+      if (get_attr(attr, ip_sum_idx)) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+          for (int _T = 0; _T < T; ++_T) {
+            MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+            mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
+                _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+          }
+        }
+      }
     } else {
       // load output
 #pragma unroll(JO)
@@ -311,6 +323,18 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
 #pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
+      }
+      // load output
+      if (get_attr(attr, ip_sum_idx)) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+          for (int _T = 0; _T < T; ++_T) {
+            MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+            mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
+                _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+          }
+        }
       }
     } else {
       // load output
@@ -444,6 +468,18 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
       }
+      // load output
+      if (get_attr(attr, ip_sum_idx)) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+          for (int _T = 0; _T < T; ++_T) {
+            MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+            mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
+                _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+          }
+        }
+      }
     } else {
       // load output
 #pragma unroll(JO)
@@ -571,6 +607,18 @@ struct gemm_kernel_otj<float, V, ISA_SKX_AVX512,
 #pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
+      }
+      // load output
+      if (get_attr(attr, ip_sum_idx)) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+          for (int _T = 0; _T < T; ++_T) {
+            MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+            mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
+                _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+          }
+        }
       }
     } else {
       // load output
