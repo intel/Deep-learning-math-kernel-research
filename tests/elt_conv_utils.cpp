@@ -227,7 +227,7 @@ namespace test {
   int cal_iterations(size_t num_ops)
   {
     float iter = 5e12 / num_ops;
-    return std::max((int)iter, 1024);
+    return std::max((int)iter, 64);
   }
 
   template <typename Type>
@@ -529,8 +529,31 @@ namespace test {
   }
 
   template <typename Type>
-  void flush_all_memory(eld_conv_t<Type> &desc) {
+  void flush_all_memory(eld_conv_t<Type> &desc, Type *input, Type *weights,
+      Type *output, Type *bias)
+  {}
+
+  template <>
+  void flush_all_memory<float>(eld_conv_t<float> &desc, float *input,
+      float *weights, float *output, float *bias)
+  {
+#define CACHE_LINE_SIZE 64
+    constexpr auto step = CACHE_LINE_SIZE;
+
     desc.clflush();
+
+//#pragma omp parallel for
+    // for (auto p = input; p < input + desc.sizes.input; p += step)
+    //  _mm_clflushopt(p);
+#pragma omp parallel for
+    for (auto p = weights; p < weights + desc.sizes.weights; p += step)
+      _mm_clflushopt(p);
+#pragma omp parallel for
+    for (auto p = output; p < output + desc.sizes.output; p += step)
+      _mm_clflushopt(p);
+#pragma omp parallel for
+    for (auto p = bias; p < bias + desc.sizes.bias; p += step)
+      _mm_clflushopt(p);
   }
 
   template int compare_conv_results<float>(
@@ -542,6 +565,5 @@ namespace test {
   template int ref_convolution2d_block16<float>(
       eld_conv_t<float> &, float *, float *, float *, float *);
 
-  template void flush_all_memory<float>(eld_conv_t<float> &desc);
 }
 }

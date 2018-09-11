@@ -28,8 +28,10 @@ int streaming_weights = 0, streaming_input = 0, streaming_output = 0;
 bool input_as_blocked = false, weights_as_blocked = false, output_as_blocked = false;
 
 bool validate_results = false;
-bool reality_case = true;
+bool execution_array = false;
+bool flush_cache = false;
 
+#define CL 16
 int main(int argc, char **argv)
 {
   if (parse_cmd_options(argc, argv))
@@ -62,54 +64,67 @@ int main(int argc, char **argv)
   desc.format_as_blocked
       = { input_as_blocked, weights_as_blocked, output_as_blocked };
 
-  if (desc.setup() != ELD_OK) {
-    printf("Fail: Convolution setup error!\n");
-    return -1;
-  }
-
-  // 2. prepare data
-  float *input, *weights, *output, *bias, *ref_output;
-  test::prepare_conv_data<float>(desc, &input, &weights, &output, &bias);
-  if (desc.with_ip_sum) {
-    ref_output = (float *)malloc(desc.byte_sizes.output);
-    memcpy(ref_output, output, desc.byte_sizes.output);
+  // 2. setup convolution
+  eld_conv_t<float> convs[CL];
+  float *input[CL], *weights[CL], *output[CL], *bias[CL], *ref_output;
+  const auto C = (validate_results || !execution_array) ? 1 : CL;
+  for (auto c = 0; c < C; ++c) {
+    convs[c] = desc;
+    if (convs[c].setup() != ELD_OK) {
+      printf("Fail: Convolution setup error!\n");
+      return -1;
+    }
+    test::prepare_conv_data<float>(
+        convs[c], &input[c], &weights[c], &output[c], &bias[c]);
+   }
+ 
+  if (validate_results) {
+    ref_output = (float *)malloc(convs[0].byte_sizes.output);
+    if (desc.with_ip_sum)
+      memcpy(ref_output, output, convs[0].byte_sizes.output);
   }
 
   // 3. execute convolution
-  size_t num_ops = test::cal_ops(desc);
-  size_t num_iters = validate_results ? 1 :
-      reality_case ? 256 : test::cal_iterations(num_ops);
-  test::timer timer;
-  for (auto n = 0; n < num_iters; ++n) {
-    timer.start();
-    if (ELX_OK != elx_conv<float>(desc, output, input, weights, bias)) {
-      printf("Fail: Convolution execution error!\n");
-      test::teardown_conv_data(input, weights, output, bias);
-      return -1;
-    }
-    timer.stop();
+  auto num_ops = test::cal_ops(desc);
+  auto N = validate_results ? 1 : test::cal_iterations(num_ops);
 
-    if (reality_case)
-      test::flush_all_memory(desc);
+  test::timer timer;
+  for (auto n = 0; n < N / C; ++n) {
+    for (auto c = 0; c < C; ++c) {
+      if (flush_cache) {
+        test::flush_all_memory(
+            convs[c], input[c], weights[c], output[c], bias[c]);
+      }
+      timer.start();
+      if (ELX_OK
+          != elx_conv<float>(
+                 convs[c], output[c], input[c], weights[c], bias[c])) {
+        printf("Fail: Convolution execution error!\n");
+        test::teardown_conv_data(input, weights, output, bias);
+        return -1;
+      }
+      timer.stop();
+    }
   }
-  timer.report_tflops("conv", num_iters, num_ops);
+  timer.report_tflops("conv", C * (N / C), num_ops);
 
   // 4. cosim, setdown
   if (validate_results) {
     printf("Validation: ");
-    if (!desc.with_ip_sum)
-      ref_output = (float *)malloc(desc.byte_sizes.output);
     if (test::ref_convolution2d<float>(
-            desc, ref_output, input, weights, bias))
+            convs[0], ref_output, input[0], weights[0], bias[0]))
       printf("Fail: Convolution ref execution error!\n");
-    else if (test::compare_conv_results(desc, output, ref_output))
+    else if (test::compare_conv_results(convs[0], output[0], ref_output))
       printf("Fail: Convolution results not correct!\n");
     else
       printf("Convolution Pass!\n");
 
     free(ref_output);
   }
-  test::teardown_conv_data(input, weights, output, bias);
+
+  for (auto c = 0; c < C; ++c) {
+    test::teardown_conv_data(input[c], weights[c], output[c], bias[c]);
+  }
 
   return 0;
 }
@@ -136,7 +151,8 @@ int parse_cmd_options(int argc, char **argv) {
     ("validate-results,v", po::value<bool>(&validate_results), "on|off. Validate correctness. Default: off")
     ("with-bias,b", po::value<bool>(&with_bias), "on|off. With bias. Default: on")
     ("with-relu,r", po::value<bool>(&with_relu), "on|off. With relu. Default: off")
-    ("reality-case,x", po::value<bool>(&reality_case), "on|off. Real senario. Default: off")
+    ("execution-array,x", po::value<bool>(&execution_array), "on|off. Execution array. Default: off")
+    ("flush-cache,f", po::value<bool>(&flush_cache), "on|off. Fush cache. Default: off")
     ("alg,a", po::value<std::string>(), "auto|wino|direct|direct_1x1. Algorithm. Default: wino")
     ("tile-size", po::value<int>(&tile_size), "Winograd tile size: 5")
     ("nteams", po::value<int>(&nteams), "Number of thread team")
@@ -269,7 +285,7 @@ int parse_cmd_options(int argc, char **argv) {
       fmt_str[weights_format], fmt_str[output_format]);
   printf("input-as-blocked:%d, weights_as_blocked:%d, output_as_blocked:%d\n",
       input_as_blocked, weights_as_blocked, output_as_blocked);
-  printf("reality_case:%d\n", reality_case);
+  printf("execution_array:%d, flush_cache: %d\n", execution_array, flush_cache);
 
   if (mb <= 0 || ic <= 0 || ih <= 0 || iw <= 0 || oc <= 0 || oh <= 0
       || ow <= 0 || kh <= 0 || kw <= 0) {

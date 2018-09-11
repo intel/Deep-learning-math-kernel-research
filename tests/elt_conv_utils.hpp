@@ -65,7 +65,8 @@ namespace test {
       Type *input, Type *weights, Type *bias);
 
   template <typename Type>
-  void flush_all_memory(eld_conv_t<Type> &desc);
+  void flush_all_memory(eld_conv_t<Type> &desc, Type *input, Type *weights,
+      Type *output, Type *bias);
 }
 }
 

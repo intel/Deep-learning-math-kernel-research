@@ -2622,17 +2622,12 @@ void elx_conv_wino_t<Type, A, K, V, I>::execute(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::clflush() {
-  auto mthr_ = omp_get_max_threads();
-  # pragma omp parallel num_threads(mthr_)
-  {
-    char *cache_line_base = (char *)tweights_;
-    char *end = (char *)tweights_ + tweights_size_;
-    while (cache_line_base < end) {
-      _mm_clflush(cache_line_base);
-      cache_line_base += 64;
-    }
-  }
-  return;
+#define CACHE_LINE_SIZE 64
+  constexpr auto step = CACHE_LINE_SIZE / sizeof(Type);
+
+#pragma omp parallel for num_threads(mthr_)
+  for (auto p = tweights_; p < tweights_ + tweights_size_; p += step)
+    _mm_clflushopt(p);
 }
 
 } // namespace euler
