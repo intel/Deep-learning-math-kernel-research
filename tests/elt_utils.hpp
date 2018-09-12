@@ -25,7 +25,7 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
     }                                                                          \
     if (perf) {                                                                \
       timer.stop();                                                            \
-      timer.report_tflops(name, iters, 0);                                     \
+      timer.report_tflops(#name, iters, 0);                                    \
     }                                                                          \
   } while (0)
 
