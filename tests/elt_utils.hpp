@@ -59,5 +59,10 @@ private:
     double duration_;
   };
 
+  inline void error(const char *msg)
+  {
+    printf("Euler:test::Error: %s\n", msg);
+    abort();
+  }
 }
 }

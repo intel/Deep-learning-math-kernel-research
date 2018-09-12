@@ -2623,10 +2623,11 @@ void elx_conv_wino_t<Type, A, K, V, I>::execute(
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::clflush() {
 #define CACHE_LINE_SIZE 64
-  constexpr auto step = CACHE_LINE_SIZE / sizeof(Type);
+  constexpr auto step = CACHE_LINE_SIZE;
 
 #pragma omp parallel for num_threads(mthr_)
-  for (auto p = tweights_; p < tweights_ + tweights_size_; p += step)
+  for (char *p = (char *)tweights_; p < (char *)tweights_ + tweights_size_;
+       p += step)
     _mm_clflush(p);
 }
 
