@@ -364,6 +364,9 @@ private:
   int attr_;
   int mthr_;
   size_t tweights_size_;
+  Type *workspace_;
+  Type *scratch_;
+
   Type *tweights_;
   Type *tinput_;
   Type *toutput_;

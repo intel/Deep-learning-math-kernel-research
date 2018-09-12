@@ -31,4 +31,6 @@ enum {
   ISA_COSIM_AVX512,
 };
 
+#define PAGE_SIZE 4096
+
 } // namespace euler

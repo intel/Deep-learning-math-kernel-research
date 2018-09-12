@@ -65,6 +65,32 @@ const unsigned DUP_I   = 0x1;
 const unsigned DUP_O   = 0x2;
 const unsigned DUP_W   = 0x8;
 
+
+// TODO: to-be-replaced with user provided buffer
+struct galloc {
+  static size_t sz_;
+  static void *p_;
+
+  static void *acquire(size_t size) {
+    size_t sz = ALIGNUP(size, 64);
+    if (p_ == nullptr)
+      MEMALIGN64(&p_, sz);
+    else if (sz > sz_) {
+      ::free(p_);
+      MEMALIGN64(&p_, sz);
+    }
+    sz_ = sz;
+    return p_;
+  }
+
+  static void release() {
+    ::free(p_);
+  }
+};
+
+size_t galloc::sz_ = 0;
+void *galloc::p_ = nullptr;
+
 template <typename Type, const int A, const int K, const int V, const int I>
 elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
     eld_conv_t<Type>& dc)
@@ -176,7 +202,6 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
   size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
   size_t toutputa_size = 0;
   size_t binput_size = 0, bweights_size = 0, boutput_size = 0;
-  size_t l1_usage = 0, l2_usage = 0;
 
   auto divide_tasks_ttm = [this](size_t tasks) {
     size_t ntasks_base = tasks / this->nteams;
@@ -268,87 +293,63 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
   bweights_ = nullptr;
   boutput_ = nullptr;
 
-  l1_usage = sizeof(Type)
-      * (this->O2 * this->I2 * V * V + this->T * V * (this->I2 + this->O2));
-
   switch (xopt_) {
   case 0xa000:
     tweights_size = A * A * this->IC * this->OC;
     tinput_size = A * A * this->IC * this->t;
     toutput_size = A * A * this->OC * this->t;
-    l2_usage = this->IC * this->OC / this->oc3
-        + this->T * (this->IC + this->OC / this->oc3);
     break;
   case 0xa010:
     tweights_size = A * A * this->IC * this->OC;
     tinput_size = A * A * this->ic3 * this->I2 * V * this->t;
     toutput_size = A * A * this->OC * this->t;
-    l2_usage = this->IC * this->OC / this->oc3
-        + this->T * (this->IC + this->OC / this->oc3);
     break;
   case 0xa040:
     tweights_size = A * A * this->IC * this->OC;
     tinput_size = A * A * this->IC * this->T * mthr_;
     toutput_size = A * A * this->OC * this->T * mthr_;
-    l2_usage = tweights_size + A * A * this->T * (this->IC + this->OC);
     break;
   case 0xa060:
     tweights_size = A * A * this->IC * this->OC;
     tinput_size = A * A * this->IC * this->t;
     toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_;
-    l2_usage = tweights_size / this->oc4
-        + A * A * this->T * (this->IC + this->OC / this->oc4);
     break;
   case 0xa061:
     tweights_size = A * A * this->IC * this->OC;
     tinput_size = A * A * this->IC * this->T * mthr_;
     toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_;
-    l2_usage = tweights_size / this->oc4
-        + A * A * this->T * (this->IC + this->OC / this->oc4);
     break;
   case 0xa072:
     tweights_size = A * A * this->IC * this->OC;
     tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_;
     toutput_size = A * A * this->OC * this->t;
-    l2_usage = tweights_size / this->ic4 / this->oc4
-        + A * A * this->T * (this->IC / this->ic4 + this->OC / this->oc4);
     break;
   case 0xa0e0:
     tweights_size = A * A * this->IC * this->OC;
     tinput_size = A * A * this->IC * this->t;
     toutput_size = A * (this->OC / this->oc4) * this->T * mthr_;
     toutputa_size = A * (A - K + 1) * this->OC * this->t;
-    l2_usage = tweights_size / this->oc4 / A
-        + A * this->T * (this->IC + this->OC / this->oc4);
     break;
   case 0xa0e1:
     tweights_size = A * A * this->IC * this->OC;
     tinput_size = A * this->IC * this->T * mthr_;
     toutput_size = A * (this->OC / this->oc4) * this->T * mthr_;
     toutputa_size = A * (A - K + 1) * this->OC * this->t;
-    l2_usage = tweights_size / this->oc4 / A
-        + A * this->T * (this->IC + this->OC / this->oc4);
     break;
   case 0xa201:
     tweights_size = A * A * this->IC * this->OC;
     tinput_size = A * A * this->IC * this->T * this->t2 * this->nteams;
     toutput_size = A * A * this->OC * this->T * this->t2;
-    l2_usage = this->IC * this->OC / this->oc3 / this->oc4
-        + this->T * (this->IC + this->OC / this->oc3 / this->oc4);
     break;
   case 0xa241:
     tweights_size = A * A * this->IC * this->OC;
     tinput_size = A * A * this->IC * this->T * mthr_;
     toutput_size = A * A * this->OC * this->T * mthr_;
-    l2_usage = tweights_size / this->oc4
-        + A * A * this->T * (this->IC + this->OC / this->oc4);
     break;
   case 0xa448:
     tweights_size = A * A * this->IC * this->OC * this->nteams;
     tinput_size = A * A * this->IC * this->T * mthr_;
     toutput_size = A * A * this->OC * this->T * mthr_;
-    l2_usage = tweights_size / this->nteams
-        + A * A * this->T * (this->IC + this->OC);
     break;
   default:
       el_error("Config error!");
@@ -356,29 +357,53 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
     break;
   }
 
-  l2_usage *= sizeof(Type);
-
-#define WEIGHTS_MAX_PRELOAD 4
   if (tweights_size > 0) {
-    MEMALIGN64(&tweights_, (tweights_size + WEIGHTS_MAX_PRELOAD * V) * sizeof(Type));
-    tweights_size_ = (tweights_size + WEIGHTS_MAX_PRELOAD * V) * sizeof(Type);
+#define WEIGHTS_MAX_PRELOAD 4
+    tweights_size += WEIGHTS_MAX_PRELOAD * V;
+    tweights_size = ALIGNUP(tweights_size * sizeof(Type), PAGE_SIZE);
+    tweights_size_ = tweights_size;
   }
+  const size_t align = PAGE_SIZE / sizeof(Type);
   if (tinput_size > 0)
-    MEMALIGN64(&tinput_, tinput_size * sizeof(Type));
+    tinput_size = alignup(tinput_size, align);
   if (toutput_size > 0)
-    MEMALIGN64(&toutput_, toutput_size * sizeof(Type));
+    toutput_size = alignup(toutput_size, align);
   if (toutputa_size > 0)
-    MEMALIGN64(&toutputa_, toutputa_size * sizeof(Type));
+    toutputa_size = alignup(toutputa_size, align);
   if (binput_size > 0)
-    MEMALIGN64(&binput_, binput_size * sizeof(Type));
+    binput_size = alignup(binput_size, align);
   if (bweights_size > 0)
-    MEMALIGN64(&bweights_, bweights_size * sizeof(Type));
+    bweights_size = alignup(bweights_size, align);
   if (boutput_size > 0)
-    MEMALIGN64(&boutput_, boutput_size * sizeof(Type));
+    boutput_size = alignup(boutput_size, align);
+
+  workspace_ = nullptr, scratch_ = nullptr;
+  size_t workspace_size = tweights_size;
+  size_t scratch_size = tinput_size + toutput_size + toutputa_size + binput_size
+      + bweights_size + boutput_size;
+  if ((xopt_ & 0xF00) == 0xB00) {
+    scratch_size += tweights_size;
+    workspace_size = 0;
+  }
+  // TODO: user provided buffer
+  if (scratch_size != 0) {
+    scratch_ = (Type *)galloc::acquire(scratch_size * sizeof(Type));
+  }
+  if (workspace_size != 0) {
+    MEMALIGN64(&workspace_, workspace_size * sizeof(Type));
+    tweights_ = workspace_;
+    tinput_ = scratch_;
+  } else {
+    tweights_ = scratch_;
+    tinput_ = tweights_ + tweights_size;
+  }
+  toutput_ = tinput_ + tinput_size;
+  toutputa_ = toutput_ + toutput_size;
+  binput_ = toutputa_ + toutputa_size;
+  bweights_ = binput_ + binput_size;
+  boutput_ = bweights_ + bweights_size;
 
   // dbg
-
-
   printf("nteams=%d, nthreads=%d, mthr_=%d\n",
       this->nteams, this->nthreads, mthr_);
   printf("gemmker_input_footprint = %ld\n", gemmker_input_footprint());
@@ -515,34 +540,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 
 template <typename Type, const int A, const int K, const int V, const int I>
 elx_conv_wino_t<Type, A, K, V, I>::~elx_conv_wino_t() {
-  if (tweights_ != nullptr) {
-    free(tweights_);
-    tweights_ = nullptr;
-  }
-  if (tinput_ != nullptr) {
-    free(tinput_);
-    tinput_ = nullptr;
-  }
-  if (toutput_ != nullptr) {
-    free(toutput_);
-    toutput_ = nullptr;
-  }
-  if (toutputa_ != nullptr) {
-    free(toutputa_);
-    toutputa_ = nullptr;
-  }
-  if (binput_ != nullptr) {
-    free(binput_);
-    binput_ = nullptr;
-  }
-  if (bweights_ != nullptr) {
-    free(bweights_);
-    bweights_ = nullptr;
-  }
-  if (boutput_ != nullptr) {
-    free(boutput_);
-    boutput_ = nullptr;
-  }
+  if (workspace_ != nullptr)
+    free(workspace_);
 }
 
 #define t2spato(__t2, __T, __n, __oh, __ow, __hOA_end, __wOA_end)            \
