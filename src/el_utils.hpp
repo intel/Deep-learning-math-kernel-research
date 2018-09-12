@@ -33,6 +33,24 @@ typedef std::chrono::duration<float, std::milli> Duration;
 
 namespace euler {
 
+// convolution attributes indexes
+enum {
+  bias_idx = 0x1,         // with bias
+  relu_idx = 0x2,         // fuse with relu
+  ip_sum_idx = 0x4,       // fuse with in-place sum
+  op_sum_idx = 0x8,       // fuse with out-of-place sum
+  r_output_idx = 0x10,    // clear output
+  s_output_idx = 0x20,    // streaming output
+};
+
+inline int set_attr(int attr, int index) {
+  return attr | index;
+}
+
+inline bool get_attr(int attr, int index) {
+  return (attr & index) != 0;
+}
+
 inline void el_error(const char *msg) {
   printf("Euler:Error: %s\n", msg);
   abort();

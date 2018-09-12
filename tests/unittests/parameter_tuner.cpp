@@ -33,7 +33,8 @@ public:
     desc_.with_bias = false;
     desc_.algorithm = euler::CONV_WINOGRAD;
     desc_.with_relu = false;
-    desc_.with_sum = false;
+    desc_.with_ip_sum = false;
+    desc_.with_op_sum = false;
     desc_.execution_mode = 0xa061;
     desc_.prop_kind = euler::forward_inference;
     desc_.tile_size = A;

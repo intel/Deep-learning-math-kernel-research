@@ -41,6 +41,12 @@ namespace test {
     for (size_t i = 0; i < desc.sizes.bias; i++) {
       (*bias)[i] = rand() % 100;
     }
+    if (desc.with_ip_sum) {
+#pragma omp parallel for
+      for (size_t i = 0; i < desc.sizes.output; i++) {
+        (*output)[i] = rand() % 10;
+      }
+    }
   }
 
   void teardown_conv_data(
@@ -223,7 +229,7 @@ namespace test {
     float iter = 5e12 / num_ops;
     return std::max((int)iter, 1024);
   }
- 
+
   template <typename Type>
   reorder<Type, nchw, nChw16c>::reorder(
       Type *dst, Type *src, int n, int c, int h, int w)
@@ -381,20 +387,26 @@ namespace test {
       tweights = (Type *)malloc(desc.byte_sizes.weights);
       reorder<Type, oihw, OIhw16i16o>(tweights, weights, oc, ic, kh, kw);
     }
+
     if (desc.formats.output == nChw16c) {
       toutput = (Type *)malloc(desc.byte_sizes.output);
+      reorder<Type, nchw, nChw16c>(toutput, output, n, oc, oh, ow);
     }
 
     MD4(Type, ainput, desc.formats.input == nchw ? input : tinput, n, ic, ih, iw);
     MD4(Type, aweights, desc.formats.weights == oihw ? weights : tweights, oc, ic, kh, kw);
-    MD4(Type, aoutput, desc.formats.output == nchw ? output : toutput, n, oc, oh, ow);
+    MD4(Type, atoutput, desc.formats.output == nchw ? output : toutput, n, oc, oh, ow);
 
 #pragma omp parallel for collapse(4)
     iter_each (_n, n) {
       iter_each (_oc, oc) {
         iter_each (_oh, oh) {
           iter_each (_ow, ow) {
-            md4(aoutput, _n, _oc, _oh, _ow) = desc.with_bias ? bias[_oc] : 0.0f;
+            if (desc.with_ip_sum)
+              md4(atoutput, _n, _oc, _oh, _ow) += desc.with_bias ? bias[_oc] : 0.0f;
+            else
+              md4(atoutput, _n, _oc, _oh, _ow) = desc.with_bias ? bias[_oc] : 0.0f;
+
             iter_each (_ic, ic) {
               iter_each (_kh, kh) {
                 int _ih = _oh * sh - pt + _kh * dh;
@@ -404,22 +416,23 @@ namespace test {
                   int _iw = _ow * sw - pl + _kw * dw;
                   if (_iw < 0 || _iw >= iw)
                     continue;
-                  md4(aoutput, _n, _oc, _oh, _ow)
+                  md4(atoutput, _n, _oc, _oh, _ow)
                       += md4(ainput, _n, _ic, _ih, _iw)
                       * md4(aweights, _oc, _ic, _kh, _kw);
                 }
               }
             }
-            md4(aoutput, _n, _oc, _oh, _ow) =
-                desc.with_relu && md4(aoutput, _n, _oc, _oh, _ow) < 0.0f ?
-                0.0f : md4(aoutput, _n, _oc, _oh, _ow);
+            md4(atoutput, _n, _oc, _oh, _ow) =
+                desc.with_relu && md4(atoutput, _n, _oc, _oh, _ow) < 0.0f ?
+                0.0f : md4(atoutput, _n, _oc, _oh, _ow);
           }
         }
       }
     }
 
-    if (desc.formats.output == nChw16c)
+    if (desc.formats.output == nChw16c) {
       reorder<Type, nChw16c, nchw>(output, toutput, n, oc, oh, ow);
+    }
 
     if (tinput != nullptr)
       free(tinput);
@@ -478,8 +491,12 @@ namespace test {
           iter_each (_ow, ow) {
             int ov = _OC == OC - 1 ? Or : 16;
             iter_each (_ov, ov) {
-              md5(aoutput, _n, _OC, _oh, _ow, _ov)
-                  = desc.with_bias ? bias[_OC * 16 + _ov] : 0.0f;
+              if (desc.with_ip_sum)
+                md5(aoutput, _n, _OC, _oh, _ow, _ov)
+                    += desc.with_bias ? bias[_OC * 16 + _ov] : 0.0f;
+              else
+                md5(aoutput, _n, _OC, _oh, _ow, _ov)
+                    = desc.with_bias ? bias[_OC * 16 + _ov] : 0.0f;
               iter_each (_IC, IC) {
                 int iv = _IC == IC - 1 ? Ir : 16;
                 iter_each (_iv, iv) {
@@ -507,6 +524,7 @@ namespace test {
         }
       }
     }
+
     return 0;
   }
 

@@ -55,7 +55,7 @@ struct elx_conv_t {
   int prop_kind;
 
   // relu, bias, sum
-  bool with_relu, with_bias, with_sum;
+  bool with_relu, with_bias, with_ip_sum, with_op_sum;
 
   // streaming hint
   int streaming_weights;

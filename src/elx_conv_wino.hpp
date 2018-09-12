@@ -361,6 +361,7 @@ private:
   bool input_as_bfmt_;
   bool weights_as_bfmt_;
   bool output_as_bfmt_;
+  int attr_;
   int mthr_;
   size_t tweights_size_;
   Type *tweights_;
