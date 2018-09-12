@@ -16,14 +16,18 @@ weights_format=OIhw16i16o
 output_format=nChw16c
 tile_size=5
 with_ip_sum=0
+with_relu=0
 
 OPTIND=1
-while getopts "pst:h" opt; do
+while getopts "prst:h" opt; do
   case $opt in
     p)
       input_format=nchw
       weights_format=oihw
       output_format=nchw
+      ;;
+    r)
+      with_relu=1
       ;;
     s)
       with_ip_sum=1
@@ -45,7 +49,7 @@ shift $((OPTIND-1))
 # correctness
 function __val_conv() {
   echo ====== Test execution-mode: $1 $2 $3 ======
-  $ROOT_DIR/scripts/run.sh -c -v1 -n 3 -i 128 -o 256 -h 56 -w 56 -H 56 -W 56 \
+  $ROOT_DIR/scripts/run.sh -c -v1 -r$with_relu -n 3 -i 128 -o 256 -h 56 -w 56 -H 56 -W 56 \
     --execution-mode=$1 \
     --nteams=$2 --nthreads=$3 \
     --input-format=$input_format \

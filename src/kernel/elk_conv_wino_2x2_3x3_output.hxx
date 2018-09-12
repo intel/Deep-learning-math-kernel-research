@@ -24,6 +24,8 @@ __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
   constexpr bool is_border = cd_traits<conditions...>::is_border;
   constexpr bool with_bias = cd_traits<conditions...>::with_bias;
   constexpr bool with_relu = cd_traits<conditions...>::with_relu;
+  constexpr bool with_ip_sum = cd_traits<conditions...>::with_ip_sum;
+  bool fuse_ip_sum = with_ip_sum && (wOA_end != -1);
 
   alignas(64) float dummy[16];
   auto p_cb = [&](int _h, int _w) {
@@ -57,18 +59,22 @@ __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
 
   __m<V> p00 = ADD(ADD(ADD(ADD(t00, t01), t02), c0), c1);
   if (with_bias) p00 = ADD(p00, *(__m<V>*)bias);
+  if (fuse_ip_sum) p00 = ADD(p00, *(__m<V>*)P(0, 0));
   if (with_relu) {
     zero = XOR(zero, zero);
     p00 = MAX(p00, zero);
   }
   __m<V> p10 = ADD(ADD(ADD(SUB(c1, c0), t30), t31), t32);
   if (with_bias) p10 = ADD(p10, *(__m<V>*)bias);
+  if (fuse_ip_sum) p10 = ADD(p10, *(__m<V>*)P(1, 0));
   if (with_relu) p10 = MAX(p10, zero);
   __m<V> p01 = ADD(ADD(ADD(SUB(t02, t01), t03), c2), c3);
   if (with_bias) p01 = ADD(p01, *(__m<V>*)bias);
+  if (fuse_ip_sum) p01 = ADD(p01, *(__m<V>*)P(0, 1));
   if (with_relu) p01 = MAX(p01, zero);
   __m<V> p11 = ADD(ADD(SUB(SUB(c3, c2), t31), t32), t33);
   if (with_bias) p11 = ADD(p11, *(__m<V>*)bias);
+  if (fuse_ip_sum) p11 = ADD(p11, *(__m<V>*)P(1, 1));
   if (with_relu) p11 = MAX(p11, zero);
 
 #undef OP
@@ -127,6 +133,8 @@ __trans_outputa_bh(elx_conv_t<float> &xc, float *output,
   constexpr bool is_border = cd_traits<conditions...>::is_border;
   constexpr bool with_bias = cd_traits<conditions...>::with_bias;
   constexpr bool with_relu = cd_traits<conditions...>::with_relu;
+  constexpr bool with_ip_sum = cd_traits<conditions...>::with_ip_sum;
+  bool fuse_ip_sum = with_ip_sum && (wOA_end != -1);
 
   alignas(64) float dummy[16];
   auto p_cb = [&](int _h, int _w) {
@@ -157,12 +165,14 @@ __trans_outputa_bh(elx_conv_t<float> &xc, float *output,
 
   p0 = ADD(ADD(t0, t1), t2);
   if (with_bias) p0 = ADD(p0, *(__m<V>*)bias);
+  if (fuse_ip_sum) p0 = ADD(p0, *(__m<V>*)P(0, 0));
   if (with_relu) {
     zero = XOR(zero, zero);
     p0 = MAX(p0, zero);
   }
   p1 = SUB(ADD(t2, t3), t1);
   if (with_bias) p1 = ADD(p1, *(__m<V>*)bias);
+  if (fuse_ip_sum) p1 = ADD(p1, *(__m<V>*)P(0, 1));
   if (with_relu) p1 = MAX(p1, zero);
 
   _mm<V>::store_ps(P(0,0), p0);
@@ -175,9 +185,11 @@ __trans_outputa_bh(elx_conv_t<float> &xc, float *output,
 
   p0 = ADD(ADD(t0, t1), t2);
   if (with_bias) p0 = ADD(p0, *(__m<V>*)bias);
+  if (fuse_ip_sum) p0 = ADD(p0, *(__m<V>*)P(1, 0));
   if (with_relu) p0 = MAX(p0, zero);
   p1 = SUB(ADD(t2, t3), t1);
   if (with_bias) p1 = ADD(p1, *(__m<V>*)bias);
+  if (fuse_ip_sum) p1 = ADD(p1, *(__m<V>*)P(1, 1));
   if (with_relu) p1 = MAX(p1, zero);
 
   _mm<V>::store_ps(P(1,0), p0);

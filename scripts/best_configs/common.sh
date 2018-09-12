@@ -10,12 +10,12 @@ cat <<!
 }
 
 v=0
+r=0
 s=0
 input_format=nChw16c
 weights_format=OIhw16i16o
 output_format=nChw16c
 tile_size=5
-r=0
 
 OPTIND=1
 while getopts "vprst:h" opt; do

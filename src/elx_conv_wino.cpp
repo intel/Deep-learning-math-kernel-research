@@ -150,13 +150,17 @@ elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
   if (this->V * this->I2 * this->ic3 * this->ic4 != this->IC) {
       el_warn("V * I2 * ic3 * ic4 != this->IC\n Force ic4 = IC / (V * I2 * ic3)");
       this->ic4 = this->IC / (this->V * this->I2 * this->ic3);
-  } 
+  }
 
   if (this->V * this->O2 * this->oc3 * this->oc4 != this->OC) {
       el_warn("V * O2 * oc3 * oc4 != this->OC\n Force oc4 = OC / (V * O2 * oc3)");
       this->oc4 = this->OC / (this->V * this->O2 * this->oc3);
   }
 #else
+  if (this->with_ip_sum && this->with_relu && !output_is_bfmt_) {
+    el_error("Unimplemented: fuse sum (plain format) and relu together");
+  }
+
   if (this->V * this->I2 * this->ic3 * this->ic4 != this->IC) {
       el_error("V * I2 * ic3 * ic4 != this->IC\n)");
   }
