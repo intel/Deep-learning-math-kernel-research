@@ -26,10 +26,10 @@ NSOCKETS=1 ./scripts/run.sh -c -i256 -h75 -o256 -H75 -n1 --tile-size=7 --executi
 sleep 1
 #"ssd_300_voc0712:conv3_3":ic256 ih75 oc256 oh75 kh3 ph1n"
 #"ssd_300_voc0712:conv4_1":ic256 ih38 oc512 oh38 kh3 ph1n"
-NSOCKETS=1 ./scripts/run.sh -c -i256 -h38 -o512 -H38 -n1 --tile-size=7 --execution-mode=0xa000 --blk-i=4 --blk-o=4 --flt-t=32 $COMMON 
+NSOCKETS=1 ./scripts/run.sh -c -i256 -h38 -o512 -H38 -n1 --tile-size=7 --execution-mode=0xa000 --blk-i=4 --blk-o=4 --flt-t=29 $COMMON 
 sleep 1
 #"ssd_300_voc0712:conv4_2":ic512 ih38 oc512 oh38 kh3 ph1n"
-NSOCKETS=1 ./scripts/run.sh -c -i512 -h38 -o512 -H38 -n1 --tile-size=7 --execution-mode=0xa000 --blk-i=4 --blk-o=4 --flt-t=32 $COMMON 
+NSOCKETS=1 ./scripts/run.sh -c -i512 -h38 -o512 -H38 -n1 --tile-size=7 --execution-mode=0xa000 --blk-i=4 --blk-o=4 --flt-t=29 $COMMON 
 sleep 1
 #"ssd_300_voc0712:conv4_3":ic512 ih38 oc512 oh38 kh3 ph1n"
 #"ssd_300_voc0712:conv5_1":ic512 ih19 oc512 oh19 kh3 ph1n"

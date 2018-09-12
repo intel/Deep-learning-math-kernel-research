@@ -50,8 +50,8 @@ sleep 1
 NSOCKETS=2 ./scripts/run.sh -c -i512 -h38 -o84 -H38 -n64 --tile-size=6 --execution-mode=0xa061 --blk-i=8 --blk-o=3 --flt-t=10 $COMMON 
 sleep 1
 #"ssd_300_voc0712:fc7_mbox_l oc": ic1024 ih19 oc24 oh19 kh3 ph1n"
-NSOCKETS=2 ./scripts/run.sh -c -i1024 -h19 -o24 -H19 -n64 --tile-size=6 --execution-mode=0xa000 --blk-i=4 --blk-o=2 --flt-t=29 $COMMON 
-sleep 1
+#NSOCKETS=2 ./scripts/run.sh -c -i1024 -h19 -o24 -H19 -n64 --tile-size=6 --execution-mode=0xa000 --blk-i=4 --blk-o=2 --flt-t=29 $COMMON 
+#sleep 1
 #"ssd_300_voc0712:fc7_mbox_conf": ic1024 ih19 oc126 oh19 kh3 ph1n"
 NSOCKETS=2 ./scripts/run.sh -c -i1024 -h19 -o126 -H19 -n64 --tile-size=6 --execution-mode=0xa000 --blk-i=16 --blk-o=8 --flt-t=25 $COMMON 
 sleep 1
