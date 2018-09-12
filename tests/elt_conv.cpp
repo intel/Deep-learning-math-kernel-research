@@ -77,11 +77,11 @@ int main(int argc, char **argv)
     test::prepare_conv_data<float>(
         convs[c], &input[c], &weights[c], &output[c], &bias[c]);
    }
- 
+
   if (validate_results) {
     ref_output = (float *)malloc(convs[0].byte_sizes.output);
     if (desc.with_ip_sum)
-      memcpy(ref_output, output, convs[0].byte_sizes.output);
+      memcpy(ref_output, output[0], convs[0].byte_sizes.output);
   }
 
   // 3. execute convolution

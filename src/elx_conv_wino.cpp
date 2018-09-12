@@ -2627,7 +2627,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::clflush() {
 
 #pragma omp parallel for num_threads(mthr_)
   for (auto p = tweights_; p < tweights_ + tweights_size_; p += step)
-    _mm_clflushopt(p);
+    _mm_clflush(p);
 }
 
 } // namespace euler

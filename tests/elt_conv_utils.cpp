@@ -3,6 +3,7 @@
 #include <omp.h>
 #include <memory.h>
 #include "elt_conv_utils.hpp"
+#include "el_intrin.hpp"
 
 namespace euler {
 namespace test {
@@ -544,16 +545,16 @@ namespace test {
 
 //#pragma omp parallel for
     // for (auto p = input; p < input + desc.sizes.input; p += step)
-    //  _mm_clflushopt(p);
+    //  _mm_clflush(p);
 #pragma omp parallel for
     for (auto p = weights; p < weights + desc.sizes.weights; p += step)
-      _mm_clflushopt(p);
+      _mm_clflush(p);
 #pragma omp parallel for
     for (auto p = output; p < output + desc.sizes.output; p += step)
-      _mm_clflushopt(p);
+      _mm_clflush(p);
 #pragma omp parallel for
     for (auto p = bias; p < bias + desc.sizes.bias; p += step)
-      _mm_clflushopt(p);
+      _mm_clflush(p);
   }
 
   template int compare_conv_results<float>(
