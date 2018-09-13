@@ -357,13 +357,13 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
     break;
   }
 
+  const size_t align = PAGE_SIZE / sizeof(Type);
   if (tweights_size > 0) {
 #define WEIGHTS_MAX_PRELOAD 4
     tweights_size += WEIGHTS_MAX_PRELOAD * V;
-    tweights_size = ALIGNUP(tweights_size * sizeof(Type), PAGE_SIZE);
-    tweights_size_ = tweights_size;
+    tweights_size = alignup(tweights_size, align);
+    tweights_size_ = tweights_size * sizeof(Type);
   }
-  const size_t align = PAGE_SIZE / sizeof(Type);
   if (tinput_size > 0)
     tinput_size = alignup(tinput_size, align);
   if (toutput_size > 0)
