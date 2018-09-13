@@ -30,8 +30,9 @@ bool input_as_blocked = false, weights_as_blocked = false, output_as_blocked = f
 bool validate_results = false;
 bool execution_array = false;
 bool flush_cache = false;
+int flush_loop = 16;
 
-#define CL 16
+#define FL_MAX 128
 int main(int argc, char **argv)
 {
   if (parse_cmd_options(argc, argv))
@@ -65,9 +66,11 @@ int main(int argc, char **argv)
       = { input_as_blocked, weights_as_blocked, output_as_blocked };
 
   // 2. setup convolution
-  eld_conv_t<float> convs[CL];
-  float *input[CL], *weights[CL], *output[CL], *bias[CL], *ref_output;
-  const auto C = (validate_results || !execution_array) ? 1 : CL;
+  eld_conv_t<float> convs[FL_MAX];
+  float *input[FL_MAX], *weights[FL_MAX], *output[FL_MAX],
+      *bias[FL_MAX], *ref_output;
+  const auto C = (validate_results || !execution_array) ? 1 :
+      flush_loop <= FL_MAX ? flush_loop : FL_MAX;;
   for (auto c = 0; c < C; ++c) {
     convs[c] = desc;
     if (convs[c].setup() != ELD_OK) {
@@ -76,7 +79,7 @@ int main(int argc, char **argv)
     }
     test::prepare_conv_data<float>(
         convs[c], &input[c], &weights[c], &output[c], &bias[c]);
-   }
+  }
 
   if (validate_results) {
     ref_output = (float *)malloc(convs[0].byte_sizes.output);
@@ -153,6 +156,7 @@ int parse_cmd_options(int argc, char **argv) {
     ("with-relu,r", po::value<bool>(&with_relu), "on|off. With relu. Default: off")
     ("execution-array,x", po::value<bool>(&execution_array), "on|off. Execution array. Default: off")
     ("flush-cache,f", po::value<bool>(&flush_cache), "on|off. Fush cache. Default: off")
+    ("flush-loop,l", po::value<int>(&flush_loop), "Number of loop of cache flush. Default: 16")
     ("alg,a", po::value<std::string>(), "auto|wino|direct|direct_1x1. Algorithm. Default: wino")
     ("tile-size", po::value<int>(&tile_size), "Winograd tile size: 5")
     ("nteams", po::value<int>(&nteams), "Number of thread team")
@@ -285,7 +289,8 @@ int parse_cmd_options(int argc, char **argv) {
       fmt_str[weights_format], fmt_str[output_format]);
   printf("input-as-blocked:%d, weights_as_blocked:%d, output_as_blocked:%d\n",
       input_as_blocked, weights_as_blocked, output_as_blocked);
-  printf("execution_array:%d, flush_cache: %d\n", execution_array, flush_cache);
+  printf("execution_array:%d, flush_cache: %d, flush_loop: %d\n",
+      execution_array, flush_cache, flush_loop);
 
   if (mb <= 0 || ic <= 0 || ih <= 0 || iw <= 0 || oc <= 0 || oh <= 0
       || ow <= 0 || kh <= 0 || kw <= 0) {
