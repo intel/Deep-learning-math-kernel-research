@@ -71,21 +71,23 @@ struct galloc {
   static size_t sz_;
   static void *p_;
 
-  static void *acquire(size_t size) {
+  static void *acquire(size_t size)
+  {
     size_t sz = ALIGNUP(size, 64);
-    if (p_ == nullptr)
+    if (p_ == nullptr) {
       MEMALIGN64(&p_, sz);
-    else if (sz > sz_) {
+      sz_ = sz;
+    } else if (sz > sz_) {
       ::free(p_);
       MEMALIGN64(&p_, sz);
+      sz_ = sz;
     }
-    sz_ = sz;
     return p_;
   }
 
-  static void release() {
-    ::free(p_);
-  }
+  static void *get() { return p_; }
+
+  static void release() { ::free(p_); }
 };
 
 size_t galloc::sz_ = 0;
@@ -357,51 +359,32 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
     break;
   }
 
-  const size_t align = PAGE_SIZE / sizeof(Type);
-  if (tweights_size > 0) {
 #define WEIGHTS_MAX_PRELOAD 4
+  const size_t align = PAGE_SIZE / sizeof(Type);
+  if (tweights_size > 0)
     tweights_size += WEIGHTS_MAX_PRELOAD * V;
-    tweights_size = alignup(tweights_size, align);
-    tweights_size_ = tweights_size * sizeof(Type);
-  }
-  if (tinput_size > 0)
-    tinput_size = alignup(tinput_size, align);
-  if (toutput_size > 0)
-    toutput_size = alignup(toutput_size, align);
-  if (toutputa_size > 0)
-    toutputa_size = alignup(toutputa_size, align);
-  if (binput_size > 0)
-    binput_size = alignup(binput_size, align);
-  if (bweights_size > 0)
-    bweights_size = alignup(bweights_size, align);
-  if (boutput_size > 0)
-    boutput_size = alignup(boutput_size, align);
+
+  tweights_size_ = tweights_size > 0 ? alignup(tweights_size, align) : 0;
+  tinput_size_ = tinput_size > 0 ? alignup(tinput_size, align) : 0;
+  toutput_size_ = toutput_size > 0 ? alignup(toutput_size, align) : 0;
+  toutputa_size_ = toutputa_size > 0 ? alignup(toutputa_size, align) : 0;
+  binput_size_ = binput_size > 0 ? alignup(binput_size, align) : 0;
+  bweights_size_ = bweights_size > 0 ? alignup(bweights_size, align) : 0;
+  boutput_size_ = boutput_size > 0 ? alignup(boutput_size, align) : 0;
 
   workspace_ = nullptr, scratch_ = nullptr;
-  size_t workspace_size = tweights_size;
-  size_t scratch_size = tinput_size + toutput_size + toutputa_size + binput_size
-      + bweights_size + boutput_size;
+  size_t workspace_size = tweights_size_;
+  size_t scratch_size = tinput_size_ + toutput_size_ + toutputa_size_
+      + binput_size_ + bweights_size_ + boutput_size_;
   if ((xopt_ & 0xF00) == 0xB00) {
-    scratch_size += tweights_size;
+    scratch_size += tweights_size_;
     workspace_size = 0;
   }
   // TODO: user provided buffer
-  if (scratch_size != 0) {
+  if (scratch_size != 0)
     scratch_ = (Type *)galloc::acquire(scratch_size * sizeof(Type));
-  }
-  if (workspace_size != 0) {
+  if (workspace_size != 0)
     MEMALIGN64(&workspace_, workspace_size * sizeof(Type));
-    tweights_ = workspace_;
-    tinput_ = scratch_;
-  } else {
-    tweights_ = scratch_;
-    tinput_ = tweights_ + tweights_size;
-  }
-  toutput_ = tinput_ + tinput_size;
-  toutputa_ = toutput_ + toutput_size;
-  binput_ = toutputa_ + toutputa_size;
-  bweights_ = binput_ + binput_size;
-  boutput_ = bweights_ + bweights_size;
 
   // dbg
   printf("nteams=%d, nthreads=%d, mthr_=%d\n",
@@ -416,6 +399,23 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
   plan.dump();
 
   return 0;
+}
+
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_t<Type, A, K, V, I>::set_trans_buffers()
+{
+  if (workspace_ != nullptr) {
+    tweights_ = workspace_;
+    tinput_ = (Type *)galloc::get();
+  } else {
+    tweights_ = (Type *)galloc::get();
+    tinput_ = tweights_ + tweights_size_;
+  }
+  toutput_ = tinput_ + tinput_size_;
+  toutputa_ = toutput_ + toutput_size_;
+  binput_ = toutputa_ + toutputa_size_;
+  bweights_ = binput_ + binput_size_;
+  boutput_ = bweights_ + bweights_size_;
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
@@ -539,9 +539,9 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-elx_conv_wino_t<Type, A, K, V, I>::~elx_conv_wino_t() {
-  if (workspace_ != nullptr)
-    free(workspace_);
+elx_conv_wino_t<Type, A, K, V, I>::~elx_conv_wino_t()
+{
+  if (workspace_ != nullptr) ::free(workspace_);
 }
 
 #define t2spato(__t2, __T, __n, __oh, __ow, __hOA_end, __wOA_end)            \
@@ -2538,6 +2538,8 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::execute(
     Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
+  set_trans_buffers();
+
   if (is_bfmt_)
     return (this->*execute_opt_)(output, input, weights, bias);
   else {
@@ -2625,8 +2627,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::clflush() {
   constexpr auto step = CACHE_LINE_SIZE;
 
 #pragma omp parallel for num_threads(mthr_)
-  for (char *p = (char *)tweights_; p < (char *)tweights_ + tweights_size_;
-       p += step)
+  for (char *p = (char *)tweights_;
+       p < (char *)tweights_ + tweights_size_ * sizeof(Type); p += step)
     _mm_clflush(p);
 }
 

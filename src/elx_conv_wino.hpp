@@ -294,6 +294,7 @@ private:
   void gemm(Type *toutput, Type *tinput, Type *tweights, int _ic4 = 0);
   void gemma(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
 
+  void set_trans_buffers();
   int prepare_execute_opt();
   void bind_execute_functions();
 
@@ -364,6 +365,12 @@ private:
   int attr_;
   int mthr_;
   size_t tweights_size_;
+  size_t tinput_size_;
+  size_t toutput_size_;
+  size_t toutputa_size_;
+  size_t binput_size_;
+  size_t bweights_size_;
+  size_t boutput_size_;
   Type *workspace_;
   Type *scratch_;
 
