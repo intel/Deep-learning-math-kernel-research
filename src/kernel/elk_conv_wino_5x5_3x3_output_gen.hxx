@@ -107,7 +107,7 @@ __trans_output(elx_conv_t<float> &xc, float *output,
   for (int _V = 0; _V < V; ++_V) {
     BOOST_PP_REPEAT(6, GENERIC_CALCULATE_O_0, nil)
     GENERIC_CALCULATE_O(0)
-    P(4, 0) += T(6, 0) + T(6, 1) + T(6, 2) + T(6, 3) + T(6, 4) + T(6, 5);
+    S(4) += T(6, 0) + T(6, 1) + T(6, 2) + T(6, 3) + T(6, 4) + T(6, 5);
     if (with_bias) S(4) += B;
     if (fuse_ip_sum) S(4) += P(4, 0);
     if (with_relu) P(4, 0) = S(4) > 0 ? S(4) : 0;
