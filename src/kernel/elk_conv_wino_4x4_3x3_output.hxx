@@ -44,6 +44,9 @@ __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
   constexpr bool with_relu = cd_traits<conditions...>::with_relu;
   constexpr bool with_ip_sum = cd_traits<conditions...>::with_ip_sum;
   bool fuse_ip_sum = with_ip_sum && (wOA_end != -1);
+  // TODO replace bias != nullptr with last_ic4 condition
+  bool fuse_bias = with_bias && (bias != nullptr);
+  bool fuse_relu = with_relu && (bias != nullptr);
 
   alignas(64) float dummy[16];
   auto p_cb = [&](int _h, int _w) {
@@ -99,27 +102,27 @@ __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
   b03 = ADD(t53, t54);
 
   p00 = ADD(t00, ADD(b00, ADD(b01, ADD(a00, a01))));
-  if (with_bias) p00 = ADD(p00, *(__m<V>*)bias);
+  if (fuse_bias) p00 = ADD(p00, *(__m<V>*)bias);
   if (fuse_ip_sum) p00 = ADD(p00, *(__m<V>*)P(0, 0));
-  if (with_relu) {
+  if (fuse_relu) {
     zero = XOR(zero, zero);
     p00 = MAX(p00, zero);
   }
   ISTORE(0, 0);
   p10 = FMADD(z2, a03, a02);
-  if (with_bias) p10 = ADD(p10, *(__m<V>*)bias);
+  if (fuse_bias) p10 = ADD(p10, *(__m<V>*)bias);
   if (fuse_ip_sum) p10 = ADD(p10, *(__m<V>*)P(1, 0));
-  if (with_relu) p10 = MAX(p10, zero);
+  if (fuse_relu) p10 = MAX(p10, zero);
   ISTORE(1, 0);
   p20 = FMADD(z4, a01, a00);
-  if (with_bias) p20 = ADD(p20, *(__m<V>*)bias);
+  if (fuse_bias) p20 = ADD(p20, *(__m<V>*)bias);
   if (fuse_ip_sum) p20 = ADD(p20, *(__m<V>*)P(2, 0));
-  if (with_relu) p20 = MAX(p20, zero);
+  if (fuse_relu) p20 = MAX(p20, zero);
   ISTORE(2, 0);
   p30 = FMADD(z8, a03, ADD(a02, ADD(t50, ADD(b02, b03))));
-  if (with_bias) p30 = ADD(p30, *(__m<V>*)bias);
+  if (fuse_bias) p30 = ADD(p30, *(__m<V>*)bias);
   if (fuse_ip_sum) p30 = ADD(p30, *(__m<V>*)P(3, 0));
-  if (with_relu) p30 = MAX(p30, zero);
+  if (fuse_relu) p30 = MAX(p30, zero);
   ISTORE(3, 0);
 
   c0 = FMADD(z4, d04, d00);
@@ -133,24 +136,24 @@ __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
   a03 = SUB(c2, c3);
 
   p02 = FMADD(z4, b01, ADD(b00, ADD(a00, a01)));
-  if (with_bias) p02 = ADD(p02, *(__m<V>*)bias);
+  if (fuse_bias) p02 = ADD(p02, *(__m<V>*)bias);
   if (fuse_ip_sum) p02 = ADD(p02, *(__m<V>*)P(0, 2));
-  if (with_relu) p02 = MAX(p02, zero);
+  if (fuse_relu) p02 = MAX(p02, zero);
   ISTORE(0, 2);
   p12 = FMADD(z2, a03, a02);
-  if (with_bias) p12 = ADD(p12, *(__m<V>*)bias);
+  if (fuse_bias) p12 = ADD(p12, *(__m<V>*)bias);
   if (fuse_ip_sum) p12 = ADD(p12, *(__m<V>*)P(1, 2));
-  if (with_relu) p12 = MAX(p12, zero);
+  if (fuse_relu) p12 = MAX(p12, zero);
   ISTORE(1, 2);
   p22 = FMADD(z4, a01, a00);
-  if (with_bias) p22 = ADD(p22, *(__m<V>*)bias);
+  if (fuse_bias) p22 = ADD(p22, *(__m<V>*)bias);
   if (fuse_ip_sum) p22 = ADD(p22, *(__m<V>*)P(2, 2));
-  if (with_relu) p22 = MAX(p22, zero);
+  if (fuse_relu) p22 = MAX(p22, zero);
   ISTORE(2, 2);
   p32 = ADD(FMADD(z8, a03, a02), FMADD(z4, b03, b02));
-  if (with_bias) p32 = ADD(p32, *(__m<V>*)bias);
+  if (fuse_bias) p32 = ADD(p32, *(__m<V>*)bias);
   if (fuse_ip_sum) p32 = ADD(p32, *(__m<V>*)P(3, 2));
-  if (with_relu) p32 = MAX(p32, zero);
+  if (fuse_relu) p32 = MAX(p32, zero);
   ISTORE(3, 2);
 
   d00 = SUB(t11, t12);
@@ -179,24 +182,24 @@ __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
   b03 = SUB(t53, t54);
 
   p01 = ADD(FMADD(z2, b01, b00), ADD(a00, a01));
-  if (with_bias) p01 = ADD(p01, *(__m<V>*)bias);
+  if (fuse_bias) p01 = ADD(p01, *(__m<V>*)bias);
   if (fuse_ip_sum) p01 = ADD(p01, *(__m<V>*)P(0, 1));
-  if (with_relu) p01 = MAX(p01, zero);
+  if (fuse_relu) p01 = MAX(p01, zero);
   ISTORE(0, 1);
   p11 = FMADD(z2, a03, a02);
-  if (with_bias) p11 = ADD(p11, *(__m<V>*)bias);
+  if (fuse_bias) p11 = ADD(p11, *(__m<V>*)bias);
   if (fuse_ip_sum) p11 = ADD(p11, *(__m<V>*)P(1, 1));
-  if (with_relu) p11 = MAX(p11, zero);
+  if (fuse_relu) p11 = MAX(p11, zero);
   ISTORE(1, 1);
   p21 = FMADD(z4, a01, a00);
-  if (with_bias) p21 = ADD(p21, *(__m<V>*)bias);
+  if (fuse_bias) p21 = ADD(p21, *(__m<V>*)bias);
   if (fuse_ip_sum) p21 = ADD(p21, *(__m<V>*)P(2, 1));
-  if (with_relu) p21 = MAX(p21, zero);
+  if (fuse_relu) p21 = MAX(p21, zero);
   ISTORE(2, 1);
   p31 = ADD(FMADD(z8, a03, a02), FMADD(z2, b03, b02));
-  if (with_bias) p31 = ADD(p31, *(__m<V>*)bias);
+  if (fuse_bias) p31 = ADD(p31, *(__m<V>*)bias);
   if (fuse_ip_sum) p31 = ADD(p31, *(__m<V>*)P(3, 1));
-  if (with_relu) p31 = MAX(p31, zero);
+  if (fuse_relu) p31 = MAX(p31, zero);
   ISTORE(3, 1);
 
   VECTOR_DEF(M6, (5));
@@ -212,24 +215,24 @@ __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
   a03 = SUB(c2, c3);
 
   p03 = ADD(FMADD(z8, b01, b00), ADD(t05, ADD(a00, a01)));
-  if (with_bias) p03 = ADD(p03, *(__m<V>*)bias);
+  if (fuse_bias) p03 = ADD(p03, *(__m<V>*)bias);
   if (fuse_ip_sum) p03 = ADD(p03, *(__m<V>*)P(0, 3));
-  if (with_relu) p03 = MAX(p03, zero);
+  if (fuse_relu) p03 = MAX(p03, zero);
   ISTORE(0, 3);
   p13 = FMADD(z2, a03, a02);
-  if (with_bias) p13 = ADD(p13, *(__m<V>*)bias);
+  if (fuse_bias) p13 = ADD(p13, *(__m<V>*)bias);
   if (fuse_ip_sum) p13 = ADD(p13, *(__m<V>*)P(1, 3));
-  if (with_relu) p13 = MAX(p13, zero);
+  if (fuse_relu) p13 = MAX(p13, zero);
   ISTORE(1, 3);
   p23 = FMADD(z4, a01, a00);
-  if (with_bias) p23 = ADD(p23, *(__m<V>*)bias);
+  if (fuse_bias) p23 = ADD(p23, *(__m<V>*)bias);
   if (fuse_ip_sum) p23 = ADD(p23, *(__m<V>*)P(2, 3));
-  if (with_relu) p23 = MAX(p23, zero);
+  if (fuse_relu) p23 = MAX(p23, zero);
   ISTORE(2, 3);
   p33 = ADD(FMADD(z8, a03, a02), ADD(FMADD(z8, b03, b02), t55));
-  if (with_bias) p33 = ADD(p33, *(__m<V>*)bias);
+  if (fuse_bias) p33 = ADD(p33, *(__m<V>*)bias);
   if (fuse_ip_sum) p33 = ADD(p33, *(__m<V>*)P(3, 3));
-  if (with_relu) p33 = MAX(p33, zero);
+  if (fuse_relu) p33 = MAX(p33, zero);
   ISTORE(3, 3);
 }
 
