@@ -185,7 +185,8 @@ elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
       this->oc4 = this->OC / (this->V * this->O2 * this->oc3);
   }
 #else
-  if (this->with_ip_sum && this->with_relu && !output_is_bfmt_) {
+  if ((xopt_ == 0xa073 || this->with_ip_sum)
+      && this->with_relu && !output_is_bfmt_) {
     el_error("Unimplemented: fuse sum (plain format) and relu together");
   }
 
