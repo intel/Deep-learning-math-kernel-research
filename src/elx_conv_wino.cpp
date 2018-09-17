@@ -365,6 +365,11 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
     tinput_size = A * A * this->IC * this->T * mthr_;
     toutput_size = A * A * this->OC * this->T * mthr_;
     break;
+  case 0xb079:
+    tweights_size = A * A * (this->IC / this->ic4) * (this->OC / this->oc4) * mthr_;
+    tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_;
+    toutput_size = A * A * this->OC * this->t;
+    break;
   case 0xb07b:
     tweights_size = A * A * (this->IC / this->ic4) * (this->OC / this->oc4) * mthr_;
     tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_;
@@ -569,9 +574,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
   EXECUTE_CASE(a0e0);
   EXECUTE_CASE(a071);
   EXECUTE_CASE(a073);
-  EXECUTE_CASE(b07b);
   EXECUTE_CASE(a000);
   EXECUTE_CASE(a010);
+  EXECUTE_CASE(b079);
+  EXECUTE_CASE(b07b);
   default:
     el_error("Unimplemented");
     break;
@@ -2715,6 +2721,48 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_b07b(
             &md2(atweights2, ithr, 0), _t2, Tz, _ic4);
         trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
             &md2(abias, _oc4, 0), _t2, Tz, _ic4);
+      }
+    }
+  }
+}
+
+template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_b079(
+    Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
+{
+  MD2(Type, atinput2, tinput_, mthr_, A * A * this->T * this->ic3 * this->I2 * V);
+  MD2(Type, atoutput2, toutput_, this->t2, this->oc4 * A * A * this->T * this->oc3 * this->O2 * V);
+  MD2(Type, atweights2, tweights_, mthr_, A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
+
+  MD3(Type, ainput, input, this->n, this->ic4, this->ih * this->iw * this->ic3 * this->I2 * V);
+  MD3(Type, aoutput, output, this->n, this->oc4, this->oh * this->ow * this->oc3 * this->O2 * V);
+  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+
+  iter_each(_ic4, this->ic4) {
+    int last_ic4 = -1, last_t2 = -1, last_oc4 = -1;
+#pragma omp parallel num_threads(mthr_) proc_bind(close) firstprivate(last_t2, last_ic4, last_oc4)
+#pragma omp for nowait collapse(2)
+    iter_each(_t2, this->t2) {
+      iter_each(_oc4, this->oc4) {
+        int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+        size_t ithr = omp_get_thread_num();
+        MD2(Type, atoutput3, &md2(atoutput2, _t2, 0), this->oc4, A * A * Tz * this->oc3 * this->O2 * V);
+
+        if (last_ic4 != _ic4 || last_oc4 != _oc4) {
+          trans_weightsf(&md2(atweights2, ithr, 0), weights, _ic4, _oc4);
+          last_oc4 = _oc4;
+        }
+        if (last_ic4 != _ic4 || last_t2 != _t2) {
+          trans_input(
+              &md2(atinput2, ithr, 0), &md3(ainput, 0, _ic4, 0), _t2, Tz);
+          last_ic4 = _ic4;
+          last_t2 = _t2;
+        }
+        gemm(&md2(atoutput3, _oc4, 0), &md2(atinput2, ithr, 0),
+            &md2(atweights2, ithr, 0), _t2, Tz, _ic4);
+        if (_ic4 == this->ic4 - 1)
+          trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput3, _oc4, 0),
+              &md2(abias, _oc4, 0), _t2, Tz, _ic4);
       }
     }
   }
