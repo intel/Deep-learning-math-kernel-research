@@ -233,7 +233,7 @@ public:
   }
 
   inline std::size_t gemm_input_reuse_set() const {
-    return gemmker_input_footprint() + 
+    return gemmker_input_footprint() +
       gemmker_weights_footprint() + gemmker_output_footprint();
   }
 
@@ -251,8 +251,10 @@ private:
   void __execute_a061(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a0e1(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a0e0(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a072(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a071(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a073(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_b079(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_b07b(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a201(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a241(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a448(Type *output, Type *input, Type *weights, Type *bias);
@@ -286,6 +288,10 @@ private:
   inline void __trans_weights_plain(Type *tweights, Type *weights, int oc4);
   inline void __trans_weights_blocked(Type *tweights, Type *weights, int oc4);
   void trans_weights(Type *tweights, Type *weights, int oc4 = 1);
+
+  inline void __trans_weightsf_plain(Type *tweights, Type *weights, int _ic4, int _oc4);
+  inline void __trans_weightsf_blocked(Type *tweights, Type *weights, int _ic4, int _oc4);
+  void trans_weightsf(Type *tweights, Type *weights, int _ic4, int _oc4);
 
   inline void __trans_weightsa_plain(Type *tweights, Type *weights);
   inline void __trans_weightsa_blocked(Type *tweights, Type *weights);
