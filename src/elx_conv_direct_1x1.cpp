@@ -11,9 +11,10 @@
 // XOPT
 // kernel options:
 //   - a: CCC, s1
-//   - b: CCS, s1
-//   - c: SSS: s1
-//   - d: SSS: s2
+//   - b: CCD, s1
+//   - c: DDD: s1
+//   - d: DDD: s2
+//   - e: DCD: s2
 // teaming: same as winograd
 // fusion:  same as winograd
 // dup:     same as winograd
@@ -23,9 +24,11 @@
 // ------+-----+---------+--------+-----+--------------------------------------
 //  a061 |  a  |    -    |   t+o  |  I  | plain, stride>=1, padded
 // ------+-----+---------+--------+-----+--------------------------------------
-//  e061 |  a  |    -    |   t+o  |  I  | plain, stride=1
+//  f061 |  a  |    -    |   t+o  |  I  | plain, stride=1
 // ------+-----+---------+--------+-----+--------------------------------------
 //  b061 |  b  |    -    |   t+o  |  I  | blocked, stride>=1, large batch
+// ------+-----+---------+--------+-----+--------------------------------------
+//  e060 |  e  |    -    |   t+o  |  -  | blocked, stride>=1, large batch
 // ------+-----+---------+--------+-----+--------------------------------------
 //  c060 |  c  |    -    |   t+o  |  -  | Tr, Or, blocked, stride=1
 // ------+-----+---------+--------+-----+--------------------------------------
@@ -70,7 +73,7 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   }
 
   // t3, t2, (T, Tr)
-  if (xopt_ == 0xc060 || xopt_ == 0xe061) {
+  if (xopt_ == 0xc060 || xopt_ == 0xf061) {
     bool shape_ok = this->hs == 1 && this->ws == 1 && no_pad_;
     if (!shape_ok)
       el_error("Shape not supported by c060");
@@ -82,7 +85,8 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
     this->t = this->nt * this->n;
     this->t2 = (this->nt + this->T - 1) / this->T;
     this->Tr = this->nt % this->T ? this->nt % this->T : this->T;
-  } else if (xopt_ == 0xd060 || xopt_ == 0xb061 || xopt_ == 0xa061) {
+  } else if (xopt_ == 0xd060 || xopt_ == 0xa061 ||
+      xopt_ == 0xb061 || xopt_ == 0xe060) {
     if (xopt_ == 0xd060) {
       bool shape_ok = this->hs == 2 && this->ws == 2 && no_pad_;
       if (!shape_ok)
@@ -114,9 +118,9 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   this->oc3r = this->oc34 % this->oc3;
   if (this->oc3r == 0) this->oc3r = this->oc3;
 
-  if ((xopt_ == 0xa061 || xopt_ == 0xb061 || xopt_ == 0xe061)
+  if ((xopt_ == 0xa061 || xopt_ == 0xb061 || xopt_ == 0xe060 || xopt_ == 0xf061)
       && (this->O2r != this->O2 || this->oc3r != this->oc3)) {
-    el_error("No oc tailing for 0xa061, 0xb061, 0xe061");
+    el_error("No oc tailing for 0xa061, 0xb061, 0xe060, 0xf061");
   }
 
   // ic4, ic3, I3
@@ -125,8 +129,8 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   if (this->ic4 * this->ic3 * this->I2 * V != this->IC)
     el_error("IC blocking error");
 
-  if ((xopt_ == 0xa061 || xopt_ == 0xe061) && this->ic4 != 1) {
-    el_error("ic4 != 1 not support in 0xa061 and 0xe061");
+  if ((xopt_ == 0xa061 || xopt_ == 0xf061) && this->ic4 != 1) {
+    el_error("ic4 != 1 not support in 0xa061 and 0xf061");
   }
 
   attr_ = 0x0;
@@ -136,7 +140,7 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   inference_acc_ = this->prop_kind == forward_inference;
 
   attr_ = this->with_bias ? set_attr(attr_, bias_idx) : attr_;
-  if (xopt_ == 0xb061 || xopt_ == 0xc060 || xopt_ == 0xd060) {
+  if (xopt_ == 0xb061 || xopt_ == 0xe060 || xopt_ == 0xc060 || xopt_ == 0xd060) {
     attr_ = this->with_ip_sum ? set_attr(attr_, ip_sum_idx) : attr_;
   }
 
@@ -183,8 +187,8 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
     el_error("Unimplemented: oc4 > 1 for OC % V != 0");
   }
 
-  if (!is_bfmt_ && (xopt_ != 0xa061 && xopt_ != 0xe061)) {
-    el_error("Unimplemented: only a061, e061 mode support plain format\n");
+  if (!is_bfmt_ && (xopt_ != 0xa061 && xopt_ != 0xf061)) {
+    el_error("Unimplemented: only a061, f061 mode support plain format\n");
   }
 
   if (input_as_bfmt_)
@@ -213,7 +217,10 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
     tinput_size = mthr_ * this->ic3 * this->I2 * V * this->ht * this->wt * this->T;
     tweights_size = this->IC * this->OC;
     break;
-  case 0xe061:
+  case 0xe060:
+    tweights_size = this->IC * this->OC;
+    break;
+  case 0xf061:
     tinput_msk_ = (unsigned char *)malloc(mthr_ * this->t2);
     toutput_size = mthr_ * this->oc3 * this->O2 * this->T * V;
     tinput_size = mthr_ * this->ic3 * this->I2 * this->T * V * this->t2;
@@ -270,11 +277,14 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
     case (0xa061):
       BIND_KERNEL_2(1, GKF_CCC)
       break;
-    case (0xe061):
+    case (0xf061):
       BIND_KERNEL_2(1, GKF_CCC)
       break;
     case (0xb061):
       BIND_KERNEL_1(1, GKF_CCD)
+      break;
+    case (0xe060):
+      BIND_KERNEL_1(2, GKF_DCD)
       break;
     case (0xc060):
       BIND_KERNEL_2(1, GKF_DDD)
@@ -295,7 +305,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
     bind_kernel(this->O2r, this->Tr, &ker_gemm_I_OrTr_, false);
   }
   // Ir != V
-  if (xopt_ == 0xa061 || xopt_ == 0xe061 || xopt_ == 0xc060) {
+  if (xopt_ == 0xa061 || xopt_ == 0xf061 || xopt_ == 0xc060) {
     bind_kernel(this->O, this->T, &ker_gemm_IrO_T_, true);
     bind_kernel(this->O, this->Tr, &ker_gemm_IrO_Tr_, true);
   }
@@ -308,9 +318,10 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 
   switch (xopt_) {
     EXECUTE_CASE(a061);
+    EXECUTE_CASE(f061);
     EXECUTE_CASE(b061);
+    EXECUTE_CASE(e060);
     EXECUTE_CASE(c060);
-    EXECUTE_CASE(e061);
     EXECUTE_CASE(d060);
   default:
     el_error("Unimplemented xopt");
@@ -1062,10 +1073,34 @@ void elx_conv_direct_1x1_t<Type, V, I>::trans_output(
     __trans_output_plain(output, toutput, _oc4, _ht, _wt);
 }
 
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::gemm_e060(Type *output, Type *input,
+    Type *weights, Type *bias, int _ic4)
+{
+  // weights: oc3*, ic3*, O2, I2, V, V
+  // input:   ic3*, I2, ht*, hs*, wt*, T, ws, V
+  // output:  oc3*, O2, ht*, wt*, T, V
+  MD5(Type, ainput, input, this->ic3, this->I2, this->ih, this->wt, this->T * this->ws * V);
+  MD5(Type, aoutput, output, this->oc3, this->O2, this->ht, this->wt, this->T * V);
+  MD3(Type, aweights, weights, this->oc3, this->ic3, this->O2 * this->I2 * V * V);
+  MD2(Type, abias, bias, this->oc3, this->O2 * V);
+
+
+  iter_each (_ic3, this->ic3) {
+    int attr = _ic4 == 0 && _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+    attr = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 ?
+        set_attr(attr, relu_idx) : attr;
+    iter_each (_oc3, this->oc3) {
+      ker_gemm_I_O_T_(*this, &md5(aoutput, _oc3, 0, 0, 0, 0),
+          &md5(ainput, _ic3, 0, 0, 0, 0), &md3(aweights, _oc3, _ic3, 0),
+          &md2(abias, _oc3, 0), attr);
+    }
+  }
+}
 
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::gemm_b061(Type *output, Type *input,
-    Type *weights, Type *bias, int _ic4, int _oc4)
+    Type *weights, Type *bias, int _ic4)
 {
   // weights: oc3*, ic3*, O2, I2, V, V
   // input:   ic3*, I2, T, V
@@ -1089,7 +1124,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_b061(Type *output, Type *input,
 
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::gemm_a061(Type *output, Type *input,
-    Type *weights, Type *bias, int _ic4, int _oc4)
+    Type *weights, Type *bias, int _ic4)
 {
   // weights: oc3*, ic3*, O2, I2, V, V
   // input:   ic3*, I2, T, V
@@ -1117,6 +1152,39 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_a061(Type *output, Type *input,
   }
 }
 
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::__execute_e060(
+    Type *output, Type *input, Type *weights, Type *bias)
+{
+  // weights: oc4*, oc3, O2, ic4*, ic3, I2, V, V
+  // input:   t3*, ic4*, ic3, I2, ht*, S, wt*, S, T, V
+  // output:  t3*, oc4*, oc3, O2, ht*, wt*, T, V
+  MD7(Type, ainput, input, this->t3, this->ic4, this->ic3 * this->I2, this->ht, this->hs, this->wt, this->T * this->ws * V);
+  MD6(Type, aoutput, output, this->t3, this->oc4, this->oc3 * this->O2, this->ht, this->wt, this->T * V);
+  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+
+  MD3(Type, atweights, tweights_, this->oc4, this->ic4, this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
+
+  if (is_first_run_) {
+    trans_weights(tweights_, weights);
+  }
+
+  iter_each (_ic4, this->ic4) {
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+#pragma omp for nowait collapse(4)
+    iter_each (_t3, this->t3) {
+    iter_each (_oc4, this->oc4) {
+    iter_each (_ht, this->ht) {
+    iter_each (_wt, this->wt) {
+      gemm_e060(&md6(aoutput, _t3, _oc4, 0, _ht, _wt, 0),
+          &md7(ainput, _t3, _ic4, 0, _ht, 0, _wt, 0),
+          &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0), _ic4);
+    }}}}
+  }
+
+  if (inference_acc_)
+    is_first_run_ = false;
+}
 
 template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::__execute_b061(
@@ -1151,8 +1219,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b061(
         trans_input(&md2(atinput, ithr, 0),
             &md3(ainput, _t3, _ic4, 0), _ht, _wt);
         gemm_b061(&md5(aoutput2, _oc4, 0, _ht, _wt, 0), &md2(atinput, ithr, 0),
-            &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0),
-            _ic4, _oc4);
+            &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0), _ic4);
       }}}}
     }
   } else {
@@ -1181,8 +1248,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b061(
         }
         gemm_b061(&md5(aoutput2, _oc4, 0, _ht, _wt, 0),
             &md4(atinput, ithr, _ht, _wt, 0),
-            &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0),
-            _ic4, _oc4);
+            &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0), _ic4);
       }}}}
     }
   }
@@ -1218,7 +1284,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a061(
       trans_input(&md2(atinput, ithr, 0),
           &md2(ainput, _t3, 0), _ht, _wt);
       gemm_a061(&md2(atoutput, ithr, 0), &md2(atinput, ithr, 0),
-          &md3(atweights, _oc4, 0, 0), &md2(abias, _oc4, 0), 0, _oc4);
+          &md3(atweights, _oc4, 0, 0), &md2(abias, _oc4, 0), 0);
       trans_output(&md2(aoutput, _t3, 0), &md2(atoutput, ithr, 0),
           _oc4, _ht, _wt);
     }}}}
@@ -1244,7 +1310,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a061(
       }
       gemm_a061(&md2(atoutput, ithr, 0),
           &md4(atinput, ithr, _ht, _wt, 0),
-          &md3(atweights, _oc4, 0, 0), &md2(abias, _oc4, 0), 0, _oc4);
+          &md3(atweights, _oc4, 0, 0), &md2(abias, _oc4, 0), 0);
       trans_output(&md2(aoutput, _t3, 0), &md2(atoutput, ithr, 0),
           _oc4, _ht, _wt);
     }}}}
@@ -1465,7 +1531,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::trans_output2(
 }
 
 template <typename Type, const int V, const int I>
-void elx_conv_direct_1x1_t<Type, V, I>::gemm_e061(Type *output, Type *input,
+void elx_conv_direct_1x1_t<Type, V, I>::gemm_f061(Type *output, Type *input,
     Type *weights, Type *bias, int _t2, int Tz)
 {
   MD2(Type, ainput, input, this->ic3, this->I2 * Tz * V);
@@ -1495,7 +1561,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_e061(Type *output, Type *input,
 }
 
 template <typename Type, const int V, const int I>
-void elx_conv_direct_1x1_t<Type, V, I>::__execute_e061(
+void elx_conv_direct_1x1_t<Type, V, I>::__execute_f061(
     Type *output, Type *input, Type *weights, Type *bias)
 {
   MD2(Type, ainput, input, this->t3, this->ic * this->ih * this->iw);
@@ -1519,7 +1585,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_e061(
       size_t ithr = omp_get_thread_num();
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       trans_input2(&md2(atinput, ithr, 0), &md2(ainput, _t3, 0), _t2, Tz);
-      gemm_e061(&md2(atoutput, ithr, 0), &md2(atinput, ithr, 0),
+      gemm_f061(&md2(atoutput, ithr, 0), &md2(atinput, ithr, 0),
           &md3(atweights, _oc4, 0, 0), &md2(abias, _oc4, 0), _t2, Tz);
       trans_output2(&md2(aoutput, _t3, 0), &md2(atoutput, ithr, 0),
           _oc4, _t2, Tz);
@@ -1544,7 +1610,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_e061(
             &md2(ainput, _t3, 0), _t2, Tz);
         md2(atinput_msk, ithr, _t2) = 1;
       }
-      gemm_e061(&md2(atoutput, ithr, 0), &md3(atinput, ithr, _t2, 0),
+      gemm_f061(&md2(atoutput, ithr, 0), &md3(atinput, ithr, _t2, 0),
           &md3(atweights, _oc4, 0, 0), &md2(abias, _oc4, 0), _t2, Tz);
       trans_output2(&md2(aoutput, _t3, 0), &md2(atoutput, ithr, 0),
           _oc4, _t2, Tz);
