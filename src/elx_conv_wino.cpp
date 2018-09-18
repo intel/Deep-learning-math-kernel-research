@@ -46,9 +46,9 @@ namespace euler {
 // -------------+-------------------+--------------+---------------
 //     A021*    |        _          |      o       |    I
 // -------------+-------------------+--------------+---------------
-//     B079     |        _          |  i + t + o   |  I + W
+//     A079     |        _          |  i + t + o   |  I + W
 // -------------+-------------------+--------------+---------------
-//     B07b     |        _          |  i + t + o   |  I + W + O
+//     A07b     |        _          |  i + t + o   |  I + W + O
 // -------------+-------------------+--------------+---------------
 //  *: TODO
 //
@@ -191,7 +191,7 @@ elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
       this->oc4 = this->OC / (this->V * this->O2 * this->oc3);
   }
 #else
-  if ((xopt_ == 0xa073 || xopt_ == 0xb07b || this->with_ip_sum)
+  if ((xopt_ == 0xa073 || xopt_ == 0xa07b || this->with_ip_sum)
       && this->with_relu && !output_is_bfmt_) {
     el_error("Unimplemented: fuse sum (plain format) and relu together");
   }
@@ -365,12 +365,12 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
     tinput_size = A * A * this->IC * this->T * mthr_;
     toutput_size = A * A * this->OC * this->T * mthr_;
     break;
-  case 0xb079:
+  case 0xa079:
     tweights_size = A * A * (this->IC / this->ic4) * (this->OC / this->oc4) * mthr_;
     tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_;
     toutput_size = A * A * this->OC * this->t;
     break;
-  case 0xb07b:
+  case 0xa07b:
     tweights_size = A * A * (this->IC / this->ic4) * (this->OC / this->oc4) * mthr_;
     tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_;
     toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_;
@@ -576,8 +576,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
   EXECUTE_CASE(a073);
   EXECUTE_CASE(a000);
   EXECUTE_CASE(a010);
-  EXECUTE_CASE(b079);
-  EXECUTE_CASE(b07b);
+  EXECUTE_CASE(a079);
+  EXECUTE_CASE(a07b);
   default:
     el_error("Unimplemented");
     break;
@@ -2687,7 +2687,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a073(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__execute_b07b(
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_a07b(
     Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
   MD2(Type, atinput2, tinput_, mthr_, A * A * this->T * this->ic3 * this->I2 * V);
@@ -2727,7 +2727,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_b07b(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__execute_b079(
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_a079(
     Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
   MD2(Type, atinput2, tinput_, mthr_, A * A * this->T * this->ic3 * this->I2 * V);

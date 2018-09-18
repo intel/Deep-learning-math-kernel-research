@@ -253,8 +253,8 @@ private:
   void __execute_a0e0(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a071(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a073(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_b079(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_b07b(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a079(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a07b(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a201(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a241(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a448(Type *output, Type *input, Type *weights, Type *bias);
