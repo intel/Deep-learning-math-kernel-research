@@ -1,11 +1,9 @@
-link_directories(mkldnnlib)
-
 file (GLOB __test_sources
   elt_conv.cpp
   elt_conv_utils.cpp)
 
 add_executable(elt_conv ${__test_sources})
-target_link_libraries(elt_conv ${lib_name} mkldnn iomp5 boost_program_options)
+target_link_libraries(elt_conv ${lib_name} iomp5 boost_program_options)
 add_test(NAME elt_conv COMMAND elt_conv)
 
 if (WITH_GTEST)
