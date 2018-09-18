@@ -49,8 +49,8 @@ sleep 1
 #"ssd_300_voc0712:conv4_3_norm_mbox_conf": ic512 ih38 oc84 oh38 kh3 ph1n"
 NSOCKETS=1 ./scripts/run.sh -c -i512 -h38 -o84 -H38 -n1 --tile-size=4 --execution-mode=0xa061 --blk-i=8 --blk-o=3 --flt-t=13 --output-as-blocked=true $COMMON 
 sleep 1
-#"ssd_300_voc0712:fc7_mbox_l oc": ic1024 ih19 oc24 oh19 kh3 ph1n"
-NSOCKETS=1 ./scripts/run.sh -c -i1024 -h19 -o24 -H19 -n1 --tile-size=4 --execution-mode=0xa000 --blk-i=16 --blk-o=2 --flt-t=25 $COMMON 
+#"ssd_300_voc0712:fc7_mbox_loc": ic1024 ih19 oc24 oh19 kh3 ph1n"
+NSOCKETS=1 ./scripts/run.sh -c -i1024 -h19 -o24 -H19 -n1 --tile-size=4 --execution-mode=0xa040 --blk-i=16 --blk-o=2 --flt-t=4 $COMMON 
 sleep 1
 #"ssd_300_voc0712:fc7_mbox_conf": ic1024 ih19 oc126 oh19 kh3 ph1n"
  NSOCKETS=1 ./scripts/run.sh -c -i1024 -h19 -o126 -H19 -n1 --tile-size=4 --execution-mode=0xa000 --blk-i=8 --blk-o=8 --flt-t=25 $COMMON 
