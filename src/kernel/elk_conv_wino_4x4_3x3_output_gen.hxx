@@ -22,6 +22,8 @@ __trans_output(elx_conv_t<float> &xc, float *output,
   constexpr bool with_relu = cd_traits<conditions...>::with_relu;
   constexpr bool with_ip_sum = cd_traits<conditions...>::with_ip_sum;
   bool fuse_ip_sum = with_ip_sum && (wOA_end != -1);
+  bool fuse_bias = with_bias && (bias != nullptr);
+  bool fuse_relu = with_relu && (bias != nullptr);
 
   float dummy[16];
   auto p_cb = [&](int _h, int _w, int _V) {
@@ -59,25 +61,25 @@ __trans_output(elx_conv_t<float> &xc, float *output,
 
     S(0) = T(0, 0) + T(0, 1) + T(0, 2) + T(0, 3) + T(0, 4)
       + C(0) + C(1) + C(2) + C(3);
-    if (with_bias) S(0) += B;
+    if (fuse_bias) S(0) += B;
     if (fuse_ip_sum) S(0) += P(0, 0);
-    if (with_relu) S(0) = S(0) > 0 ? S(0) : 0;
+    if (fuse_relu) S(0) = S(0) > 0 ? S(0) : 0;
     P(0, 0) = S(0);
     S(1) = C(0) - C(1) + z2*C(2) - z2*C(3);
-    if (with_bias) S(1) += B;
+    if (fuse_bias) S(1) += B;
     if (fuse_ip_sum) S(1) += P(1, 0);
-    if (with_relu) S(1) = S(1) > 0 ? S(1) : 0;
+    if (fuse_relu) S(1) = S(1) > 0 ? S(1) : 0;
     P(1, 0) = S(1);
     S(2) = C(0) + C(1) + z4*C(2) + z4*C(3);
-    if (with_bias) S(2) += B;
+    if (fuse_bias) S(2) += B;
     if (fuse_ip_sum) S(2) += P(2, 0);
-    if (with_relu) S(2) = S(2) > 0 ? S(2) : 0;
+    if (fuse_relu) S(2) = S(2) > 0 ? S(2) : 0;
     P(2, 0) = S(2);
     S(3) = C(0) - C(1) + z8*C(2) - z8*C(3)
       + T(5, 0) + T(5, 1) + T(5, 2) + T(5, 3) + T(5, 4);
-    if (with_bias) S(3) += B;
+    if (fuse_bias) S(3) += B;
     if (fuse_ip_sum) S(3) += P(3, 0);
-    if (with_relu) S(3) = S(3) > 0 ? S(3) : 0;
+    if (fuse_relu) S(3) = S(3) > 0 ? S(3) : 0;
     P(3, 0) = S(3);
 
     C(0) = T(1, 1) - T(1, 2) + z2*T(1, 3) - z2*T(1, 4);
@@ -87,25 +89,25 @@ __trans_output(elx_conv_t<float> &xc, float *output,
 
     S(0) = T(0, 1) - T(0, 2) + z2*T(0, 3) - z2*T(0, 4)
       + C(0) + C(1) + C(2) + C(3);
-    if (with_bias) S(0) += B;
+    if (fuse_bias) S(0) += B;
     if (fuse_ip_sum) S(0) += P(0, 1);
-    if (with_relu) S(0) = S(0) > 0 ? S(0) : 0;
+    if (fuse_relu) S(0) = S(0) > 0 ? S(0) : 0;
     P(0, 1) = S(0);
     S(1) = C(0) - C(1) + z2*C(2) - z2*C(3);
-    if (with_bias) S(1) += B;
+    if (fuse_bias) S(1) += B;
     if (fuse_ip_sum) S(1) += P(1, 1);
-    if (with_relu) S(1) = S(1) > 0 ? S(1) : 0;
+    if (fuse_relu) S(1) = S(1) > 0 ? S(1) : 0;
     P(1, 1) = S(1);
     S(2) = C(0) + C(1) + z4*C(2) + z4*C(3);
-    if (with_bias) S(2) += B;
+    if (fuse_bias) S(2) += B;
     if (fuse_ip_sum) S(2) += P(2, 1);
-    if (with_relu) S(2) = S(2) > 0 ? S(2) : 0;
+    if (fuse_relu) S(2) = S(2) > 0 ? S(2) : 0;
     P(2, 1) = S(2);
     S(3) = C(0) - C(1) + z8*C(2) - z8*C(3)
       + T(5, 1) - T(5, 2) + z2*T(5, 3) - z2*T(5, 4);
-    if (with_bias) S(3) += B;
+    if (fuse_bias) S(3) += B;
     if (fuse_ip_sum) S(3) += P(3, 1);
-    if (with_relu) S(3) = S(3) > 0 ? S(3) : 0;
+    if (fuse_relu) S(3) = S(3) > 0 ? S(3) : 0;
     P(3, 1) = S(3);
 
     C(0) = T(1, 1) + T(1, 2) + z4*T(1, 3) + z4*T(1, 4);
@@ -115,25 +117,25 @@ __trans_output(elx_conv_t<float> &xc, float *output,
 
     S(0) = T(0, 1) + T(0, 2) + z4*T(0, 3) + z4*T(0, 4)
       + C(0) + C(1) + C(2) + C(3);
-    if (with_bias) S(0) += B;
+    if (fuse_bias) S(0) += B;
     if (fuse_ip_sum) S(0) += P(0, 2);
-    if (with_relu) S(0) = S(0) > 0 ? S(0) : 0;
+    if (fuse_relu) S(0) = S(0) > 0 ? S(0) : 0;
     P(0, 2) = S(0);
     S(1) = C(0) - C(1) + z2*C(2) - z2*C(3);
-    if (with_bias) S(1) += B;
+    if (fuse_bias) S(1) += B;
     if (fuse_ip_sum) S(1) += P(1, 2);
-    if (with_relu) S(1) = S(1) > 0 ? S(1) : 0;
+    if (fuse_relu) S(1) = S(1) > 0 ? S(1) : 0;
     P(1, 2) = S(1);
     S(2) = C(0) + C(1) + z4*C(2) + z4*C(3);
-    if (with_bias) S(2) += B;
+    if (fuse_bias) S(2) += B;
     if (fuse_ip_sum) S(2) += P(2, 2);
-    if (with_relu) S(2) = S(2) > 0 ? S(2) : 0;
+    if (fuse_relu) S(2) = S(2) > 0 ? S(2) : 0;
     P(2, 2) = S(2);
     S(3) = C(0) - C(1) + z8*C(2) - z8*C(3)
       + T(5, 1) + T(5, 2) + z4*T(5, 3) + z4*T(5, 4);
-    if (with_bias) S(3) += B;
+    if (fuse_bias) S(3) += B;
     if (fuse_ip_sum) S(3) += P(3, 2);
-    if (with_relu) S(3) = S(3) > 0 ? S(3) : 0;
+    if (fuse_relu) S(3) = S(3) > 0 ? S(3) : 0;
     P(3, 2) = S(3);
 
     C(0) = T(1, 1) - T(1, 2) + z8*T(1, 3) - z8*T(1, 4) + T(1, 5);
@@ -143,27 +145,27 @@ __trans_output(elx_conv_t<float> &xc, float *output,
 
     S(0) = T(0, 1) - T(0, 2) + z8*T(0, 3) - z8*T(0, 4) + T(0, 5)
       + C(0) + C(1) + C(2) + C(3);
-    if (with_bias) S(0) += B;
+    if (fuse_bias) S(0) += B;
     if (fuse_ip_sum) S(0) += P(0, 3);
-    if (with_relu) S(0) = S(0) > 0 ? S(0) : 0;
+    if (fuse_relu) S(0) = S(0) > 0 ? S(0) : 0;
     P(0, 3) = S(0);
     S(1) = C(0) - C(1) + z2*C(2) - z2*C(3);
-    if (with_bias) S(1) += B;
+    if (fuse_bias) S(1) += B;
     if (fuse_ip_sum) S(1) += P(1, 3);
-    if (with_relu) S(1) = S(1) > 0 ? S(1) : 0;
+    if (fuse_relu) S(1) = S(1) > 0 ? S(1) : 0;
     P(1, 3) = S(1);
     S(2) = C(0) + C(1) + z4*C(2) + z4*C(3);
-    if (with_bias) S(2) += B;
+    if (fuse_bias) S(2) += B;
     if (fuse_ip_sum) S(2) += P(2, 3);
-    if (with_relu) S(2) = S(2) > 0 ? S(2) : 0;
+    if (fuse_relu) S(2) = S(2) > 0 ? S(2) : 0;
     P(2, 3) = S(2);
-    if (with_bias) P(2, 3) += B;
-    if (with_relu) P(2, 3) = P(2, 3) > 0 ? P(2, 3) : 0;
+    if (fuse_bias) P(2, 3) += B;
+    if (fuse_relu) P(2, 3) = P(2, 3) > 0 ? P(2, 3) : 0;
     S(3) = C(0) - C(1) + z8*C(2) - z8*C(3)
       + T(5, 1) - T(5, 2) + z8*T(5, 3) - z8*T(5, 4) + T(5, 5);
-    if (with_bias) S(3) += B;
+    if (fuse_bias) S(3) += B;
     if (fuse_ip_sum) S(3) += P(3, 3);
-    if (with_relu) S(3) = S(3) > 0 ? S(3) : 0;
+    if (fuse_relu) S(3) = S(3) > 0 ? S(3) : 0;
     P(3, 3) = S(3);
   }
 }

@@ -33,6 +33,10 @@ typedef std::chrono::duration<float, std::milli> Duration;
 
 namespace euler {
 
+static inline size_t alignup(size_t v, size_t a) {
+  return (v + a - 1) & ~(a - 1);
+}
+
 // convolution attributes indexes
 enum {
   bias_idx = 0x1,         // with bias

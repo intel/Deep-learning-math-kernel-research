@@ -25,6 +25,8 @@ __trans_output(elx_conv_t<float> &xc, float *output,
   constexpr bool with_relu = cd_traits<conditions...>::with_relu;
   constexpr bool with_ip_sum = cd_traits<conditions...>::with_ip_sum;
   bool fuse_ip_sum = with_ip_sum && (wOA_end != -1);
+  bool fuse_bias = with_bias && (bias != nullptr);
+  bool fuse_relu = with_relu && (bias != nullptr);
 
   auto p_cb = [&](int _h, int _w, int _V) {
     if (wOA_end == -1) {
@@ -59,24 +61,24 @@ __trans_output(elx_conv_t<float> &xc, float *output,
     C(3) = T(2,2) + T(2,3) - T(2,1);
 
     S(0) = T(0,0) + T(0,1) + T(0,2) + C(0) + C(1);
-    if (with_bias) S(0) += B;
+    if (fuse_bias) S(0) += B;
     if (fuse_ip_sum) S(0) += P(0, 0);
-    if (with_relu) S(0) = S(0) > 0 ? S(0) : 0;
+    if (fuse_relu) S(0) = S(0) > 0 ? S(0) : 0;
     P(0, 0) = S(0);
     S(1) = C(1) - C(0) + T(3,0) + T(3,1) + T(3,2);
-    if (with_bias) S(1) += B;
+    if (fuse_bias) S(1) += B;
     if (fuse_ip_sum) S(1) += P(1, 0);
-    if (with_relu) S(1) = S(1) > 0 ? S(1) : 0;
+    if (fuse_relu) S(1) = S(1) > 0 ? S(1) : 0;
     P(1, 0) = S(1);
     S(2) = T(0,2) - T(0,1) + T(0,3) + C(2) + C(3);
-    if (with_bias) S(2) += B;
+    if (fuse_bias) S(2) += B;
     if (fuse_ip_sum) S(2) += P(0, 1);
-    if (with_relu) S(2) = S(2) > 0 ? S(2) : 0;
+    if (fuse_relu) S(2) = S(2) > 0 ? S(2) : 0;
     P(0, 1) = S(2);
     S(3) = C(3) - C(2) - T(3,1) + T(3,2) + T(3,3);
-    if (with_bias) S(3) += B;
+    if (fuse_bias) S(3) += B;
     if (with_ip_sum) S(3) += P(1, 1);
-    if (with_relu) S(3) = S(3) > 0 ? S(3) : 0;
+    if (fuse_relu) S(3) = S(3) > 0 ? S(3) : 0;
     P(1, 1) = S(3);
   }
 }
@@ -107,14 +109,14 @@ __trans_outputa_th(elx_conv_t<float> &xc, float *toutputa, float *toutput,
 
 #define GENERIC_CALCULATE_TILE_4(z, n, nil)              \
   S(0) = T(n, 0) + T(n, 1) + T(n, 2);                    \
-  if (with_bias) S(0) += B;                              \
+  if (fuse_bias) S(0) += B;                              \
   if (fuse_ip_sum) S(0) += P(n, 0);                      \
-  if (with_relu) S(0) = S(0) > 0 ? S(0) : 0;             \
+  if (fuse_relu) S(0) = S(0) > 0 ? S(0) : 0;             \
   P(n, 0) = S(0);                                        \
   S(1) = T(n, 2) - T(n, 1) + T(n, 3);                    \
-  if (with_bias) S(1) += B;                              \
+  if (fuse_bias) S(1) += B;                              \
   if (fuse_ip_sum) S(1) += P(n, 1);                      \
-  if (with_relu) S(1) = S(1) > 0 ? S(1) : 0;             \
+  if (fuse_relu) S(1) = S(1) > 0 ? S(1) : 0;             \
   P(n, 1) = S(1);
 
 // template <const bool is_border_, const bool with_bias_>
@@ -131,6 +133,8 @@ __trans_outputa_bh(elx_conv_t<float> &xc, float *output,
   constexpr bool with_relu = cd_traits<conditions...>::with_relu;
   constexpr bool with_ip_sum = cd_traits<conditions...>::with_ip_sum;
   bool fuse_ip_sum = with_ip_sum && (wOA_end != -1);
+  bool fuse_bias = with_bias && (bias != nullptr);
+  bool fuse_relu = with_relu && (bias != nullptr);
 
    float dummy[16];
    auto p_cb = [&](int _h, int _w, int _V) {

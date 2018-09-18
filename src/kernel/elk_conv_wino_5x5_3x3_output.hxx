@@ -27,47 +27,47 @@ namespace euler {
 
 #define AVX512_CALCULATE_O(n)                                                  \
   __m<V> p0##n = ADD(ADD(ADD(ADD(ADD(c0, c1), c2), c3), c4), c5);              \
-  if (with_bias)                                                               \
+  if (fuse_bias)                                                               \
     p0##n = ADD(p0##n, *(__m<V>*)bias);                                        \
   if (fuse_ip_sum)                                                             \
     p0##n = ADD(p0##n, *(__m<V>*)P(0, n));                                     \
-  if (with_relu) {                                                             \
+  if (fuse_relu) {                                                             \
     zero = XOR(zero, zero);                                                    \
     p0##n = MAX(p0##n, zero);                                                  \
   }                                                                            \
   _mm<V>::store_ps(P(0, n), p0##n);                                            \
   __m<V> p1##n = ADD(FMADD(z2, SUB(c2, c3), c0), FMSUB(z1_2, SUB(c4, c5), c1));\
-  if (with_bias)                                                               \
+  if (fuse_bias)                                                               \
     p1##n = ADD(p1##n, *(__m<V>*)bias);                                        \
   if (fuse_ip_sum)                                                             \
     p1##n = ADD(p1##n, *(__m<V>*)P(1, n));                                     \
-  if (with_relu)                                                               \
+  if (fuse_relu)                                                               \
     p1##n = MAX(p1##n, zero);                                                  \
   _mm<V>::store_ps(P(1, n), p1##n);                                            \
   __m<V> p2##n = ADD(FMADD(z4, ADD(c2, c3), c0), FMADD(z1_4, ADD(c4, c5), c1));\
-  if (with_bias)                                                               \
+  if (fuse_bias)                                                               \
     p2##n = ADD(p2##n, *(__m<V>*)bias);                                        \
   if (fuse_ip_sum)                                                             \
     p2##n = ADD(p2##n, *(__m<V>*)P(2, n));                                     \
-  if (with_relu)                                                               \
+  if (fuse_relu)                                                               \
     p2##n = MAX(p2##n, zero);                                                  \
   _mm<V>::store_ps(P(2, n), p2##n);                                            \
   __m<V> p3##n = ADD(FMADD(z8, SUB(c2, c3), c0), FMSUB(z1_8, SUB(c4, c5), c1));\
-  if (with_bias)                                                               \
+  if (fuse_bias)                                                               \
     p3##n = ADD(p3##n, *(__m<V>*)bias);                                        \
   if (fuse_ip_sum)                                                             \
     p3##n = ADD(p3##n, *(__m<V>*)P(3, n));                                     \
-  if (with_relu)                                                               \
+  if (fuse_relu)                                                               \
     p3##n = MAX(p3##n, zero);                                                  \
   _mm<V>::store_ps(P(3, n), p3##n);                                            \
   __m<V> p4##n = ADD(FMADD(z16, ADD(c2, c3), c0), FMADD(z1_16, ADD(c4, c5), c1));
 
 #define AVX512_ADD_B(n);                                                       \
-  if (with_bias)                                                               \
+  if (fuse_bias)                                                               \
     p4##n = ADD(p4##n, *(__m<V>*)bias);                                        \
   if (fuse_ip_sum)                                                             \
     p4##n = ADD(p4##n, *(__m<V>*)P(4, n));                                     \
-  if (with_relu)                                                               \
+  if (fuse_relu)                                                               \
     p4##n = MAX(p4##n, zero);                                                  \
   _mm<V>::store_ps(P(4, n), p4##n);
 
@@ -86,6 +86,8 @@ __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
   constexpr bool with_relu = cd_traits<conditions...>::with_relu;
   constexpr bool with_ip_sum = cd_traits<conditions...>::with_ip_sum;
   bool fuse_ip_sum = with_ip_sum && (wOA_end != -1);
+  bool fuse_bias = with_bias && (bias != nullptr);
+  bool fuse_relu = with_relu && (bias != nullptr);
 
   alignas(64) float dummy[16];
   auto p_cb = [&](int _h, int _w) {
@@ -223,25 +225,25 @@ __trans_outputa_th(elx_conv_t<float> &xc, float *toutputa, float *toutput,
   t6 = _mm<V>::load_ps(T(n, 6));                                     \
                                                                      \
   p0 = ADD(ADD(ADD(ADD(ADD(t0, t1), t2), t3), t4), t5);              \
-  if (with_bias) p0 = ADD(p0, *(__m<V>*)bias);                       \
+  if (fuse_bias) p0 = ADD(p0, *(__m<V>*)bias);                       \
   if (fuse_ip_sum) p0 = ADD(p0, *(__m<V>*)P(n, 0));                  \
-  if (with_relu) { zero = XOR(zero, zero); p0 = MAX(p0, zero); }     \
+  if (fuse_relu) { zero = XOR(zero, zero); p0 = MAX(p0, zero); }     \
   p1 = ADD(FMADD(z2, SUB(t2, t3), t0), FMSUB(z1_2, SUB(t4, t5), t1));\
-  if (with_bias) p1 = ADD(p1, *(__m<V>*)bias);                       \
+  if (fuse_bias) p1 = ADD(p1, *(__m<V>*)bias);                       \
   if (fuse_ip_sum) p1 = ADD(p1, *(__m<V>*)P(n, 1));                  \
-  if (with_relu) p1 = MAX(p1, zero);                                 \
+  if (fuse_relu) p1 = MAX(p1, zero);                                 \
   p2 = ADD(FMADD(z4, ADD(t2, t3), t0), FMADD(z1_4, ADD(t4, t5), t1));\
-  if (with_bias) p2 = ADD(p2, *(__m<V>*)bias);                       \
+  if (fuse_bias) p2 = ADD(p2, *(__m<V>*)bias);                       \
   if (fuse_ip_sum) p2 = ADD(p2, *(__m<V>*)P(n, 2));                  \
-  if (with_relu) p2 = MAX(p2, zero);                                 \
+  if (fuse_relu) p2 = MAX(p2, zero);                                 \
   p3 = ADD(FMADD(z8, SUB(t2, t3), t0), FMSUB(z1_8, SUB(t4, t5), t1));\
-  if (with_bias) p3 = ADD(p3, *(__m<V>*)bias);                       \
+  if (fuse_bias) p3 = ADD(p3, *(__m<V>*)bias);                       \
   if (fuse_ip_sum) p3 = ADD(p3, *(__m<V>*)P(n, 3));                  \
-  if (with_relu) p3 = MAX(p3, zero);                                 \
+  if (fuse_relu) p3 = MAX(p3, zero);                                 \
   p4 = ADD(FMADD(z16, ADD(t2, t3), ADD(t0, t1)), FMADD(z1_16, ADD(t4, t5), t6)); \
-  if (with_bias) p4 = ADD(p4, *(__m<V>*)bias);                       \
+  if (fuse_bias) p4 = ADD(p4, *(__m<V>*)bias);                       \
   if (fuse_ip_sum) p4 = ADD(p4, *(__m<V>*)P(n, 4));                  \
-  if (with_relu) p4 = MAX(p4, zero);                                 \
+  if (fuse_relu) p4 = MAX(p4, zero);                                 \
                                                                      \
   _mm<V>::store_ps(P(n,0), p0);                                      \
   _mm<V>::store_ps(P(n,1), p1);                                      \
@@ -259,6 +261,8 @@ __trans_outputa_bh(elx_conv_t<float> &xc, float *output,
   constexpr bool with_relu = cd_traits<conditions...>::with_relu;
   constexpr bool with_ip_sum = cd_traits<conditions...>::with_ip_sum;
   bool fuse_ip_sum = with_ip_sum && (wOA_end != -1);
+  bool fuse_bias = with_bias && (bias != nullptr);
+  bool fuse_relu = with_relu && (bias != nullptr);
 
   alignas(64) float dummy[V];
   auto p_cb = [&](int _h, int _w) {

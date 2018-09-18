@@ -174,7 +174,7 @@ public:
     }
 
     inline std::size_t gemm_input_reuse_set() const {
-      return gemmker_input_footprint() + 
+      return gemmker_input_footprint() +
         gemmker_weights_footprint() + gemmker_output_footprint();
     }
 
@@ -233,7 +233,7 @@ public:
   }
 
   inline std::size_t gemm_input_reuse_set() const {
-    return gemmker_input_footprint() + 
+    return gemmker_input_footprint() +
       gemmker_weights_footprint() + gemmker_output_footprint();
   }
 
@@ -251,7 +251,10 @@ private:
   void __execute_a061(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a0e1(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a0e0(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a072(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a071(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a073(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a079(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a07b(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a201(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a241(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a448(Type *output, Type *input, Type *weights, Type *bias);
@@ -268,9 +271,9 @@ private:
   inline void __trans_inputa_blocked(Type *tinput, Type *input, int _t2, int _wA, int Tz);
   void trans_inputa(Type *tinput, Type *input, int _t2, int _wA, int Tz);
 
-  inline void __trans_output_plain(Type *output, Type *toutput, Type *bias, int _t2, int Tz);
-  inline void __trans_output_blocked(Type *output, Type *toutput, Type *bias, int _t2, int Tz);
-  void trans_output(Type *output, Type *toutput, Type *bias, int _t2, int Tz);
+  inline void __trans_output_plain(Type *output, Type *toutput, Type *bias, int _t2, int Tz, int _ic4);
+  inline void __trans_output_blocked(Type *output, Type *toutput, Type *bias, int _t2, int Tz, int _ic4);
+  void trans_output(Type *output, Type *toutput, Type *bias, int _t2, int Tz, int _ic4 = -1);
 
   inline void __trans_output_plain(Type *output, Type *toutput, Type *bias);
   inline void __trans_output_blocked(Type *output, Type *toutput, Type *bias);
@@ -286,14 +289,20 @@ private:
   inline void __trans_weights_blocked(Type *tweights, Type *weights, int oc4);
   void trans_weights(Type *tweights, Type *weights, int oc4 = 1);
 
+  inline void __trans_weightsf_plain(Type *tweights, Type *weights, int _ic4, int _oc4);
+  inline void __trans_weightsf_blocked(Type *tweights, Type *weights, int _ic4, int _oc4);
+  void trans_weightsf(Type *tweights, Type *weights, int _ic4, int _oc4);
+
   inline void __trans_weightsa_plain(Type *tweights, Type *weights);
   inline void __trans_weightsa_blocked(Type *tweights, Type *weights);
   void trans_weightsa(Type *tweights, Type *weights);
 
   void gemm(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz, int _ic4 = 0);
+  void gemm_non_acc(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz, int _ic4);
   void gemm(Type *toutput, Type *tinput, Type *tweights, int _ic4 = 0);
   void gemma(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
 
+  void set_trans_buffers();
   int prepare_execute_opt();
   void bind_execute_functions();
 
@@ -325,6 +334,14 @@ private:
       convolution_winograd_kernel<
         Type, I, V, A, K>::template
         trans_output<false, false, false, false>) *ker_trans_output0_;
+  decltype(
+      convolution_winograd_kernel<
+        Type, I, V, A, K>::template
+        trans_output<false, false, false, false>) *ker_trans_output_acc_;
+  decltype(
+      convolution_winograd_kernel<
+        Type, I, V, A, K>::template
+        trans_output<false, false, false, false>) *ker_trans_output0_acc_;
   decltype(
       convolution_winograd_kernel<
       Type, I, V, A, K>::template
@@ -364,6 +381,15 @@ private:
   int attr_;
   int mthr_;
   size_t tweights_size_;
+  size_t tinput_size_;
+  size_t toutput_size_;
+  size_t toutputa_size_;
+  size_t binput_size_;
+  size_t bweights_size_;
+  size_t boutput_size_;
+  Type *workspace_;
+  Type *scratch_;
+
   Type *tweights_;
   Type *tinput_;
   Type *toutput_;
@@ -517,7 +543,7 @@ public:
     d_ = tile_h_ < ht_ -1 ? A -K : h_end_;
     r_ = tile_w_ < wt_ -1 ? A -K : w_end_;
   }
-  
+
   inline bool is_border() const {
     return r_ < A - K || d_ < A - K;
   }
