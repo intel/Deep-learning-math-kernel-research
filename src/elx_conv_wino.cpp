@@ -398,7 +398,7 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
   size_t workspace_size = tweights_size_;
   size_t scratch_size = tinput_size_ + toutput_size_ + toutputa_size_
       + binput_size_ + bweights_size_ + boutput_size_;
-  if ((xopt_ & 0xF00) == 0xB00) {
+  if (xopt_ == 0xa079 || xopt_ == 0xa07b) {
     scratch_size += tweights_size_;
     workspace_size = 0;
   }
