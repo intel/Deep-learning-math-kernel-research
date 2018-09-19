@@ -71,34 +71,6 @@ const unsigned DUP_I   = 0x1;
 const unsigned DUP_O   = 0x2;
 const unsigned DUP_W   = 0x8;
 
-
-// TODO: to-be-replaced with user provided buffer
-struct galloc {
-  static size_t sz_;
-  static void *p_;
-
-  static void *acquire(size_t size)
-  {
-    size_t sz = ALIGNUP(size, 64);
-    if (p_ == nullptr) {
-      MEMALIGN64(&p_, sz);
-      sz_ = sz;
-    } else if (sz > sz_) {
-      ::free(p_);
-      MEMALIGN64(&p_, sz);
-      sz_ = sz;
-    }
-    return p_;
-  }
-
-  static void *get() { return p_; }
-
-  static void release() { ::free(p_); }
-};
-
-size_t galloc::sz_ = 0;
-void *galloc::p_ = nullptr;
-
 template <typename Type, const int A, const int K, const int V, const int I>
 elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
     eld_conv_t<Type>& dc)
@@ -587,7 +559,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 template <typename Type, const int A, const int K, const int V, const int I>
 elx_conv_wino_t<Type, A, K, V, I>::~elx_conv_wino_t()
 {
-  if (workspace_ != nullptr) ::free(workspace_);
+  if (workspace_ != nullptr)
+    ::free(workspace_);
+
+  galloc::release();
 }
 
 #define t2spato(__t2, __T, __n, __oh, __ow, __hOA_end, __wOA_end)            \

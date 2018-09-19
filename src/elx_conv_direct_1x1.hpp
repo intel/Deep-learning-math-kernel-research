@@ -60,6 +60,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   inline void trans_weights_2_blocked(Type *tweghts, Type *weights);
   inline void trans_output_2_plain(Type *output, Type *toutput);
 
+  void set_trans_buffers();
   int prepare_execute_opt();
   void bind_execute_functions();
 
@@ -101,6 +102,13 @@ class elx_conv_direct_1x1_t : public elx_conv_t<Type> {
   unsigned int xopt_;
   int attr_;
   int mthr_;
+  size_t tweights_size_;
+  size_t tinput_size_;
+  size_t toutput_size_;
+  size_t binput_size_;
+  size_t bweights_size_;
+  size_t boutput_size_;
+  Type *scratch_;
 };
 
 template class elx_conv_direct_1x1_t<float, 16, ISA_SKX_AVX512>;

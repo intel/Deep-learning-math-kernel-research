@@ -64,4 +64,40 @@ inline void el_warn(const char *msg) {
   printf("Euler:Warning: %s\n", msg);
 }
 
+// TODO: to-be-replaced with user provided buffer
+struct galloc {
+  static size_t &get_sz() {
+    static size_t sz_;
+    return sz_;
+  }
+
+  static void *&get() {
+    static void *p_;
+    return p_;
+  }
+
+  static void *acquire(size_t size)
+  {
+    auto &p_ = get();
+    size_t sz = ALIGNUP(size, 64);
+    if (p_ == nullptr) {
+      MEMALIGN64(&p_, sz);
+      get_sz() = sz;
+    } else if (sz > get_sz()) {
+      ::free(p_);
+      MEMALIGN64(&p_, sz);
+      get_sz() = sz;
+    }
+    return p_;
+  }
+
+  static void release() {
+    auto &p_ = get();
+    if (p_ != nullptr) {
+      ::free(p_);
+      p_ = nullptr;
+    }
+  }
+};
+
 }

@@ -148,9 +148,13 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   bind_execute_functions();
 
   // dbg
-  printf("T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d\n", this->T, this->Tr, this->t2, this->ht, this->wt, this->t);
-  printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic4=%d, IC=%d\n", this->V, this->Ir, this->I2, this->ic3, this->ic4, this->IC);
-  printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), oc3=%d, oc4=%d, O2r=%d, oc3r=%d, OC=%d\n", this->V, this->Or, this->O2, this->O, this->O1, this->oc3, this->oc4, this->O2r, this->oc3r, this->OC);
+  printf("T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d\n",
+      this->T, this->Tr, this->t2, this->ht, this->wt, this->t);
+  printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic4=%d, IC=%d\n",
+      this->V, this->Ir, this->I2, this->ic3, this->ic4, this->IC);
+  printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), oc3=%d, oc4=%d, O2r=%d, oc3r=%d, OC=%d\n",
+      this->V, this->Or, this->O2, this->O, this->O1,
+      this->oc3, this->oc4, this->O2r, this->oc3r, this->OC);
 }
 
 
@@ -159,7 +163,6 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
 {
   size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
   size_t binput_size = 0, bweights_size = 0, boutput_size = 0;
-  size_t l1_usage = 0, l2_usage = 0;
 
   stream_in_ = this->streaming_input
       ? (this->streaming_input == STORE_STREAMING) : false;
@@ -206,9 +209,6 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
   bweights_ = nullptr;
   boutput_ = nullptr;
 
-  l1_usage = sizeof(Type)
-      * (this->O2 * this->I2 * V * V + this->T * V * (this->I2 + this->O2));
-
   switch (xopt_) {
   case 0xa061:
     toutput_size = mthr_ * this->oc3 * this->O2 * this->T * V;
@@ -228,8 +228,6 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
     break;
   case 0xc060:
   case 0xd060:
-    l2_usage = this->IC * this->OC / this->oc4 + this->IC * this->T
-        + this->OC / this->oc4 * this->T;
     break;
   default:
       el_error("Unknown xopt!");
@@ -237,26 +235,41 @@ int  elx_conv_direct_1x1_t<Type, V, I>::prepare_execute_opt()
     break;
   }
 
-  l2_usage *= sizeof(Type);
-
+  const size_t align = PAGE_SIZE / sizeof(Type);
+#define WEIGHTS_MAX_PRELOAD 4
   if (tweights_size > 0)
-    MEMALIGN64(&tweights_, (tweights_size + 4 * V) * sizeof(Type)); // weights loading pipeline
-  if (tinput_size > 0)
-    MEMALIGN64(&tinput_, tinput_size * sizeof(Type));
-  if (toutput_size > 0)
-    MEMALIGN64(&toutput_, toutput_size * sizeof(Type));
-  if (binput_size > 0)
-    MEMALIGN64(&binput_, binput_size * sizeof(Type));
-  if (bweights_size > 0)
-    MEMALIGN64(&bweights_, bweights_size * sizeof(Type));
-  if (boutput_size > 0)
-    MEMALIGN64(&boutput_, boutput_size * sizeof(Type));
+    tweights_size += WEIGHTS_MAX_PRELOAD * V;
+
+  tweights_size_ = tweights_size > 0 ? alignup(tweights_size, align) : 0;
+  tinput_size_ = tinput_size > 0 ? alignup(tinput_size, align) : 0;
+  toutput_size_ = toutput_size > 0 ? alignup(toutput_size, align) : 0;
+  binput_size_ = binput_size > 0 ? alignup(binput_size, align) : 0;
+  bweights_size_ = bweights_size > 0 ? alignup(bweights_size, align) : 0;
+  boutput_size_ = boutput_size > 0 ? alignup(boutput_size, align) : 0;
+
+  scratch_ = nullptr;
+  size_t workspace_size = tweights_size_;
+  size_t scratch_size = tinput_size_ + tweights_size_ + toutput_size_
+      + binput_size_ + bweights_size_ + boutput_size_;
+  // TODO: user provided buffer
+  if (scratch_size != 0)
+    scratch_ = (Type *)galloc::acquire(scratch_size * sizeof(Type));
 
   // dbg
   printf("nteams=%d, nthreads=%d, mthr_=%d\n", this->nteams, this->nthreads, mthr_);
-  printf("l2_usage=%ld, l1_usage=%ld\n", l2_usage, l1_usage);
 
   return 0;
+}
+
+template <typename Type, const int V, const int I>
+void elx_conv_direct_1x1_t<Type, V, I>::set_trans_buffers()
+{
+  tinput_ = (Type *)galloc::get();
+  tweights_ = tinput_ + tinput_size_;
+  toutput_ = tweights_ + tweights_size_;
+  binput_ = toutput_ + toutput_size_;
+  bweights_ = binput_ + binput_size_;
+  boutput_ = bweights_ + bweights_size_;
 }
 
 template <typename Type, const int V, const int I>
@@ -272,7 +285,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 #define BIND_KERNEL_1(S, F)                                             \
   gemm_kernel_binder::bind<Type, V, I, S, F, false>(O, T, func);
 
-  auto bind_kernel = [&](int O, int T, gemm_kernel_binder::ker **func, bool has_Ir) {
+  auto bind_kernel = [&](int O, int T, gemm_kernel_binder::ker **func,
+      bool has_Ir) {
     switch (xopt_) {
     case (0xa061):
       BIND_KERNEL_2(1, GKF_CCC)
@@ -310,10 +324,10 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
     bind_kernel(this->O, this->Tr, &ker_gemm_IrO_Tr_, true);
   }
 
-#define EXECUTE_CASE(n)                                                        \
-  case 0x##n:                                                                  \
-    printf("execute_opt=" #n "\n");                                            \
-    execute_opt_ = &elx_conv_direct_1x1_t<Type, V, I>::__execute_##n;          \
+#define EXECUTE_CASE(n)                                                     \
+  case 0x##n:                                                               \
+    printf("execute_opt=" #n "\n");                                         \
+    execute_opt_ = &elx_conv_direct_1x1_t<Type, V, I>::__execute_##n;       \
     break
 
   switch (xopt_) {
@@ -332,34 +346,12 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 template <typename Type, const int V, const int I>
 elx_conv_direct_1x1_t<Type, V, I>::~elx_conv_direct_1x1_t()
 {
-  if (tweights_ != nullptr) {
-    free(tweights_);
-    tweights_ = nullptr;
-  }
-  if (tinput_ != nullptr) {
-    free(tinput_);
-    tinput_ = nullptr;
-  }
-  if (toutput_ != nullptr) {
-    free(toutput_);
-    toutput_ = nullptr;
-  }
   if (tinput_msk_ != nullptr) {
     free(tinput_msk_);
     tinput_msk_ = nullptr;
   }
-  if (binput_ != nullptr) {
-    free(binput_);
-    binput_ = nullptr;
-  }
-  if (bweights_ != nullptr) {
-    free(bweights_);
-    bweights_ = nullptr;
-  }
-  if (boutput_ != nullptr) {
-    free(boutput_);
-    boutput_ = nullptr;
-  }
+
+  galloc::release();
 }
 
 // n, ic, ih, iw => n, ic2, ih, iw, V
@@ -574,7 +566,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_c060(
   // input:   t3*, ic4*, ic3, I2, t2*, T(Tr), V
   // output:  t3*, oc4*, oc3, O2(O2r), t2*, T(Tr), V
   MD2(Type, aweights, weights, this->oc4, this->oc3 * this->O2 * this->IC * V);
-  MD3(Type, ainput, input, this->t3, this->ic4, this->ic3 * this->I2 * this->ih * this->iw * V);
+  MD3(Type, ainput, input, this->t3, this->ic4,
+      this->ic3 * this->I2 * this->ih * this->iw * V);
   MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
   MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
@@ -596,9 +589,12 @@ template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_blocked(
     Type *tweights, Type *weights)
 {
-  // oc4, (oc3, oc3r), (O2, O2r), ic4, ic3, I2, V, V -> ic4, oc4, ic3, (oc3, oc3r), I2, V, (O2, O2r), V
-  MD8(Type, aweights, weights, this->oc4, this->oc3, this->O2, this->ic4, this->ic3, this->I2, V, V);
-  MD8(Type, atweights, tweights, this->oc4, this->ic4, this->oc3, this->ic3, this->I2, V, this->O2, V);
+  // oc4, (oc3, oc3r), (O2, O2r), ic4, ic3, I2, V, V ->
+  // ic4, oc4, ic3, (oc3, oc3r), I2, V, (O2, O2r), V
+  MD8(Type, aweights, weights, this->oc4, this->oc3, this->O2, this->ic4,
+      this->ic3, this->I2, V, V);
+  MD8(Type, atweights, tweights, this->oc4, this->ic4, this->oc3, this->ic3,
+      this->I2, V, this->O2, V);
 
 #pragma omp parallel
 #pragma omp for nowait collapse(4) schedule(static)
@@ -632,9 +628,12 @@ template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_plain(
     Type *tweights, Type *weights)
 {
-  // oc4, (oc3, oc3r), (O2, O2r), V, ic4, ic3, I2, V -> ic4, oc4, ic3, (oc3, oc3r), I2, V, (O2, O2r), V
-  MD8(Type, atweights, tweights, this->oc4, this->ic4, this->oc3, this->ic3, this->I2, V, this->O2, V);
-  MD8(Type, aweights, weights, this->oc4, this->oc3, this->O2, V, this->ic4, this->ic3, this->I2, V);
+  // oc4, (oc3, oc3r), (O2, O2r), V, ic4, ic3, I2, V ->
+  // ic4, oc4, ic3, (oc3, oc3r), I2, V, (O2, O2r), V
+  MD8(Type, atweights, tweights, this->oc4, this->ic4, this->oc3,
+      this->ic3, this->I2, V, this->O2, V);
+  MD8(Type, aweights, weights, this->oc4, this->oc3, this->O2, V,
+      this->ic4, this->ic3, this->I2, V);
   SET_EPI32(this->ic)
 
   if (this->Ir == V && this->Or == V) {
@@ -778,7 +777,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_input_blocked(
     Type *tinput, Type *input, int _ht, int _wt)
 {
   // ic3, I2, ht, hs, wt, T, ws, V -> ht, wt | ic3, I2, T, V
-  MD8(Type, ainput, input, this->ic3, this->I2, this->ht, this->hs, this->wt, this->T, this->ws, V);
+  MD8(Type, ainput, input, this->ic3, this->I2, this->ht, this->hs,
+      this->wt, this->T, this->ws, V);
   MD4(Type, atinput, tinput, this->ic3, this->I2, this->T, V);
 
   iter_each (_ic3, this->ic3) {
@@ -888,7 +888,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_input_plain(
   MD3(Type, atinput, tinput, this->ic3 * this->I2, this->T, V);
   SET_EPI32(this->ih * this->iw)
   if (this->Ir == V) {
-    MD7(Type, ainput, input, this->ic3 * this->I2, V, this->ht, this->hs, this->wt, this->T, this->ws);
+    MD7(Type, ainput, input, this->ic3 * this->I2, V, this->ht,
+        this->hs, this->wt, this->T, this->ws);
     iter_each (_ic2, this->ic3 * this->I2) {
     iter_each (_T, this->T) {
       if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
@@ -905,7 +906,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_input_plain(
       }
     }}
   } else {
-    MD6(Type, ainput6, input, this->ic, this->ht, this->hs, this->wt, this->T, this->ws);
+    MD6(Type, ainput6, input, this->ic, this->ht, this->hs,
+        this->wt, this->T, this->ws);
     iter_each (_ic2, this->ic3 * this->I2) {
     iter_each (_T, this->T) {
       bool is_Ir = _ic2 == this->ic2 - 1;
@@ -957,7 +959,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_blocked(
 {
   // oc3, O2, T, V => n, oc4 | oc3, O2, ht, wt, T, V
   MD4(Type, atoutput, toutput, this->oc3, this->O2, this->T, V);
-  MD7(Type, aoutput, output, this->oc4, this->oc3, this->O2, this->ht, this->wt, this->T, V);
+  MD7(Type, aoutput, output, this->oc4, this->oc3, this->O2,
+      this->ht, this->wt, this->T, V);
 
   iter_each (_oc3, this->oc3) {
   iter_each (_O2, this->O2) {
@@ -993,7 +996,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_plain(
   SET_EPI32(this->oh * this->ow)
   if (this->Or == V) {
     MD4(Type, atoutput, toutput, this->oc3, this->O2, this->T, V);
-    MD7(Type, aoutput, output, this->oc4, this->oc3, this->O2, V, this->ht, this->wt, this->T);
+    MD7(Type, aoutput, output, this->oc4, this->oc3, this->O2, V,
+        this->ht, this->wt, this->T);
     iter_each (_oc3, this->oc3) {
     iter_each (_O2, this->O2) {
     iter_each (_T, this->T) {
@@ -1006,8 +1010,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_plain(
       } else if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
         __m<V> t = _mm<V>::load_ps(&md4(atoutput, _oc3, _O2, _T, 0));
         constexpr int scale = sizeof(Type);
-        _mm<V>::i32scatter_ps(&md7(aoutput, _oc4, _oc3, _O2, 0, _ht, _wt, _T), vindex,
-            t, scale);
+        _mm<V>::i32scatter_ps(&md7(aoutput, _oc4, _oc3, _O2, 0, _ht, _wt, _T),
+            vindex, t, scale);
       } else {
 #pragma omp simd
         iter_each (_V, V) {
@@ -1080,9 +1084,12 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_e060(Type *output, Type *input,
   // weights: oc3*, ic3*, O2, I2, V, V
   // input:   ic3*, I2, ht*, hs*, wt*, T, ws, V
   // output:  oc3*, O2, ht*, wt*, T, V
-  MD5(Type, ainput, input, this->ic3, this->I2, this->ih, this->wt, this->T * this->ws * V);
-  MD5(Type, aoutput, output, this->oc3, this->O2, this->ht, this->wt, this->T * V);
-  MD3(Type, aweights, weights, this->oc3, this->ic3, this->O2 * this->I2 * V * V);
+  MD5(Type, ainput, input, this->ic3, this->I2, this->ih, this->wt,
+      this->T * this->ws * V);
+  MD5(Type, aoutput, output, this->oc3, this->O2, this->ht, this->wt,
+      this->T * V);
+  MD3(Type, aweights, weights, this->oc3, this->ic3,
+      this->O2 * this->I2 * V * V);
   MD2(Type, abias, bias, this->oc3, this->O2 * V);
 
 
@@ -1106,8 +1113,10 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_b061(Type *output, Type *input,
   // input:   ic3*, I2, T, V
   // output:  oc3*, O2, ht*, wt*, T, V
   MD2(Type, ainput, input, this->ic3, this->I2 * this->T * V);
-  MD5(Type, aoutput, output, this->oc3, this->O2, this->ht, this->wt, this->T * V);
-  MD3(Type, aweights, weights, this->oc3, this->ic3, this->O2 * this->I2 * V * V);
+  MD5(Type, aoutput, output, this->oc3, this->O2,
+      this->ht, this->wt, this->T * V);
+  MD3(Type, aweights, weights, this->oc3, this->ic3,
+      this->O2 * this->I2 * V * V);
   MD2(Type, abias, bias, this->oc3, this->O2 * V);
 
   iter_each (_ic3, this->ic3) {
@@ -1131,7 +1140,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_a061(Type *output, Type *input,
   // output:  oc3*, O2, T, V
   MD2(Type, ainput, input, this->ic3, this->I2 * this->T * V);
   MD2(Type, aoutput, output, this->oc3, this->O2 * this->T * V);
-  MD3(Type, aweights, weights, this->oc3, this->ic3, this->O2 * this->I2 * V * V);
+  MD3(Type, aweights, weights, this->oc3, this->ic3,
+      this->O2 * this->I2 * V * V);
   MD2(Type, abias, bias, this->oc3, this->O2 * V);
 
   iter_each (_ic3, this->ic3 - 1) {
@@ -1142,7 +1152,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_a061(Type *output, Type *input,
           &md2(abias, _oc3, 0), attr);
     }
   }
-  int attr = _ic4 == 0 && this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
+  int attr = _ic4 == 0 && this->ic3 == 1 ?
+      set_attr(attr_, r_output_idx) : attr_;
   attr = this->with_relu && _ic4 == this->ic4 - 1 ?
       (set_attr(attr, relu_idx)) : attr;
   iter_each (_oc3, this->oc3) {
@@ -1159,11 +1170,14 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_e060(
   // weights: oc4*, oc3, O2, ic4*, ic3, I2, V, V
   // input:   t3*, ic4*, ic3, I2, ht*, S, wt*, S, T, V
   // output:  t3*, oc4*, oc3, O2, ht*, wt*, T, V
-  MD7(Type, ainput, input, this->t3, this->ic4, this->ic3 * this->I2, this->ht, this->hs, this->wt, this->T * this->ws * V);
-  MD6(Type, aoutput, output, this->t3, this->oc4, this->oc3 * this->O2, this->ht, this->wt, this->T * V);
+  MD7(Type, ainput, input, this->t3, this->ic4, this->ic3 * this->I2,
+      this->ht, this->hs, this->wt, this->T * this->ws * V);
+  MD6(Type, aoutput, output, this->t3, this->oc4, this->oc3 * this->O2,
+      this->ht, this->wt, this->T * V);
   MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-  MD3(Type, atweights, tweights_, this->oc4, this->ic4, this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
+  MD3(Type, atweights, tweights_, this->oc4, this->ic4,
+      this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
 
   if (is_first_run_) {
     trans_weights(tweights_, weights);
@@ -1193,11 +1207,13 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b061(
   // weights: oc4*, oc3, O2(O2r), ic4*, ic3, I2, V, V
   // input:   t3*, ic4*, ic3, I2, t2*, T(Tr), V
   // output:  t3*, oc4*, oc3, O2(O2r), t2*, T(Tr), V
-  MD3(Type, ainput, input, this->t3, this->ic4, this->ic3 * this->I2 * this->ih * this->iw * V);
+  MD3(Type, ainput, input, this->t3, this->ic4,
+      this->ic3 * this->I2 * this->ih * this->iw * V);
   MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
   MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-  MD3(Type, atweights, tweights_, this->oc4, this->ic4, this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
+  MD3(Type, atweights, tweights_, this->oc4, this->ic4,
+      this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
 
   if (is_first_run_) {
     trans_weights(tweights_, weights);
@@ -1223,7 +1239,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b061(
       }}}}
     }
   } else {
-    MD4(Type, atinput, tinput_, mthr_, this->ht, this->wt, this->ic3 * this->I2 * this->T * V);
+    MD4(Type, atinput, tinput_, mthr_, this->ht, this->wt,
+        this->ic3 * this->I2 * this->T * V);
     MD3(unsigned char, atinput_msk, tinput_msk_, mthr_, this->ht, this->wt);
     iter_each (_ic4, this->ic4) {
       int t3_history = -1;
@@ -1266,7 +1283,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a061(
   MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   MD2(Type, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
-  MD3(Type, atweights, tweights_, this->oc4, this->ic4, this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
+  MD3(Type, atweights, tweights_, this->oc4, this->ic4,
+      this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
 
   if (is_first_run_) {
     trans_weights(tweights_, weights);
@@ -1289,7 +1307,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a061(
           _oc4, _ht, _wt);
     }}}}
   } else {
-    MD4(Type, atinput, tinput_, mthr_, this->ht, this->wt, this->ic3 * this->I2 * this->T * V);
+    MD4(Type, atinput, tinput_, mthr_, this->ht, this->wt,
+        this->ic3 * this->I2 * this->T * V);
     MD3(unsigned char, atinput_msk, tinput_msk_, mthr_, this->ht, this->wt);
     int t3_history = -1;
 #pragma omp parallel num_threads(mthr_) proc_bind(close) firstprivate(t3_history)
@@ -1416,7 +1435,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_plain2(
 
   if (this->Or == V) {
     MD4(Type, atoutput, toutput, this->oc3, this->O2, Tz, V);
-    MD5(Type, aoutput, output, this->oc4, this->oc3, this->O2, V, this->oh * this->ow);
+    MD5(Type, aoutput, output, this->oc4, this->oc3, this->O2, V,
+        this->oh * this->ow);
     iter_each (_oc3, this->oc3) {
     iter_each (_O2, this->O2) {
     iter_each (_T, Tz) {
@@ -1429,8 +1449,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_plain2(
       } else if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
         __m<V> t = _mm<V>::load_ps(&md4(atoutput, _oc3, _O2, _T, 0));
         constexpr int scale = sizeof(Type);
-        _mm<V>::i32scatter_ps(&md5(aoutput, _oc4, _oc3, _O2, 0, _t2 * this->T + _T), vindex,
-            t, scale);
+        _mm<V>::i32scatter_ps(&md5(aoutput, _oc4, _oc3, _O2, 0, _t2 * this->T + _T),
+            vindex, t, scale);
       } else {
 #pragma omp simd
         iter_each (_V, V) {
@@ -1472,8 +1492,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_plain2(
         } else if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
           __m<V> t = _mm<V>::load_ps(&md4(atoutput, _oc3, _O2, _T, 0));
           constexpr int scale = sizeof(Type);
-          _mm<V>::i32scatter_ps(&md2(aoutput, _oc2 * V, _t2 * this->T + _T), vindex,
-              t, scale);
+          _mm<V>::i32scatter_ps(&md2(aoutput, _oc2 * V, _t2 * this->T + _T),
+              vindex, t, scale);
         } else {
 #pragma omp simd
           iter_each(_V, V) {
@@ -1492,7 +1512,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_output_blocked2(
 {
   // oc3, O2, T, V => n, oc4 | oc3, O2, ht, wt, T, V
   MD4(Type, atoutput, toutput, this->oc3, this->O2, Tz, V);
-  MD5(Type, aoutput, output, this->oc4, this->oc3, this->O2, this->oh * this->ow, V);
+  MD5(Type, aoutput, output, this->oc4, this->oc3, this->O2,
+      this->oh * this->ow, V);
 
   iter_each (_oc3, this->oc3) {
   iter_each (_O2, this->O2) {
@@ -1536,7 +1557,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_f061(Type *output, Type *input,
 {
   MD2(Type, ainput, input, this->ic3, this->I2 * Tz * V);
   MD2(Type, aoutput, output, this->oc3, this->O2 * Tz * V);
-  MD3(Type, aweights, weights, this->oc3, this->ic3, this->O2 * this->I2 * V * V);
+  MD3(Type, aweights, weights, this->oc3, this->ic3,
+      this->O2 * this->I2 * V * V);
   MD2(Type, abias, bias, this->oc3, this->O2 * V);
 
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm_I_O_Tr_ : ker_gemm_I_O_T_;
@@ -1569,7 +1591,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_f061(
   MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   MD2(Type, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
-  MD3(Type, atweights, tweights_, this->oc4, this->ic4, this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
+  MD3(Type, atweights, tweights_, this->oc4, this->ic4,
+      this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
 
   if (is_first_run_) {
     trans_weights(tweights_, weights);
@@ -1591,7 +1614,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_f061(
           _oc4, _t2, Tz);
     }}}
   } else {
-    MD3(Type, atinput, tinput_, mthr_, this->t2, this->ic3 * this->I2 * this->T * V);
+    MD3(Type, atinput, tinput_, mthr_, this->t2,
+        this->ic3 * this->I2 * this->T * V);
     MD2(unsigned char, atinput_msk, tinput_msk_, mthr_, this->t2);
     int t3_history = -1;
 #pragma omp parallel num_threads(mthr_) proc_bind(close) firstprivate(t3_history)
@@ -1628,8 +1652,10 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_d060(Type *output, Type *input,
   // weights: oc3*, O2, ic4*, ic3*, I2, V, V
   // input:   ic3*, I2, ht*, hs*, wt*, T, ws, V
   // output:  oc3*, O2(O2r), ht*, wt*, T, V
-  MD5(Type, ainput, input, this->ic3, this->I2, this->ih, this->wt, this->T * this->ws * V);
-  MD5(Type, aoutput, output, this->oc3, this->O2, this->ht, this->wt,  this->T * V);
+  MD5(Type, ainput, input, this->ic3, this->I2, this->ih, this->wt,
+      this->T * this->ws * V);
+  MD5(Type, aoutput, output, this->oc3, this->O2, this->ht, this->wt,
+      this->T * V);
   MD5(Type, aweights, weights, this->oc3, this->O2, this->ic4, this->ic3,
       this->I2 * V * V);
   MD2(Type, abias, bias, this->oc3, this->O2 * V);
@@ -1664,7 +1690,8 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_d060(
   // input:   t3*, ic4*, ic3, I2, ht*, S, wt*, T, S, V
   // output:  t3*, oc4*, oc3, O2(O2r), ht*wt*, T, V
   MD2(Type, aweights, weights, this->oc4, this->oc3 * this->O2 * this->IC * V);
-  MD7(Type, ainput, input, this->t3, this->ic4, this->ic3 * this->I2, this->ht, this->hs, this->wt, this->T * this->ws * V);
+  MD7(Type, ainput, input, this->t3, this->ic4, this->ic3 * this->I2,
+      this->ht, this->hs, this->wt, this->T * this->ws * V);
   MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
   MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
@@ -1689,6 +1716,8 @@ template <typename Type, const int V, const int I>
 void elx_conv_direct_1x1_t<Type, V, I>::execute(
     Type *output, Type *input, Type *weights, Type *bias)
 {
+  set_trans_buffers();
+
   if (is_bfmt_)
     (this->*execute_opt_)(output, input, weights, bias);
   else {
