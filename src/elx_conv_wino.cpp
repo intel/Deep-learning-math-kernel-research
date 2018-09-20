@@ -677,7 +677,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_plain(
     alignas(64) Type aout[A][A][V][V];
 
     if (this->Ir != V || is_Ir || is_Or)
-      readin_r(ain, _oc4, _oc3, _O1 + this->O + _O, _ic4, _ic3, _I2, is_Ir, is_Or);
+      readin_r(ain, _oc4, _oc3, _O1 * this->O + _O, _ic4, _ic3, _I2, is_Ir, is_Or);
     else
       readin_v(
           ain, &md11(aweights_v, _oc4, _oc3, _O1, _O, 0, _ic4, _ic3, _I2, 0, 0, 0));
@@ -856,7 +856,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weightsf_plain(
     alignas(64) Type aout[A][A][V][V];
 
     if (this->Ir != V || is_Ir || is_Or)
-      readin_r(ain, _oc4, _oc3, _O1 + this->O + _O, _ic4, _ic3, _I2, is_Ir, is_Or);
+      readin_r(ain, _oc4, _oc3, _O1 * this->O + _O, _ic4, _ic3, _I2, is_Ir, is_Or);
     else
       readin_v(
           ain, &md11(aweights_v, _oc4, _oc3, _O1, _O, 0, _ic4, _ic3, _I2, 0, 0, 0));
