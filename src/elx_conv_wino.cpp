@@ -380,6 +380,8 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
   if (workspace_size != 0)
     MEMALIGN64(&workspace_, workspace_size * sizeof(Type));
 
+  set_trans_buffers();
+
   // dbg
   printf("nteams=%d, nthreads=%d, mthr_=%d\n",
       this->nteams, this->nthreads, mthr_);
@@ -2900,8 +2902,6 @@ template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::execute(
     Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
-  set_trans_buffers();
-
   if (is_bfmt_)
     return (this->*execute_opt_)(output, input, weights, bias);
   else {

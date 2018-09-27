@@ -66,36 +66,41 @@ inline void el_warn(const char *msg) {
 
 // TODO: to-be-replaced with user provided buffer
 struct galloc {
-  static size_t &get_sz() {
+  static void *&get() {
+    static void *ptr_;
+    return ptr_;
+  }
+
+  static size_t &sz() {
     static size_t sz_;
     return sz_;
   }
 
-  static void *&get() {
-    static void *p_;
-    return p_;
+  static size_t &ref_cnt() {
+    static size_t ref_cnt_;
+    return ref_cnt_;
   }
 
   static void *acquire(size_t size)
   {
-    auto &p_ = get();
+    auto &sz_ = sz();
+    auto &ptr_ = get();
     size_t sz = ALIGNUP(size, 64);
-    if (p_ == nullptr) {
-      MEMALIGN64(&p_, sz);
-      get_sz() = sz;
-    } else if (sz > get_sz()) {
-      ::free(p_);
-      MEMALIGN64(&p_, sz);
-      get_sz() = sz;
+    if (sz > sz_) {
+      if (ptr_) ::free(ptr_);
+      MEMALIGN64(&ptr_, sz);
+      sz_ = sz;
     }
-    return p_;
+    ++ref_cnt();
+    return ptr_;
   }
 
   static void release() {
-    auto &p_ = get();
-    if (p_ != nullptr) {
-      ::free(p_);
-      p_ = nullptr;
+    auto &ptr_ = get();
+    auto &cnt_ = ref_cnt();
+    if (--cnt_ == 0 && ptr_ != nullptr) {
+      ::free(ptr_);
+      ptr_ = nullptr;
     }
   }
 };
