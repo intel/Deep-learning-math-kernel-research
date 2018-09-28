@@ -29,9 +29,10 @@ bool input_as_blocked = false, weights_as_blocked = false, output_as_blocked = f
 
 bool validate_results = false;
 bool flush_cache = false;
-int flush_loop = 1;
+int repeated_layer = 1;
+bool double_buffering = false;
 
-#define FL_MAX 128
+#define RL_MAX 128
 int main(int argc, char **argv)
 {
   if (parse_cmd_options(argc, argv))
@@ -65,11 +66,11 @@ int main(int argc, char **argv)
       = { input_as_blocked, weights_as_blocked, output_as_blocked };
 
   // 2. setup convolution
-  eld_conv_t<float> convs[FL_MAX];
-  float *input[FL_MAX], *weights[FL_MAX], *output[FL_MAX], *bias[FL_MAX],
-      *ref_output;
-  const auto C
-      = validate_results ? 1 : flush_loop <= FL_MAX ? flush_loop : FL_MAX;
+  eld_conv_t<float> convs[RL_MAX];
+  float *input[RL_MAX], *weights[RL_MAX], *output[RL_MAX], *bias[RL_MAX],
+      *ref_output, *dbuffer[2];
+  const auto C = validate_results ?
+      1 : repeated_layer <= RL_MAX ? repeated_layer : RL_MAX;
 
   for (auto c = 0; c < C; ++c) {
     convs[c] = desc;
@@ -78,8 +79,9 @@ int main(int argc, char **argv)
       return -1;
     }
     test::prepare_conv_data<float>(
-        convs[c], &input[c], &weights[c], &output[c], &bias[c]);
+        convs[c], &input[c], &weights[c], &output[c], &bias[c], double_buffering);
   }
+
   if (validate_results) {
     ref_output = (float *)malloc(convs[0].byte_sizes.output);
     if (desc.with_ip_sum)
@@ -115,18 +117,31 @@ int main(int argc, char **argv)
     test::timer timer;
     for (auto n = 0; n < N / C; ++n) {
       for (auto c = 0; c < C; ++c) {
-        if (flush_cache) {
+        eld_conv_t<float> &_convs = convs[c];
+        float *_weights = weights[c], *_bias = bias[c],
+            *_input = input[c], *_output = output[c];
+        if (double_buffering) {
+          if (c % 2 == 0) {
+            _input = input[0];
+            _output = output[0];
+          } else {
+            _input = output[0];
+            _output = input[0];
+          }
+        } else if (flush_cache) {
           test::flush_all_memory(
-              convs[c], input[c], weights[c], output[c], bias[c]);
+              _convs, _input, _weights, _output, _bias);
         }
+
         timer.start();
         if (ELX_OK != elx_conv<float>(
-                   convs[c], output[c], input[c], weights[c], bias[c])) {
+            _convs, _output, _input, _weights, _bias)) {
           test::error("Fail: Convolution execution error!\n");
         }
         timer.stop();
       }
     }
+
     timer.report_tflops("conv", C * (N / C), num_ops);
   }
 
@@ -161,7 +176,8 @@ int parse_cmd_options(int argc, char **argv) {
     ("with-bias,b", po::value<bool>(&with_bias), "on|off. With bias. Default: on")
     ("with-relu,r", po::value<bool>(&with_relu), "on|off. With relu. Default: off")
     ("flush-cache,f", po::value<bool>(&flush_cache), "on|off. Fush cache. Default: off")
-    ("flush-loop,l", po::value<int>(&flush_loop), "Number of loop of cache flush. Default: 16")
+    ("repeated-layer,l", po::value<int>(&repeated_layer), "Number of repeated layers. Default: 16")
+    ("double-buffering,B", po::value<bool>(&double_buffering), "Double buffering. Default: off")
     ("alg,a", po::value<std::string>(), "auto|wino|direct|direct_1x1. Algorithm. Default: wino")
     ("tile-size", po::value<int>(&tile_size), "Winograd tile size: 5")
     ("nteams", po::value<int>(&nteams), "Number of thread team")
@@ -294,7 +310,8 @@ int parse_cmd_options(int argc, char **argv) {
       fmt_str[weights_format], fmt_str[output_format]);
   printf("input-as-blocked:%d, weights_as_blocked:%d, output_as_blocked:%d\n",
       input_as_blocked, weights_as_blocked, output_as_blocked);
-  printf("flush_cache: %d, flush_loop: %d\n", flush_cache, flush_loop);
+  printf("flush_cache: %d, repeated_layer: %d\n", flush_cache, repeated_layer);
+  printf("double_buffering: %d\n", double_buffering);
 
   if (mb <= 0 || ic <= 0 || ih <= 0 || iw <= 0 || oc <= 0 || oh <= 0
       || ow <= 0 || kh <= 0 || kw <= 0) {

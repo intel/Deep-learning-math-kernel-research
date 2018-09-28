@@ -5,21 +5,22 @@ cat <<!
   -v   Validation on.
   -p   Use plain format.
   -r   ReLU fusion.
-  -l   Flush loop.
+  -l   Repeated layer.
   -f   Flush cache.
+  -B   Double buffering.
   -s   Inplace sum.
   -h   This page.
 !
 }
 
-v=0; r=0; s=0; l=1; f=0
+v=0; r=0; s=0; l=1; B=0; f=0
 input_format=nChw16c
 weights_format=OIhw16i16o
 output_format=nChw16c
 tile_size=5
 
 OPTIND=1
-while getopts "vprsft:l:h" opt; do
+while getopts "vprsft:l:B:h" opt; do
   case $opt in
     v)
       v=1
@@ -41,6 +42,9 @@ while getopts "vprsft:l:h" opt; do
     f)
       f=1
       ;;
+    B)
+      B=1
+      ;;
     h)
       usage
       ;;
@@ -51,7 +55,7 @@ while getopts "vprsft:l:h" opt; do
 done
 shift $((OPTIND-1))
 
-COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format -r$r --with-ip-sum=$s -l$l -f$f"
+COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format -r$r --with-ip-sum=$s -l$l -f$f -B$B"
 
 echo "Common option:" $COMMON
 echo

@@ -9,18 +9,27 @@ namespace euler {
 namespace test {
   template <typename Type>
   void prepare_conv_data(
-      eld_conv_t<Type> &, Type **, Type **, Type **, Type **)
+      eld_conv_t<Type> &, Type **, Type **, Type **, Type **, bool)
   {
   }
 
   template <>
   void prepare_conv_data<float>(eld_conv_t<float> &desc, float **input,
-      float **weights, float **output, float **bias)
+      float **weights, float **output, float **bias, bool double_buffering)
   {
-    MEMALIGN64(input, desc.byte_sizes.input);
-    MEMALIGN64(weights, desc.byte_sizes.weights);
-    MEMALIGN64(output, desc.byte_sizes.output);
-    MEMALIGN64(bias, desc.byte_sizes.bias);
+    if (double_buffering) {
+      auto db_size = desc.byte_sizes.input > desc.byte_sizes.output ?
+          desc.byte_sizes.input : desc.byte_sizes.output;
+      MEMALIGN64(input, db_size);
+      MEMALIGN64(weights, desc.byte_sizes.weights);
+      MEMALIGN64(output, db_size);
+      MEMALIGN64(bias, desc.byte_sizes.bias);
+    } else {
+      MEMALIGN64(input, desc.byte_sizes.input);
+      MEMALIGN64(weights, desc.byte_sizes.weights);
+      MEMALIGN64(output, desc.byte_sizes.output);
+      MEMALIGN64(bias, desc.byte_sizes.bias);
+    }
 
 #pragma omp parallel for
     for (size_t i = 0; i < desc.sizes.input; i++) {

@@ -14,7 +14,7 @@ namespace test {
 
   template <typename Type>
   void prepare_conv_data(eld_conv_t<Type> &desc, Type **input, Type **weights,
-      Type **output, Type **bias);
+      Type **output, Type **bias, bool double_buffering = false);
 
   void teardown_conv_data(
       void *input, void *weights, void *output, void *bias);
