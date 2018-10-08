@@ -1018,14 +1018,13 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_blocked(
 
   iter_each (_ic3, this->ic3) {
   iter_each (_I2, this->I2) {
-  input_tile_iter<A, K> t2spati_o(_t_off, this->ht, this->wt, this->ih, this->iw,
+  input_tile_iter<A, K> t2spati_o(_n, _t_off, this->ht, this->wt, this->ih, this->iw,
       this->tp, this->lp);
-
   iter_each (_T, Tz) {
     auto _ih = t2spati_o.anchor_t_;
     auto _iw = t2spati_o.anchor_l_;
 
-    Type *in = &md7(ainput, _n, 0, _ic3, _I2, _ih, _iw, 0);
+    Type *in = &md7(ainput, t2spati_o.n_, 0, _ic3, _I2, _ih, _iw, 0);
     if (!t2spati_o.is_border())
       ker_trans_input_(*this, aout, in, 0, A - 1, 0, A - 1);
     else
@@ -1726,12 +1725,12 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_blocked(
   alignas(64) Type ain[A][A][V];
 
   auto res = std::div(_t2 * this->T, this->nt);
-  auto _n = res.quot;
+  auto _n_off = res.quot;
   auto _t_off = res.rem;
 
   iter_each (_oc3, this->oc3) {
   iter_each (_O2, this->O2) {
-    output_tile_iter<A, K> t2spato_o(_t_off, this->ht, this->wt, this->oh, this->ow);
+    output_tile_iter<A, K> t2spato_o(_n_off, _t_off, this->ht, this->wt, this->oh, this->ow);
   iter_each (_T, Tz) {
     iter_each (_wA, A) {
     iter_each (_hA, A) {
@@ -1740,6 +1739,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_blocked(
       ain[_wA][_hA][_V] = md6(atoutput, _wA, _hA, _oc3, _O2, _T, _V);
     }}}
 
+    auto _n = t2spato_o.n_;
     auto _oh = t2spato_o.t_;
     auto _ow = t2spato_o.l_;
     Type *out = &md7(aoutput, _n, 0, _oc3, _O2, _oh, _ow, 0);
