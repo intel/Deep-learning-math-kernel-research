@@ -618,7 +618,6 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_blocked(
         iter_each (_oV, V) {
           md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2, _oV)
               = md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV, _oV);
-          ;
         }
       }
     }}}
@@ -658,7 +657,6 @@ void elx_conv_direct_1x1_t<Type, V, I>::__trans_weights_plain(
           iter_each (_oV, V) {
             md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2, _oV)
                 = md8(aweights, _oc4, _oc3, _O2, _oV, _ic4, _ic3, _I2, _iV);
-            ;
           }
         }
       }}
