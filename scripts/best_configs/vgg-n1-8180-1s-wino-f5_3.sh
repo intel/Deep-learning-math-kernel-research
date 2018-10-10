@@ -8,13 +8,13 @@
 source ./scripts/best_configs/common.sh $@
 
 # vgg19_conv1_2, 7.0T
-NSOCKETS=1 ./scripts/run.sh -c -i64 -h224 -o64 -H224 -n1 --blk-i=4 --blk-o=4 --flt-t=15 --tile-size=7 --execution-mode=0xa040 --output-as-blocked=true $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -i64 -h224 -o64 -H224 -n1 --blk-i=4 --blk-o=4 --flt-t=15 --tile-size=7 --execution-mode=0xa061 --output-as-blocked=true $COMMON
 sleep 1
 # vgg19_conv2_1, 7.3T
-NSOCKETS=1 ./scripts/run.sh -c -i64 -h112 -o128 -H112 -n1 --blk-i=4 --blk-o=8 --flt-t=19 --tile-size=7 --execution-mode=0xa040 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -i64 -h112 -o128 -H112 -n1 --blk-i=4 --blk-o=8 --flt-t=19 --tile-size=7 --execution-mode=0xa061 $COMMON
 sleep 1
 # vgg19_conv2_2, 7.4T
-NSOCKETS=1 ./scripts/run.sh -c -i128 -h112 -o128 -H112 -n1 --blk-i=8 --blk-o=8 --flt-t=19 --tile-size=7 --execution-mode=0xa040 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -i128 -h112 -o128 -H112 -n1 --blk-i=8 --blk-o=8 --flt-t=19 --tile-size=7 --execution-mode=0xa061 $COMMON
 sleep 1
 # vgg19_conv3_1, 7.3T
 NSOCKETS=1 ./scripts/run.sh -c -i128 -h56 -o256 -H56 -n1 --blk-i=8 --blk-o=8 --flt-t=18 --tile-size=7 --execution-mode=0xa000 --output-as-blocked=true $COMMON

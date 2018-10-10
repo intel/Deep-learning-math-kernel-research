@@ -246,18 +246,13 @@ public:
 private:
   void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a010(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a040(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a060(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a061(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a0e1(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a0e0(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a071(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a073(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a079(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a07b(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a201(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a241(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a448(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a0e0(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a0e1(Type *output, Type *input, Type *weights, Type *bias);
 
   inline void __trans_input_plain(Type *tinput, Type *input, int _t2, int Tz);
   inline void __trans_input_blocked(Type *tinput, Type *input, int _t2, int Tz);

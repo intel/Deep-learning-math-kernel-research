@@ -22,7 +22,7 @@ eld_conv_t<F>::eld_conv_t() {
   with_ip_sum = false;
   with_op_sum = false;
   xc        = nullptr;
-  threading = {0, 0};
+  nthreads = 0;
   execution_mode = 0;
   blocking  = {0, 0};
   flatting  = {0, 0};

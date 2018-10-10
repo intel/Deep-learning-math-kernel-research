@@ -37,8 +37,7 @@ elx_conv_t<Type>::elx_conv_t(eld_conv_t<Type> &dc) {
 
   this->prop_kind = dc.prop_kind;
 
-  this->nteams = dc.threading.nteams;
-  this->nthreads = dc.threading.nthreads;
+  this->nthreads = dc.nthreads;
   this->execution_mode = dc.execution_mode;
 
   /* Automatical parameters */

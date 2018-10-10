@@ -18,7 +18,7 @@ int ph = 1, pw = 1, sh = 1, sw = 1, dh = 1, dw = 1;
 bool with_bias = true, with_relu = false, with_ip_sum = false;
 int prop_kind = forward_inference, alg = CONV_WINOGRAD;
 int input_format = nChw16c, weights_format = OIhw16i16o, output_format = nChw16c;
-int nteams = 0, nthreads = 0;
+int nthreads = 0;
 int execution_mode = 0;
 int flt_o = 1, flt_t = 1;
 int blk_i = 1, blk_o = 1;
@@ -55,7 +55,7 @@ int main(int argc, char **argv)
   desc.algorithm = alg;
   desc.tile_size = tile_size;
   desc.prop_kind = prop_kind;
-  desc.threading = { nteams, nthreads };
+  desc.nthreads = nthreads;
   desc.execution_mode = execution_mode;
   desc.flatting = { flt_o, flt_t };
   desc.blocking = { blk_i, blk_o };
@@ -180,7 +180,6 @@ int parse_cmd_options(int argc, char **argv) {
     ("double-buffering,B", po::value<bool>(&double_buffering), "Double buffering. Default: off")
     ("alg,a", po::value<std::string>(), "auto|wino|direct|direct_1x1. Algorithm. Default: wino")
     ("tile-size", po::value<int>(&tile_size), "Winograd tile size: 5")
-    ("nteams", po::value<int>(&nteams), "Number of thread team")
     ("nthreads", po::value<int>(&nthreads), "Number of threads per team")
     ("execution-mode", po::value<std::string>(), "Execution mode")
     ("flt-o", po::value<int>(&flt_o), "OC flatting")
@@ -276,13 +275,13 @@ int parse_cmd_options(int argc, char **argv) {
          "with_bias:%d, with_relu:%d, with_ip_sum:%d, validate_results:%d\n"
          "flt_o:%d, flt_t:%d, blk_i:%d, blk_o:%d, pat_i:%d, pat_o:%d\n"
          "streaming-hint:%d, %d, %d\n"
-         "nteams:%d, nthreads:%d\n"
+         "nthreads:%d\n"
          "execution-mode:%x\n",
       mb, ic, ih, iw, oc, oh, ow, kh, kw, ph, pw, sh, sw, dh, dw,
       with_bias, with_relu, with_ip_sum, validate_results,
       flt_o, flt_t, blk_i, blk_o, pat_i, pat_o,
       streaming_weights, streaming_input, streaming_output,
-      nteams, nthreads, execution_mode);
+      nthreads, execution_mode);
 
   std::unordered_map<int, const char *>prop_kind_str {
     { forward_training, "forward_training"},

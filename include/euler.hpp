@@ -88,7 +88,7 @@ struct eld_conv_t {
 
     // Performance:
     // Number of thread teams, number of threads per team
-    struct { int nteams, nthreads;} threading;
+    int nthreads;
     // Execution mode
     int execution_mode;
     // Flatting/Blocking/Partition

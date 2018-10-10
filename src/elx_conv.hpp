@@ -68,7 +68,7 @@ struct elx_conv_t {
   bool output_as_blocked;
 
   // threading
-  int nteams, nthreads;
+  int nthreads;
   int execution_mode;
 
   elx_conv_t(eld_conv_t<Type> &dc);

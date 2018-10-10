@@ -89,9 +89,9 @@ class elkTransOutputTest
 
 INSTANTIATE_TEST_CASE_P(elk_trans_output_test_common_params, elkTransOutputTest,
                         Combine(Values(4, 5, 6, 7), // tile-size
-                                Values(0xa040, 0xa061, 0xa448, 0xa241, 0xa000,
-                                       0xa201, 0xa0e0,
-                                       0xa0e1),           // execution-mode
+                                Values(0xa061, 0xa000, 0xa010,
+                                       0xa071, 0xa079,
+                                       0xa0e0, 0xa0e1),   // execution-mode
                                 Values(nChw16c, nchw),    // input_format
                                 Values(OIhw16i16o, oihw), // weights_format
                                 Values(nChw16c, nchw),    // output_format

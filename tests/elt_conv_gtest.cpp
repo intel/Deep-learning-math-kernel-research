@@ -27,7 +27,6 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
   int ph = 1, pw = 1;
   int prop_kind = forward_inference, alg = CONV_WINOGRAD;
   bool validate_results = true;
-  int nteams = 0;
   int nthreads = 0;
 
   int divisor_i = 16 * blk_i * pat_i;
@@ -71,7 +70,7 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
   desc.algorithm = alg;
   desc.tile_size = tile_size;
   desc.prop_kind = prop_kind;
-  desc.threading = {nteams, nthreads};
+  desc.nthreads = nthreads;
   desc.execution_mode = execution_mode;
   desc.flatting = {1, blk_t};
   desc.blocking = {blk_i, blk_o};
@@ -137,9 +136,8 @@ class eltConvTest
 
 INSTANTIATE_TEST_CASE_P(elt_conv_test_common_params, eltConvTest,
                         Combine(Values(5, 6, 7), // tile-size
-                                Values(0xa040, 0xa061, 0xa448, 0xa241, 0xa000,
-                                       0xa201, 0xa0e0,
-                                       0xa0e1),           // execution-mode
+                                Values(0xa061, 0xa000,
+                                       0xa0e0, 0xa0e1),   // execution-mode
                                 Values(1, 2, 4),          // pat_i
                                 Values(1, 2, 4),          // pat_o
                                 Values(nChw16c, nchw),    // input_format

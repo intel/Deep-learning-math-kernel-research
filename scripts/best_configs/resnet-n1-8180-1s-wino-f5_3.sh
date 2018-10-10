@@ -16,4 +16,4 @@ sleep 1
 NSOCKETS=1 ./scripts/run.sh -c -i256 -h14 -o256 -H14 -n1 --tile-size=7 --execution-mode=0xa000 --blk-i=4 --blk-o=4 --flt-o=2 --flt-t=9 $COMMON
 sleep 1
 # resnet50_res5a_branch2b, 2.5T
-NSOCKETS=1 ./scripts/run.sh -c -i512 -h7 -o512 -H7 -n1 --tile-size=7 --execution-mode=0xa000 --blk-i=8 --blk-o=4 --flt-t=4 $COMMON 
+NSOCKETS=1 ./scripts/run.sh -c -i512 -h7 -o512 -H7 -n1 --tile-size=7 --execution-mode=0xa000 --blk-i=8 --blk-o=4 --flt-t=4 $COMMON
