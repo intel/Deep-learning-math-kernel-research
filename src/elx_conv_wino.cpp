@@ -2513,9 +2513,9 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a07b(
   MD3(Type, aoutput, output, this->n, this->oc4, this->oh * this->ow * this->oc3 * this->O2 * V);
   MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-  iter_each(_ic4, this->ic4) {
-    int last_ic4 = -1, last_t2 = -1, last_oc4 = -1;
+  int last_ic4 = -1, last_t2 = -1, last_oc4 = -1;
 #pragma omp parallel num_threads(mthr_) proc_bind(close) firstprivate(last_t2, last_ic4, last_oc4)
+  iter_each(_ic4, this->ic4) {
 #pragma omp for nowait collapse(2)
     iter_each(_t2, this->t2) {
       iter_each(_oc4, this->oc4) {
@@ -2524,18 +2524,16 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a07b(
 
         if (last_ic4 != _ic4 || last_oc4 != _oc4) {
           trans_weightsf(&md2(atweights2, ithr, 0), weights, _ic4, _oc4);
-          last_oc4 = _oc4;
         }
         if (last_ic4 != _ic4 || last_t2 != _t2) {
-          trans_input(
-              &md2(atinput2, ithr, 0), &md3(ainput, 0, _ic4, 0), _t2, Tz);
-          last_ic4 = _ic4;
-          last_t2 = _t2;
+          trans_input(&md2(atinput2, ithr, 0), &md3(ainput, 0, _ic4, 0), _t2, Tz);
         }
         gemm_non_acc(&md2(atoutput2, ithr, 0), &md2(atinput2, ithr, 0),
-            &md2(atweights2, ithr, 0), _t2, Tz, _ic4);
+                     &md2(atweights2, ithr, 0), _t2, Tz, _ic4);
         trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
-            &md2(abias, _oc4, 0), _t2, Tz, _ic4);
+                     &md2(abias, _oc4, 0), _t2, Tz, _ic4);
+
+        last_oc4 = _oc4; last_ic4 = _ic4; last_t2 = _t2;
       }
     }
   }
@@ -2553,9 +2551,9 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a079(
   MD3(Type, aoutput, output, this->n, this->oc4, this->oh * this->ow * this->oc3 * this->O2 * V);
   MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-  iter_each(_ic4, this->ic4) {
-    int last_ic4 = -1, last_t2 = -1, last_oc4 = -1;
+  int last_ic4 = -1, last_t2 = -1, last_oc4 = -1;
 #pragma omp parallel num_threads(mthr_) proc_bind(close) firstprivate(last_t2, last_ic4, last_oc4)
+  iter_each(_ic4, this->ic4) {
 #pragma omp for nowait collapse(2)
     iter_each(_t2, this->t2) {
       iter_each(_oc4, this->oc4) {
@@ -2565,19 +2563,17 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a079(
 
         if (last_ic4 != _ic4 || last_oc4 != _oc4) {
           trans_weightsf(&md2(atweights2, ithr, 0), weights, _ic4, _oc4);
-          last_oc4 = _oc4;
         }
         if (last_ic4 != _ic4 || last_t2 != _t2) {
-          trans_input(
-              &md2(atinput2, ithr, 0), &md3(ainput, 0, _ic4, 0), _t2, Tz);
-          last_ic4 = _ic4;
-          last_t2 = _t2;
+          trans_input(&md2(atinput2, ithr, 0), &md3(ainput, 0, _ic4, 0), _t2, Tz);
         }
         gemm(&md2(atoutput3, _oc4, 0), &md2(atinput2, ithr, 0),
-            &md2(atweights2, ithr, 0), _t2, Tz, _ic4);
+             &md2(atweights2, ithr, 0), _t2, Tz, _ic4);
         if (_ic4 == this->ic4 - 1)
           trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput3, _oc4, 0),
-              &md2(abias, _oc4, 0), _t2, Tz, _ic4);
+                       &md2(abias, _oc4, 0), _t2, Tz, _ic4);
+
+        last_oc4 = _oc4; last_ic4 = _ic4; last_t2 = _t2;
       }
     }
   }
@@ -2601,7 +2597,6 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a000(
   if (inference_acc_) is_first_run_ = false;
 }
 
-
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__execute_a010(
     Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
@@ -2614,16 +2609,16 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a010(
     trans_weights(tweights_, weights);
   }
 
-  iter_each(_ic4, this->ic4)
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
-    trans_input(tinput_, &md3(ainput, 0, _ic4, 0));
+    iter_each(_ic4, this->ic4) {
+      trans_input(tinput_, &md3(ainput, 0, _ic4, 0));
 #pragma omp barrier
-    gemm(toutput_, tinput_, &md2(atweights, _ic4, 0), _ic4);
+      gemm(toutput_, tinput_, &md2(atweights, _ic4, 0), _ic4);
+#pragma omp barrier
+    }
+    trans_output(output, toutput_, bias);
   }
-
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-  trans_output(output, toutput_, bias);
 
   if (inference_acc_) is_first_run_ = false;
 }
