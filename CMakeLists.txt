@@ -50,6 +50,7 @@ file (GLOB __euler_source
   src/eld_conv.cpp
   src/elx_conv.cpp
   src/elx_conv_wino.cpp
+  src/elx_conv_wino_xopt.cpp
   src/elx_conv_direct_1x1.cpp)
 
 include_directories(AFTER . include src tests xsimd/include)
