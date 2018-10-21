@@ -13,6 +13,7 @@ namespace test {
   {
   }
 
+  __thread unsigned int seed = time(nullptr);
   template <>
   void prepare_conv_data<float>(eld_conv_t<float> &desc, float **input,
       float **weights, float **output, float **bias, bool double_buffering)
@@ -31,30 +32,34 @@ namespace test {
       MEMALIGN64(bias, desc.byte_sizes.bias);
     }
 
+#define RAND() rand_r(&seed)
+#pragma omp parallel
+    {
 #pragma omp parallel for
-    for (size_t i = 0; i < desc.sizes.input; i++) {
-      (*input)[i] = rand() % 20 - 4;
-    }
-    if (desc.with_relu) {
-#pragma omp parallel for
-      for (size_t i = 0; i < desc.sizes.weights; i++) {
-        (*weights)[i] =  - rand() % 32;
-        if (i % 3 == 1)
-          (*weights)[i] = - (*weights)[i];
+      for (size_t i = 0; i < desc.sizes.input; i++) {
+        (*input)[i] = RAND() % 20 - 4;
       }
-    } else {
-      for (size_t i = 0; i < desc.sizes.weights; i++) {
-        (*weights)[i] = rand() % 32;
+      if (desc.with_relu) {
+#pragma omp parallel for
+        for (size_t i = 0; i < desc.sizes.weights; i++) {
+          (*weights)[i] = -RAND() % 32;
+          if (i % 3 == 1) (*weights)[i] = -(*weights)[i];
+        }
+      } else {
+#pragma omp parallel for
+        for (size_t i = 0; i < desc.sizes.weights; i++) {
+          (*weights)[i] = RAND() % 32;
+        }
       }
-    }
 #pragma omp parallel for
-    for (size_t i = 0; i < desc.sizes.bias; i++) {
-      (*bias)[i] = rand() % 100;
-    }
-    if (desc.with_ip_sum) {
+      for (size_t i = 0; i < desc.sizes.bias; i++) {
+        (*bias)[i] = RAND() % 100;
+      }
+      if (desc.with_ip_sum) {
 #pragma omp parallel for
-      for (size_t i = 0; i < desc.sizes.output; i++) {
-        (*output)[i] = rand() % 10;
+        for (size_t i = 0; i < desc.sizes.output; i++) {
+          (*output)[i] = RAND() % 10;
+        }
       }
     }
   }
