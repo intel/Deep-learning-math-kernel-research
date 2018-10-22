@@ -52,7 +52,9 @@ file (GLOB __euler_source
   src/elx_conv_wino_bind.cpp
   src/elx_conv_wino.cpp
   src/elx_conv_wino_xopt.cpp
-  src/elx_conv_direct_1x1.cpp)
+  src/elx_conv_direct_1x1_bind.cpp
+  src/elx_conv_direct_1x1.cpp
+  src/elx_conv_direct_1x1_xopt.cpp)
 
 include_directories(AFTER . include src tests xsimd/include)
 link_directories(lib)
