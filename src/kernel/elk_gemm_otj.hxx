@@ -881,6 +881,7 @@ struct gemm_kernel_binder {
       estl::integer_sequence<Kp...>>;
   using ker = decltype(gemm_ker_cls<int, 1, 1, 1, 1, 1, 1, false>::execute);
 
+#if defined(WITH_GKTII) // gemm kernel template implicit instantiation
   template <typename Type, int V, int I, int S, int F, bool has_Ir>
   static inline void bind(int O, int T, ker **func)
   {
@@ -953,6 +954,50 @@ struct gemm_kernel_binder {
       el_error("gemm_kenrel: O > 8 unsupported");
     }
   }
+#else
+  // Save compile time
+  static ker *ker_s1_ccc[8][32][2];
+  static ker *ker_s1_ccd[8][32][2];
+  static ker *ker_s1_dcd[8][32][2];
+  static ker *ker_s1_ddd[8][32][2];
+  static ker *ker_s2_ccc[8][32][2];
+  static ker *ker_s2_ccd[8][32][2];
+  static ker *ker_s2_dcd[8][32][2];
+  static ker *ker_s2_ddd[8][32][2];
+
+  template <typename Type, int V, int I, int S, int F, bool has_Ir>
+  static inline void bind(int O, int T, ker **func)
+  {
+    switch (F) {
+    case GKF_CCC:
+      if (S == 1)
+        *func = ker_s1_ccc[O - 1][T - 1][has_Ir];
+      else if (S == 2)
+        *func = ker_s2_ccc[O - 1][T - 1][has_Ir];
+      break;
+    case GKF_CCD:
+      if (S == 1)
+        *func = ker_s1_ccd[O - 1][T - 1][has_Ir];
+      else if (S == 2)
+        *func = ker_s2_ccd[O - 1][T - 1][has_Ir];
+      break;
+    case GKF_DCD:
+      if (S == 1)
+        *func = ker_s1_dcd[O - 1][T - 1][has_Ir];
+      else if (S == 2)
+        *func = ker_s2_dcd[O - 1][T - 1][has_Ir];
+      break;
+    case GKF_DDD:
+      if (S == 1)
+        *func = ker_s1_ddd[O - 1][T - 1][has_Ir];
+      else if (S == 2)
+        *func = ker_s2_ddd[O - 1][T - 1][has_Ir];
+      break;
+    default:
+      break;
+    }
+  }
+#endif
 };
 
 } // namespace euler

@@ -8,6 +8,7 @@ option(WITH_TEST "Build with test cases" ON)
 cmake_dependent_option(WITH_GTEST
   "Build with gtest/unit tests if WITH_TEST is ON" ON "WITH_TEST" OFF)
 option(WITH_GK "Build with generic kernel and unit tests" ON)
+option(WITH_GKTII "With gemm kernel template implicit instantiation" OFF)
 
 set(EULER_VERSION_MAJOR 0)
 set(EULER_VERSION_MINOR 0)
@@ -56,11 +57,23 @@ file (GLOB __euler_source
   src/elx_conv_direct_1x1.cpp
   src/elx_conv_direct_1x1_xopt.cpp)
 
+if (NOT WITH_GKTII)
+  file (GLOB __euler_gemm_kernel_source
+    src/kernel/elk_gemm_otj_s1_ccc.cpp
+    src/kernel/elk_gemm_otj_s1_ccd.cpp
+    src/kernel/elk_gemm_otj_s1_dcd.cpp
+    src/kernel/elk_gemm_otj_s1_ddd.cpp
+    src/kernel/elk_gemm_otj_s2_ccc.cpp
+    src/kernel/elk_gemm_otj_s2_ccd.cpp
+    src/kernel/elk_gemm_otj_s2_dcd.cpp
+    src/kernel/elk_gemm_otj_s2_ddd.cpp)
+endif()
+
 include_directories(AFTER . include src tests xsimd/include)
 link_directories(lib)
 
 # build lib
-add_library(${lib_name} SHARED ${__euler_source})
+add_library(${lib_name} SHARED ${__euler_source} ${__euler_gemm_kernel_source})
 target_link_libraries(${lib_name} PUBLIC iomp5)
 
 if (WITH_TEST)
