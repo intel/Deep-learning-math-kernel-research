@@ -18,7 +18,7 @@
 namespace euler {
 
 // GEMM kernel format
-// Input - weights - outputt
+// Input - weights - output
 // C: compact
 //    Input: I2, T, S, V
 //    Weights: O1, I2, V, O, V
