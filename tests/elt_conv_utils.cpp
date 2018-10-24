@@ -16,46 +16,53 @@ namespace test {
   __thread unsigned int seed = time(nullptr);
   template <>
   void prepare_conv_data<float>(eld_conv_t<float> &desc, float **input,
-      float **weights, float **output, float **bias, bool double_buffering)
+      float **weights, float **output, float **bias, bool reuse_inout)
   {
-    if (double_buffering) {
-      auto db_size = desc.byte_sizes.input > desc.byte_sizes.output ?
-          desc.byte_sizes.input : desc.byte_sizes.output;
-      MEMALIGN64(input, db_size);
-      MEMALIGN64(weights, desc.byte_sizes.weights);
-      MEMALIGN64(output, db_size);
-      MEMALIGN64(bias, desc.byte_sizes.bias);
-    } else {
-      MEMALIGN64(input, desc.byte_sizes.input);
-      MEMALIGN64(weights, desc.byte_sizes.weights);
-      MEMALIGN64(output, desc.byte_sizes.output);
-      MEMALIGN64(bias, desc.byte_sizes.bias);
+    size_t input_size = desc.byte_sizes.input;
+    size_t output_size = desc.byte_sizes.output;
+    if (reuse_inout) {
+      input_size = std::max(desc.byte_sizes.input, desc.byte_sizes.output);
+      output_size = input_size;
     }
-
+    if (input != nullptr)
+      MEMALIGN64(input, input_size);
+    if (output != nullptr)
+      MEMALIGN64(output, output_size);
+    if (weights != nullptr)
+      MEMALIGN64(weights, desc.byte_sizes.weights);
+    if (bias != nullptr)
+      MEMALIGN64(bias, desc.byte_sizes.bias);
 #define RAND() rand_r(&seed)
 #pragma omp parallel
     {
+      if (input != nullptr) {
 #pragma omp parallel for
-      for (size_t i = 0; i < desc.sizes.input; i++) {
-        (*input)[i] = RAND() % 20 - 4;
-      }
-      if (desc.with_relu) {
-#pragma omp parallel for
-        for (size_t i = 0; i < desc.sizes.weights; i++) {
-          (*weights)[i] = -RAND() % 32;
-          if (i % 3 == 1) (*weights)[i] = -(*weights)[i];
-        }
-      } else {
-#pragma omp parallel for
-        for (size_t i = 0; i < desc.sizes.weights; i++) {
-          (*weights)[i] = RAND() % 32;
+        for (size_t i = 0; i < desc.sizes.input; i++) {
+          (*input)[i] = RAND() % 20 - 4;
         }
       }
+      if (weights != nullptr) {
+        if (desc.with_relu) {
 #pragma omp parallel for
-      for (size_t i = 0; i < desc.sizes.bias; i++) {
-        (*bias)[i] = RAND() % 100;
+          for (size_t i = 0; i < desc.sizes.weights; i++) {
+            (*weights)[i] = -RAND() % 32;
+            if (i % 3 == 1)
+              (*weights)[i] = -(*weights)[i];
+          }
+        } else {
+#pragma omp parallel for
+          for (size_t i = 0; i < desc.sizes.weights; i++) {
+            (*weights)[i] = RAND() % 32;
+          }
+        }
       }
-      if (desc.with_ip_sum) {
+      if (bias != nullptr) {
+#pragma omp parallel for
+        for (size_t i = 0; i < desc.sizes.bias; i++) {
+          (*bias)[i] = RAND() % 100;
+        }
+      }
+      if (output != nullptr && desc.with_ip_sum) {
 #pragma omp parallel for
         for (size_t i = 0; i < desc.sizes.output; i++) {
           (*output)[i] = RAND() % 10;

@@ -2110,15 +2110,4 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_output(
     __trans_output_plain(output, toutput, bias);
 }
 
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::clflush() {
-#define CACHE_LINE_SIZE 64
-  constexpr auto step = CACHE_LINE_SIZE;
-
-#pragma omp parallel for num_threads(mthr_)
-  for (char *p = (char *)tweights_;
-       p < (char *)tweights_ + tweights_size_ * sizeof(Type); p += step)
-    _mm_clflush(p);
-}
-
 } // namespace euler

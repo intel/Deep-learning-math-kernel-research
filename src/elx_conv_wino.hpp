@@ -70,8 +70,6 @@ public:
 
   virtual void execute(Type *output, Type *input, Type *weights, Type *bias);
 
-  virtual void clflush();
-
   class exe_plan {
   public:
     exe_plan(int tiles, int IC, int OC):

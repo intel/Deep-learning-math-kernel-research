@@ -28,9 +28,9 @@ int streaming_weights = 0, streaming_input = 0, streaming_output = 0;
 bool input_as_blocked = false, weights_as_blocked = false, output_as_blocked = false;
 
 bool validate_results = false;
-bool flush_cache = false;
 int repeated_layer = 1;
 bool double_buffering = false;
+bool output_as_input = false;
 
 #define RL_MAX 128
 int main(int argc, char **argv)
@@ -68,18 +68,28 @@ int main(int argc, char **argv)
   // 2. setup convolution
   eld_conv_t<float> convs[RL_MAX];
   float *input[RL_MAX], *weights[RL_MAX], *output[RL_MAX], *bias[RL_MAX],
-      *ref_output, *dbuffer[2];
+      *ref_output;
   const auto C = validate_results ?
       1 : repeated_layer <= RL_MAX ? repeated_layer : RL_MAX;
 
+  bool reuse_inout = double_buffering || output_as_input;
   for (auto c = 0; c < C; ++c) {
     convs[c] = desc;
     if (convs[c].setup() != ELD_OK) {
       printf("Fail: Convolution setup error!\n");
       return -1;
     }
+    input[c] = nullptr;
+    output[c] = nullptr;
+    float **in = &input[c], **out = &output[c];
+    if (double_buffering && (c > 0)) {
+      in = nullptr;
+      out = nullptr;
+    } else if (output_as_input && (c > 0)) {
+      in = nullptr;
+    }
     test::prepare_conv_data<float>(
-        convs[c], &input[c], &weights[c], &output[c], &bias[c], double_buffering);
+        convs[c], in, &weights[c], out, &bias[c], reuse_inout);
   }
 
   if (validate_results) {
@@ -89,12 +99,10 @@ int main(int argc, char **argv)
   }
 
   // 3. execute convolution
-  for (auto c = 0; c < C; ++c) {
-    if (ELX_OK != elx_conv<float>(
-               convs[c], output[c], input[c], weights[c], bias[c])) {
-      printf("Fail: Convolution execution error!\n");
-      return -1;
-    }
+  if (ELX_OK
+      != elx_conv<float>(convs[0], output[0], input[0], weights[0], bias[0])) {
+    printf("Fail: Convolution execution error!\n");
+    return -1;
   }
 
   // 4. validate results
@@ -128,11 +136,10 @@ int main(int argc, char **argv)
             _input = output[0];
             _output = input[0];
           }
-        } else if (flush_cache) {
-          test::flush_all_memory(
-              _convs, _input, _weights, _output, _bias);
+        } else if (output_as_input) {
+          if (c > 0)
+            _input = output[c - 1];
         }
-
         timer.start();
         if (ELX_OK != elx_conv<float>(
             _convs, _output, _input, _weights, _bias)) {
@@ -175,9 +182,9 @@ int parse_cmd_options(int argc, char **argv) {
     ("validate-results,v", po::value<bool>(&validate_results), "on|off. Validate correctness. Default: off")
     ("with-bias,b", po::value<bool>(&with_bias), "on|off. With bias. Default: on")
     ("with-relu,r", po::value<bool>(&with_relu), "on|off. With relu. Default: off")
-    ("flush-cache,f", po::value<bool>(&flush_cache), "on|off. Fush cache. Default: off")
     ("repeated-layer,l", po::value<int>(&repeated_layer), "Number of repeated layers. Default: 16")
     ("double-buffering,B", po::value<bool>(&double_buffering), "Double buffering. Default: off")
+    ("output-as-input,A", po::value<bool>(&output_as_input), "Output of layer n used as input of layer n+1. Default: off")
     ("alg,a", po::value<std::string>(), "auto|wino|direct|direct_1x1. Algorithm. Default: wino")
     ("tile-size", po::value<int>(&tile_size), "Winograd tile size: 5")
     ("nthreads", po::value<int>(&nthreads), "Number of threads per team")
@@ -266,6 +273,12 @@ int parse_cmd_options(int argc, char **argv) {
     }
   }
 
+  if (output_as_input && double_buffering) {
+    printf("Error: convolution options: output-as-input is exclusive with "
+           "double-buffering\n");
+    return -1;
+  }
+
   iw = iw == 0 ? ih : iw;
   ow = ow == 0 ? oh : ow;
 
@@ -309,8 +322,7 @@ int parse_cmd_options(int argc, char **argv) {
       fmt_str[weights_format], fmt_str[output_format]);
   printf("input-as-blocked:%d, weights_as_blocked:%d, output_as_blocked:%d\n",
       input_as_blocked, weights_as_blocked, output_as_blocked);
-  printf("flush_cache: %d, repeated_layer: %d\n", flush_cache, repeated_layer);
-  printf("double_buffering: %d\n", double_buffering);
+  printf("double_buffering: %d, output_as_input=%d\n", double_buffering, output_as_input);
 
   if (mb <= 0 || ic <= 0 || ih <= 0 || iw <= 0 || oc <= 0 || oh <= 0
       || ow <= 0 || kh <= 0 || kw <= 0) {

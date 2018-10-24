@@ -66,7 +66,7 @@ int elx_conv(eld_conv_t<T> &desc, T *output, T *input, T *weights, T *bias) {
   // Sanity check
   if (input == nullptr || weights == nullptr || output == nullptr
       || (desc.with_bias && bias == nullptr)) {
-    el_error("Parameter error");
+    el_error("Parameter error. Invalid input data!");
     return ELX_GENERAL_ERROR;
   }
 
