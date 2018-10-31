@@ -15,7 +15,7 @@ namespace euler {
 // -------------+--------------+---------------
 //     A000     |      _       |    _
 // -------------+--------------+---------------
-//     A010     |      i       |    _
+//     A033     |    i + o     |  I + O
 // -------------+--------------+---------------
 //     A061     |    t + o     |    I
 // -------------+--------------+---------------
@@ -358,7 +358,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a000(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__execute_a030(
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_a033(
     Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
   MD3(Type, ainput, input, this->n, this->ic4, this->ih * this->iw * this->ic3 * this->I2 * V);

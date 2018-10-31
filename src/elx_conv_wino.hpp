@@ -243,7 +243,7 @@ public:
 
 private:
   void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a030(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a033(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a061(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a071(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a073(Type *output, Type *input, Type *weights, Type *bias);

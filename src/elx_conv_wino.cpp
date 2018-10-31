@@ -194,7 +194,7 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
     tinput_size = A * A * this->IC * this->t;
     toutput_size = A * A * this->OC * this->t;
     break;
-  case 0xa030:
+  case 0xa033:
     tweights_size = A * A * this->IC * this->OC;
     tinput_size = A * A * this->ic3 * this->I2 * V * this->t;
     toutput_size = A * A * (this->OC / this->oc4) * this->t;
