@@ -2060,7 +2060,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
 
     for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
       for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
-        if (this->with_ip_sum && !output_as_bfmt_) {
+        if ((this->with_ip_sum && !output_as_bfmt_) || (_ic4 > 0)) {
 #pragma omp simd
           iter_each (_V, V)
             md7(aoutput, _n, 0, _oc3, _O2, _V, _oh + _hA, _ow + _wA)
@@ -2094,7 +2094,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
     for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
       for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
         if (is_Or) {
-          if (this->with_ip_sum && !output_as_bfmt_) {
+          if ((this->with_ip_sum && !output_as_bfmt_) || (_ic4 > 0)) {
 #pragma omp simd
             iter_each (_V, this->Or)
               md4(aoutput, _n, (this->oc2 - 1) * V + _V, _oh + _hA, _ow + _wA)
@@ -2106,7 +2106,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
                   = aout[_hA][_wA][_V];
           }
         } else {
-          if (this->with_ip_sum && !output_as_bfmt_) {
+          if ((this->with_ip_sum && !output_as_bfmt_) || (_ic4 > 0)) {
 #pragma omp simd
             iter_each (_V, V)
               md4(aoutput, _n, (_oc3 * this->O2 + _O2) * V + _V, _oh + _hA,
@@ -2146,7 +2146,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_output_plain(
       }}}
 
       ker_trans_output_(
-          *this, (Type *)aout, ain, &md3(abias, _oc3, _O2, 0), 0, -1);
+          *this, (Type *)aout, ain, (_ic4 == -1 || _ic4 == this->ic4 - 1)
+          ? &md3(abias, _oc3, _O2, 0) : nullptr, 0, -1);
 
       if (this->Or != V)
         writeout_r(_t2, _oc3, _O2, _T, aout);
