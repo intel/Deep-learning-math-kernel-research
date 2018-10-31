@@ -277,8 +277,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a07b(
 #pragma omp parallel num_threads(mthr_) proc_bind(close) firstprivate(last_t2, last_ic4, last_oc4)
   iter_each(_ic4, this->ic4) {
 #pragma omp for nowait collapse(2)
-    iter_each(_t2, this->t2) {
-      iter_each(_oc4, this->oc4) {
+    iter_each(_oc4, this->oc4) {
+      iter_each(_t2, this->t2) {
         int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
         size_t ithr = omp_get_thread_num();
 
@@ -315,8 +315,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a079(
 #pragma omp parallel num_threads(mthr_) proc_bind(close) firstprivate(last_t2, last_ic4, last_oc4)
   iter_each(_ic4, this->ic4) {
 #pragma omp for nowait collapse(2)
-    iter_each(_t2, this->t2) {
-      iter_each(_oc4, this->oc4) {
+    iter_each(_oc4, this->oc4) {
+      iter_each(_t2, this->t2) {
         int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
         size_t ithr = omp_get_thread_num();
         MD2(Type, atoutput3, &md2(atoutput2, _t2, 0), this->oc4, A * A * Tz * this->oc3 * this->O2 * V);
