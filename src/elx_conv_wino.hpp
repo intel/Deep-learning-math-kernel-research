@@ -243,7 +243,7 @@ public:
 
 private:
   void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a010(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a030(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a061(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a071(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a073(Type *output, Type *input, Type *weights, Type *bias);
@@ -268,9 +268,9 @@ private:
   inline void __trans_output_blocked(Type *output, Type *toutput, Type *bias, int _t2, int Tz, int _ic4);
   void trans_output(Type *output, Type *toutput, Type *bias, int _t2, int Tz, int _ic4 = -1);
 
-  inline void __trans_output_plain(Type *output, Type *toutput, Type *bias);
-  inline void __trans_output_blocked(Type *output, Type *toutput, Type *bias);
-  void trans_output(Type *output, Type *toutput, Type *bias);
+  inline void __trans_output_plain(Type *output, Type *toutput, Type *bias, int _ic4);
+  inline void __trans_output_blocked(Type *output, Type *toutput, Type *bias, int _ic4);
+  void trans_output(Type *output, Type *toutput, Type *bias, int _ic4 = -1);
 
   inline void __trans_outputa_bh_plain(Type *output, Type *toutputa, Type *bias);
   inline void __trans_outputa_bh_blocked(Type *output, Type *toutputa, Type *bias);
@@ -293,6 +293,7 @@ private:
   void gemm(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz, int _ic4 = 0);
   void gemm_non_acc(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz, int _ic4);
   void gemm(Type *toutput, Type *tinput, Type *tweights, int _ic4 = 0);
+  void gemm_non_acc(Type *toutput, Type *tinput, Type *tweights, int _ic4 = 0);
   void gemma(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
 
   void set_trans_buffers();

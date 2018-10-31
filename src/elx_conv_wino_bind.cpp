@@ -135,7 +135,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 
   switch (xopt_) {
   EXECUTE_CASE(a000);
-  EXECUTE_CASE(a010);
+  EXECUTE_CASE(a030);
   EXECUTE_CASE(a061);
   EXECUTE_CASE(a071);
   EXECUTE_CASE(a073);

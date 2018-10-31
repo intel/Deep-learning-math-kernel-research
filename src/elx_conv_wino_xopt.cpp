@@ -358,26 +358,34 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a000(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__execute_a010(
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_a030(
     Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {
   MD3(Type, ainput, input, this->n, this->ic4, this->ih * this->iw * this->ic3 * this->I2 * V);
-  MD2(Type, atweights, tweights_, this->ic4, A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
+  MD3(Type, atweights, tweights_, this->oc4, this->ic4, A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
+  MD3(Type, aoutput, output, this->n, this->oc4, this->oh * this->ow * this->oc3 * this->O2 * V);
+  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   if (is_first_run_) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
-    trans_weights(tweights_, weights);
+    trans_weights(tweights_, weights, this->oc4);
   }
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
+    int last_ic4 = -1;
     iter_each(_ic4, this->ic4) {
-      trans_input(tinput_, &md3(ainput, 0, _ic4, 0));
+      iter_each(_oc4, this->oc4) {
+        if (_ic4 != last_ic4) {
+          trans_input(tinput_, &md3(ainput, 0, _ic4, 0));
+          last_ic4 = _ic4;
+        }
 #pragma omp barrier
-      gemm(toutput_, tinput_, &md2(atweights, _ic4, 0), _ic4);
+        gemm_non_acc(toutput_, tinput_, &md3(atweights, _oc4, _ic4, 0), _ic4);
 #pragma omp barrier
+        trans_output(&md3(aoutput, 0, _oc4, 0), toutput_, &md2(abias, _oc4, 0), _ic4);
+      }
     }
-    trans_output(output, toutput_, bias);
   }
 
   if (inference_acc_) is_first_run_ = false;
