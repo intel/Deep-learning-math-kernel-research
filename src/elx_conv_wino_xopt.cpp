@@ -188,9 +188,9 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a071(
     trans_weights(tweights_, weights, this->oc4);
   }
 
-  iter_each(_ic4, this->ic4) {
-    int last_ic4 = -1, last_t2 = -1;
+  int last_ic4 = -1, last_t2 = -1;
 #pragma omp parallel num_threads(mthr_) proc_bind(close) firstprivate(last_ic4, last_t2)
+  iter_each(_ic4, this->ic4) {
 #pragma omp for nowait collapse(2)
     iter_each(_t2, this->t2) {
       iter_each(_oc4, this->oc4) {
@@ -234,9 +234,9 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a073(
     trans_weights(tweights_, weights, this->oc4);
   }
 
-  iter_each(_ic4, this->ic4) {
-    int last_ic4 = -1, last_t2 = -1;
+  int last_ic4 = -1, last_t2 = -1;
 #pragma omp parallel num_threads(mthr_) proc_bind(close) firstprivate(last_ic4, last_t2)
+  iter_each(_ic4, this->ic4) {
 #pragma omp for nowait collapse(2)
     iter_each(_t2, this->t2) {
       iter_each(_oc4, this->oc4) {

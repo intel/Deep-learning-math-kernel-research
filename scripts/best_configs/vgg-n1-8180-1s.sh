@@ -28,7 +28,7 @@ NSOCKETS=1 ./scripts/run.sh -c -i256 -h56 -o256 -H56 -n1 --blk-i=8 --blk-o=2 --f
 
 sleep 1
 # vgg19_conv4_1, 6.6T
-NSOCKETS=1 ./scripts/run.sh -c -i256 -h28 -o512 -H28 -n1 --blk-i=8 --blk-o=4 --flt-t=25 --tile-size=6 --execution-mode=0xa000 --streaming-input=1 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -i256 -h28 -o512 -H28 -n1 --blk-i=4 --blk-o=4 --flt-t=25 --tile-size=6 --execution-mode=0xa000 --streaming-input=1 $COMMON
 
 sleep 1
 # vgg19_conv4_2, 6.4T

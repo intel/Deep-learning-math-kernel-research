@@ -1458,8 +1458,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
   int ithr = omp_get_thread_num();
   iter_each (i, A * A) {
     int n = (ithr + i) % (A * A);
-    int _hA = n / A;
-    int _wA = n % A;
+    int _hA = n % A;
+    int _wA = n / A;
     iter_each (_oc3, this->oc3) {
       bool last_ic4 = _ic4 == this->ic4 - 1;
       int ic3 = last_ic4 ? this->ic3 - 1 : this->ic3;
@@ -1497,8 +1497,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm_non_acc(
   int ithr = omp_get_thread_num();
   iter_each (i, A * A) {
     int n = (ithr + i) % (A * A);
-    int _hA = n / A;
-    int _wA = n % A;
+    int _hA = n % A;
+    int _wA = n / A;
     iter_each (_oc3, this->oc3) {
       bool last_ic4 = _ic4 == this->ic4 - 1;
       int ic3 = last_ic4 ? this->ic3 - 1 : this->ic3;
