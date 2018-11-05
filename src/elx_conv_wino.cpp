@@ -1455,29 +1455,56 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
   MD6(Type, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
   MD5(Type, atweights, tweights, this->oc3, this->ic3, A, A, this->O2 * this->I2 * V * V);
 
-  int ithr = omp_get_thread_num();
-  iter_each (i, A * A) {
-    int n = (ithr + i) % (A * A);
-    int _hA = n % A;
-    int _wA = n / A;
-    iter_each (_oc3, this->oc3) {
-      bool last_ic4 = _ic4 == this->ic4 - 1;
-      int ic3 = last_ic4 ? this->ic3 - 1 : this->ic3;
-      iter_each (_ic3, ic3) {
-        int attr = _ic3 == 0 && _ic4 == 0 ?
-            set_attr(attr_, r_output_idx) : attr_;
-        ker_gemm(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-            &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
-            &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
-	        nullptr, attr);
+  if (this->T == this->Tr) {
+    int it_start = omp_get_thread_num();
+    iter_each(i, A * A) {
+      int n = (it_start + i) % (A * A);
+      int _hA = n % A;
+      int _wA = n / A;
+      iter_each(_oc3, this->oc3) {
+        bool last_ic4 = _ic4 == this->ic4 - 1;
+        int ic3 = last_ic4 ? this->ic3 - 1 : this->ic3;
+        iter_each(_ic3, ic3) {
+          int attr =
+              _ic3 == 0 && _ic4 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+          ker_gemm(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+                   &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
+                   &md5(atweights, _oc3, _ic3, _wA, _hA, 0), nullptr, attr);
+        }
+        if (last_ic4) {
+          auto attr = this->ic3 == 1 && this->ic4 == 1
+                          ? set_attr(attr_, r_output_idx)
+                          : attr_;
+          ker_gemm_tail(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+                        &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
+                        &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
+                        nullptr, attr);
+        }
       }
-      if (last_ic4) {
-        auto attr = this->ic3 == 1 && this->ic4 == 1 ?
-            set_attr(attr_, r_output_idx) : attr_;
-        ker_gemm_tail(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-            &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
-            &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
-	        nullptr, attr);
+    }
+  } else {
+    iter_each(_wA, A) {
+      iter_each(_hA, A) {
+        iter_each(_oc3, this->oc3) {
+          bool last_ic4 = _ic4 == this->ic4 - 1;
+          int ic3 = last_ic4 ? this->ic3 - 1 : this->ic3;
+          iter_each(_ic3, ic3) {
+            int attr =
+                _ic3 == 0 && _ic4 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+            ker_gemm(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+                     &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
+                     &md5(atweights, _oc3, _ic3, _wA, _hA, 0), nullptr, attr);
+          }
+          if (last_ic4) {
+            auto attr = this->ic3 == 1 && this->ic4 == 1
+                            ? set_attr(attr_, r_output_idx)
+                            : attr_;
+            ker_gemm_tail(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+                          &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
+                          &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
+                          nullptr, attr);
+          }
+        }
       }
     }
   }
@@ -1494,29 +1521,50 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm_non_acc(
   MD6(Type, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
   MD5(Type, atweights, tweights, this->oc3, this->ic3, A, A, this->O2 * this->I2 * V * V);
 
-  int ithr = omp_get_thread_num();
-  iter_each (i, A * A) {
-    int n = (ithr + i) % (A * A);
-    int _hA = n % A;
-    int _wA = n / A;
-    iter_each (_oc3, this->oc3) {
-      bool last_ic4 = _ic4 == this->ic4 - 1;
-      int ic3 = last_ic4 ? this->ic3 - 1 : this->ic3;
-      iter_each (_ic3, ic3) {
-        int attr = _ic3 == 0 ?
-            set_attr(attr_, r_output_idx) : attr_;
-        ker_gemm(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-            &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
-            &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
-	          nullptr, attr);
+  if (this->T == this->Tr) {
+    int it_start = omp_get_thread_num();
+    iter_each(i, A * A) {
+      int n = (it_start + i) % (A * A);
+      int _hA = n % A;
+      int _wA = n / A;
+      iter_each(_oc3, this->oc3) {
+        bool last_ic4 = _ic4 == this->ic4 - 1;
+        int ic3 = last_ic4 ? this->ic3 - 1 : this->ic3;
+        iter_each(_ic3, ic3) {
+          int attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+          ker_gemm(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+                   &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
+                   &md5(atweights, _oc3, _ic3, _wA, _hA, 0), nullptr, attr);
+        }
+        if (last_ic4) {
+          auto attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
+          ker_gemm_tail(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+                        &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
+                        &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
+                        nullptr, attr);
+        }
       }
-      if (last_ic4) {
-        auto attr = this->ic3 == 1 ?
-            set_attr(attr_, r_output_idx) : attr_;
-        ker_gemm_tail(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-            &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
-            &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
-	          nullptr, attr);
+    }
+  } else {
+    iter_each(_wA, A) {
+      iter_each(_hA, A) {
+        iter_each(_oc3, this->oc3) {
+          bool last_ic4 = _ic4 == this->ic4 - 1;
+          int ic3 = last_ic4 ? this->ic3 - 1 : this->ic3;
+          iter_each(_ic3, ic3) {
+            int attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+            ker_gemm(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+                     &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
+                     &md5(atweights, _oc3, _ic3, _wA, _hA, 0), nullptr, attr);
+          }
+          if (last_ic4) {
+            auto attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
+            ker_gemm_tail(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+                          &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
+                          &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
+                          nullptr, attr);
+          }
+        }
       }
     }
   }
