@@ -1582,10 +1582,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
   MD5(Type, atweights, tweights, this->oc3, this->ic3, A, A, this->O2 * this->I2 * V * V);
 
 #pragma omp for nowait collapse(4)
-  iter_each (_t2, this->t2) {
-    iter_each (_wA, A) {
-      iter_each (_hA, A) {
-        iter_each (_oc3, this->oc3) {
+  iter_each (_wA, A) {
+    iter_each (_hA, A) {
+      iter_each (_oc3, this->oc3) {
+        iter_each (_t2, this->t2) {
           int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
           auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
           auto ker_gemm_tail
@@ -1626,10 +1626,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm_non_acc(
   MD5(Type, atweights, tweights, this->oc3, this->ic3, A, A, this->O2 * this->I2 * V * V);
 
 #pragma omp for nowait collapse(4)
-  iter_each (_t2, this->t2) {
-    iter_each (_wA, A) {
-      iter_each (_hA, A) {
-        iter_each (_oc3, this->oc3) {
+  iter_each (_wA, A) {
+    iter_each (_hA, A) {
+      iter_each (_oc3, this->oc3) {
+        iter_each (_t2, this->t2) {
           int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
           auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
           auto ker_gemm_tail

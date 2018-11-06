@@ -24,16 +24,16 @@ NSOCKETS=1 ./scripts/run.sh -c -i128 -h56 -o256 -H56 -n1 --blk-i=2 --blk-o=2 --f
 
 sleep 1
 # vgg19_conv3_2,
-NSOCKETS=1 ./scripts/run.sh -c -i256 -h56 -o256 -H56 -n1 --blk-i=8 --blk-o=2 --flt-o=1 --flt-t=28 --pat-i=2 --pat-o=8 --tile-size=5 --execution-mode=0xa071 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -i256 -h56 -o256 -H56 -n1 --blk-i=8 --blk-o=8 --flt-o=1 --flt-t=28 --pat-i=1 --pat-o=1 --tile-size=6 --execution-mode=0xa033 $COMMON
 
 sleep 1
 # vgg19_conv4_1, 6.6T
-NSOCKETS=1 ./scripts/run.sh -c -i256 -h28 -o512 -H28 -n1 --blk-i=4 --blk-o=4 --flt-t=25 --tile-size=6 --execution-mode=0xa000 --streaming-input=1 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -i256 -h28 -o512 -H28 -n1 --blk-i=8 --blk-o=2 --flt-o=2 --flt-t=13 --tile-size=6 --execution-mode=0xa033 --streaming-input=1 $COMMON
 
 sleep 1
 # vgg19_conv4_2, 6.4T
-NSOCKETS=1 ./scripts/run.sh -c -i512 -h28 -o512 -H28 -n1 --blk-i=8 --blk-o=4 --flt-t=26 --tile-size=6 --execution-mode=0xa000 --streaming-input=1 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -i512 -h28 -o512 -H28 -n1 --blk-i=8 --blk-o=2 --flt-o=2 --flt-t=13 --tile-size=6 --execution-mode=0xa033 $COMMON
 
 sleep 1
 # vgg19_conv5_1, 5.2T
-NSOCKETS=1 ./scripts/run.sh -c -i512 -h14 -o512 -H14 -n1 --blk-i=8 --blk-o=8 --flt-o=1 --flt-t=25 --tile-size=5 --execution-mode=0xa033 --pat-o=4 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -i512 -h14 -o512 -H14 -n1 --blk-i=8 --blk-o=4 --flt-o=1 --flt-t=26 --tile-size=4 --execution-mode=0xa033 --pat-o=1 $COMMON
