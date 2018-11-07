@@ -1455,7 +1455,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
   MD6(Type, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
   MD5(Type, atweights, tweights, this->oc3, this->ic3, A, A, this->O2 * this->I2 * V * V);
 
-  if (this->T == this->Tr) {
+  bool scramble = (this->T == this->Tr) || (this->t2 >= 2 * mthr_);
+  if (scramble) {
     int it_start = omp_get_thread_num();
     iter_each(i, A * A) {
       int n = (it_start + i) % (A * A);
@@ -1521,7 +1522,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm_non_acc(
   MD6(Type, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
   MD5(Type, atweights, tweights, this->oc3, this->ic3, A, A, this->O2 * this->I2 * V * V);
 
-  if (this->T == this->Tr) {
+  bool scramble = (this->T == this->Tr) || (this->t2 >= 2 * mthr_);
+  if (scramble) {
     int it_start = omp_get_thread_num();
     iter_each(i, A * A) {
       int n = (it_start + i) % (A * A);
