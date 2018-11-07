@@ -99,10 +99,24 @@ int main(int argc, char **argv)
   }
 
   // 3. execute convolution
-  if (ELX_OK
-      != elx_conv<float>(convs[0], output[0], input[0], weights[0], bias[0])) {
-    printf("Fail: Convolution execution error!\n");
-    return -1;
+  for (auto c = 0; c < C; ++c) {
+    eld_conv_t<float> &_convs = convs[c];
+    float *_weights = weights[c], *_bias = bias[c], *_input = input[c],
+          *_output = output[c];
+    if (double_buffering) {
+      if (c % 2 == 0) {
+        _input = input[0];
+        _output = output[0];
+      } else {
+        _input = output[0];
+        _output = input[0];
+      }
+    } else if (output_as_input) {
+      if (c > 0) _input = output[c - 1];
+    }
+    if (ELX_OK != elx_conv<float>(_convs, _output, _input, _weights, _bias)) {
+      test::error("Fail: Convolution execution error!\n");
+    }
   }
 
   // 4. validate results
