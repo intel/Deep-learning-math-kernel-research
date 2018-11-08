@@ -147,7 +147,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
   EXECUTE_CASE(a07b);
   EXECUTE_CASE(a0e0);
   EXECUTE_CASE(a0e1);
-  EXECUTE_CASE(b061);
+  EXECUTE_CASE(a161);
   default:
     el_error("Unimplemented");
     break;

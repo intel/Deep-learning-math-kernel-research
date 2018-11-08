@@ -254,7 +254,7 @@ private:
   void __execute_a07b(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a0e0(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a0e1(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_b061(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a161(Type *output, Type *input, Type *weights, Type *bias);
 
   inline void __trans_input_plain(Type *tinput, Type *input, int _t2, int Tz);
   inline void __trans_input_blocked(Type *tinput, Type *input, int _t2, int Tz);

@@ -33,7 +33,7 @@ elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
   // TODO: error when V!=16 && fmt=OIhw16i16o
   xopt_ = this->execution_mode;
 
-  if (xopt_ == 0xb061) this->Vx = 4;
+  if (xopt_ == 0xa161) this->Vx = 4;
 
   this->IC = ALIGNUP(this->ic, V * this->Vx);
   this->OC = ALIGNUP(this->oc, V);
@@ -248,7 +248,7 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
     toutput_size = A * (this->OC / this->oc4) * this->T * mthr_;
     toutputa_size = A * (A - K + 1) * this->OC * this->t;
     break;
-  case 0xb061:
+  case 0xa161:
     tweights_size = A * A * this->IC * this->OC;
     tinput_size = A * A * this->IC * this->T * mthr_;
     toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_;
@@ -2701,7 +2701,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::prepare_tweights(Type * __restrict weigh
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::preprocess(Type * __restrict weights) {
-  if (this->execution_mode >> 12 == 0xb)
+  if (this->execution_mode  == 0xa161)
     prepare_tweights(weights);
 }
 
