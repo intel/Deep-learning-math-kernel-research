@@ -85,6 +85,7 @@ struct eld_conv_t {
     bool with_ip_sum;
     bool with_op_sum;
     bool is_inference;
+    bool int8gemm;
 
     // Performance:
     // Number of thread teams, number of threads per team
@@ -104,6 +105,7 @@ struct eld_conv_t {
     eld_conv_t();
     ~eld_conv_t();
     int setup();
+    void preprocess(T *weights);
     void clflush();
 
     // Auto computed by setup()

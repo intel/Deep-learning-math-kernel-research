@@ -114,18 +114,22 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
       template trans_outputa_th<no, no, no, no>;
 
   auto bind_gemm_kernel =
-    [&](int O, int T, bool has_Ir, gemm_kernel_binder::ker **func) {
-    if (this->Ir != V && has_Ir) {
-      gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCC, true>(O, T, func);
+      [&](int O, int T, bool has_Ir,
+      gemm_kernel_binder::ker<float, float> **func1,
+      gemm_kernel_binder::ker<uint8_t, int8_t> **func2) {
+    if (this->Ir != V * this->Vx && has_Ir) {
+      gemm_kernel_binder::bind<float, float, V, 1, I, 1, GKF_CCC, true>(O, T, func1);
+      gemm_kernel_binder::bind<uint8_t, int8_t, V, 4, I, 1, GKF_CCC, true>(O, T, func2);
     } else {
-      gemm_kernel_binder::bind<Type, V, I, 1, GKF_CCC, false>(O, T, func);
+      gemm_kernel_binder::bind<float, float, V, 1, I, 1, GKF_CCC, false>(O, T, func1);
+      gemm_kernel_binder::bind<uint8_t, int8_t, V, 4, I, 1, GKF_CCC, false>(O, T, func2);
     }
   };
 
-  bind_gemm_kernel(this->O, this->T, false, &ker_gemm_);
-  bind_gemm_kernel(this->O, this->Tr, false, &ker_gemm0_);
-  bind_gemm_kernel(this->O, this->T, true, &ker_gemm_tail_);
-  bind_gemm_kernel(this->O, this->Tr, true, &ker_gemm0_tail_);
+  bind_gemm_kernel(this->O, this->T, false, &ker_gemm_, &ker_i8_gemm_);
+  bind_gemm_kernel(this->O, this->Tr, false, &ker_gemm0_, &ker_i8_gemm0_);
+  bind_gemm_kernel(this->O, this->T, true, &ker_gemm_tail_, &ker_i8_gemm_tail_);
+  bind_gemm_kernel(this->O, this->Tr, true, &ker_gemm0_tail_, &ker_i8_gemm0_tail_);
 
 #define EXECUTE_CASE(n)                                                      \
   case 0x##n:                                                                \
@@ -143,6 +147,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
   EXECUTE_CASE(a07b);
   EXECUTE_CASE(a0e0);
   EXECUTE_CASE(a0e1);
+  EXECUTE_CASE(b061);
   default:
     el_error("Unimplemented");
     break;

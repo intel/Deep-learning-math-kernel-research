@@ -392,6 +392,55 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a033(
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
+void elx_conv_wino_t<Type, A, K, V, I>::__execute_b061(
+    Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
+{
+  MD2(Type, atinput2, tinput_, mthr_, A * A * this->T * this->IC);
+  MD2(Type, atoutput2, toutput_, mthr_, A * A * this->T * this->oc3 * this->O2 * V);
+  MD2(Type, atweights2, tweights_, this->oc4, A * A * this->IC * this->oc3 * this->O2 * V);
+
+  MD3(Type, aoutput, output, this->n, this->oc4, this->oh * this->ow * this->oc3 * this->O2 * V);
+  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+
+  MD2(uint8_t, atinput2_u8, tinput_u8_, mthr_, A * A * this->T * this->IC);
+  MD2(int8_t, atweights_s8, tweights_s8_, this->oc4, A * A * this->IC * this->oc3 * this->O2 * V);
+  MD2(Type, atweights_qt_scale, tweights_qt_scale_, this->oc4, this->oc3 * this->O2 * V);
+  MD2(Type, aweights_factor, tweights_factor_, this->oc4, A * A * this->oc3 * this->O2 * V);
+
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+  {
+    if (is_first_run_) {
+      trans_weights_s8(tweights_qt_scale_, tweights_factor_,
+          tweights_s8_, tweights_, weights, this->oc4);
+#pragma omp barrier
+    }
+
+    auto t2_history = -1;
+    Type tinput_qt_scale = 0;
+
+#pragma omp for nowait collapse(2)
+    iter_each (_t2, this->t2) {
+    iter_each (_oc4, this->oc4) {
+      int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+      size_t ithr = omp_get_thread_num();
+
+      if (t2_history != _t2) {
+        trans_input_u8(tinput_qt_scale, &md2(atinput2_u8, ithr, 0),
+            &md2(atinput2, ithr, 0), input, _t2, Tz);
+        t2_history = _t2;
+      }
+      gemm(&md2(atoutput2, ithr, 0), &md2(atinput2_u8, ithr, 0),
+          &md2(atweights_s8, _oc4, 0), _t2, Tz, tinput_qt_scale,
+          &md2(atweights_qt_scale, _oc4, 0), &md2(aweights_factor, _oc4, 0));
+      trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
+          &md2(abias, _oc4, 0), _t2, Tz);
+    }}
+  }
+  if (inference_acc_)
+    is_first_run_ = false;
+}
+
+template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::execute(
     Type * __restrict output, Type * __restrict input, Type * __restrict weights, Type * __restrict bias)
 {

@@ -8,10 +8,9 @@ namespace euler {
 template <typename F, const int N> class mdarray {
   public:
   template <typename... Args>
-  mdarray(F *p, Args... dims)
-      : _p(p)
-      , _dims{ dims... }
+  mdarray(void *p, Args... dims) : _dims{ dims... }
   {
+    _p = (F *)p;
   }
   template <typename... Args> inline F &operator()(Args... dims)
   {

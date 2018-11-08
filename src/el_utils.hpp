@@ -45,6 +45,7 @@ enum {
   op_sum_idx = 0x8,       // fuse with out-of-place sum
   r_output_idx = 0x10,    // clear output
   s_output_idx = 0x20,    // streaming output
+  c_output_idx = 0x40,    // convert and restore output for int8 gemm
 };
 
 inline int set_attr(int attr, int index) {

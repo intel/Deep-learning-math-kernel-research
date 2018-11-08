@@ -13,11 +13,12 @@ namespace test {
   {
   }
 
-  __thread unsigned int seed = time(nullptr);
+  __thread unsigned int seed;
   template <>
   void prepare_conv_data<float>(eld_conv_t<float> &desc, float **input,
       float **weights, float **output, float **bias, bool reuse_inout)
   {
+    seed = time(nullptr);
     size_t input_size = desc.byte_sizes.input;
     size_t output_size = desc.byte_sizes.output;
     if (reuse_inout) {
@@ -141,17 +142,18 @@ namespace test {
                       md5(aref, _n, _C, _h, _w, _v), delta, acc);
                   errors++;
                 }
-              }
-              double rel_diff = delta / fabs(md5(aref, _n, _C, _h, _w, _v));
-              if (rel_diff > acc) {
-                if (errors < MAX_PRINT_ERRORS) {
-                  printf("Not equal!: [%d][%d][%d][%d][%d]: %f != %f (ref), "
-                         "delta=%g, rel_diff=%g\n",
-                      _n, _C, _h, _w, _v, md5(aout, _n, _C, _h, _w, _v),
-                      md5(aref, _n, _C, _h, _w, _v), delta, rel_diff);
+              } else {
+                double rel_diff = delta / fabs(md5(aref, _n, _C, _h, _w, _v));
+                if (rel_diff > acc) {
+                  if (errors < MAX_PRINT_ERRORS) {
+                    printf("Not equal!: [%d][%d][%d][%d][%d]: %f != %f (ref), "
+                           "delta=%g, rel_diff=%g\n",
+                        _n, _C, _h, _w, _v, md5(aout, _n, _C, _h, _w, _v),
+                        md5(aref, _n, _C, _h, _w, _v), delta, rel_diff);
+                  }
+                  errors++;
                 }
-                errors++;
-	      }
+              }
             }
           }
         }
@@ -196,17 +198,18 @@ namespace test {
                     md4(aref, _n, _c, _h, _w), delta, acc);
                 errors++;
               }
+            } else {
+              double rel_diff = delta / fabs(md4(aref, _n, _c, _h, _w));
+              if (rel_diff > acc) {
+                if (errors < MAX_PRINT_ERRORS) {
+                  printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
+                         "delta=%g, rel_diff=%g\n",
+                      _n, _c, _h, _w, md4(aout, _n, _c, _h, _w),
+                      md4(aref, _n, _c, _h, _w), delta, rel_diff);
+                }
+                errors++;
+	      }
             }
-            double rel_diff = delta / fabs(md4(aref, _n, _c, _h, _w));
-            if (rel_diff > acc) {
-              if (errors < MAX_PRINT_ERRORS) {
-                printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
-                       "delta=%g, rel_diff=%g\n",
-                    _n, _c, _h, _w, md4(aout, _n, _c, _h, _w),
-                    md4(aref, _n, _c, _h, _w), delta, rel_diff);
-              }
-              errors++;
-	    }
           }
         }
       }

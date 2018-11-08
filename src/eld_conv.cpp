@@ -157,6 +157,11 @@ int eld_conv_t<F>::setup() {
 }
 
 template <typename F>
+void eld_conv_t<F>::preprocess(F *weights) {
+  this->xc->preprocess(weights);
+}
+
+template <typename F>
 void eld_conv_t<F>::clflush() {
   xc->clflush();
 }

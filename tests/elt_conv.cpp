@@ -31,6 +31,7 @@ bool validate_results = false;
 int repeated_layer = 1;
 bool double_buffering = false;
 bool output_as_input = false;
+bool tweights_preprocess = false;
 
 #define RL_MAX 128
 int main(int argc, char **argv)
@@ -96,6 +97,14 @@ int main(int argc, char **argv)
     ref_output = (float *)malloc(convs[0].byte_sizes.output);
     if (desc.with_ip_sum)
       memcpy(ref_output, output[0], convs[0].byte_sizes.output);
+  }
+
+  // int8-gemm prepare for confident interval of tweights
+  if (tweights_preprocess) {
+    for (auto c = 0; c < C; ++c) {
+      if (convs[c].tile_size != 0 && convs[c].execution_mode >> 12 == 0xb)
+        convs[c].preprocess(weights[c]);
+    }
   }
 
   // 3. execute convolution
@@ -199,6 +208,7 @@ int parse_cmd_options(int argc, char **argv) {
     ("repeated-layer,l", po::value<int>(&repeated_layer), "Number of repeated layers. Default: 16")
     ("double-buffering,B", po::value<bool>(&double_buffering), "Double buffering. Default: off")
     ("output-as-input,A", po::value<bool>(&output_as_input), "Output of layer n used as input of layer n+1. Default: off")
+    ("tweights-preprocess,T", po::value<bool>(&tweights_preprocess), "Preprocess tweights. Default: off")
     ("alg,a", po::value<std::string>(), "auto|wino|direct|direct_1x1. Algorithm. Default: wino")
     ("tile-size", po::value<int>(&tile_size), "Winograd tile size: 5")
     ("nthreads", po::value<int>(&nthreads), "Number of threads per team")
@@ -337,6 +347,7 @@ int parse_cmd_options(int argc, char **argv) {
   printf("input-as-blocked:%d, weights_as_blocked:%d, output_as_blocked:%d\n",
       input_as_blocked, weights_as_blocked, output_as_blocked);
   printf("double_buffering: %d, output_as_input=%d\n", double_buffering, output_as_input);
+  printf("tweights_preprocess: %d\n", tweights_preprocess);
 
   if (mb <= 0 || ic <= 0 || ih <= 0 || iw <= 0 || oc <= 0 || oh <= 0
       || ow <= 0 || kh <= 0 || kw <= 0) {

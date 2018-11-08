@@ -49,6 +49,7 @@ elx_conv_t<Type>::elx_conv_t(eld_conv_t<Type> &dc) {
 
   this->ic4 = dc.partition.i;
   this->oc4 = dc.partition.o;
+  this->Vx = dc.int8gemm ? 4 : 1;
 
   this->streaming_weights = dc.streaming_hint.weights;
   this->streaming_input = dc.streaming_hint.input;

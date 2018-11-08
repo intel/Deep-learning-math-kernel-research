@@ -31,6 +31,8 @@ struct elx_conv_t {
   int nt, ht, wt;
   // pack size
   int V;
+  // int8 gemm
+  int Vx;
   // tile-size
   int A;
   // register working set
@@ -78,6 +80,8 @@ struct elx_conv_t {
       = 0;
 
   virtual void clflush() { return; }
+
+  virtual void preprocess(Type *weights) { return; }
 };
 
 template struct elx_conv_t<float>;

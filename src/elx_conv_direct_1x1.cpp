@@ -1136,7 +1136,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_a061(Type *output, Type *input,
     iter_each (_oc3, this->oc3) {
       ker_gemm_I_O_T_(*this, &md2(aoutput, _oc3, 0),
           &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), attr);
+          &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
     }
   }
   int attr = _ic4 == 0 && this->ic3 == 1 ?
@@ -1146,7 +1146,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_a061(Type *output, Type *input,
   iter_each (_oc3, this->oc3) {
     ker_gemm_IrO_T_(*this, &md2(aoutput, _oc3, 0),
         &md2(ainput, this->ic3 - 1, 0), &md3(aweights, _oc3, this->ic3 - 1, 0),
-        &md2(abias, _oc3, 0), attr);
+        &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
   }
 }
 
@@ -1171,7 +1171,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_b061(Type *output, Type *input,
     iter_each (_oc3, this->oc3) {
       ker_gemm_I_O_T_(*this, &md5(aoutput, _oc3, 0, 0, 0, 0),
           &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), attr);
+          &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
     }
   }
 }
@@ -1195,7 +1195,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_f061(Type *output, Type *input,
     iter_each (_oc3, this->oc3) {
       ker_gemm(*this, &md2(aoutput, _oc3, 0),
           &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), attr);
+          &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
     }
   }
   int attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
@@ -1203,7 +1203,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_f061(Type *output, Type *input,
   iter_each(_oc3, this->oc3) {
     ker_gemm_tail(*this, &md2(aoutput, _oc3, 0),
         &md2(ainput, this->ic3 - 1, 0), &md3(aweights, _oc3, this->ic3 - 1, 0),
-        &md2(abias, _oc3, 0), attr);
+        &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
   }
 }
 
@@ -1232,20 +1232,20 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_c060(Type *output, Type *input,
         if (_t2 == this->t2 - 1)
           ker_gemm_I_OrTr_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
               &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-              attr);
+              attr, 0, nullptr, nullptr);
         else
           ker_gemm_I_OrT_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
               &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-              attr);
+              attr, 0, nullptr, nullptr);
       } else {
         if (_t2 == this->t2 - 1)
           ker_gemm_I_O_Tr_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
               &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-              attr);
+              attr, 0, nullptr, nullptr);
         else
           ker_gemm_I_O_T_(*this, &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
               &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-              attr);
+              attr, 0, nullptr, nullptr);
       }
     }
   }
@@ -1277,12 +1277,12 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_d060(Type *output, Type *input,
         ker_gemm_I_OrT_(*this, &md5(aoutput, _oc3, 0, 0, 0, 0),
             &md5(ainput, _ic3, 0, 0, 0, 0),
             &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-            attr);
+            attr, 0, nullptr, nullptr);
       } else {
         ker_gemm_I_O_T_(*this, &md5(aoutput, _oc3, 0, 0, 0, 0),
             &md5(ainput, _ic3, 0, 0, 0, 0),
             &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-            attr);
+            attr, 0, nullptr, nullptr);
       }
     }
   }
@@ -1311,7 +1311,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::gemm_e060(Type *output, Type *input,
     iter_each (_oc3, this->oc3) {
       ker_gemm_I_O_T_(*this, &md5(aoutput, _oc3, 0, 0, 0, 0),
           &md5(ainput, _ic3, 0, 0, 0, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), attr);
+          &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
     }
   }
 }

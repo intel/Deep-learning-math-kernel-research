@@ -59,14 +59,15 @@ file (GLOB __euler_source
 
 if (NOT WITH_GKTII)
   file (GLOB __euler_gemm_kernel_source
-    src/kernel/elk_gemm_otj_s1_ccc.cpp
-    src/kernel/elk_gemm_otj_s1_ccd.cpp
-    src/kernel/elk_gemm_otj_s1_dcd.cpp
-    src/kernel/elk_gemm_otj_s1_ddd.cpp
-    src/kernel/elk_gemm_otj_s2_ccc.cpp
-    src/kernel/elk_gemm_otj_s2_ccd.cpp
-    src/kernel/elk_gemm_otj_s2_dcd.cpp
-    src/kernel/elk_gemm_otj_s2_ddd.cpp)
+    # src/kernel/elk_gemm_otj_s1_ccc.cpp
+    # src/kernel/elk_gemm_otj_s1_ccd.cpp
+    # src/kernel/elk_gemm_otj_s1_dcd.cpp
+    # src/kernel/elk_gemm_otj_s1_ddd.cpp
+    # src/kernel/elk_gemm_otj_s2_ccc.cpp
+    # src/kernel/elk_gemm_otj_s2_ccd.cpp
+    # src/kernel/elk_gemm_otj_s2_dcd.cpp
+    # src/kernel/elk_gemm_otj_s2_ddd.cpp)
+    )
 endif()
 
 include_directories(AFTER . include src tests xsimd/include)

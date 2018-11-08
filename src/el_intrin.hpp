@@ -104,6 +104,12 @@ template <> struct _mm<16> {
   static inline __m<V> mul_ps(__m<V> op1, __m<V> op2) noexcept {
     return _mm512_mul_ps(op1, op2);
   }
+  static inline __m<V> div_ps(__m<V> op1, __m<V> op2) noexcept {
+    return _mm512_div_ps(op1, op2);
+  }
+  static inline __m<V> sqrt_ps(__m<V> op1) noexcept {
+    return _mm512_sqrt_ps(op1);
+  }
   static inline __m<V> fmadd_ps(__m<V> op1, __m<V> op2, __m<V> op3) noexcept {
     return _mm512_fmadd_ps(op1, op2, op3);
   }
@@ -119,11 +125,56 @@ template <> struct _mm<16> {
   static inline __m<V> max_ps(__m<V> op1, __m<V> op2) noexcept {
     return _mm512_max_ps(op1, op2);
   }
+  static inline __m<V> min_ps(__m<V> op1, __m<V> op2) noexcept {
+    return _mm512_min_ps(op1, op2);
+  }
   static inline __m<V> xor_ps(__m<V> op1, __m<V> op2) noexcept {
     return _mm512_xor_ps(op1, op2);
   }
   static inline __m<V> broadcastss_ps(__m128 b) noexcept {
     return _mm512_broadcastss_ps(b);
+  }
+  static inline __i<V> setzero_epi32(void) noexcept {
+    return _mm512_setzero_epi32();
+  }
+  static inline __i<V> load_epi32(void const *adrs) noexcept {
+    return _mm512_load_epi32(adrs);
+  }
+  static inline void store_epi32(void *adrs, __i<V> m) noexcept {
+    return _mm512_store_epi32(adrs, m);
+  }
+  static inline __i<V> set1_epi32(int e) noexcept {
+    return _mm512_set1_epi32(e);
+  }
+  static inline __i<V> set1_epi16(short e) noexcept {
+    return _mm512_set1_epi16(e);
+  }
+  static inline __i<V> maddubs_epi16(__i<V> m0, __i<V> m1) noexcept {
+    return _mm512_maddubs_epi16(m0, m1);
+  }
+  static inline __i<V> madd_epi16(__i<V> m0, __i<V> m1) noexcept {
+    return _mm512_madd_epi16(m0, m1);
+  }
+  static inline __i<V> add_epi32(__i<V> m0, __i<V> m1) noexcept {
+    return _mm512_add_epi32(m0, m1);
+  }
+  static inline __m<V> cvtepi32_ps(__i<V> m) noexcept {
+    return _mm512_cvtepi32_ps(m);
+  }
+  static inline __i<V> cvtps_epu32(__m<V> m) noexcept {
+    return _mm512_cvtps_epu32(m);
+  }
+  static inline __m128i cvtusepi32_epi8(__i<V> m) noexcept {
+    return _mm512_cvtusepi32_epi8(m);
+  }
+  static inline __m<V> roundscale_ps(__m<V> m, int imm8) noexcept {
+    return _mm512_roundscale_ps(m, imm8);
+  }
+  static inline __m<V> add_round_ps(__m<V> m0, __m<V> m1, int rounding) noexcept {
+    return _mm512_add_round_ps(m0, m1, rounding);
+  }
+  static inline __m<V> range_ps(__m<V> m0, __m<V> m1, int imm8) noexcept {
+    return _mm512_range_ps(m0, m1, imm8);
   }
 };
 #else
@@ -216,6 +267,12 @@ template <> struct _mm<8> {
   static inline __m<V> mul_ps(__m<V> op1, __m<V> op2) noexcept {
     return _mm256_mul_ps(op1, op2);
   }
+  static inline __m<V> div_ps(__m<V> op1, __m<V> op2) noexcept {
+    return _mm256_div_ps(op1, op2);
+  }
+  static inline __m<V> sqrt_ps(__m<V> op1) noexcept {
+    return _mm256_sqrt_ps(op1);
+  }
   static inline __m<V> fmadd_ps(__m<V> op1, __m<V> op2, __m<V> op3) noexcept {
     return _mm256_fmadd_ps(op1, op2, op3);
   }
@@ -231,11 +288,23 @@ template <> struct _mm<8> {
   static inline __m<V> max_ps(__m<V> op1, __m<V> op2) noexcept {
     return _mm256_max_ps(op1, op2);
   }
+  static inline __m<V> min_ps(__m<V> op1, __m<V> op2) noexcept {
+    return _mm256_min_ps(op1, op2);
+  }
   static inline __m<V> xor_ps(__m<V> op1, __m<V> op2) noexcept {
     return _mm256_xor_ps(op1, op2);
   }
   static inline __m<V> broadcastss_ps(__m128 b) noexcept {
     return _mm256_broadcastss_ps(b);
+  }
+  static inline __i<V> cvtps_epu32(__m<V> m) noexcept {
+    return _mm256_cvtps_epu32(m);
+  }
+  static inline __m128i cvtusepi32_epi8(__i<V> m) noexcept {
+    return _mm256_cvtusepi32_epi8(m);
+  }
+  static inline __m<V> range_ps(__m<V> m0, __m<V> m1, int imm8) noexcept {
+    return _mm256_range_ps(m0, m1, imm8);
   }
 };
 #else

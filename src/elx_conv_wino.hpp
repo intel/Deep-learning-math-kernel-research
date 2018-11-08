@@ -58,6 +58,7 @@ public:
   using elx_conv_t<Type>::oc4;
   using elx_conv_t<Type>::ic3;
   using elx_conv_t<Type>::oc3;
+  using elx_conv_t<Type>::Vx;
   constexpr static size_t elem_sz = sizeof(Type);
   constexpr static bool is_border = true;
   constexpr static bool has_bias = true;
@@ -69,6 +70,8 @@ public:
   virtual ~elx_conv_wino_t();
 
   virtual void execute(Type *output, Type *input, Type *weights, Type *bias);
+
+  virtual void preprocess(Type *weights);
 
   class exe_plan {
   public:
@@ -251,6 +254,7 @@ private:
   void __execute_a07b(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a0e0(Type *output, Type *input, Type *weights, Type *bias);
   void __execute_a0e1(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_b061(Type *output, Type *input, Type *weights, Type *bias);
 
   inline void __trans_input_plain(Type *tinput, Type *input, int _t2, int Tz);
   inline void __trans_input_blocked(Type *tinput, Type *input, int _t2, int Tz);
@@ -259,6 +263,12 @@ private:
   inline void __trans_input_plain(Type *tinput, Type *input);
   inline void __trans_input_blocked(Type *tinput, Type *input);
   void trans_input(Type *tinput, Type *input);
+
+  inline void __trans_input_u8_blocked(Type &tinput_qt_scale,
+      uint8_t *__restrict tinput_u8, Type *__restrict tinput,
+      Type *__restrict input, int _t2, int Tz);
+  void trans_input_u8(Type &tinput_qt_scale, uint8_t *__restrict tinput_u8,
+      Type *__restrict tinput, Type *__restrict input, int _t2, int Tz);
 
   inline void __trans_inputa_plain(Type *tinput, Type *input, int _t2, int _wA, int Tz);
   inline void __trans_inputa_blocked(Type *tinput, Type *input, int _t2, int _wA, int Tz);
@@ -282,6 +292,11 @@ private:
   inline void __trans_weights_blocked(Type *tweights, Type *weights, int oc4);
   void trans_weights(Type *tweights, Type *weights, int oc4 = 1);
 
+  inline void __trans_weights_s8_blocked(Type *tweights_qt_scale, Type *tweights_factor,
+      int8_t *tweights_s8, Type *tweights, Type *weights, int oc4);
+  void trans_weights_s8(Type *tweights_qt_scale, Type *tweights_factor,
+      int8_t *tweights_s8, Type *tweights, Type *weights, int oc4);
+
   inline void __trans_weightsf_plain(Type *tweights, Type *weights, int _ic4, int _oc4);
   inline void __trans_weightsf_blocked(Type *tweights, Type *weights, int _ic4, int _oc4);
   void trans_weightsf(Type *tweights, Type *weights, int _ic4, int _oc4);
@@ -295,15 +310,24 @@ private:
   void gemm(Type *toutput, Type *tinput, Type *tweights, int _ic4 = 0);
   void gemm_non_acc(Type *toutput, Type *tinput, Type *tweights, int _ic4 = 0);
   void gemma(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
+  void gemm(Type *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
+      float src_scale, float *weights_scale, float *factor, int _ic4 = 0);
+
+  void prepare_tweights(Type * __restrict weights);
 
   void set_trans_buffers();
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  gemm_kernel_binder::ker *ker_gemm_;
-  gemm_kernel_binder::ker *ker_gemm0_;
-  gemm_kernel_binder::ker *ker_gemm_tail_;
-  gemm_kernel_binder::ker *ker_gemm0_tail_;
+  gemm_kernel_binder::ker<float, float> *ker_gemm_;
+  gemm_kernel_binder::ker<float, float> *ker_gemm0_;
+  gemm_kernel_binder::ker<float, float> *ker_gemm_tail_;
+  gemm_kernel_binder::ker<float, float> *ker_gemm0_tail_;
+
+  gemm_kernel_binder::ker<uint8_t, int8_t> *ker_i8_gemm_;
+  gemm_kernel_binder::ker<uint8_t, int8_t> *ker_i8_gemm0_;
+  gemm_kernel_binder::ker<uint8_t, int8_t> *ker_i8_gemm_tail_;
+  gemm_kernel_binder::ker<uint8_t, int8_t> *ker_i8_gemm0_tail_;
 
   decltype(
       convolution_winograd_kernel<
@@ -372,6 +396,7 @@ private:
   bool input_as_bfmt_;
   bool weights_as_bfmt_;
   bool output_as_bfmt_;
+  bool tweights_preprocessed_;
   int attr_;
   int mthr_;
   size_t tweights_size_;
@@ -381,6 +406,11 @@ private:
   size_t binput_size_;
   size_t bweights_size_;
   size_t boutput_size_;
+  size_t tinput_u8_size_;
+  size_t tweights_s8_size_;
+  size_t tweights_qt_scale_size_;
+  size_t tweights_factor_size_;
+  size_t tweights_ci_size_;
   Type *workspace_;
   Type *scratch_;
 
@@ -391,6 +421,11 @@ private:
   Type *binput_; // blocked input
   Type *bweights_;
   Type *boutput_;
+  uint8_t *tinput_u8_;
+  int8_t *tweights_s8_;
+  Type *tweights_qt_scale_;
+  Type *tweights_factor_;
+  Type *tweights_ci_;
 
   int hOA_end_;
   int wOA_end_;
