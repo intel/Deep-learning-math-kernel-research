@@ -394,11 +394,10 @@ void elx_conv_direct_1x1_t<Type, V, I>::trans_output_2_plain(
     iter_each (_oh, this->oh) {
       int v = _oc2 == this->oc2 - 1 ? this->Or : V;
       iter_each (_V, v) {
-        iter_each (_ow, this->ow) {
-          md4(aoutput, _n, _oc2 * V + _V, _oh, _ow)
-            += md5(aboutput, _n, _oc2, _oh, _ow, _V);
-        }
-      }
+      iter_each (_ow, this->ow) {
+        md4(aoutput, _n, _oc2 * V + _V, _oh, _ow)
+          += md5(aboutput, _n, _oc2, _oh, _ow, _V);
+      }}
     }}}
   } else {
 #pragma omp parallel for collapse(3)
@@ -407,11 +406,10 @@ void elx_conv_direct_1x1_t<Type, V, I>::trans_output_2_plain(
     iter_each (_oh, this->oh) {
       int v = _oc2 == this->oc2 - 1 ? this->Or : V;
       iter_each (_V, v) {
-        iter_each (_ow, this->ow) {
-          md4(aoutput, _n, _oc2 * V + _V, _oh, _ow)
-            = md5(aboutput, _n, _oc2, _oh, _ow, _V);
-        }
-      }
+      iter_each (_ow, this->ow) {
+        md4(aoutput, _n, _oc2 * V + _V, _oh, _ow)
+          = md5(aboutput, _n, _oc2, _oh, _ow, _V);
+      }}
     }}}
   }
 }
