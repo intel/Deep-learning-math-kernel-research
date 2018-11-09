@@ -102,7 +102,7 @@ int main(int argc, char **argv)
   // int8-gemm prepare for confident interval of tweights
   if (tweights_preprocess) {
     for (auto c = 0; c < C; ++c) {
-      if (convs[c].tile_size != 0 && convs[c].execution_mode >> 12 == 0xb)
+      if (convs[c].tile_size != 0 && (convs[c].execution_mode == 0xa161))
         convs[c].preprocess(weights[c]);
     }
   }
