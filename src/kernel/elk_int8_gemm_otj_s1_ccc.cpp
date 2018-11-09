@@ -11,20 +11,20 @@ namespace euler {
 
 #undef E
 #define E(O, T, r)                                                             \
-  gemm_kernel_binder::gemm_ker_cls<float, float, 16, 1, ISA_SKX_AVX512, 1,     \
-      GKF_DCD, O, T, r>::execute
-  gemm_kernel_binder::ker<float, float> *gemm_kernel_binder::ker_s1_dcd[8][32][2] =
+  gemm_kernel_binder::gemm_ker_cls<uint8_t, int8_t, 16, 4, ISA_SKX_AVX512, 1,  \
+      GKF_CCC, O, T, r>::execute
+  gemm_kernel_binder::ker<uint8_t, int8_t> *gemm_kernel_binder::ker_i8_s1_ccc[8][32][2] =
   { // 8
     { // 32
-      { E(1, 1, 0),  E(1, 1, 1), },
-      { E(1, 2, 0),  E(1, 2, 1), },
-      { E(1, 3, 0),  E(1, 3, 1), },
-      { E(1, 4, 0),  E(1, 4, 1), },
-      { E(1, 5, 0),  E(1, 5, 1), },
-      { E(1, 6, 0),  E(1, 6, 1), },
-      { E(1, 7, 0),  E(1, 7, 1), },
-      { E(1, 8, 0),  E(1, 8, 1), },
-      { E(1, 9, 0),  E(1, 9, 1), },
+      { E(1, 1,  0), E(1, 1, 1), },
+      { E(1, 2,  0), E(1, 2, 1), },
+      { E(1, 3,  0), E(1, 3, 1), },
+      { E(1, 4,  0), E(1, 4, 1), },
+      { E(1, 5,  0), E(1, 5, 1), },
+      { E(1, 6,  0), E(1, 6, 1), },
+      { E(1, 7,  0), E(1, 7, 1), },
+      { E(1, 8,  0), E(1, 8, 1), },
+      { E(1, 9,  0), E(1, 9, 1), },
       { E(1, 10, 0), E(1, 10, 1), },
       { E(1, 11, 0), E(1, 11, 1), },
       { E(1, 12, 0), E(1, 12, 1), },
