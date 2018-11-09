@@ -33,8 +33,7 @@ elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
   // TODO: error when V!=16 && fmt=OIhw16i16o
   xopt_ = this->execution_mode;
 
-  if (xopt_ == 0xa161) this->Vx = 4;
-
+  this->Vx = xopt_ == 0xa161 ? 4 : 1;
   this->IC = ALIGNUP(this->ic, V * this->Vx);
   this->OC = ALIGNUP(this->oc, V);
 

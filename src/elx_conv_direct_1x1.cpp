@@ -17,6 +17,7 @@ elx_conv_direct_1x1_t<Type, V, I>::elx_conv_direct_1x1_t(
   // user input
   xopt_ = this->execution_mode;
 
+  this->Vx = 1;
   this->IC = ALIGNUP(this->ic, V);
   this->OC = ALIGNUP(this->oc, V);
 
