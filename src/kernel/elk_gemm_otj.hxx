@@ -229,7 +229,7 @@ template <typename Dtype, typename Wtype, int V, int Vx, int I, typename KP>
 struct gemm_kernel_otj {
   static inline void execute(
       elx_conv_t<float> &, float *, Dtype *, Wtype *, float *,
-      int, float, float *, float *) {}
+      int, float *, float *, float *) {}
 };
 
 template <typename Dtype, typename Wtype, int V, int Vx, int... Kp>
@@ -259,7 +259,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
   op_fma(elx_conv_t<float> &xc,
       float *output, float *input, float *weights, float *bias, int attr,
-      float src_scale, float *weights_scale, float *factor, int _O1, int _O0)
+      float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
     __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
@@ -363,7 +363,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(P == 1 && has_Ir == true), void>::type
   op_fma(elx_conv_t<float> &xc,
       float *output, float *input, float *weights, float *bias, int attr,
-      float src_scale, float *weights_scale, float *factor, int _O1, int _O0)
+      float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
     __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
@@ -496,7 +496,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<P == 2, void>::type
   op_fma(elx_conv_t<float> &xc,
       float *output, float *input, float *weights, float *bias, int attr,
-      float src_scale, float *weights_scale, float *factor, int _O1, int _O0)
+      float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
     __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
@@ -636,7 +636,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<P == 4, void>::type
   op_fma(elx_conv_t<float> &xc,
       float *output, float *input, float *weights, float *bias, int attr,
-      float src_scale, float *weights_scale, float *factor, int _O1, int _O0)
+      float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
     __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
@@ -824,7 +824,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
   op_fma(elx_conv_t<float> &xc,
       float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
-      float src_scale, float *weights_scale, float *factor, int _O1, int _O0)
+      float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
     __i<V> one = _mm<V>::set1_epi16(1);
@@ -884,21 +884,20 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
 
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+      for (int _T = 0; _T < T; ++_T) {
         // 1. calculate coeffi. ## src_scale * weights_scale
-        __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale);
+        __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
         coeffi = _mm<V>::mul_ps(
             *(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-          // 2. convert mmout from int32 to float
-          // 3. restore output ## (r - s) * coeffi
-          __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
-          fout = _mm<V>::sub_ps(fout, *(__m<V> *)&md2(afactor, _O, 0));
-          fout = _mm<V>::mul_ps(fout, coeffi);
-          _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
-        }
-      }
+        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        // 2. convert mmout from int32 to float
+        // 3. restore output ## (r - s) * coeffi
+        __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
+        fout = _mm<V>::sub_ps(fout, *(__m<V> *)&md2(afactor, _O, 0));
+        fout = _mm<V>::mul_ps(fout, coeffi);
+        _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
+      }}
     } else {
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
@@ -915,7 +914,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(P == 1 && has_Ir == true), void>::type
   op_fma(elx_conv_t<float> &xc,
       float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
-      float src_scale, float *weights_scale, float *factor, int _O1, int _O0)
+      float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
     __i<V> one = _mm<V>::set1_epi16(1);
@@ -999,21 +998,20 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
 
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+      for (int _T = 0; _T < T; ++_T) {
         // 1. calculate coeffi. ## src_scale * weights_scale
-        __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale);
+        __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
         coeffi = _mm<V>::mul_ps(
             *(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-          // 2. convert mmout from int32 to float
-          // 3. restore output ## (r - s) * coeffi
-          __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
-          fout = _mm<V>::sub_ps(fout, *(__m<V> *)&md2(afactor, _O, 0));
-          fout = _mm<V>::mul_ps(fout, coeffi);
-          _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
-        }
-      }
+        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        // 2. convert mmout from int32 to float
+        // 3. restore output ## (r - s) * coeffi
+        __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
+        fout = _mm<V>::sub_ps(fout, *(__m<V> *)&md2(afactor, _O, 0));
+        fout = _mm<V>::mul_ps(fout, coeffi);
+        _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
+      }}
     } else {
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
@@ -1030,7 +1028,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<P == 2, void>::type
   op_fma(elx_conv_t<float> &xc,
       float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
-      float src_scale, float *weights_scale, float *factor, int _O1, int _O0)
+      float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
     __i<V> one = _mm<V>::set1_epi16(1);
@@ -1117,21 +1115,20 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
 
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+      for (int _T = 0; _T < T; ++_T) {
         // 1. calculate coeffi. ## src_scale * weights_scale
-        __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale);
+        __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
         coeffi = _mm<V>::mul_ps(
             *(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-          // 2. convert mmout from int32 to float
-          // 3. restore output ## (r - s) * coeffi
-          __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
-          fout = _mm<V>::sub_ps(fout, *(__m<V> *)&md2(afactor, _O, 0));
-          fout = _mm<V>::mul_ps(fout, coeffi);
-          _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
-        }
-      }
+        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        // 2. convert mmout from int32 to float
+        // 3. restore output ## (r - s) * coeffi
+        __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
+        fout = _mm<V>::sub_ps(fout, *(__m<V> *)&md2(afactor, _O, 0));
+        fout = _mm<V>::mul_ps(fout, coeffi);
+        _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
+      }}
     } else {
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
@@ -1147,7 +1144,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<P == 4, void>::type
   op_fma(elx_conv_t<float> &xc,
       float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
-      float src_scale, float *weights_scale, float *factor, int _O1, int _O0)
+      float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
     __i<V> one = _mm<V>::set1_epi16(1);
@@ -1272,21 +1269,20 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
 
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+      for (int _T = 0; _T < T; ++_T) {
         // 1. calculate coeffi. ## src_scale * weights_scale
-        __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale);
+        __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
         coeffi = _mm<V>::mul_ps(
             *(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-          // 2. convert mmout from int32 to float
-          // 3. restore output ## (r - s) * coeffi
-          __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
-          fout = _mm<V>::sub_ps(fout, *(__m<V> *)&md2(afactor, _O, 0));
-          fout = _mm<V>::mul_ps(fout, coeffi);
-          _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
-        }
-      }
+        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        // 2. convert mmout from int32 to float
+        // 3. restore output ## (r - s) * coeffi
+        __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
+        fout = _mm<V>::sub_ps(fout, *(__m<V> *)&md2(afactor, _O, 0));
+        fout = _mm<V>::mul_ps(fout, coeffi);
+        _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
+      }}
     } else {
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
@@ -1302,7 +1298,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 1)
       && (F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_t<float> &xc, float *output, Dtype *input, Wtype *weights,
-      float *bias, int attr, float src_scale, float *weights_scale, float *factor)
+      float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
@@ -1321,7 +1317,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 1)
       && !(F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_t<float> &xc, float *output, Dtype *input, Wtype *weights,
-      float *bias, int attr, float src_scale, float *weights_scale, float *factor)
+      float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
@@ -1340,7 +1336,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 2)
       && (F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_t<float> &xc, float *output, Dtype *input, Wtype *weights,
-      float *bias, int attr, float src_scale, float *weights_scale, float *factor)
+      float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
@@ -1363,7 +1359,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 2)
       && !(F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_t<float> &xc, float *output, Dtype *input, Wtype *weights,
-      float *bias, int attr, float src_scale, float *weights_scale, float *factor)
+      float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
@@ -1386,7 +1382,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 3)
       && (F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_t<float> &xc, float *output, Dtype *input, Wtype *weights,
-      float *bias, int attr, float src_scale, float *weights_scale, float *factor)
+      float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
@@ -1413,7 +1409,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 3)
       && !(F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_t<float> &xc, float *output, Dtype *input, Wtype *weights,
-      float *bias, int attr, float src_scale, float *weights_scale, float *factor)
+      float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;

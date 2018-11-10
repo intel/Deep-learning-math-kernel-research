@@ -439,8 +439,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a161(
     Type * __restrict output, Type * __restrict input,
     Type * __restrict weights, Type * __restrict bias)
 {
-  MD2(Type, atinput2, tinput_, mthr_,
-      A * A * this->T * this->IC);
+  MD2(Type, atinput2, tinput_, mthr_, A * A * this->IC);
   MD2(Type, atoutput2, toutput_, mthr_,
       A * A * this->T * this->oc3 * this->O2 * V);
   MD2(Type, atweights2, tweights_, this->oc4,
@@ -454,6 +453,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a161(
       A * A * this->T * this->IC);
   MD2(int8_t, atweights_s8, tweights_s8_, this->oc4,
       A * A * this->IC * this->oc3 * this->O2 * V);
+  MD2(Type, atinput_qt_scale, tinput_qt_scale_, this->t2, this->T);
   MD2(Type, atweights_qt_scale, tweights_qt_scale_,
       this->oc4, this->oc3 * this->O2 * V);
   MD2(Type, aweights_factor, tweights_factor_,
@@ -477,12 +477,13 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a161(
       size_t ithr = omp_get_thread_num();
 
       if (t2_history != _t2) {
-        trans_input_u8(tinput_qt_scale, &md2(atinput2_u8, ithr, 0),
+        trans_input_u8(
+            &md2(atinput_qt_scale, _t2, 0), &md2(atinput2_u8, ithr, 0),
             &md2(atinput2, ithr, 0), input, _t2, Tz);
         t2_history = _t2;
       }
       gemm(&md2(atoutput2, ithr, 0), &md2(atinput2_u8, ithr, 0),
-          &md2(atweights_s8, _oc4, 0), _t2, Tz, tinput_qt_scale,
+          &md2(atweights_s8, _oc4, 0), _t2, Tz, &md2(atinput_qt_scale, _t2, 0),
           &md2(atweights_qt_scale, _oc4, 0), &md2(aweights_factor, _oc4, 0));
       trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
           &md2(abias, _oc4, 0), _t2, Tz);

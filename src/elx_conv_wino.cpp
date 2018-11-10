@@ -135,7 +135,7 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
   size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
   size_t toutputa_size = 0;
   size_t binput_size = 0, bweights_size = 0, boutput_size = 0;
-  size_t tinput_u8_size = 0, tweights_s8_size = 0,
+  size_t tinput_u8_size = 0, tinput_qt_scale_size = 0, tweights_s8_size = 0,
       tweights_qt_scale_size = 0, tweights_factor_size = 0, tweights_ci_size = 0;
 
   stream_in_ = this->streaming_input
@@ -194,6 +194,7 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
   bweights_ = nullptr;
   boutput_ = nullptr;
   tinput_u8_ = nullptr;
+  tinput_qt_scale_ = nullptr;
   tweights_s8_ = nullptr;
   tweights_qt_scale_ = nullptr;
   tweights_factor_ = nullptr;
@@ -249,9 +250,10 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
     break;
   case 0xa161:
     tweights_size = A * A * this->IC * this->OC;
-    tinput_size = A * A * this->IC * this->T * mthr_;
+    tinput_size = A * A * this->IC * mthr_;
     toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_;
-    tinput_u8_size = tinput_size / sizeof(Type);
+    tinput_u8_size = A * A * this->IC * mthr_ * this->T / sizeof(Type);
+    tinput_qt_scale_size = this->t2 * this->T;
     tweights_s8_size = tweights_size / sizeof(Type);
     tweights_qt_scale_size = this->OC;
     tweights_factor_size = this->OC * A * A;
@@ -276,6 +278,7 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
   bweights_size_ = bweights_size > 0 ? alignup(bweights_size, align) : 0;
   boutput_size_ = boutput_size > 0 ? alignup(boutput_size, align) : 0;
   tinput_u8_size_ = tinput_u8_size > 0 ? alignup(tinput_u8_size, align) : 0;
+  tinput_qt_scale_size_ = tinput_qt_scale_size > 0 ? alignup(tinput_qt_scale_size, align) : 0;
   tweights_s8_size_ = tweights_s8_size > 0 ? alignup(tweights_s8_size, align) : 0;
   tweights_qt_scale_size_ = tweights_qt_scale_size > 0 ? alignup(tweights_qt_scale_size, align) : 0;
   tweights_factor_size_ = tweights_factor_size > 0 ? alignup(tweights_factor_size, align) : 0;
@@ -285,7 +288,8 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
   size_t workspace_size = tweights_size_ + tweights_s8_size_
       + tweights_qt_scale_size_ + tweights_factor_size_ + tweights_ci_size_;
   size_t scratch_size = tinput_size_ + toutput_size_ + toutputa_size_
-      + binput_size_ + bweights_size_ + boutput_size_ + tinput_u8_size_;
+      + binput_size_ + bweights_size_ + boutput_size_ + tinput_u8_size_
+      + tinput_qt_scale_size_;
 
   if (xopt_ == 0xa079 || xopt_ == 0xa07b) {
     scratch_size += tweights_size_;
@@ -333,7 +337,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::set_trans_buffers()
   binput_ = toutputa_ + toutputa_size_;
   bweights_ = binput_ + binput_size_;
   boutput_ = bweights_ + bweights_size_;
-  tinput_u8_ = reinterpret_cast<uint8_t *>(boutput_ + boutput_size_);
+  tinput_qt_scale_ = boutput_ + boutput_size_;
+  tinput_u8_ = reinterpret_cast<uint8_t *>(tinput_qt_scale_ + tinput_qt_scale_size_);
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
@@ -1334,13 +1339,13 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_blocked(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_u8_blocked(
-    Type & tinput_qt_scale, uint8_t * __restrict tinput_u8,
+    Type * tinput_qt_scale, uint8_t * __restrict tinput_u8,
     Type * __restrict tinput, Type * __restrict input, int _t2, int Tz)
 {
   MD8(Type, ainput, input, this->n,
       this->ic4, this->ic3, this->I2, this->Vx, this->ih, this->iw, V);
   // 4i,V temporarily here for store AVX instruction
-  MD7(Type, atinput, tinput, this->ic3, this->I2, Tz, this->Vx, A, A, V);
+  MD6(Type, atinput, tinput, this->ic3, this->I2, this->Vx, A, A, V);
   MD7(uint8_t, atinput_u8, tinput_u8, A, A, this->ic3, this->I2, Tz, this->Vx, V);
 
   auto res = std::div(_t2 * this->T, this->nt);
@@ -1349,65 +1354,65 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_u8_blocked(
 
   __m<V> mmax_abs = _mm<V>::set1_ps(0.0);
 
-  iter_each (_ic3, this->ic3) {
-  iter_each (_I2, this->I2) {
-  iter_each (_Vx, this->Vx) {
   input_tile_iter<A, K> t2spati_o(_n, _t_off, this->ht, this->wt,
       this->ih, this->iw, this->tp, this->lp);
 
   iter_each (_T, Tz) {
-    auto _ih = t2spati_o.anchor_t_;
-    auto _iw = t2spati_o.anchor_l_;
+    iter_each (_ic3, this->ic3) {
+    iter_each (_I2, this->I2) {
+    iter_each (_Vx, this->Vx) {
+      auto _ih = t2spati_o.anchor_t_;
+      auto _iw = t2spati_o.anchor_l_;
 
-    MD3(Type, aout, &md7(atinput, _ic3, _I2, _T, _Vx, 0, 0, 0), A, A, V);
-    Type *in = &md8(ainput, t2spati_o.n_, 0, _ic3, _I2, _Vx, _ih, _iw, 0);
-    if (!t2spati_o.is_border())
-      ker_trans_input_(*this, aout, in, 0, A - 1, 0, A - 1);
-    else
-      ker_trans_input0_(*this, aout, in,
-          t2spati_o.t_, t2spati_o.d_, t2spati_o.l_, t2spati_o.r_);
+      MD3(Type, aout, &md6(atinput, _ic3, _I2, _Vx, 0, 0, 0), A, A, V);
+      Type *in = &md8(ainput, t2spati_o.n_, 0, _ic3, _I2, _Vx, _ih, _iw, 0);
+      if (!t2spati_o.is_border())
+        ker_trans_input_(*this, aout, in, 0, A - 1, 0, A - 1);
+      else
+        ker_trans_input0_(*this, aout, in,
+            t2spati_o.t_, t2spati_o.d_, t2spati_o.l_, t2spati_o.r_);
 
-    ++ t2spati_o;
+      iter_each (_wA, A) {
+      iter_each (_hA, A) {
+        mmax_abs = _mm<V>::range_ps(
+            mmax_abs, *(__m<V> *)&md3(aout, _wA, _hA, 0), 0xb); // 0b1011
+      }}
+    }}}
 
+    Type tinput_max_abs = 0;
+    Type *max_abs = (Type *)&mmax_abs;
+    iter_each (_V, V) {
+      tinput_max_abs =
+          max_abs[_V] > tinput_max_abs ? max_abs[_V] : tinput_max_abs;
+    }
+    tinput_qt_scale[_T] = tinput_max_abs / INT8GEMM_QTSCALE;
+
+    // broadcast scale
+    Type scale = INT8GEMM_QTSCALE / tinput_max_abs;
+    __m<V> mmscale = _mm<V>::broadcastss_ps(*(__m128 *)(&scale));
+    // broadcast shift
+    Type shift = INT8GEMM_QTSHIFT;
+    __m<V> mmshift = _mm<V>::broadcastss_ps(*(__m128 *)(&shift));
+
+    // quantization
+    iter_each (_ic3, this->ic3) {
+    iter_each (_I2, this->I2) {
+    iter_each (_Vx, this->Vx) {
     iter_each (_wA, A) {
     iter_each (_hA, A) {
-      mmax_abs = _mm<V>::range_ps(mmax_abs,
-          *(__m<V> *)&md3(aout, _wA, _hA, 0), 0xb); // 0b1011
-    }}
-  }}}}
+      // multi scale
+      __m<V> mmresf32 = _mm<V>::mul_ps(*(__m<V> *)&md6(atinput, _ic3, _I2, _Vx, _wA, _hA, 0), mmscale);
+      // shift and rounding
+      mmresf32 = _mm<V>::add_round_ps(mmresf32, mmshift, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+      // convert to uint8
+      __i<V> mmresu32 = _mm<V>::cvtps_epu32(mmresf32);
+      __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mmresu32);
+      // store
+      _mm_store_si128((__m128i *)&md7(atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);
+    }}}}}
 
-  Type tinput_max_abs = 0;
-  Type *max_abs = (Type *)&mmax_abs;
-  iter_each (_V, V) {
-    tinput_max_abs =
-        max_abs[_V] > tinput_max_abs ? max_abs[_V] : tinput_max_abs;
+    ++ t2spati_o;
   }
-  tinput_qt_scale = tinput_max_abs / INT8GEMM_QTSCALE;
-
-  // broadcast scale
-  Type scale = INT8GEMM_QTSCALE / tinput_max_abs;
-  __m<V> mmscale = _mm<V>::broadcastss_ps(*(__m128 *)(&scale));
-  // broadcast shift
-  Type shift = INT8GEMM_QTSHIFT;
-  __m<V> mmshift = _mm<V>::broadcastss_ps(*(__m128 *)(&shift));
-
-  // quantization
-  iter_each (_wA, A) {
-  iter_each (_hA, A) {
-  iter_each (_ic3, this->ic3) {
-  iter_each (_I2, this->I2) {
-  iter_each (_T, Tz) {
-  iter_each (_Vx, this->Vx) {
-    // multi scale
-    __m<V> t0 = _mm<V>::mul_ps(*(__m<V> *)&md7(atinput, _ic3, _I2, _T, _Vx, _wA, _hA, 0), mmscale);
-    // shift and rounding
-    t0 = _mm<V>::add_round_ps(t0, mmshift, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-    // convert to uint8
-    __i<V> mmresu32 = _mm<V>::cvtps_epu32(t0);
-    __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mmresu32);
-    // store
-    _mm_store_si128((__m128i *)&md7(atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);
-  }}}}}}
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
@@ -1422,11 +1427,11 @@ void elx_conv_wino_t<Type, A, K, V, I>::trans_input(
 
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::trans_input_u8(
-    Type & tinput_max_abs, uint8_t * __restrict tinput_u8,
+    Type * tinput_qt_scale, uint8_t * __restrict tinput_u8,
     Type * __restrict tinput, Type * __restrict input, int _t2, int Tz)
 {
   if (input_is_bfmt_ || input_as_bfmt_)
-    __trans_input_u8_blocked(tinput_max_abs, tinput_u8, tinput, input, _t2, Tz);
+    __trans_input_u8_blocked(tinput_qt_scale, tinput_u8, tinput, input, _t2, Tz);
   else
     el_error("Unimplemented: plain format input for int8");
 }
@@ -1882,7 +1887,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
 template <typename Type, const int A, const int K, const int V, const int I>
 void elx_conv_wino_t<Type, A, K, V, I>::gemm(
     Type *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
-    float src_scale, float *weights_scale, float *factor, int _ic4)
+    float *src_scale, float *weights_scale, float *factor, int _ic4)
 {
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_i8_gemm0_ : ker_i8_gemm_;
   auto ker_gemm_tail = (_t2 == this->t2 - 1) ? ker_i8_gemm0_tail_ : ker_i8_gemm_tail_;

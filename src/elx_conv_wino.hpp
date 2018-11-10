@@ -264,10 +264,10 @@ private:
   inline void __trans_input_blocked(Type *tinput, Type *input);
   void trans_input(Type *tinput, Type *input);
 
-  inline void __trans_input_u8_blocked(Type &tinput_qt_scale,
+  inline void __trans_input_u8_blocked(Type *tinput_qt_scale,
       uint8_t *__restrict tinput_u8, Type *__restrict tinput,
       Type *__restrict input, int _t2, int Tz);
-  void trans_input_u8(Type &tinput_qt_scale, uint8_t *__restrict tinput_u8,
+  void trans_input_u8(Type *tinput_qt_scale, uint8_t *__restrict tinput_u8,
       Type *__restrict tinput, Type *__restrict input, int _t2, int Tz);
 
   inline void __trans_inputa_plain(Type *tinput, Type *input, int _t2, int _wA, int Tz);
@@ -311,7 +311,7 @@ private:
   void gemm_non_acc(Type *toutput, Type *tinput, Type *tweights, int _ic4 = 0);
   void gemma(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
   void gemm(Type *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
-      float src_scale, float *weights_scale, float *factor, int _ic4 = 0);
+      float *src_scale, float *weights_scale, float *factor, int _ic4 = 0);
 
   void prepare_tweights(Type * __restrict weights);
 
@@ -407,6 +407,7 @@ private:
   size_t bweights_size_;
   size_t boutput_size_;
   size_t tinput_u8_size_;
+  size_t tinput_qt_scale_size_;
   size_t tweights_s8_size_;
   size_t tweights_qt_scale_size_;
   size_t tweights_factor_size_;
@@ -422,6 +423,7 @@ private:
   Type *bweights_;
   Type *boutput_;
   uint8_t *tinput_u8_;
+  Type *tinput_qt_scale_;
   int8_t *tweights_s8_;
   Type *tweights_qt_scale_;
   Type *tweights_factor_;
