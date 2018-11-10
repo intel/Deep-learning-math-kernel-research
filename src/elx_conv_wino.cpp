@@ -1340,9 +1340,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_u8_blocked(
   MD8(Type, ainput, input, this->n,
       this->ic4, this->ic3, this->I2, this->Vx, this->ih, this->iw, V);
   // 4i,V temporarily here for store AVX instruction
-  MD7(Type, atinput, tinput, A, A, this->ic3, this->I2, Tz, this->Vx, V);
-
-  alignas(64) Type aout[A][A][V];
+  MD7(Type, atinput, tinput, this->ic3, this->I2, Tz, this->Vx, A, A, V);
+  MD7(uint8_t, atinput_u8, tinput_u8, A, A, this->ic3, this->I2, Tz, this->Vx, V);
 
   auto res = std::div(_t2 * this->T, this->nt);
   auto _n = res.quot;
@@ -1360,6 +1359,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_u8_blocked(
     auto _ih = t2spati_o.anchor_t_;
     auto _iw = t2spati_o.anchor_l_;
 
+    MD3(Type, aout, &md7(atinput, _ic3, _I2, _T, _Vx, 0, 0, 0), A, A, V);
     Type *in = &md8(ainput, t2spati_o.n_, 0, _ic3, _I2, _Vx, _ih, _iw, 0);
     if (!t2spati_o.is_border())
       ker_trans_input_(*this, aout, in, 0, A - 1, 0, A - 1);
@@ -1372,9 +1372,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_u8_blocked(
     iter_each (_wA, A) {
     iter_each (_hA, A) {
       mmax_abs = _mm<V>::range_ps(mmax_abs,
-          *(__m<V> *)&aout[_wA][_hA][0], 0xb); // 0b1011
-      _mm<V>::store_ps(&md7(atinput, _wA, _hA, _ic3, _I2, _T, _Vx, 0),
-          *((__m<V> *)&aout[_wA][_hA][0]));
+          *(__m<V> *)&md3(aout, _wA, _hA, 0), 0xb); // 0b1011
     }}
   }}}}
 
@@ -1386,11 +1384,6 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_u8_blocked(
   }
   tinput_qt_scale = tinput_max_abs / INT8GEMM_QTSCALE;
 
-  // quantization
-  int block = A * A * this->ic3 * this->I2 * Tz * this->Vx;
-  MD2(Type, _atinput, tinput, block, V);
-  MD2(uint8_t, atinput_u8, tinput_u8, block, V);
-
   // broadcast scale
   Type scale = INT8GEMM_QTSCALE / tinput_max_abs;
   __m<V> mmscale = _mm<V>::broadcastss_ps(*(__m128 *)(&scale));
@@ -1398,17 +1391,23 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_u8_blocked(
   Type shift = INT8GEMM_QTSHIFT;
   __m<V> mmshift = _mm<V>::broadcastss_ps(*(__m128 *)(&shift));
 
-  iter_each (_b, block) {
+  // quantization
+  iter_each (_wA, A) {
+  iter_each (_hA, A) {
+  iter_each (_ic3, this->ic3) {
+  iter_each (_I2, this->I2) {
+  iter_each (_T, Tz) {
+  iter_each (_Vx, this->Vx) {
     // multi scale
-    __m<V> t0 = _mm<V>::mul_ps(*(__m<V> *)&md2(_atinput, _b, 0), mmscale);
+    __m<V> t0 = _mm<V>::mul_ps(*(__m<V> *)&md7(atinput, _ic3, _I2, _T, _Vx, _wA, _hA, 0), mmscale);
     // shift and rounding
     t0 = _mm<V>::add_round_ps(t0, mmshift, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
     // convert to uint8
     __i<V> mmresu32 = _mm<V>::cvtps_epu32(t0);
     __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mmresu32);
     // store
-    _mm_store_si128((__m128i *)&md2(atinput_u8, _b, 0), mmresu8);
-  }
+    _mm_store_si128((__m128i *)&md7(atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);
+  }}}}}}
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
