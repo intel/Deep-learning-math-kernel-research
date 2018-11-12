@@ -1352,12 +1352,11 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_u8_blocked(
   auto _n = res.quot;
   auto _t_off = res.rem;
 
-  __m<V> mmax_abs = _mm<V>::set1_ps(0.0);
-
   input_tile_iter<A, K> t2spati_o(_n, _t_off, this->ht, this->wt,
       this->ih, this->iw, this->tp, this->lp);
 
   iter_each (_T, Tz) {
+    __m<V> mmax_abs = _mm<V>::set1_ps(0.0);
     iter_each (_ic3, this->ic3) {
     iter_each (_I2, this->I2) {
     iter_each (_Vx, this->Vx) {
