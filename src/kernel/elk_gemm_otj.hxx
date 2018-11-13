@@ -452,7 +452,8 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
         for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
             MD5(float, aweights5, weights, xc.I2, V, 1, O, V);
-            mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, xc.I2 - 1, _V, 0, _O, 0));
+            mmwei[_O][0]
+                = _mm<V>::load_ps(&md5(aweights5, xc.I2 - 1, _V, 0, _O, 0));
           } else {
             MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V, 1, V);
             mmwei[_O][0]
@@ -828,9 +829,13 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
     __i<V> one = _mm<V>::set1_epi16(1);
+    const int I2_stride
+        = F_traits<F>::is_compact_input ? T * V * Vx: xc.ih * xc.iw * V * Vx;
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(int, aoutput, output, JO, T * V);
-    MD2(uint8_t, ainput, input, xc.I2, T * V * Vx);
+    MD2(int, aoutput, output, JO, O_stride);
+    MD2(uint8_t, ainput, input, xc.I2, I2_stride);
 
     if (get_attr(attr, r_output_idx)) {
         // clear output
@@ -857,14 +862,21 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
       for (int _V = 0; _V < V / P; ++_V) {
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-          mmwei[_O][0] = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, 0, _O, 0));
+          if (F_traits<F>::is_compact_weights) {
+            MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
+            mmwei[_O][0]
+                = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, 0, _O, 0));
+          } else {
+            MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V * Vx);
+            mmwei[_O][0]
+                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
+          }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD5(uint8_t, ainput5, &md2(ainput, _I2, 0), T, S, V / P, P, Vx);
-          __i<V> bcast = _mm<V>::set1_epi32(
-              *(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
+          __i<V> bcast
+              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][0]);
@@ -886,16 +898,25 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
+        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         // 1. calculate coeffi. ## src_scale * weights_scale
         __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
-        coeffi = _mm<V>::mul_ps(
-            *(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
-        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        coeffi = _mm<V>::mul_ps(*(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
         // 2. convert mmout from int32 to float
         // 3. restore output ## (r - s) * coeffi
         __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
         fout = _mm<V>::sub_ps(fout, *(__m<V> *)&md2(afactor, _O, 0));
         fout = _mm<V>::mul_ps(fout, coeffi);
+        // 1. add bias (direct conv 1x1)
+        if (get_attr(attr, bias_idx)) {
+          MD2(float, abias2, bias, JO, V);
+          fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(abias2, _O, 0)));
+        }
+        // 2. fuse relu (direct conv 1x1)
+        if (get_attr(attr, relu_idx)) {
+          fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
+        }
+        // 3. store output
         _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
       }}
     } else {
@@ -918,9 +939,13 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
     __i<V> one = _mm<V>::set1_epi16(1);
+    const int I2_stride
+        = F_traits<F>::is_compact_input ? T * V * Vx: xc.ih * xc.iw * V * Vx;
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(int, aoutput, output, JO, T * V);
-    MD2(uint8_t, ainput, input, xc.I2, T * V * Vx);
+    MD2(int, aoutput, output, JO, O_stride);
+    MD2(uint8_t, ainput, input, xc.I2, I2_stride);
 
     if (get_attr(attr, r_output_idx)) {
         // clear output
@@ -947,14 +972,22 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
       for (int _V = 0; _V < V; ++_V) {
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          MD5(uint8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-          mmwei[_O][0] = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, 0, _O, 0));
+          if (F_traits<F>::is_compact_weights) {
+            MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
+            mmwei[_O][0]
+                = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, 0, _O, 0));
+          } else {
+            MD6(int8_t, aweights6, weights, JO, xc.ic34,
+                xc.I2, V / P, P, V * Vx);
+            mmwei[_O][0]
+                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
+          }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD5(uint8_t, ainput5, &md2(ainput, _I2, 0), T, S, V / P, P, Vx);
-          __i<V> bcast = _mm<V>::set1_epi32(
-              *(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
+          __i<V> bcast
+              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][0]);
@@ -970,15 +1003,21 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
       for (int _V = 0; _V < xc.Ir; ++_V) {
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          MD5(uint8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-          mmwei[_O][0] = _mm<V>::load_epi32(
-              &md5(aweights5, xc.I2 - 1, _V, 0, _O, 0));
+          if (F_traits<F>::is_compact_weights) {
+            MD5(uint8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
+            mmwei[_O][0]
+                = _mm<V>::load_epi32(&md5(aweights5, xc.I2 - 1, _V, 0, _O, 0));
+          } else {
+            MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V * Vx);
+            mmwei[_O][0]
+                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, xc.I2 - 1, _V, 0, 0));
+          }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD5(uint8_t, ainput5, &md2(ainput, xc.I2 - 1, 0), T, S, V / P, P, Vx);
-          __i<V> bcast = _mm<V>::set1_epi32(
-              *(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
+          __i<V> bcast
+              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][0]);
@@ -1000,16 +1039,25 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
+        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         // 1. calculate coeffi. ## src_scale * weights_scale
         __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
-        coeffi = _mm<V>::mul_ps(
-            *(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
-        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        coeffi = _mm<V>::mul_ps(*(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
         // 2. convert mmout from int32 to float
         // 3. restore output ## (r - s) * coeffi
         __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
         fout = _mm<V>::sub_ps(fout, *(__m<V> *)&md2(afactor, _O, 0));
         fout = _mm<V>::mul_ps(fout, coeffi);
+        // 1. add bias (direct conv 1x1)
+        if (get_attr(attr, bias_idx)) {
+          MD2(float, abias2, bias, JO, V);
+          fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(abias2, _O, 0)));
+        }
+        // 2. fuse relu (direct conv 1x1)
+        if (get_attr(attr, relu_idx)) {
+          fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
+        }
+        // 3. store output
         _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
       }}
     } else {
@@ -1032,15 +1080,24 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
     __i<V> one = _mm<V>::set1_epi16(1);
+    const int I2_stride
+        = F_traits<F>::is_compact_input ? T * V * Vx: xc.ih * xc.iw * V * Vx;
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(float, aoutput, output, JO, T * V);
-    MD2(uint8_t, ainput, input, xc.I2, T * V * Vx);
+    MD2(int, aoutput, output, JO, O_stride);
+    MD2(uint8_t, ainput, input, xc.I2, I2_stride);
 
     // preload weights
 #pragma unroll(JO)
     for (int _O = 0; _O < JO; ++_O) {
-      MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-      mmwei[_O][0] = _mm<V>::load_epi32(&md5(aweights5, 0, 0, 0, _O, 0));
+      if (F_traits<F>::is_compact_weights) {
+        MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
+        mmwei[_O][0] = _mm<V>::load_epi32(&md5(aweights5, 0, 0, 0, _O, 0));
+      } else {
+        MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+        mmwei[_O][0] = _mm<V>::load_epi32(&md6(aweights6, _O, 0, 0, 0, 0, 0));
+      }
     }
 
     if (get_attr(attr, r_output_idx)) {
@@ -1069,14 +1126,21 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
         // _P = 0
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-          mmwei[_O][1] = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, 1, _O, 0));
+          if (F_traits<F>::is_compact_weights) {
+            MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
+            mmwei[_O][1]
+                = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, 1, _O, 0));
+          } else {
+            MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V * Vx);
+            mmwei[_O][1]
+                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V, 1, 0));
+          }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD5(uint8_t, ainput5, &md2(ainput, _I2, 0), T, S, V / P, P, Vx);
-          __i<V> bcast = _mm<V>::set1_epi32(
-              *(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
+          __i<V> bcast
+              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][0]);
@@ -1087,15 +1151,21 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
         // _P = 1
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-          mmwei[_O][0] = _mm<V>::load_epi32(
-              &md5(aweights5, _I2, _V + 1, 0, _O, 0));
+          if (F_traits<F>::is_compact_weights) {
+            MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
+            mmwei[_O][0]
+                = _mm<V>::load_epi32(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
+          } else {
+            MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+            mmwei[_O][0]
+                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
+          }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD5(uint8_t, ainput5, &md2(ainput, _I2, 0), T, S, V / P, P, Vx);
-          __i<V> bcast = _mm<V>::set1_epi32(
-              *(int32_t *)&md5(ainput5, _T, 0, _V, 1, 0));
+          __i<V> bcast
+              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 1, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][1]);
@@ -1117,16 +1187,25 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
+        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         // 1. calculate coeffi. ## src_scale * weights_scale
         __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
-        coeffi = _mm<V>::mul_ps(
-            *(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
-        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        coeffi = _mm<V>::mul_ps(*(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
         // 2. convert mmout from int32 to float
         // 3. restore output ## (r - s) * coeffi
         __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
         fout = _mm<V>::sub_ps(fout, *(__m<V> *)&md2(afactor, _O, 0));
         fout = _mm<V>::mul_ps(fout, coeffi);
+        // 1. add bias (direct conv 1x1)
+        if (get_attr(attr, bias_idx)) {
+          MD2(float, abias2, bias, JO, V);
+          fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(abias2, _O, 0)));
+        }
+        // 2. fuse relu (direct conv 1x1)
+        if (get_attr(attr, relu_idx)) {
+          fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
+        }
+        // 3. store output
         _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
       }}
     } else {
@@ -1148,16 +1227,26 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
     __i<V> one = _mm<V>::set1_epi16(1);
+    const int I2_stride
+        = F_traits<F>::is_compact_input ? T * V * Vx: xc.ih * xc.iw * V * Vx;
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(float, aoutput, output, JO, T * V);
-    MD2(uint8_t, ainput, input, xc.I2, T * V * Vx);
+    MD2(int, aoutput, output, JO, O_stride);
+    MD2(uint8_t, ainput, input, xc.I2, I2_stride);
 
     // preload weights
 #pragma unroll(JO)
     for (int _O = 0; _O < JO; ++_O) {
-      MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-      mmwei[_O][0] = _mm<V>::load_epi32(&md5(aweights5, 0, 0, 0, _O, 0));
-      mmwei[_O][1] = _mm<V>::load_epi32(&md5(aweights5, 0, 0, 1, _O, 0));
+      if (F_traits<F>::is_compact_weights) {
+        MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
+        mmwei[_O][0] = _mm<V>::load_epi32(&md5(aweights5, 0, 0, 0, _O, 0));
+        mmwei[_O][1] = _mm<V>::load_epi32(&md5(aweights5, 0, 0, 1, _O, 0));
+      } else {
+        MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+        mmwei[_O][0] = _mm<V>::load_epi32(&md6(aweights6, _O, 0, 0, 0, 0, 0));
+        mmwei[_O][1] = _mm<V>::load_epi32(&md6(aweights6, _O, 0, 0, 0, 1, 0));
+      }
     }
 
     if (get_attr(attr, r_output_idx)) {
@@ -1186,14 +1275,21 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
         // _P = 0
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-          mmwei[_O][2] = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, 2, _O, 0));
+          if (F_traits<F>::is_compact_weights) {
+            MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
+            mmwei[_O][2]
+                = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, 2, _O, 0));
+          } else {
+            MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+            mmwei[_O][2]
+                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V, 2, 0));
+          }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD5(uint8_t, ainput5, &md2(ainput, _I2, 0), T, S, V / P, P, Vx);
-          __i<V> bcast = _mm<V>::set1_epi32(
-              *(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
+          __i<V> bcast
+              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][0]);
@@ -1204,14 +1300,21 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
         // _P = 1
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-          mmwei[_O][3] = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, 3, _O, 0));
+          if (F_traits<F>::is_compact_weights) {
+            MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
+            mmwei[_O][3]
+                = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, 3, _O, 0));
+          } else {
+            MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+            mmwei[_O][3]
+                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V, 3, 0));
+          }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD5(uint8_t, ainput5, &md2(ainput, _I2, 0), T, S, V / P, P, Vx);
-          __i<V> bcast = _mm<V>::set1_epi32(
-              *(int32_t *)&md5(ainput5, _T, 0, _V, 1, 0));
+          __i<V> bcast
+              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 1, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][1]);
@@ -1222,15 +1325,21 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
         // _P = 2
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-          mmwei[_O][0] = _mm<V>::load_epi32(
-              &md5(aweights5, _I2, _V + 1, 0, _O, 0));
+          if (F_traits<F>::is_compact_weights) {
+            MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
+            mmwei[_O][0]
+                = _mm<V>::load_epi32(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
+          } else {
+            MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+            mmwei[_O][0]
+                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
+          }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD5(uint8_t, ainput5, &md2(ainput, _I2, 0), T, S, V / P, P, Vx);
-          __i<V> bcast = _mm<V>::set1_epi32(
-              *(int32_t *)&md5(ainput5, _T, 0, _V, 2, 0));
+          __i<V> bcast
+              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 2, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][2]);
@@ -1241,15 +1350,21 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
         // _P = 3
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-          mmwei[_O][1] = _mm<V>::load_epi32(
-              &md5(aweights5, _I2, _V + 1, 1, _O, 0));
+          if (F_traits<F>::is_compact_weights) {
+            MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
+            mmwei[_O][1]
+                = _mm<V>::load_epi32(&md5(aweights5, _I2, _V + 1, 1, _O, 0));
+          } else {
+            MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+            mmwei[_O][1]
+                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V + 1, 1, 0));
+          }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD5(uint8_t, ainput5, &md2(ainput, _I2, 0), T, S, V / P, P, Vx);
-          __i<V> bcast = _mm<V>::set1_epi32(
-              *(int32_t *)&md5(ainput5, _T, 0, _V, 3, 0));
+          __i<V> bcast
+              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 3, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][3]);
@@ -1271,16 +1386,25 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
+        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
         // 1. calculate coeffi. ## src_scale * weights_scale
         __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
-        coeffi = _mm<V>::mul_ps(
-            *(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
-        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        coeffi = _mm<V>::mul_ps(*(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
         // 2. convert mmout from int32 to float
         // 3. restore output ## (r - s) * coeffi
         __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
         fout = _mm<V>::sub_ps(fout, *(__m<V> *)&md2(afactor, _O, 0));
         fout = _mm<V>::mul_ps(fout, coeffi);
+        // 1. add bias (direct conv 1x1)
+        if (get_attr(attr, bias_idx)) {
+          MD2(float, abias2, bias, JO, V);
+          fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(abias2, _O, 0)));
+        }
+        // 2. fuse relu (direct conv 1x1)
+        if (get_attr(attr, relu_idx)) {
+          fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
+        }
+        // 3. store output
         _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
       }}
     } else {
