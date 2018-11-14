@@ -22,8 +22,9 @@ const unsigned DUP_I   = 0x1;
 const unsigned DUP_O   = 0x2;
 const unsigned DUP_W   = 0x8;
 
-const float INT8GEMM_QTSCALE = 63.0;
-const float INT8GEMM_QTSHIFT = 64.0;
+const float INT8GEMM_TWT_QTSCALE = 127.0;
+const float INT8GEMM_TIN_QTSCALE = 63.0;
+const float INT8GEMM_TIN_QTSHIFT = 64.0;
 
 template <typename Type, const int A, const int K, const int V, const int I>
 elx_conv_wino_t<Type, A, K, V, I>::elx_conv_wino_t(
@@ -570,8 +571,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_s8_blocked(
       this->O1, this->O, this->V);
 
   __m<V> zero = _mm<V>::set1_ps(0.0);
-  __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_QTSCALE);
-  __m<V> mmshift = _mm<V>::set1_ps(INT8GEMM_QTSHIFT);
+  __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
+  __m<V> mmshift = _mm<V>::set1_ps(INT8GEMM_TIN_QTSHIFT);
 
 #pragma omp for nowait collapse(8) schedule(static)
   iter_each (_oc4, oc4) {
@@ -768,7 +769,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_s8_blocked(
 #pragma omp simd
       iter_each (_oV, V)
         md5(atweights_qt_scale, _oc4, _oc3, _O1, _O, _oV) =
-            md5(atweights_qt_scale, _oc4, _oc3, _O1, _O, _oV) / INT8GEMM_QTSCALE;
+            md5(atweights_qt_scale, _oc4, _oc3, _O1, _O, _oV) / INT8GEMM_TWT_QTSCALE;
     }
   }}}}
 }
@@ -1384,13 +1385,13 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_u8_blocked(
       tinput_max_abs =
           max_abs[_V] > tinput_max_abs ? max_abs[_V] : tinput_max_abs;
     }
-    tinput_qt_scale[_T] = tinput_max_abs / INT8GEMM_QTSCALE;
+    tinput_qt_scale[_T] = tinput_max_abs / INT8GEMM_TIN_QTSCALE;
 
     // broadcast scale
-    Type scale = INT8GEMM_QTSCALE / tinput_max_abs;
+    Type scale = INT8GEMM_TIN_QTSCALE / tinput_max_abs;
     __m<V> mmscale = _mm<V>::broadcastss_ps(*(__m128 *)(&scale));
     // broadcast shift
-    Type shift = INT8GEMM_QTSHIFT;
+    Type shift = INT8GEMM_TIN_QTSHIFT;
     __m<V> mmshift = _mm<V>::broadcastss_ps(*(__m128 *)(&shift));
 
     // quantization
