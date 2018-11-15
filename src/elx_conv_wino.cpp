@@ -254,7 +254,7 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
     tinput_size = A * A * this->IC * mthr_;
     toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_;
     tinput_u8_size = A * A * this->IC * mthr_ * this->T / sizeof(Type);
-    tinput_qt_scale_size = this->t2 * this->T;
+    tinput_qt_scale_size = this->t2 * this->T * A * A;
     tweights_s8_size = tweights_size / sizeof(Type);
     tweights_qt_scale_size = this->OC;
     tweights_factor_size = this->OC * A * A;
@@ -1348,6 +1348,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_u8_blocked(
   // 4i,V temporarily here for store AVX instruction
   MD6(Type, atinput, tinput, this->ic3, this->I2, this->Vx, A, A, V);
   MD7(uint8_t, atinput_u8, tinput_u8, A, A, this->ic3, this->I2, Tz, this->Vx, V);
+  MD3(Type, atinput_qt_scale, tinput_qt_scale, A, A, Tz);
 
   auto res = std::div(_t2 * this->T, this->nt);
   auto _n = res.quot;
@@ -1357,7 +1358,13 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_u8_blocked(
       this->ih, this->iw, this->tp, this->lp);
 
   iter_each (_T, Tz) {
-    __m<V> mmax_abs = _mm<V>::set1_ps(0.0);
+    alignas(64) Type mmax_abs[A][A][V];
+    iter_each (_wA, A) {
+    iter_each (_hA, A) {
+      __m<V> &_mmax_abs = *(__m<V> *)&mmax_abs[_wA][_hA][0];
+      _mmax_abs = _mm<V>::set1_ps(0.0);
+    }}
+
     iter_each (_ic3, this->ic3) {
     iter_each (_I2, this->I2) {
     iter_each (_Vx, this->Vx) {
@@ -1374,22 +1381,23 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_u8_blocked(
 
       iter_each (_wA, A) {
       iter_each (_hA, A) {
-        mmax_abs = _mm<V>::range_ps(
-            mmax_abs, *(__m<V> *)&md3(aout, _wA, _hA, 0), 0xb); // 0b1011
+        __m<V> &_mmax_abs = *(__m<V> *)&mmax_abs[_wA][_hA][0];
+        _mmax_abs = _mm<V>::range_ps(
+            _mmax_abs, *(__m<V> *)&md3(aout, _wA, _hA, 0), 0xb); // 0b1011
       }}
     }}}
 
-    Type tinput_max_abs = 0;
-    Type *max_abs = (Type *)&mmax_abs;
-    iter_each (_V, V) {
-      tinput_max_abs =
-          max_abs[_V] > tinput_max_abs ? max_abs[_V] : tinput_max_abs;
-    }
-    tinput_qt_scale[_T] = tinput_max_abs / INT8GEMM_TIN_QTSCALE;
+    iter_each (_wA, A) {
+    iter_each (_hA, A) {
+      Type tinput_max_abs = 0.0;
+      iter_each (_V, V) {
+        tinput_max_abs =
+            mmax_abs[_wA][_hA][_V] > tinput_max_abs ?
+            mmax_abs[_wA][_hA][_V] : tinput_max_abs;
+      }
+      mmax_abs[_wA][_hA][0] = tinput_max_abs;
+    }}
 
-    // broadcast scale
-    Type scale = INT8GEMM_TIN_QTSCALE / tinput_max_abs;
-    __m<V> mmscale = _mm<V>::broadcastss_ps(*(__m128 *)(&scale));
     // broadcast shift
     Type shift = INT8GEMM_TIN_QTSHIFT;
     __m<V> mmshift = _mm<V>::broadcastss_ps(*(__m128 *)(&shift));
@@ -1400,6 +1408,9 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_u8_blocked(
     iter_each (_Vx, this->Vx) {
     iter_each (_wA, A) {
     iter_each (_hA, A) {
+      // broadcast scale
+      Type scale = INT8GEMM_TIN_QTSCALE / mmax_abs[_wA][_hA][0];
+      __m<V> mmscale = _mm<V>::broadcastss_ps(*(__m128 *)(&scale));
       // multi scale
       __m<V> mmresf32 = _mm<V>::mul_ps(*(__m<V> *)&md6(atinput, _ic3, _I2, _Vx, _wA, _hA, 0), mmscale);
       // shift and rounding
@@ -1410,6 +1421,11 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_u8_blocked(
       // store
       _mm_store_si128((__m128i *)&md7(atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);
     }}}}}
+
+    iter_each (_wA, A) {
+    iter_each (_hA, A) {
+      md3(atinput_qt_scale, _wA, _hA, _T) = mmax_abs[_wA][_hA][0] / INT8GEMM_TIN_QTSCALE;
+    }}
 
     ++ t2spati_o;
   }
@@ -1898,6 +1914,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
       this->O2 * this->I2 * V * V * this->Vx);
   MD3(Type, aweights_scale, weights_scale, this->oc3, this->O2, V);
   MD5(Type, afactor, factor, this->oc3, A, A, this->O2, V);
+  MD3(Type, asrc_scale, src_scale, A, A, Tz);
 
   iter_each (_wA, A) {
   iter_each (_hA, A) {
@@ -1910,7 +1927,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
       ker_gemm(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
           &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
           &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
-          nullptr, attr, src_scale,
+          nullptr, attr, &md3(asrc_scale, _wA, _hA, 0),
           &md3(aweights_scale, _oc3, 0, 0),
           &md5(afactor, _oc3, _wA, _hA, 0, 0));
     }
@@ -1923,7 +1940,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
       ker_gemm_tail(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
           &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
           &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
-          nullptr, attr, src_scale,
+          nullptr, attr, &md3(asrc_scale, _wA, _hA, 0),
           &md3(aweights_scale, _oc3, 0, 0),
           &md5(afactor, _oc3, _wA, _hA, 0, 0));
     }
