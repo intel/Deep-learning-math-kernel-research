@@ -256,7 +256,7 @@ int  elx_conv_wino_t<Type, A, K, V, I>::prepare_execute_opt()
     tinput_u8_size = A * A * this->IC * mthr_ * this->T / sizeof(Type);
     tinput_qt_scale_size = this->t2 * this->T * A * A;
     tweights_s8_size = tweights_size / sizeof(Type);
-    tweights_qt_scale_size = this->OC;
+    tweights_qt_scale_size = this->OC * A * A;
     tweights_factor_size = this->OC * A * A;
     tweights_ci_size = this->OC;
     break;
@@ -565,7 +565,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_s8_blocked(
       A, A, this->O1, this->I2, this->Vx, V, this->O, V);
   MD12(int8_t, atweights_s8, tweights_s8, oc4, this->ic4, this->oc3, this->ic3,
       A, A, this->O1, this->I2, V, this->O, V, this->Vx);
-  MD5(Type, atweights_qt_scale, tweights_qt_scale, oc4, this->oc3,
+  MD7(Type, atweights_qt_scale, tweights_qt_scale, oc4, this->oc3, A, A,
       this->O1, this->O, V);
   MD7(Type, atweights_factor, tweights_factor, oc4, this->oc3, A, A,
       this->O1, this->O, this->V);
@@ -618,8 +618,9 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_s8_blocked(
    }}}}}}}}
 #pragma omp barrier
 
-  MD5(Type, atweights_ci, tweights_ci_, oc4, this->oc3, this->O1, this->O, V);
+  // MD5(Type, atweights_ci, tweights_ci_, oc4, this->oc3, this->O1, this->O, V);
   if (this->tweights_preprocessed_) {
+#if 0
 #pragma omp for nowait collapse(4) schedule(static)
     iter_each (_oc4, oc4) {
     iter_each (_oc3, this->oc3) {
@@ -629,17 +630,18 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_s8_blocked(
           *(__m<V> *)&md5(atweights_ci, _oc4, _oc3, _O1, _O, 0));
     }}}}
 #pragma omp barrier
+#endif
   } else {
-#pragma omp for nowait collapse(4) schedule(static)
+#pragma omp for nowait collapse(6) schedule(static)
     iter_each (_oc4, oc4) {
     iter_each (_oc3, this->oc3) {
+    iter_each (_wA, A) {
+    iter_each (_hA, A) {
     iter_each (_O1, this->O1) {
     iter_each (_O, this->O) {
       __m<V> mmax_cur = _mm<V>::set1_ps(0.0);
       iter_each (_ic4, this->ic4) {
       iter_each (_ic3, this->ic3) {
-      iter_each (_wA, A) {
-      iter_each (_hA, A) {
       iter_each (_I2, this->I2) {
       iter_each (_iV, V) {
       iter_each (_iVx, this->Vx) {
@@ -653,14 +655,16 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_s8_blocked(
               -md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iVx, _iV, _O, _oV);
         }
         mmax_cur = _mm<V>::max_ps(mmax_cur, mmax_abs);
+        #if 0
         if (this->tweights_preprocessed_) {
           mmax_cur = _mm<V>::min_ps(
               mmax_cur, *(__m<V> *)&md5(atweights_ci, _oc4, _oc3, _O1, _O, 0));
         }
-      }}}}}}}
+        #endif
+      }}}}}
 
-      _mm512_store_ps(&md5(atweights_qt_scale, _oc4, _oc3, _O1, _O, 0), mmax_cur);
-    }}}}
+      _mm512_store_ps(&md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, 0), mmax_cur);
+    }}}}}}
 #pragma omp barrier
   }
 
@@ -668,11 +672,13 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_s8_blocked(
   if (omp_get_thread_num() == 0) {
     iter_each (_oc4, oc4) {
     iter_each (_oc3, this->oc3) {
+    iter_each (_wA, A) {
+    iter_each (_hA, A) {
     iter_each (_O1, this->O1) {
     iter_each (_O, this->O) {
     iter_each (_oV, V) {
-      printf("max abs: %f\n", md5(atweights_qt_scale, _oc4, _oc3, _O1, _O, _oV));
-    }}}}}
+      printf("max abs: %f\n", md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, _oV));
+    }}}}}}}
   }
 #endif
 
@@ -695,7 +701,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_s8_blocked(
     }}}}}
     mmfactor = _mm<V>::mul_ps(mmfactor, _mm<V>::mul_ps(mmscale, mmshift));
     mmfactor = _mm<V>::div_ps(
-        mmfactor, *(__m<V> *)&md5(atweights_qt_scale, _oc4, _oc3, _O1, _O, 0));
+        mmfactor, *(__m<V> *)&md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, 0));
     _mm512_store_ps(&md7(atweights_factor, _oc4, _oc3, _wA, _hA, _O1, _O, 0), mmfactor);
   }}}}}}
 
@@ -716,13 +722,15 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_s8_blocked(
   iter_each (_iVx, this->Vx) {
     __m<V> t0;
     if (this->tweights_preprocessed_) {
+    #if 0
       // saturate
       t0 = _mm<V>::min_ps(
           *(__m<V> *)&md12(_atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
           _O1, _I2, _iV, _iVx, _O, 0),
-          *(__m<V> *)&md5(atweights_qt_scale, _oc4, _oc3, _O1, _O, 0));
+          *(__m<V> *)&md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, 0));
       // multi scal
       t0 = _mm<V>::mul_ps(t0, mmscale);
+    #endif
     } else {
       // multi scal
       t0 = _mm<V>::mul_ps(
@@ -731,7 +739,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_s8_blocked(
     }
 
     t0 = _mm<V>::div_ps(
-        t0, *(__m<V> *)&md5(atweights_qt_scale, _oc4, _oc3, _O1, _O, 0));
+        t0, *(__m<V> *)&md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, 0));
     // rounding
     t0 = _mm<V>::roundscale_ps(t0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
 
@@ -749,7 +757,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_s8_blocked(
       printf("[%d][%d][%d][%d][%d][%d][%d][%d][%d][%d][%d][%d] %f * %f / %f = %d\n",
           _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, _O, _iVx, _oV,
           md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, _O, _iVx, _oV), mmscale,
-          md5(atweights_qt_scale, _oc4, _oc3, _O1, _O, _oV),
+          md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, _oV),
           md12(atweights_s8, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, _O, _oV, _iVx));
     }
 #endif
@@ -759,19 +767,21 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_s8_blocked(
 #pragma omp for nowait collapse(4) schedule(static)
   iter_each (_oc4, oc4) {
   iter_each (_oc3, this->oc3) {
+  iter_each (_wA, A) {
+  iter_each (_hA, A) {
   iter_each (_O1, this->O1) {
   iter_each (_O, this->O) {
     if (I == ISA_SKX_AVX512 && std::is_same<Type, float>::value) {
-      _mm512_store_ps(&md5(atweights_qt_scale, _oc4, _oc3, _O1, _O, 0),
+      _mm512_store_ps(&md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, 0),
           _mm<V>::div_ps(
-          *(__m<V> *)&md5(atweights_qt_scale, _oc4, _oc3, _O1, _O, 0), mmscale));
+          *(__m<V> *)&md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, 0), mmscale));
     } else {
 #pragma omp simd
       iter_each (_oV, V)
-        md5(atweights_qt_scale, _oc4, _oc3, _O1, _O, _oV) =
-            md5(atweights_qt_scale, _oc4, _oc3, _O1, _O, _oV) / INT8GEMM_TWT_QTSCALE;
+        md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, _oV) =
+            md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, _oV) / INT8GEMM_TWT_QTSCALE;
     }
-  }}}}
+  }}}}}}
 }
 
 template <typename Type, const int A, const int K, const int V, const int I>
@@ -1912,7 +1922,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
   MD6(Type, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
   MD5(int8_t, atweights, tweights, this->oc3, this->ic3, A, A,
       this->O2 * this->I2 * V * V * this->Vx);
-  MD3(Type, aweights_scale, weights_scale, this->oc3, this->O2, V);
+  MD5(Type, aweights_scale, weights_scale, this->oc3, A, A, this->O2, V);
   MD5(Type, afactor, factor, this->oc3, A, A, this->O2, V);
   MD3(Type, asrc_scale, src_scale, A, A, Tz);
 
@@ -1928,7 +1938,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
           &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
           &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
           nullptr, attr, &md3(asrc_scale, _wA, _hA, 0),
-          &md3(aweights_scale, _oc3, 0, 0),
+          &md5(aweights_scale, _oc3, _wA, _hA, 0, 0),
           &md5(afactor, _oc3, _wA, _hA, 0, 0));
     }
     if (last_ic4) {
@@ -1941,7 +1951,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::gemm(
           &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
           &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
           nullptr, attr, &md3(asrc_scale, _wA, _hA, 0),
-          &md3(aweights_scale, _oc3, 0, 0),
+          &md5(aweights_scale, _oc3, _wA, _hA, 0, 0),
           &md5(afactor, _oc3, _wA, _hA, 0, 0));
     }
   }}}

@@ -455,7 +455,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a161(
       A * A * this->IC * this->oc3 * this->O2 * V);
   MD2(Type, atinput_qt_scale, tinput_qt_scale_, this->t2, this->A * this->A * this->T);
   MD2(Type, atweights_qt_scale, tweights_qt_scale_,
-      this->oc4, this->oc3 * this->O2 * V);
+      this->oc4, this->oc3 * this->O2 * V * A * A);
   MD2(Type, aweights_factor, tweights_factor_,
       this->oc4, A * A * this->oc3 * this->O2 * V);
 
