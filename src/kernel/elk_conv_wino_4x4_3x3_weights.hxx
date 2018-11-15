@@ -15,6 +15,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 6, 3>::__trans_weights(TrOpType atweights[A][A][V][V],
     WeightsType aweights[K][K][V][V])
 {
+#if 0
   auto z0 = _mm<V>::setzero_ps();
   auto z1 = _mm<V>::set1_ps(1.0f);
   auto z2 = _mm<V>::set1_ps(2.0f);
@@ -50,6 +51,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
          t30, t31, t32, t33, t34, t35,
          t40, t41, t42, t43, t44, t45,
          t50, t51, t52, t53, t54, t55;
+#endif
 
 #undef F
 #undef T
@@ -72,6 +74,51 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   }
 #define ISTORE(i, j) _mm<V>::store_ps(T(i, j), t##i##j);
 
+  float M[6][3][16];
+
+  auto z0 = _mm<V>::set1_ps(0.26890756302521f);
+  auto z1 = _mm<V>::set1_ps(-0.688403361344538f);
+  auto z2 = _mm<V>::set1_ps(0.119514472455649f);
+  auto z3 = _mm<V>::set1_ps(1.13777777777778f);
+  auto z4 = _mm<V>::set1_ps(0.430252100840336f);
+  auto z5 = _mm<V>::set1_ps(0.179271708683473f);
+
+  for (int _V = 0; _V < 16; _V++) {
+#pragma unroll
+    for (int i = 0; i < 3; i++) {
+      auto f0 = _mm<V>::load_ps(F(0, i));
+      auto f1 = _mm<V>::load_ps(F(1, i));
+      auto f2 = _mm<V>::load_ps(F(2, i));
+      auto t0 = z0 * f2;
+      auto t1 = z1 * f0 - t0;
+      auto t2 = t0 + z2 * f0;
+
+      *(__m<V>*)M[0][i] = z3 * f0;
+      *(__m<V>*)M[1][i] = t1 - z4 * f1;
+      *(__m<V>*)M[2][i] = t1 + z4 * f1;
+      *(__m<V>*)M[3][i] = t2 + z5 * f1;
+      *(__m<V>*)M[4][i] = t2 - z5 * f1;
+      *(__m<V>*)M[5][i] = f2;
+    }
+#pragma unroll
+    for (int i = 0; i < 6; i++) {
+      auto f0 = _mm<V>::load_ps(M[i][0]);
+      auto f1 = _mm<V>::load_ps(M[i][1]);
+      auto f2 = _mm<V>::load_ps(M[i][2]);
+      auto t0 = z0 * f2;
+      auto t1 = z1 * f0 - t0;
+      auto t2 = t0 + z2 * f0;
+
+      *(__m<V>*)T(i, 0) = z3 * f0;
+      *(__m<V>*)T(i, 1) = t1 - z4 * f1;
+      *(__m<V>*)T(i, 2) = t1 + z4 * f1;
+      *(__m<V>*)T(i, 3) = t2 + z5 * f1;
+      *(__m<V>*)T(i, 4) = t2 - z5 * f1;
+      *(__m<V>*)T(i, 5) = f2;
+    }
+  }
+
+#if 0
   for (int _V = 0; _V < V; ++_V) {
     VECTOR_DEF(M3, (0));
 
@@ -199,5 +246,6 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     t55 = f22;
     ISTORE(5, 5);
   }
+#endif
 }
 } // namespace euler

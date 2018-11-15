@@ -124,7 +124,7 @@ namespace test {
 
 #define MAX_PRINT_ERRORS (20)
     size_t errors = 0;
-    double acc = desc.with_relu ? 1.0 : 1e-5;
+    double acc = desc.with_relu ? 1.0 : 1e-2;
 
 #pragma omp parallel for collapse(3)
     iter_each (_n, dims.n) {
