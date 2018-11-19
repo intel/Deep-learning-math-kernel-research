@@ -559,6 +559,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_weights_s8_blocked(
     Type *tweights_qt_scale, Type *tweights_factor, int8_t *tweights_s8,
     Type *tweights, Type *weights, int oc4)
 {
+  _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
   MD12(Type, aweights, weights, oc4, this->oc3, this->O1, this->O,
       this->ic4, this->ic3, this->I2, this->Vx, K, K, V, V);
   MD12(Type, atweights, tweights, oc4, this->ic4, this->oc3, this->ic3,
@@ -1353,6 +1354,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_u8_blocked(
     Type * tinput_qt_scale, uint8_t * __restrict tinput_u8,
     Type * __restrict tinput, Type * __restrict input, int _t2, int Tz)
 {
+  _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
   MD8(Type, ainput, input, this->n,
       this->ic4, this->ic3, this->I2, this->Vx, this->ih, this->iw, V);
   // 4i,V temporarily here for store AVX instruction
@@ -1424,9 +1426,9 @@ void elx_conv_wino_t<Type, A, K, V, I>::__trans_input_u8_blocked(
       // multi scale
       __m<V> mmresf32 = _mm<V>::mul_ps(*(__m<V> *)&md6(atinput, _ic3, _I2, _Vx, _wA, _hA, 0), mmscale);
       // shift and rounding
-      mmresf32 = _mm<V>::add_round_ps(mmresf32, mmshift, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+      mmresf32 = _mm<V>::add_ps(mmresf32, mmshift);
       // convert to uint8
-      __i<V> mmresu32 = _mm<V>::cvtps_epu32(mmresf32);
+      __i<V> mmresu32 = _mm<V>::cvt_roundps_epu32(mmresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
       __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mmresu32);
       // store
       _mm_store_si128((__m128i *)&md7(atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);

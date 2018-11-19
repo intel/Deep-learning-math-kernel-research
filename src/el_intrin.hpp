@@ -164,6 +164,9 @@ template <> struct _mm<16> {
   static inline __i<V> cvtps_epu32(__m<V> m) noexcept {
     return _mm512_cvtps_epu32(m);
   }
+  static inline __i<V> cvt_roundps_epu32(__m<V> m, int imm8) noexcept {
+    return _mm512_cvt_roundps_epu32(m, imm8);
+  }
   static inline __m128i cvtusepi32_epi8(__i<V> m) noexcept {
     return _mm512_cvtusepi32_epi8(m);
   }
@@ -299,6 +302,9 @@ template <> struct _mm<8> {
   }
   static inline __i<V> cvtps_epu32(__m<V> m) noexcept {
     return _mm256_cvtps_epu32(m);
+  }
+  static inline __i<V> cvt_roundps_epu32(__m<V> m, int imm8) noexcept {
+    return _mm256_cvt_roundps_epu32(m, imm8);
   }
   static inline __m128i cvtusepi32_epi8(__i<V> m) noexcept {
     return _mm256_cvtusepi32_epi8(m);
