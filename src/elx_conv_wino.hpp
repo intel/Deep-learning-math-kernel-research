@@ -279,6 +279,8 @@ private:
       WeightsType *weights, BiasType *bias);
   void __execute_a161(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
+  void __execute_a173(OutputType *output, InputType *input,
+      WeightsType *weights, BiasType *bias);
 
   inline void __trans_input_plain(TarrayType *tinput, InputType *input, int _t2, int Tz);
   inline void __trans_input_blocked(TarrayType *tinput, InputType *input, int _t2, int Tz);
@@ -339,6 +341,8 @@ private:
   void gemm_non_acc(TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _ic4 = 0);
   void gemma(TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _t2, int Tz);
   void gemm(TarrayType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
+      TarrayType *src_scale, TarrayType *weights_scale, TarrayType *factor, int _ic4 = 0);
+  void gemm_non_acc(TarrayType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
       TarrayType *src_scale, TarrayType *weights_scale, TarrayType *factor, int _ic4 = 0);
 
   void prepare_tweights(WeightsType * __restrict weights);

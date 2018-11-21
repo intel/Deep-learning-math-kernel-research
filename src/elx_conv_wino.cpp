@@ -34,7 +34,7 @@ Instance_elx_conv_wino_t::elx_conv_wino_t(
   // TODO: error when V!=16 && fmt=OIhw16i16o
   xopt_ = this->execution_mode;
 
-  this->Vx = xopt_ == 0xa161 ? 4 : 1;
+  this->Vx = ((xopt_ & 0xf00) == 0x100) ? 4 : 1;
   this->IC = ALIGNUP(this->ic, V * this->Vx);
   this->OC = ALIGNUP(this->oc, V);
 
@@ -159,7 +159,7 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   }
   if (xopt_ & FUS_I) {
     this->ic3 /= this->ic4;
-    if (V * this->I2 * this->ic3 * this->ic4 != this->IC) {
+    if (V * this->Vx * this->I2 * this->ic3 * this->ic4 != this->IC) {
       el_error("Config error!");
       return -1;
     }
@@ -173,7 +173,7 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   output_as_bfmt_ = !output_is_bfmt_ && this->output_as_blocked;
   is_bfmt_ = input_is_bfmt_ && weights_is_bfmt_ && output_is_bfmt_;
 
-  if (this->ic4 > 1 && this->Ir != V) {
+  if (this->ic4 > 1 && this->Ir != V * Vx) {
     el_error("Unimplemented: ic4 > 1 for IC % V != 0");
   }
   if (this->oc4 > 1 && this->Or != V
@@ -258,8 +258,18 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
     tinput_qt_scale_size = this->t2 * this->T * A * A;
     tweights_s8_size = tweights_size / sizeof(WeightsType);
     tweights_qt_scale_size = this->OC * A * A;
-    tweights_factor_size = this->OC * A * A;
+    tweights_factor_size = this->OC * A * A; // * this->ic4
     tweights_ci_size = this->OC;
+    break;
+  case 0xa173:
+    tweights_size = A * A * this->IC * this->OC;
+    tinput_size = A * A * (this->IC / this->ic4) * mthr_;
+    toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_;
+    tinput_u8_size = A * A * (this->IC / this->ic4) * mthr_ * this->T / sizeof(InputType);
+    tinput_qt_scale_size = mthr_ * this->T * A * A;
+    tweights_s8_size = tweights_size / sizeof(WeightsType);
+    tweights_qt_scale_size = this->ic4 * this->OC * A * A;
+    tweights_factor_size = this->ic4 * this->OC * A * A;
     break;
   default:
       el_error("Config error!");
@@ -568,9 +578,9 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
       A, A, this->O1, this->I2, this->Vx, V, this->O, V);
   MD12(int8_t, atweights_s8, tweights_s8, oc4, this->ic4, this->oc3, this->ic3,
       A, A, this->O1, this->I2, V, this->O, V, this->Vx);
-  MD7(TarrayType, atweights_qt_scale, tweights_qt_scale, oc4, this->oc3, A, A,
+  MD8(TarrayType, atweights_qt_scale, tweights_qt_scale, this->ic4, oc4, this->oc3, A, A,
       this->O1, this->O, V);
-  MD7(TarrayType, atweights_factor, tweights_factor, oc4, this->oc3, A, A,
+  MD8(TarrayType, atweights_factor, tweights_factor, this->ic4, oc4, this->oc3, A, A,
       this->O1, this->O, this->V);
 
   __m<V> zero = _mm<V>::set1_ps(0.0);
@@ -635,15 +645,15 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
 #pragma omp barrier
 #endif
   } else {
-#pragma omp for nowait collapse(6) schedule(static)
+#pragma omp for nowait collapse(7) schedule(static)
     iter_each (_oc4, oc4) {
+    iter_each (_ic4, this->ic4) {
     iter_each (_oc3, this->oc3) {
     iter_each (_wA, A) {
     iter_each (_hA, A) {
     iter_each (_O1, this->O1) {
     iter_each (_O, this->O) {
       __m<V> mmax_cur = _mm<V>::set1_ps(0.0);
-      iter_each (_ic4, this->ic4) {
       iter_each (_ic3, this->ic3) {
       iter_each (_I2, this->I2) {
       iter_each (_iV, V) {
@@ -664,28 +674,30 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
               mmax_cur, *(__m<V> *)&md5(atweights_ci, _oc4, _oc3, _O1, _O, 0));
         }
         #endif
-      }}}}}
+      }}}}
 
-      _mm512_store_ps(&md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, 0), mmax_cur);
-    }}}}}}
+      _mm512_store_ps(&md8(atweights_qt_scale, _ic4, _oc4, _oc3, _wA, _hA, _O1, _O, 0), mmax_cur);
+    }}}}}}}
 #pragma omp barrier
   }
 
 #ifdef DEBUG
   if (omp_get_thread_num() == 0) {
     iter_each (_oc4, oc4) {
+    iter_each (_ic4, this->ic4) {
     iter_each (_oc3, this->oc3) {
     iter_each (_wA, A) {
     iter_each (_hA, A) {
     iter_each (_O1, this->O1) {
     iter_each (_O, this->O) {
     iter_each (_oV, V) {
-      printf("max abs: %f\n", md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, _oV));
-    }}}}}}}
+      printf("max abs: %f\n", md8(atweights_qt_scale, _ic4, _oc4, _oc3, _wA, _hA, _O1, _O, _oV));
+    }}}}}}}}
   }
 #endif
 
-#pragma omp for nowait collapse(6) schedule(static)
+#pragma omp for nowait collapse(7) schedule(static)
+  iter_each (_ic4, this->ic4) {
   iter_each (_oc4, oc4) {
   iter_each (_oc3, this->oc3) {
   iter_each (_wA, A) {
@@ -693,7 +705,6 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
   iter_each (_O1, this->O1) {
   iter_each (_O, this->O) {
     __m<V> mmfactor = _mm<V>::set1_ps(0.0);
-    iter_each (_ic4, this->ic4) {
     iter_each (_ic3, this->ic3) {
     iter_each (_I2, this->I2) {
     iter_each (_iV, V) {
@@ -701,12 +712,12 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
       mmfactor = _mm<V>::add_ps(
           *(__m<V> *)&md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
            _O1, _I2, _iVx, _iV, _O, 0), mmfactor);
-    }}}}}
+    }}}}
     mmfactor = _mm<V>::mul_ps(mmfactor, _mm<V>::mul_ps(mmscale, mmshift));
     mmfactor = _mm<V>::div_ps(
-        mmfactor, *(__m<V> *)&md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, 0));
-    _mm512_store_ps(&md7(atweights_factor, _oc4, _oc3, _wA, _hA, _O1, _O, 0), mmfactor);
-  }}}}}}
+        mmfactor, *(__m<V> *)&md8(atweights_qt_scale, _ic4, _oc4, _oc3, _wA, _hA, _O1, _O, 0));
+    _mm512_store_ps(&md8(atweights_factor, _ic4, _oc4, _oc3, _wA, _hA, _O1, _O, 0), mmfactor);
+  }}}}}}}
 
   // I2 Vx V => I2 V Vx
   MD12(TarrayType, _atweights, tweights, oc4, this->ic4, this->oc3, this->ic3,
@@ -742,7 +753,7 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
     }
 
     t0 = _mm<V>::div_ps(
-        t0, *(__m<V> *)&md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, 0));
+        t0, *(__m<V> *)&md8(atweights_qt_scale, _ic4, _oc4, _oc3, _wA, _hA, _O1, _O, 0));
     // rounding
     t0 = _mm<V>::roundscale_ps(t0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
 
@@ -760,7 +771,7 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
       printf("[%d][%d][%d][%d][%d][%d][%d][%d][%d][%d][%d][%d] %f * %f / %f = %d\n",
           _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, _O, _iVx, _oV,
           md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, _O, _iVx, _oV), mmscale,
-          md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, _oV),
+          md8(atweights_qt_scale, _ic4, _oc4, _oc3, _wA, _hA, _O1, _O, _oV),
           md12(atweights_s8, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, _O, _oV, _iVx));
     }
 #endif
@@ -769,22 +780,23 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
 
 #pragma omp for nowait collapse(4) schedule(static)
   iter_each (_oc4, oc4) {
+  iter_each (_ic4, this->ic4) {
   iter_each (_oc3, this->oc3) {
   iter_each (_wA, A) {
   iter_each (_hA, A) {
   iter_each (_O1, this->O1) {
   iter_each (_O, this->O) {
     if (I == ISA_SKX_AVX512 && std::is_same<TarrayType, float>::value) {
-      _mm512_store_ps(&md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, 0),
+      _mm512_store_ps(&md8(atweights_qt_scale, _ic4, _oc4, _oc3, _wA, _hA, _O1, _O, 0),
           _mm<V>::div_ps(
-          *(__m<V> *)&md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, 0), mmscale));
+          *(__m<V> *)&md8(atweights_qt_scale, _ic4, _oc4, _oc3, _wA, _hA, _O1, _O, 0), mmscale));
     } else {
 #pragma omp simd
       iter_each (_oV, V)
-        md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, _oV) =
-            md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, _oV) / INT8GEMM_TWT_QTSCALE;
+        md8(atweights_qt_scale, _ic4, _oc4, _oc3, _wA, _hA, _O1, _O, _oV) =
+            md8(atweights_qt_scale, _ic4, _oc4, _oc3, _wA, _hA, _O1, _O, _oV) / INT8GEMM_TWT_QTSCALE;
     }
-  }}}}}}
+  }}}}}}}
 }
 
 Template_elx_conv_wino_t
@@ -2018,6 +2030,85 @@ void Instance_elx_conv_wino_t::gemm_non_acc(
                       &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
                       &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
                       nullptr, attr, 0, nullptr, nullptr);
+      }
+    }}}
+  }
+}
+
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::gemm_non_acc(
+    TarrayType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
+    TarrayType *src_scale, TarrayType *weights_scale,
+    TarrayType *factor, int _ic4)
+{
+  auto ker_gemm = (_t2 == this->t2 - 1) ? ker_i8_gemm0_ : ker_i8_gemm_;
+  auto ker_gemm_tail = (_t2 == this->t2 - 1) ? ker_i8_gemm0_tail_ : ker_i8_gemm_tail_;
+
+  MD6(uint8_t, atinput, tinput, A, A, this->ic3, this->I2, Tz, V * this->Vx);
+  MD6(TarrayType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
+  MD5(int8_t, atweights, tweights, this->oc3, this->ic3, A, A,
+      this->O2 * this->I2 * V * V * this->Vx);
+  MD5(TarrayType, aweights_scale, weights_scale, this->oc3, A, A, this->O2, V);
+  MD5(TarrayType, afactor, factor, this->oc3, A, A, this->O2, V);
+  MD3(TarrayType, asrc_scale, src_scale, A, A, Tz);
+
+  bool scramble = (this->T == this->Tr) || (this->t2 >= 2 * mthr_);
+  if (scramble) {
+    int it_start = omp_get_thread_num();
+    iter_each(i, A * A) {
+      int n = (it_start + i) % (A * A);
+      int _hA = n % A;
+      int _wA = n / A;
+      iter_each(_oc3, this->oc3) {
+        bool last_ic4 = _ic4 == this->ic4 - 1;
+        int ic3 = last_ic4 ? this->ic3 - 1 : this->ic3;
+        iter_each(_ic3, ic3) {
+          int attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+          attr = _ic3 == this->ic3 - 1 ? set_attr(attr, c_output_idx) : attr;
+          ker_gemm(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+              &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
+              &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
+              nullptr, attr, &md3(asrc_scale, _wA, _hA, 0),
+              &md5(aweights_scale, _oc3, _wA, _hA, 0, 0),
+              &md5(afactor, _oc3, _wA, _hA, 0, 0));
+        }
+        if (last_ic4) {
+          auto attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
+          attr = set_attr(attr, c_output_idx);
+          ker_gemm_tail(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+              &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
+              &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
+              nullptr, attr, &md3(asrc_scale, _wA, _hA, 0),
+              &md5(aweights_scale, _oc3, _wA, _hA, 0, 0),
+              &md5(afactor, _oc3, _wA, _hA, 0, 0));
+        }
+      }
+    }
+  } else {
+    iter_each(_wA, A) {
+    iter_each(_hA, A) {
+    iter_each(_oc3, this->oc3) {
+      bool last_ic4 = _ic4 == this->ic4 - 1;
+      int ic3 = last_ic4 ? this->ic3 - 1 : this->ic3;
+      iter_each(_ic3, ic3) {
+        int attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+        attr = _ic3 == this->ic3 - 1 ? set_attr(attr, c_output_idx) : attr;
+        ker_gemm(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+            &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
+            &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
+            nullptr, attr, &md3(asrc_scale, _wA, _hA, 0),
+            &md5(aweights_scale, _oc3, _wA, _hA, 0, 0),
+            &md5(afactor, _oc3, _wA, _hA, 0, 0));
+      }
+      if (last_ic4) {
+        auto attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
+        attr = set_attr(attr, c_output_idx);
+        ker_gemm_tail(*this, &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+            &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
+            &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
+            nullptr, attr, &md3(asrc_scale, _wA, _hA, 0),
+            &md5(aweights_scale, _oc3, _wA, _hA, 0, 0),
+            &md5(afactor, _oc3, _wA, _hA, 0, 0));
       }
     }}}
   }

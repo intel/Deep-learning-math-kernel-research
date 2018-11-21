@@ -148,6 +148,7 @@ void Instance_elx_conv_wino_t::bind_execute_functions()
   EXECUTE_CASE(a0e0);
   EXECUTE_CASE(a0e1);
   EXECUTE_CASE(a161);
+  EXECUTE_CASE(a173);
   default:
     el_error("Unimplemented");
     break;

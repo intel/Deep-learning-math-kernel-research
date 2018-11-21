@@ -33,6 +33,8 @@ namespace euler {
 // -------------+------------+--------------+-------------
 //     A161     |   INT8     |    t + o     |    I
 // -------------+------------+--------------+-------------
+//     A173     |   INT8     |  i + t + o   |  I + O
+// -------------+------------+--------------+-------------
 //
 
 
@@ -443,8 +445,6 @@ void Instance_elx_conv_wino_t::__execute_a161(
   MD2(TarrayType, atinput2, tinput_, mthr_, A * A * this->IC);
   MD2(TarrayType, atoutput2, toutput_, mthr_,
       A * A * this->T * this->oc3 * this->O2 * V);
-  MD2(TarrayType, atweights2, tweights_, this->oc4,
-      A * A * this->IC * this->oc3 * this->O2 * V);
 
   MD3(OutputType, aoutput, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
@@ -490,6 +490,71 @@ void Instance_elx_conv_wino_t::__execute_a161(
           &md2(abias, _oc4, 0), _t2, Tz);
     }}
   }
+  if (inference_acc_)
+    is_first_run_ = false;
+}
+
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__execute_a173(
+    OutputType * __restrict output, InputType * __restrict input,
+    WeightsType * __restrict weights, BiasType * __restrict bias)
+{
+  MD2(TarrayType, atinput2, tinput_, mthr_,
+      A * A * this->ic3 * this->I2 * V * this->Vx);
+  MD2(TarrayType, atoutput2, toutput_, mthr_,
+      A * A * this->T * this->oc3 * this->O2 * V);
+
+  MD3(InputType, ainput, input, this->n, this->ic4,
+      this->ih * this->iw * this->ic3 * this->I2 * this->Vx * V);
+  MD3(OutputType, aoutput, output, this->n, this->oc4,
+      this->oh * this->ow * this->oc3 * this->O2 * V);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+
+  MD2(uint8_t, atinput2_u8, tinput_u8_, mthr_,
+      A * A * this->T * this->ic3 * this->I2 * this->Vx * V);
+  MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
+      A * A * this->ic3 * this->I2 * this->Vx * V * this->oc3 * this->O2 * V);
+
+  MD2(TarrayType, atinput_qt_scale, tinput_qt_scale_,
+      mthr_, this->A * this->A * this->T);
+  MD3(TarrayType, atweights_qt_scale, tweights_qt_scale_, this->ic4,
+      this->oc4, this->oc3 * this->O2 * V * A * A);
+  MD3(TarrayType, aweights_factor, tweights_factor_,
+      this->ic4, this->oc4, this->oc3 * this->O2 * V * A * A);
+
+  if (is_first_run_) {
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+    trans_weights_s8(tweights_qt_scale_, tweights_factor_,
+        tweights_s8_, tweights_, weights, this->oc4);
+  }
+
+  int last_ic4 = -1, last_t2 = -1;
+#pragma omp parallel num_threads(mthr_) proc_bind(close) firstprivate(last_ic4, last_t2)
+  iter_each(_ic4, this->ic4) {
+#pragma omp for nowait collapse(2)
+    iter_each(_t2, this->t2) {
+    iter_each(_oc4, this->oc4) {
+      int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+      size_t ithr = omp_get_thread_num();
+
+      if (last_ic4 != _ic4 || last_t2 != _t2) {
+        trans_input_u8(
+            &md2(atinput_qt_scale, ithr, 0), &md2(atinput2_u8, ithr, 0),
+            &md2(atinput2, ithr, 0), &md3(ainput, 0, _ic4, 0), _t2, Tz);
+        last_t2 = _t2;
+        last_ic4 = _ic4;
+      }
+      gemm_non_acc(&md2(atoutput2, ithr, 0), &md2(atinput2_u8, ithr, 0),
+          &md3(atweights_s8, _oc4, _ic4, 0), _t2, Tz,
+          &md2(atinput_qt_scale, ithr, 0),
+          &md3(atweights_qt_scale, _ic4, _oc4, 0),
+          &md3(aweights_factor, _ic4, _oc4, 0),
+          _ic4);
+      trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
+          &md2(abias, _oc4, 0), _t2, Tz, _ic4);
+    }}
+  }
+
   if (inference_acc_)
     is_first_run_ = false;
 }
