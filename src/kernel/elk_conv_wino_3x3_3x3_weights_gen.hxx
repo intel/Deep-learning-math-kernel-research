@@ -10,7 +10,7 @@
 
 namespace euler {
 
-inline void convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 5, 3>::
+inline void convolution_winograd_kernel_base<float, float, float, float, float, ISA_GENERIC, 16, 5, 3>::
 __trans_weights(float atweights[A][A][V][V], float aweights[K][K][V][V]) {
   const float r12 = 1.0f / 12.0f;
   const float r6 = 1.0f / 6.0f;

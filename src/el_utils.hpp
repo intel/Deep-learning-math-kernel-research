@@ -11,6 +11,7 @@
 #define _T(x) x
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::duration<float, std::milli> Duration;
+typedef short float16;
 
 #define __tstart(n) _T(Time::time_point __s##n = Time::now());
 #define __tend(n)                                                              \

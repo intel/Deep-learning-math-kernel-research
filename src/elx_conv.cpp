@@ -7,8 +7,10 @@
 
 namespace euler {
 
-template <typename Type>
-elx_conv_t<Type>::elx_conv_t(eld_conv_t<Type> &dc) {
+template<typename InputType, typename WeightsType,
+    typename OutputType, typename BiasType>
+elx_conv_t<InputType, WeightsType, OutputType, BiasType>::
+    elx_conv_t(eld_conv_t<InputType, WeightsType, OutputType, BiasType> &dc) {
   this->n = dc.dims.input.n;
   this->ic = dc.dims.input.c;
   this->oc = dc.dims.output.c;
@@ -59,9 +61,11 @@ elx_conv_t<Type>::elx_conv_t(eld_conv_t<Type> &dc) {
   this->output_as_blocked = dc.format_as_blocked.output;
 }
 
-template <typename T>
-int elx_conv(eld_conv_t<T> &desc, T *output, T *input, T *weights, T *bias) {
-  elx_conv_t<T> &xc = *desc.xc;
+template<typename InputType, typename WeightsType,
+    typename OutputType, typename BiasType>
+int elx_conv(eld_conv_t<InputType, WeightsType, OutputType, BiasType> &desc,
+    OutputType *output, InputType *input, WeightsType *weights, BiasType *bias) {
+  elx_conv_t<InputType, WeightsType, OutputType, BiasType> &xc = *desc.xc;
 
   // Sanity check
   if (input == nullptr || weights == nullptr || output == nullptr
@@ -84,7 +88,9 @@ int elx_conv(eld_conv_t<T> &desc, T *output, T *input, T *weights, T *bias) {
   return ELX_OK;
 }
 
-template int elx_conv<float>(
-    eld_conv_t<float> &, float *, float *, float *, float *);
+template int elx_conv<float, float, float, float>(
+    eld_conv_t<float, float, float, float> &, float *, float *, float *, float *);
 
+//template int elx_conv<short, short, short, short>(
+//    eld_conv_t<short, short, short, short> &, short *, short *, short *, short *);
 }  // namespace euler

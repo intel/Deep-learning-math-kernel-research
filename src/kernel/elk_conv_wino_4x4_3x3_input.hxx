@@ -8,10 +8,10 @@
 #include "elk_conv_wino.hpp"
 
 namespace euler {
-template <int v>
-class convolution_winograd_kernel_base<float, ISA_SKX_AVX512, v, 6, 3> {
-  template <typename Type, int ...configs>
-    friend class convolution_winograd_kernel_base;
+template <typename InputType, typename WeightsType,
+     typename OutputType, typename BiasType, typename TarrayType, int v>
+class convolution_winograd_kernel_base<InputType, WeightsType, OutputType, BiasType,
+    TarrayType, ISA_SKX_AVX512, v, 6, 3> {
 protected:
   constexpr static int V = v;
   constexpr static int I = ISA_SKX_AVX512;
@@ -19,29 +19,29 @@ protected:
   constexpr static int K = 3;
 
   template <bool is_border> static inline
-  void __trans_input(elx_conv_t<float> &xc, float atinput[A][A][V],
-      float *input, int hT_start, int hT_end, int wT_start,
+  void __trans_input(Instance_elx_conv_t &xc, TarrayType atinput[A][A][V],
+      InputType *input, int hT_start, int hT_end, int wT_start,
       int wT_end);
 
   template <bool is_border>
-  static void __trans_inputa(elx_conv_t<float> &xc, float atinput[A][A][V],
-      float *input, int wA, int hA_start, int hA_end, int wA_start,
-      int wA_end);
+  static void __trans_inputa(Instance_elx_conv_t &xc, TarrayType atinput[A][A][V],
+      InputType *input, int wA, int hA_start, int hA_end, int wA_start,
+      int _wA_end);
 
   template <bool ...conditions>
-  static inline void __trans_output(elx_conv_t<float> &xc, float *output,
-      float atoutput[A][A][V], float *bias, int hOA_end, int wOA_end);
+  static inline void __trans_output(Instance_elx_conv_t &xc, OutputType *output,
+      TarrayType atoutput[A][A][V], BiasType *bias, int hOA_end, int wOA_end);
 
   template <bool ...conditions>
-  static inline void __trans_outputa_th(elx_conv_t<float> &xc, float *toutputa,
-      float *toutput, int Tz, bool stream_out);
+  static inline void __trans_outputa_th(Instance_elx_conv_t &xc, TarrayType *toutputa,
+      TarrayType *toutput, int Tz, bool stream_out);
 
   template <bool ...conditions>
-  static inline void __trans_outputa_bh(elx_conv_t<float> &xc, float *output,
-      float aoutputa[A][A - K + 1][V], float *bias, int hOA_end, int wOA_end);
+  static inline void __trans_outputa_bh(Instance_elx_conv_t &xc, OutputType *output,
+      TarrayType aoutputa[A][A - K + 1][V], BiasType *bias, int hOA_end, int wOA_end);
 
-  static inline void __trans_weights(float atweights[A][A][V][V],
-      float aweights[K][K][V][V]);
+  static inline void __trans_weights(TarrayType atweights[A][A][V][V],
+      WeightsType aweights[K][K][V][V]);
 };
 
 #undef ADD
@@ -64,11 +64,14 @@ protected:
 #define MAX     _mm<V>::max_ps
 #define XOR     _mm<V>::xor_ps
 
-template <int V>
+template <typename InputType, typename WeightsType,
+     typename OutputType, typename BiasType, typename TarrayType, int V>
 template <bool is_border>
-inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, V, 6, 3>::
-__trans_input( elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
-    int hT_start, int hT_end, int wT_start, int wT_end) {
+inline void convolution_winograd_kernel_base<
+    InputType, WeightsType, OutputType, BiasType, TarrayType,
+    ISA_SKX_AVX512, V, 6, 3>::__trans_input(
+      Instance_elx_conv_t &xc, TarrayType atinput[A][A][V], InputType *input,
+      int hT_start, int hT_end, int wT_start, int wT_end) {
 
   // Inputs
   __m<V> f00, f01, f02, f03, f04, f05,
@@ -93,16 +96,24 @@ __trans_input( elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
 
   auto f_cb = [&](int _h, int _w) {
     if (wT_end == -1) {
-      MD3(float, ainput, input, A, A, V);
-      return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
+      MD3(InputType, ainput, input, A, A, V);
+      if (std::is_same<InputType, float>::value)
+        return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
+      else {
+        auto f16 = _mm<V>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
+        return _mm<V>::cvtph_ps(f16);
+      }
     } else {
-      MD3(float, ainput, input, xc.ih, xc.iw, V);
+      MD3(InputType, ainput, input, xc.ih, xc.iw, V);
       if (is_border
           && (_h < hT_start || _w < wT_start || _h > hT_end || _w > wT_end)) {
         return _mm<V>::setzero_ps();
-      }
-      else
+      } else if (std::is_same<InputType, float>::value)
         return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
+      else {
+        auto f16 = _mm<V>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
+        return _mm<V>::cvtph_ps(f16);
+      }
     }
   };
 
@@ -116,7 +127,15 @@ __trans_input( elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
 #define T(h, w) atinput[w][h]
 #define f(m, n) f##m##n
 #define OP(m,n) f(m, n) = F(m, n)
-#define ISTORE(i, j) _mm<V>::store_ps(T(i, j), t##i##j)
+#define ISTORE(i, j) _mm<V>::store_ps(T(i, j), t##i##j);
+/*#define ISTORE(i, j)                                              \
+  if(std::is_same<Type, float>::value)                            \
+    _mm<V>::store_ps(T(i, j), t##i##j);                           \
+  else {                                                          \
+    auto f16 = _mm<V>::cvtps_ph(t##i##j,                          \
+        _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);           \
+    _mm<V>::store_si256((__m256i *)T(i, j), f16);                 \
+  }*/
 
   VECTOR_DEF(M6, ME3);
 
@@ -133,21 +152,21 @@ __trans_input( elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
   auto z20 = _mm<V>::set1_ps(20.0f);
 
   t00 = FMADD(z16, f00, FNMADD(z20, f02, FMADD(z4, f04, FNMADD(z5, c2, c4))));
-  ISTORE(0, 0);
+  ISTORE(0, 0)
   a00 = FMSUB(z4, c1, c3);
   a01 = FNMADD(z4, c2, c4);
   t10 = SUB(a01, a00);
-  ISTORE(1, 0);
+  ISTORE(1, 0)
   t20 = ADD(a01, a00);
-  ISTORE(2, 0);
+  ISTORE(2, 0)
   a02 = SUB(c1, c3);
   a03 = SUB(c2, c4);
   t30 = FNMSUB(z2, a02, a03);
-  ISTORE(3, 0);
+  ISTORE(3, 0)
   t40 = FMSUB(z2, a02, a03);
   ISTORE(4, 0);
   t50 = FMADD(z4, ADD(c1, f50), FNMADD(z5, ADD(c3, f52), f54));
-  ISTORE(5, 0);
+  ISTORE(5, 0)
 
   VECTOR_DEF(M6, MO2);
 
@@ -169,23 +188,23 @@ __trans_input( elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
   d00 = FMSUB(z4, f01, f03);
   d01 = FMSUB(z4, f02, f04);
   t01 = FNMADD(z4, d00, FNMADD(z4, d01, FMSUB(z5, c2, c4)));
-  ISTORE(0, 1);
+  ISTORE(0, 1)
   a00 = FMSUB(z4, c1, c3);
   a01 = FMSUB(z4, c2, c4);
   t11 = ADD(a01, a00);
-  ISTORE(1, 1);
+  ISTORE(1, 1)
   t21 = SUB(a01, a00);
-  ISTORE(2, 1);
+  ISTORE(2, 1)
   a02 = SUB(c1, c3);
   a03 = SUB(c2, c4);
   t31 = FMADD(z2, a02, a03);
-  ISTORE(3, 1);
+  ISTORE(3, 1)
   t41 = FNMADD(z2, a02, a03);
-  ISTORE(4, 1);
+  ISTORE(4, 1)
   d02 = FMSUB(z4, f51, f53);
   d03 = FNMADD(z4, f52, f54);
   t51 = FNMADD(z4, c1, FMADD(z5, c3, SUB(d03, d02)));
-  ISTORE(5, 1);
+  ISTORE(5, 1)
 
   c1 = SUB(b00, b04);
   c2 = SUB(b01, b05);
@@ -193,21 +212,21 @@ __trans_input( elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
   c4 = SUB(b03, b07);
 
   t02 = FMADD(z4, d00, FNMADD(z4, d01, FNMADD(z5, c2, c4)));
-  ISTORE(0, 2);
+  ISTORE(0, 2)
   a00 = FMSUB(z4, c1, c3);
   a01 = FNMADD(z4, c2, c4);
   t12 = SUB(a01, a00);
-  ISTORE(1, 2);
+  ISTORE(1, 2)
   t22 = ADD(a01, a00);
-  ISTORE(2, 2);
+  ISTORE(2, 2)
   a02 = SUB(c1, c3);
   a03 = SUB(c4, c2);
   t32 = FNMADD(z2, a02, a03);
-  ISTORE(3, 2);
+  ISTORE(3, 2)
   t42 = FMADD(z2, a02, a03);
-  ISTORE(4, 2);
+  ISTORE(4, 2)
   t52 = FMADD(z4, c1, FNMADD(z5, c3, ADD(d03, d02)));
-  ISTORE(5, 2);
+  ISTORE(5, 2)
 
   b00 = SUB(f11, f13);
   b01 = SUB(f21, f23);
@@ -229,23 +248,23 @@ __trans_input( elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
   d00 = SUB(f04, f02);
   d01 = SUB(f03, f01);
   t03 = FMADD(z8, d01, FMADD(z4, d00, FMSUB(z5, c2, c4)));
-  ISTORE(0, 3);
+  ISTORE(0, 3)
   a00 = FMSUB(z4, c1, c3);
   a01 = FMSUB(z4, c2, c4);
   t13 = ADD(a01, a00);
-  ISTORE(1, 3);
+  ISTORE(1, 3)
   t23 = SUB(a01, a00);
-  ISTORE(2, 3);
+  ISTORE(2, 3)
   a02 = SUB(c1, c3);
   a03 = SUB(c2, c4);
   t33 = FMADD(z2, a02, a03);
-  ISTORE(3, 3);
+  ISTORE(3, 3)
   t43 = FNMADD(z2, a02, a03);
-  ISTORE(4, 3);
+  ISTORE(4, 3)
   d02 = SUB(f53, f51);
   d03 = SUB(f54, f52);
   t53 = FNMADD(z4, c1, FMADD(z5, c3, FMADD(z2, d02, d03)));
-  ISTORE(5, 3);
+  ISTORE(5, 3)
 
   c1 = FMSUB(z2, b00, b04);
   c2 = FMSUB(z2, b01, b05);
@@ -253,21 +272,21 @@ __trans_input( elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
   c4 = FMSUB(z2, b03, b07);
 
   t04 = FNMADD(z8, d01, FMADD(z4, d00, FNMADD(z5, c2, c4)));
-  ISTORE(0, 4);
+  ISTORE(0, 4)
   a00 = FMSUB(z4, c1, c3);
   a01 = FNMADD(z4, c2, c4);
   t14 = SUB(a01, a00);
-  ISTORE(1, 4);
+  ISTORE(1, 4)
   t24 = ADD(a01, a00);
-  ISTORE(2, 4);
+  ISTORE(2, 4)
   a02 = SUB(c1, c3);
   a03 = SUB(c4, c2);
   t34 = FNMADD(z2, a02, a03);
-  ISTORE(3, 4);
+  ISTORE(3, 4)
   t44 = FMADD(z2, a02, a03);
-  ISTORE(4, 4);
+  ISTORE(4, 4)
   t54 = FMADD(z4, c1, FNMADD(z5, c3, FNMADD(z2, d02, d03)));
-  ISTORE(5, 4);
+  ISTORE(5, 4)
 
   VECTOR_DEF(M6, (5));
 
@@ -277,28 +296,30 @@ __trans_input( elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
   c4 = FMADD(z4, f41, FNMADD(z5, f43, f45));
 
   t05 = FMADD(z4, FMADD(z4, f01, f05), FNMADD(z5, FMADD(z4, f03, c2), c4));
-  ISTORE(0, 5);
+  ISTORE(0, 5)
   a00 = FMSUB(z4, c1, c3);
   a01 = FNMADD(z4, c2, c4);
   t15 = SUB(a01, a00);
-  ISTORE(1, 5);
+  ISTORE(1, 5)
   t25 = ADD(a01, a00);
-  ISTORE(2, 5);
+  ISTORE(2, 5)
   a02 = SUB(c1, c3);
   a03 = SUB(c4, c2);
   t35 = FNMADD(z2, a02, a03);
-  ISTORE(3, 5);
+  ISTORE(3, 5)
   t45 = FMADD(z2, a02, a03);
-  ISTORE(4, 5);
+  ISTORE(4, 5)
   t55 = FMADD(z4, ADD(c1, f51), FNMADD(z5, ADD(c3, f53), f55));
-  ISTORE(5, 5);
+  ISTORE(5, 5)
 }
 
-template <int V>
+template <typename InputType, typename WeightsType,
+     typename OutputType, typename BiasType, typename TarrayType, int V>
 template <bool is_border>
-inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, V, 6, 3>::
+inline void convolution_winograd_kernel_base<InputType, WeightsType, OutputType,
+     BiasType, TarrayType, ISA_SKX_AVX512, V, 6, 3>::
 __trans_inputa(
-    elx_conv_t<float> &xc, float atinput[A][A][V], float *input, int wA,
+    Instance_elx_conv_t &xc, TarrayType atinput[A][A][V], InputType *input, int wA,
     int hT_start, int hT_end, int wT_start, int wT_end) {
   // TODO
   el_error("Unimplemented");

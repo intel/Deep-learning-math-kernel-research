@@ -16,8 +16,8 @@ namespace euler {
 //   float *output, float atoutput[A][A][V], float *bias,
 //   int _hOA_end, int _wOA_end
  template <bool ...conditions>
-inline void convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 4, 3>::
-__trans_output(elx_conv_t<float> &xc, float *output,
+inline void convolution_winograd_kernel_base<float, float, float, float, float, ISA_GENERIC, 16, 4, 3>::
+__trans_output(elx_conv_t<float, float, float, float> &xc, float *output,
       float atoutput[A][A][V], float *bias, int hOA_end, int wOA_end) {
   float dummy[16];
   constexpr bool is_border = cd_traits<conditions...>::is_border;
@@ -86,10 +86,10 @@ __trans_output(elx_conv_t<float> &xc, float *output,
 // Params:
 //   elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz,
 //   bool stream_out
- template <bool ...conditions>
-inline void convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 4, 3>::
-__trans_outputa_th(elx_conv_t<float> &xc, float *toutputa, float *toutput,
-    int Tz, bool stream_out) {
+template <bool ...conditions>
+inline void convolution_winograd_kernel_base<float, float, float, float, float, ISA_GENERIC, 16, 4, 3>::
+__trans_outputa_th(elx_conv_t<float, float, float, float> &xc, float *toutputa,
+    float *toutput, int Tz, bool stream_out) {
 
   MD4(float, atoutput, toutput, A, xc.oc3 * xc.O2, Tz, V);
   MD2(float, atoutputa, toutputa, A - K + 1, V);
@@ -125,8 +125,8 @@ __trans_outputa_th(elx_conv_t<float> &xc, float *toutputa, float *toutput,
 //   float *output, float atoutput[A][A - K + 1][V], float *bias,
 //   int _hOA_end, int _wOA_end
 template <bool ...conditions>
-inline void convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 4, 3>::
-__trans_outputa_bh(elx_conv_t<float> &xc, float *output,
+inline void convolution_winograd_kernel_base<float, float, float, float, float, ISA_GENERIC, 16, 4, 3>::
+__trans_outputa_bh(elx_conv_t<float, float, float, float> &xc, float *output,
     float atoutput[A][A - K + 1][V], float *bias, int hOA_end, int wOA_end) {
   constexpr bool is_border = cd_traits<conditions...>::is_border;
   constexpr bool with_bias = cd_traits<conditions...>::with_bias;

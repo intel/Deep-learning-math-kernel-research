@@ -76,10 +76,13 @@ namespace euler {
 //   elx_conv_t<float> &xc,
 //   float *output, float atoutput[A][A][V], float *bias,
 //   int _hOA_end, int _wOA_end
+template <typename InputType, typename WeightsType,
+     typename OutputType, typename BiasType, typename TarrayType, int V>
 template <bool ...conditions>
-inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 7, 3>::
-__trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
-    float *bias, int hOA_end, int wOA_end) {
+inline void convolution_winograd_kernel_base<InputType, WeightsType, OutputType,
+       BiasType, TarrayType, ISA_SKX_AVX512, V, 7, 3>::
+__trans_output(Instance_elx_conv_t &xc, OutputType *output, TarrayType atoutput[A][A][V],
+    BiasType *bias, int hOA_end, int wOA_end) {
   ENABLE_AVX512F();
   constexpr bool is_border = cd_traits<conditions...>::is_border;
   constexpr bool with_bias = cd_traits<conditions...>::with_bias;
@@ -163,9 +166,12 @@ __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
   AVX512_ADD_B(4)
 }
 
+template <typename InputType, typename WeightsType,
+     typename OutputType, typename BiasType, typename TarrayType, int V>
 template <bool ...conditions>
-inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 7, 3>::
-__trans_outputa_th(elx_conv_t<float> &xc, float *toutputa, float *toutput,
+inline void convolution_winograd_kernel_base<InputType, WeightsType, OutputType,
+     BiasType, TarrayType, ISA_SKX_AVX512, V, 7, 3>::
+__trans_outputa_th(Instance_elx_conv_t &xc, TarrayType *toutputa, TarrayType *toutput,
     int Tz, bool stream_out) {
   ENABLE_AVX512F();
 
@@ -251,10 +257,13 @@ __trans_outputa_th(elx_conv_t<float> &xc, float *toutputa, float *toutput,
   _mm<V>::store_ps(P(n,3), p3);                                      \
   _mm<V>::store_ps(P(n,4), p4);
 
+template <typename InputType, typename WeightsType,
+     typename OutputType, typename BiasType, typename TarrayType, int V>
 template <bool ...conditions>
-inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 7, 3>::
-__trans_outputa_bh(elx_conv_t<float> &xc, float *output,
-    float atoutput[A][A - K + 1][V], float *bias, int hOA_end, int wOA_end) {
+inline void convolution_winograd_kernel_base<InputType, WeightsType, OutputType,
+     BiasType, TarrayType, ISA_SKX_AVX512, V, 7, 3>::
+__trans_outputa_bh(Instance_elx_conv_t &xc, OutputType *output,
+    TarrayType atoutput[A][A - K + 1][V], BiasType *bias, int hOA_end, int wOA_end) {
   ENABLE_AVX512F();
   constexpr bool is_border = cd_traits<conditions...>::is_border;
   constexpr bool with_bias = cd_traits<conditions...>::with_bias;
@@ -264,13 +273,13 @@ __trans_outputa_bh(elx_conv_t<float> &xc, float *output,
   bool fuse_bias = with_bias && (bias != nullptr);
   bool fuse_relu = with_relu && (bias != nullptr);
 
-  alignas(64) float dummy[V];
+  alignas(64) OutputType dummy[V];
   auto p_cb = [&](int _h, int _w) {
     if (wOA_end == -1) {
-      MD3(float, aoutput, output, A - K + 1, A - K + 1, V);
+      MD3(OutputType, aoutput, output, A - K + 1, A - K + 1, V);
       return &md3(aoutput, _h, _w, 0);
     } else {
-      MD3(float, aoutput, output, xc.oh, xc.ow, V);
+      MD3(OutputType, aoutput, output, xc.oh, xc.ow, V);
       if (is_border && (_h > hOA_end || _w > wOA_end))
         return dummy;
       else

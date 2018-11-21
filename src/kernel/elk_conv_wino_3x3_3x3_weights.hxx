@@ -10,8 +10,11 @@
 
 namespace euler {
 
-inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 5, 3>::
-__trans_weights(float atweights[A][A][V][V], float aweights[K][K][V][V]) {
+template <typename InputType, typename WeightsType,
+     typename OutputType, typename BiasType, typename TarrayType, int V>
+ inline void convolution_winograd_kernel_base<InputType, WeightsType, OutputType,
+     BiasType, TarrayType, ISA_SKX_AVX512, V, 5, 3>::
+__trans_weights(TarrayType atweights[A][A][V][V], WeightsType aweights[K][K][V][V]) {
   // Constants
   __m<V> r12 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 12.0f));
   __m<V> r6 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 6.0f));
@@ -34,16 +37,19 @@ __trans_weights(float atweights[A][A][V][V], float aweights[K][K][V][V]) {
 #undef T
 #define F(h, w) aweights[h][w][_V]
 #define T(h, w) atweights[w][h][_V]
+
+#undef f
+#undef OP
+#define f(m, n) f##m##n
+#define OP(m,n)                                                   \
+  if(std::is_same<WeightsType, float>::value)                     \
+    f(m,n) = _mm<V>::load_ps(F(m, n));                            \
+  else {                                                          \
+    auto f16 = _mm<V>::load_si256((__m256i *)F(m, n));            \
+    f(m,n) = _mm<V>::cvtph_ps(f16);                               \
+  }
   for (int _V = 0; _V < V; ++_V) {
-    f00 = _mm<V>::load_ps(F(0, 0));
-    f01 = _mm<V>::load_ps(F(0, 1));
-    f02 = _mm<V>::load_ps(F(0, 2));
-    f10 = _mm<V>::load_ps(F(1, 0));
-    f11 = _mm<V>::load_ps(F(1, 1));
-    f12 = _mm<V>::load_ps(F(1, 2));
-    f20 = _mm<V>::load_ps(F(2, 0));
-    f21 = _mm<V>::load_ps(F(2, 1));
-    f22 = _mm<V>::load_ps(F(2, 2));
+    MATRIX_DEF(3, 3);
 
     c10 = MUL(r6, SUB(f01, ADD(f00, f02)));
     c11 = MUL(r6, SUB(f11, ADD(f10, f12)));

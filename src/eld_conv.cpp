@@ -9,8 +9,9 @@
 
 namespace euler {
 
-template <typename F>
-eld_conv_t<F>::eld_conv_t() {
+template<typename InputType, typename WeightsType,
+    typename OutputType, typename BiasType>
+eld_conv_t<InputType, WeightsType, OutputType, BiasType>::eld_conv_t() {
   pads      = {1, 1, 1, 1};
   strides   = {1, 1};
   dilations = {1, 1};
@@ -31,15 +32,17 @@ eld_conv_t<F>::eld_conv_t() {
   format_as_blocked = {false, false, false};
 }
 
-template <typename F>
-eld_conv_t<F>::~eld_conv_t() {
+template<typename InputType, typename WeightsType,
+    typename OutputType, typename BiasType>
+eld_conv_t<InputType, WeightsType, OutputType, BiasType>::~eld_conv_t() {
   if (xc != nullptr) {
     delete xc;
   }
 }
 
-template <typename F>
-int eld_conv_t<F>::setup() {
+template<typename InputType, typename WeightsType,
+    typename OutputType, typename BiasType>
+int eld_conv_t<InputType, WeightsType, OutputType, BiasType>::setup() {
   // Dimensions
   if (dims.input.c != dims.weights.i || dims.input.n != dims.output.n ||
       dims.output.c != dims.weights.o) {
@@ -79,10 +82,10 @@ int eld_conv_t<F>::setup() {
   sizes.output *= (formats.output == fmt_blocked_data) ? OC : oc;
   sizes.bias = (formats.output == fmt_blocked_data) ? OC : oc;
 
-  byte_sizes.input = sizeof(F) * sizes.input;
-  byte_sizes.weights = sizeof(F) * sizes.weights;
-  byte_sizes.output = sizeof(F) * sizes.output;
-  byte_sizes.bias = sizeof(F) * sizes.bias;
+  byte_sizes.input = sizeof(InputType) * sizes.input;
+  byte_sizes.weights = sizeof(WeightsType) * sizes.weights;
+  byte_sizes.output = sizeof(OutputType) * sizes.output;
+  byte_sizes.bias = sizeof(BiasType) * sizes.bias;
 
   // TODO: Check CPUID
   xc = nullptr;
@@ -118,7 +121,8 @@ int eld_conv_t<F>::setup() {
       el_error("Algorithm CONV_DIRECT_1X1 not supported for this shape.");
       return ELD_GENERAL_ERROR;
     }
-    xc = new elx_conv_direct_1x1_t<F, 16, ISA_SKX_AVX512>(*this);
+    xc = new elx_conv_direct_1x1_t<InputType, WeightsType, OutputType, BiasType,
+        float, 16, ISA_SKX_AVX512>(*this);
   } else if (algorithm == CONV_WINOGRAD) {
     // Winograd
     if (dilations.h > 1 || dilations.w > 1 ||
@@ -135,16 +139,20 @@ int eld_conv_t<F>::setup() {
       // TODO: forward, backward_data, backward_weights
       switch (tile_size) {
       case 4:
-        xc = new elx_conv_wino_t<F, 4, 3, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_wino_t<InputType, WeightsType, OutputType, BiasType,
+           float, 4, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       case 5:
-        xc = new elx_conv_wino_t<F, 5, 3, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_wino_t<InputType, WeightsType, OutputType, BiasType,
+           float, 5, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       case 6:
-        xc = new elx_conv_wino_t<F, 6, 3, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_wino_t<InputType, WeightsType, OutputType, BiasType,
+           float, 6, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       case 7:
-        xc = new elx_conv_wino_t<F, 7, 3, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_wino_t<InputType, WeightsType, OutputType, BiasType,
+           float, 7, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       default:
         el_error("Unimplemented tile size");
@@ -156,13 +164,16 @@ int eld_conv_t<F>::setup() {
   return ELD_OK;
 }
 
-template <typename F>
-void eld_conv_t<F>::preprocess(F *weights) {
+template<typename InputType, typename WeightsType,
+    typename OutputType, typename BiasType>
+void eld_conv_t<InputType, WeightsType, OutputType, BiasType>::
+    preprocess(WeightsType *weights) {
   this->xc->preprocess(weights);
 }
 
-template <typename F>
-void eld_conv_t<F>::clflush() {
+template<typename InputType, typename WeightsType,
+    typename OutputType, typename BiasType>
+void eld_conv_t<InputType, WeightsType, OutputType, BiasType>::clflush() {
   xc->clflush();
 }
 

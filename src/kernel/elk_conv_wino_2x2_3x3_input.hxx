@@ -13,52 +13,56 @@ namespace euler {
 // Params:
 //    elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
 //    int _hT_start, int _hT_end, int _wT_start, int _wT_end
-template <>
-class convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 4, 3> {
-  template<typename Type, int ...configs>
-    friend class convolution_winograd_kernel_base;
+template <typename InputType, typename WeightsType,
+     typename OutputType, typename BiasType, typename TarrayType, int v>
+class convolution_winograd_kernel_base<InputType, WeightsType, OutputType, BiasType,
+    TarrayType, ISA_SKX_AVX512, v, 4, 3> {
 protected:
   constexpr static int I = ISA_SKX_AVX512;
-  constexpr static int V = 16;
+  constexpr static int V = v;
   constexpr static int A = 4;
   constexpr static int K = 3;
 
   template <bool is_border> static inline
-  void __trans_input(elx_conv_t<float> &xc, float atinput[A][A][V],
-      float *input, int hT_start, int hT_end, int wT_start,
+  void __trans_input(Instance_elx_conv_t &xc, TarrayType atinput[A][A][V],
+      InputType *input, int hT_start, int hT_end, int wT_start,
       int wT_end);
 
   template <bool is_border>
-  static void __trans_inputa(elx_conv_t<float> &xc, float atinput[A][A][V],
-      float *input, int wA, int hA_start, int hA_end, int wA_start,
+  static void __trans_inputa(Instance_elx_conv_t &xc, TarrayType atinput[A][A][V],
+      InputType *input, int wA, int hA_start, int hA_end, int wA_start,
       int _wA_end);
 
   template <bool ...conditions>
-  static inline void __trans_output(elx_conv_t<float> &xc, float *output,
-      float atoutput[A][A][V], float *bias, int hOA_end, int wOA_end);
+  static inline void __trans_output(Instance_elx_conv_t &xc, OutputType *output,
+      TarrayType atoutput[A][A][V], BiasType *bias, int hOA_end, int wOA_end);
 
   template <bool ...conditions>
-  static inline void __trans_outputa_th(elx_conv_t<float> &xc, float *toutputa,
-      float *toutput, int Tz, bool stream_out);
+  static inline void __trans_outputa_th(Instance_elx_conv_t &xc, TarrayType *toutputa,
+      TarrayType *toutput, int Tz, bool stream_out);
 
   template <bool ...conditions>
-  static inline void __trans_outputa_bh(elx_conv_t<float> &xc, float *output,
-      float aoutputa[A][A - K + 1][V], float *bias, int hOA_end, int wOA_end);
+  static inline void __trans_outputa_bh(Instance_elx_conv_t &xc, OutputType *output,
+      TarrayType aoutputa[A][A - K + 1][V], BiasType *bias, int hOA_end, int wOA_end);
 
-  static inline void __trans_weights(float atweights[A][A][V][V],
-      float aweights[K][K][V][V]);
+  static inline void __trans_weights(TarrayType atweights[A][A][V][V],
+      WeightsType aweights[K][K][V][V]);
 };
 
 
+template <typename InputType, typename WeightsType,
+     typename OutputType, typename BiasType, typename TarrayType, int V>
 template <bool is_border>
-inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 4, 3>::__trans_input(
-    elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
-    int hT_start, int hT_end, int wT_start, int wT_end) {
+inline void convolution_winograd_kernel_base<
+    InputType, WeightsType, OutputType, BiasType, TarrayType,
+    ISA_SKX_AVX512, V, 4, 3>::__trans_input(
+      Instance_elx_conv_t &xc, TarrayType atinput[A][A][V], InputType *input,
+      int hT_start, int hT_end, int wT_start, int wT_end) {
   ENABLE_AVX512F();
 
   // Inputs
-    __m<V> f00, f01, f02, f03, f10, f11, f12, f13, f20, f21, f22, f23,
-           f30, f31, f32, f33;
+  __m<V> f00, f01, f02, f03, f10, f11, f12, f13, f20, f21, f22, f23,
+      f30, f31, f32, f33;
   // Cache
   __m<V> c1, c2;
   // Outputs
@@ -68,16 +72,25 @@ inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 4, 3>::_
   __m<V> z0 = _mm<V>::setzero_ps();
   auto f_cb = [&](int _h, int _w) {
     if (wT_end == -1) {
-      MD3(float, ainput, input, A, A, 16);
-      return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
+      MD3(InputType, ainput, input, A, A, V);
+      if (std::is_same<WeightsType, float>::value)
+        return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
+      else {
+        auto f16 = _mm<V>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
+        return _mm<V>::cvtph_ps(f16);
+      }
     } else {
-      MD3(float, ainput, input, xc.ih, xc.iw, 16);
+      MD3(InputType, ainput, input, xc.ih, xc.iw, V);
       if (is_border
           && (_h < hT_start || _w < wT_start || _h > hT_end
                  || _w > wT_end))
         return z0;
-      else
+      else if (std::is_same<InputType, float>::value)
         return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
+      else {
+        auto f16 = _mm<V>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
+        return _mm<V>::cvtph_ps(f16);
+      }
     }
   };
 
@@ -144,15 +157,18 @@ inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 4, 3>::_
 // Params:
 //   elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
 //   int _wA, int _hT_start, int _hT_end, int _wT_start, int _wT_end)
+template <typename InputType, typename WeightsType,
+     typename OutputType, typename BiasType, typename TarrayType, int V>
 template <bool is_border>
-inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, 16, 4, 3>::
+inline void convolution_winograd_kernel_base<InputType, WeightsType, OutputType,
+     BiasType, TarrayType, ISA_SKX_AVX512, V, 4, 3>::
 __trans_inputa(
-    elx_conv_t<float> &xc, float atinput[A][A][V], float *input, int wA,
+    Instance_elx_conv_t &xc, TarrayType atinput[A][A][V], InputType *input, int wA,
     int hT_start, int hT_end, int wT_start, int wT_end) {
   ENABLE_AVX512F();
   // Inputs
-    __m<V> f00, f01, f02, f03, f10, f11, f12, f13, f20, f21, f22, f23,
-           f30, f31, f32, f33;   
+ __m<V> f00, f01, f02, f03, f10, f11, f12, f13, f20, f21, f22, f23,
+      f30, f31, f32, f33;
  // Cache
   __m<V> c1, c2;
   // Outputs
@@ -162,16 +178,25 @@ __trans_inputa(
   __m<V> z0 = _mm<V>::setzero_ps();
   auto f_cb = [&](int _h, int _w) {
     if (wT_end == -1) {
-      MD3(float, ainput, input, A, A, 16);
-      return _mm<V>::load_ps(&md3(ainput,_h, _w, 0));
+      MD3(InputType, ainput, input, A, A, V);
+      if (std::is_same<InputType, float>::value)
+        return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
+      else {
+        auto f16 = _mm<V>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
+        return _mm<V>::cvtph_ps(f16);
+      }
     } else {
-      MD3(float, ainput, input, xc.ih, xc.iw, 16);
+      MD3(InputType, ainput, input, xc.ih, xc.iw, 16);
       if (is_border
           && (_h < hT_start || _w < wT_start || _h > hT_end
                  || _w > wT_end))
         return z0;
-      else
-        return _mm<V>::load_ps(&md3(ainput,_h, _w, 0));
+      else if (std::is_same<InputType, float>::value)
+        return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
+      else {
+        auto f16 = _mm<V>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
+        return _mm<V>::cvtph_ps(f16);
+      }
     }
   };
 

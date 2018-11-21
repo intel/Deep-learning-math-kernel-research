@@ -52,10 +52,13 @@ enum prop_kinds {
     backward_weights
 };
 
-template<typename T> struct elx_conv_t;
+template<typename InputType, typename WeightsType,
+    typename OutputType, typename BiasType>
+struct elx_conv_t;
 
 // Convolution desc
-template<typename T>
+template<typename InputType, typename WeightsType,
+    typename OutputType, typename BiasType>
 struct eld_conv_t {
     // Conv parameters
     struct {
@@ -105,7 +108,7 @@ struct eld_conv_t {
     eld_conv_t();
     ~eld_conv_t();
     int setup();
-    void preprocess(T *weights);
+    void preprocess(WeightsType *weights);
     void clflush();
 
     // Auto computed by setup()
@@ -113,14 +116,17 @@ struct eld_conv_t {
     struct { size_t input, weights, output, bias; } sizes;
 
     // Internal data used by elx
-    elx_conv_t<T> *xc;
+    elx_conv_t<InputType, WeightsType, OutputType, BiasType> *xc;
 };
 
-template struct eld_conv_t<float>;
+template struct eld_conv_t<float, float, float, float>;
+//template struct eld_conv_t<short>;
 
 // Convolution execution
-template<typename T>
-int elx_conv(eld_conv_t<T> &desc, T *output, T *input, T *weights, T *bias);
+template<typename InputType, typename WeightsType,
+    typename OutputType, typename BiasType>
+int elx_conv(eld_conv_t<InputType, WeightsType, OutputType, BiasType> &desc,
+    OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
 
 }
 

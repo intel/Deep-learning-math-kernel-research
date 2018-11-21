@@ -18,7 +18,7 @@ using ::testing::Values;
 using ::testing::Bool;
 using ::testing::Combine;
 
-template <typename Type, const int A, const int K, const int V, const int I>
+Template_elx_conv_wino_t
 void test_elk_trans_output(bool perf, bool show_diff, int execution_mode,
                            int input_format, int weights_format,
                            int output_format, bool with_bias, bool with_relu,
@@ -28,7 +28,7 @@ void test_elk_trans_output(bool perf, bool show_diff, int execution_mode,
   int ic = 64, ih = 224, iw = 224, oc = 64, oh = 224, ow = 224, kh = 3, kw = 3;
   int ph = 1, pw = 1;
 
-  eld_conv_t<Type> desc;
+  eld_conv_t<InputType, WeightsType, OutputType, BiasType> desc;
   desc.dims = {{mb, ic, ih, iw},
                {oc, ic, kh, kw},
                {mb, oc, oh, ow},
@@ -43,12 +43,12 @@ void test_elk_trans_output(bool perf, bool show_diff, int execution_mode,
   desc.tile_size = A;
   desc.with_relu = with_relu;
   desc.execution_mode = execution_mode;
-  elx_conv_wino_t<Type, A, K, V, I> xc(desc);
+  Instance_elx_conv_wino_t xc(desc);
 
-  alignas(64) Type atoutput[A][A][V];
-  alignas(64) Type abias[V];
-  alignas(64) Type aoutput[xc.oh][xc.ow][V];
-  alignas(64) Type ref_aoutput[xc.oh][xc.ow][V];
+  alignas(64) TarrayType atoutput[A][A][V];
+  alignas(64) BiasType abias[V];
+  alignas(64) OutputType aoutput[xc.oh][xc.ow][V];
+  alignas(64) OutputType ref_aoutput[xc.oh][xc.ow][V];
 
   for (int _hA = 0; _hA < A; ++_hA) {
     for (int _wA = 0; _wA < A; ++_wA) {
@@ -65,12 +65,13 @@ void test_elk_trans_output(bool perf, bool show_diff, int execution_mode,
   memset((void *)ref_aoutput, 0, sizeof(ref_aoutput));
 
   TT(elk_trans_output, iterations, perf,
-     (convolution_winograd_kernel<Type, I, V, A, K>::
-      template trans_output<false, true, false, false>(xc, (float *)&aoutput, atoutput, abias,
-                                     A - K, A - K)));
+     (Instance_convolution_winograd_kernel::
+      template trans_output<false, true, false, false>(xc,
+      (float *)&aoutput, atoutput, abias, A - K, A - K)));
 
   TT(elk_trans_input, iterations, perf,
-     (convolution_winograd_kernel<Type, ISA_GENERIC, V, A, K>::
+     (convolution_winograd_kernel<InputType, WeightsType, OutputType, BiasType,
+      TarrayType, ISA_GENERIC, V, A, K>::
       template trans_output<false, true, false, false>(
         xc, (float *)ref_aoutput, atoutput, abias, A - K, A - K)));
 
@@ -89,7 +90,7 @@ class elkTransOutputTest
 
 INSTANTIATE_TEST_CASE_P(elk_trans_output_test_common_params, elkTransOutputTest,
                         Combine(Values(4, 5, 6, 7), // tile-size
-                                Values(0xa061, 0xa000, 0xa010,
+                                Values(0xa061, 0xa000,
                                        0xa071, 0xa079,
                                        0xa0e0, 0xa0e1),   // execution-mode
                                 Values(nChw16c, nchw),    // input_format
@@ -115,26 +116,26 @@ TEST_P(elkTransOutputTest, combineTest) {
   int test_mb = ::testing::get<7>(GetParam());
   switch (test_tile_size) {
   case 4:
-    test_elk_trans_output<float, 4, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_output<float, float, float, float, float, 4, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);
     break;
 
   case 5:
-    test_elk_trans_output<float, 5, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_output<float, float, float, float, float, 5, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);
     break;
   case 6:
-//     test_elk_trans_output<float, 6, 3, 16, ISA_SKX_AVX512>(
+//     test_elk_trans_output<float, float, float, float, 6, 3, 16, ISA_SKX_AVX512>(
 //         test_perf, show_diff, test_execution_mode, test_input_format,
 //         test_weights_format, test_output_format, test_with_bias, test_with_relu,
 //         test_mb);
     break;
   case 7:
-    test_elk_trans_output<float, 7, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_output<float, float, float, float, float, 7, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);

@@ -16,11 +16,11 @@ using namespace euler;
 using ::testing::TestWithParam;
 using ::testing::Values;
 
-template <typename Type, const int A, const int K, const int V, const int I>
+Template_elx_conv_wino_t
 void test_elk_trans_weights(bool perf, bool show_diff) {
-  alignas(64) Type aweights[K][K][V][V];
-  alignas(64) Type atweights[A][A][V][V];
-  alignas(64) Type ref_atweights[A][A][V][V];
+  alignas(64) WeightsType aweights[K][K][V][V];
+  alignas(64) TarrayType atweights[A][A][V][V];
+  alignas(64) TarrayType ref_atweights[A][A][V][V];
 
   for (int _hK = 0; _hK < K; ++_hK) {
     for (int _wK = 0; _wK < K; ++_wK) {
@@ -34,13 +34,12 @@ void test_elk_trans_weights(bool perf, bool show_diff) {
 
   memset(atweights, 0, sizeof(atweights));
   TT(elk_trans_weights, iterations, perf,
-     (convolution_winograd_kernel<Type, I, V, A, K>::trans_weights(
-         atweights, aweights)));
+     (Instance_convolution_winograd_kernel::trans_weights(atweights, aweights)));
 
   memset(ref_atweights, 0, sizeof(ref_atweights));
   TT(ref_elk_trans_weights, iterations, perf,
-     (convolution_winograd_kernel<Type, ISA_GENERIC, V, A, K>::trans_weights(ref_atweights,
-                                                      aweights)));
+     (convolution_winograd_kernel<InputType, WeightsType, OutputType, BiasType,
+      TarrayType, ISA_GENERIC, V, A, K>::trans_weights(ref_atweights, aweights)));
 
   for (int _hK = 0; _hK < K; ++_hK) {
     for (int _wK = 0; _wK < K; ++_wK) {
@@ -69,21 +68,21 @@ TEST_P(elkTransWeightsTest, combineTest) {
   int test_tile_size = GetParam();
   switch (test_tile_size) {
   case 4:
-    test_elk_trans_weights<float, 4, 3, 16, ISA_SKX_AVX512>(test_perf,
-                                                            show_diff);
+    test_elk_trans_weights<float, float, float, float, float, 4, 3, 16, ISA_SKX_AVX512>(
+        test_perf, show_diff);
     break;
 
   case 5:
-    test_elk_trans_weights<float, 5, 3, 16, ISA_SKX_AVX512>(test_perf,
-                                                            show_diff);
+    test_elk_trans_weights<float, float, float, float, float, 5, 3, 16, ISA_SKX_AVX512>(
+        test_perf, show_diff);
     break;
   case 6:
 //     test_elk_trans_weights<float, 6, 3, 16, ISA_SKX_AVX512>(test_perf,
 //                                                             show_diff);
     break;
   case 7:
-    test_elk_trans_weights<float, 7, 3, 16, ISA_SKX_AVX512>(test_perf,
-                                                            show_diff);
+    test_elk_trans_weights<float, float, float, float, float, 7, 3, 16, ISA_SKX_AVX512>(
+        test_perf, show_diff);
     break;
   default:
     el_error("Unimplemented tile size");

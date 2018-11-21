@@ -7,16 +7,17 @@
 
 namespace euler {
 namespace test {
-  template <typename Type>
+  template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
   void prepare_conv_data(
-      eld_conv_t<Type> &, Type **, Type **, Type **, Type **, bool)
+      eld_conv_t<InputType, WeightsType, OutputType, BiasType> &,
+      InputType **, WeightsType **, OutputType **, BiasType **, bool)
   {
   }
 
   __thread unsigned int seed;
   template <>
-  void prepare_conv_data<float>(eld_conv_t<float> &desc, float **input,
-      float **weights, float **output, float **bias, bool reuse_inout)
+  void prepare_conv_data<float>(eld_conv_t<float, float, float, float> &desc,
+      float **input, float **weights, float **output, float **bias, bool reuse_inout)
   {
     seed = time(nullptr);
     size_t input_size = desc.byte_sizes.input;
@@ -85,20 +86,23 @@ namespace test {
       free(bias);
   }
 
-  template <typename Type>
-  int __compare_conv_results_plain(eld_conv_t<Type> &, Type *, Type *)
+  template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
+  int __compare_conv_results_plain(eld_conv_t<InputType, WeightsType, OutputType, BiasType> &,
+      OutputType *, OutputType *)
   {
     return -1;
   }
 
-  template <typename Type>
-  int __compare_conv_results_blocked(eld_conv_t<Type> &, Type *, Type *)
+  template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
+  int __compare_conv_results_blocked(eld_conv_t<InputType, WeightsType, OutputType, BiasType> &,
+      OutputType *, OutputType *)
   {
     return -1;
   }
 
-  template <typename Type>
-  int compare_conv_results(eld_conv_t<Type> &desc, Type *out, Type *ref)
+  template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
+  int compare_conv_results(eld_conv_t<InputType, WeightsType, OutputType, BiasType> &desc,
+      OutputType *out, OutputType *ref)
   {
     if (desc.formats.output == nchw)
       return __compare_conv_results_plain(desc, out, ref);
@@ -107,8 +111,8 @@ namespace test {
   }
 
   template <>
-  int __compare_conv_results_blocked<float>(
-      eld_conv_t<float> &desc, float *out, float *ref)
+  int __compare_conv_results_blocked<float, float, float, float>(
+      eld_conv_t<float, float, float, float> &desc, float *out, float *ref)
   {
     const int V = 16;
     auto dims = desc.dims.output;
@@ -169,8 +173,8 @@ namespace test {
   }
 
   template <>
-  int __compare_conv_results_plain<float>(
-      eld_conv_t<float> &desc, float *out, float *ref)
+  int __compare_conv_results_plain<float, float, float, float>(
+      eld_conv_t<float, float, float, float> &desc, float *out, float *ref)
   {
     auto dims = desc.dims.output;
     MD4(float, aout, out, dims.n, dims.c, dims.h, dims.w);
@@ -224,7 +228,7 @@ namespace test {
   }
 
 
-  size_t cal_ops(eld_conv_t<float> &desc)
+  size_t cal_ops(eld_conv_t<float, float, float, float> &desc)
   {
     size_t num_ops = 0;
 
@@ -375,9 +379,10 @@ namespace test {
     }
   }
 
-  template <typename Type>
-  int ref_convolution2d(eld_conv_t<Type> &desc, Type *output, Type *input,
-      Type *weights, Type *bias)
+  template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
+  int ref_convolution2d(eld_conv_t<InputType, WeightsType, OutputType, BiasType> &desc,
+      OutputType *output, InputType *input,
+      WeightsType *weights, BiasType *bias)
   {
     int n = desc.dims.input.n;
     int ic = desc.dims.input.c;
@@ -403,24 +408,24 @@ namespace test {
       return -1;
     }
 
-    Type *tinput = nullptr, *tweights = nullptr, *toutput = nullptr;
+    InputType *tinput = nullptr, *tweights = nullptr, *toutput = nullptr;
     if (desc.formats.input == nChw16c) {
-      tinput = (Type *)malloc(desc.byte_sizes.input);
-      reorder<Type, nchw, nChw16c>(tinput, input, n, ic, ih, iw);
+      tinput = (InputType *)malloc(desc.byte_sizes.input);
+      reorder<InputType, nchw, nChw16c>(tinput, input, n, ic, ih, iw);
     }
     if (desc.formats.weights == OIhw16i16o) {
-      tweights = (Type *)malloc(desc.byte_sizes.weights);
-      reorder<Type, oihw, OIhw16i16o>(tweights, weights, oc, ic, kh, kw);
+      tweights = (WeightsType *)malloc(desc.byte_sizes.weights);
+      reorder<WeightsType, oihw, OIhw16i16o>(tweights, weights, oc, ic, kh, kw);
     }
 
     if (desc.formats.output == nChw16c) {
-      toutput = (Type *)malloc(desc.byte_sizes.output);
-      reorder<Type, nchw, nChw16c>(toutput, output, n, oc, oh, ow);
+      toutput = (OutputType *)malloc(desc.byte_sizes.output);
+      reorder<OutputType, nchw, nChw16c>(toutput, output, n, oc, oh, ow);
     }
 
-    MD4(Type, ainput, desc.formats.input == nchw ? input : tinput, n, ic, ih, iw);
-    MD4(Type, aweights, desc.formats.weights == oihw ? weights : tweights, oc, ic, kh, kw);
-    MD4(Type, atoutput, desc.formats.output == nchw ? output : toutput, n, oc, oh, ow);
+    MD4(InputType, ainput, desc.formats.input == nchw ? input : tinput, n, ic, ih, iw);
+    MD4(WeightsType, aweights, desc.formats.weights == oihw ? weights : tweights, oc, ic, kh, kw);
+    MD4(OutputType, atoutput, desc.formats.output == nchw ? output : toutput, n, oc, oh, ow);
 
 #pragma omp parallel for collapse(4)
     iter_each (_n, n) {
@@ -456,7 +461,7 @@ namespace test {
     }
 
     if (desc.formats.output == nChw16c) {
-      reorder<Type, nChw16c, nchw>(output, toutput, n, oc, oh, ow);
+      reorder<OutputType, nChw16c, nchw>(output, toutput, n, oc, oh, ow);
     }
 
     if (tinput != nullptr)
@@ -469,9 +474,9 @@ namespace test {
     return 0;
   }
 
-  template <typename Type>
-  int ref_convolution2d_block16(eld_conv_t<Type> &desc, Type *output,
-      Type *input, Type *weights, Type *bias)
+  template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
+  int ref_convolution2d_block16(eld_conv_t<InputType, WeightsType, OutputType, BiasType> &desc,
+      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
   {
     int n = desc.dims.input.n;
     int IC = ALIGNUP(desc.dims.input.c, 16) / 16;
@@ -489,9 +494,9 @@ namespace test {
     int dh = desc.dilations.h;
     int dw = desc.dilations.w;
 
-    MD5(Type, ainput, input, n, IC, ih, iw, 16);
-    MD6(Type, aweights, weights, OC, IC, kh, kw, 16, 16);
-    MD5(Type, aoutput, output, n, OC, oh, ow, 16);
+    MD5(InputType, ainput, input, n, IC, ih, iw, 16);
+    MD6(WeightsType, aweights, weights, OC, IC, kh, kw, 16, 16);
+    MD5(OutputType, aoutput, output, n, OC, oh, ow, 16);
 
     if (desc.dims.input.n != desc.dims.output.n
         || desc.dims.input.c != desc.dims.weights.i
@@ -553,14 +558,14 @@ namespace test {
     return 0;
   }
 
-  template <typename Type>
-  void flush_all_memory(eld_conv_t<Type> &desc, Type *input, Type *weights,
-      Type *output, Type *bias)
+  template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
+  void flush_all_memory(eld_conv_t<InputType, WeightsType, OutputType, BiasType> &desc,
+      InputType *input, WeightsType *weights, OutputType *output, BiasType *bias)
   {}
 
   template <>
-  void flush_all_memory<float>(eld_conv_t<float> &desc, float *input,
-      float *weights, float *output, float *bias)
+  void flush_all_memory<float>(eld_conv_t<float, float, float, float> &desc,
+      float *input, float *weights, float *output, float *bias)
   {
 #define CACHE_LINE_SIZE 64
     constexpr auto step = CACHE_LINE_SIZE;
@@ -581,14 +586,14 @@ namespace test {
       _mm_clflush(p);
   }
 
-  template int compare_conv_results<float>(
-      eld_conv_t<float> &, float *, float *);
+  template int compare_conv_results<float, float, float, float>(
+      eld_conv_t<float, float, float, float> &, float *, float *);
 
-  template int ref_convolution2d<float>(
-      eld_conv_t<float> &, float *, float *, float *, float *);
+  template int ref_convolution2d<float, float, float, float>(
+      eld_conv_t<float, float, float, float> &, float *, float *, float *, float *);
 
-  template int ref_convolution2d_block16<float>(
-      eld_conv_t<float> &, float *, float *, float *, float *);
+  template int ref_convolution2d_block16<float, float, float, float>(
+      eld_conv_t<float, float, float, float> &, float *, float *, float *, float *);
 
 }
 }

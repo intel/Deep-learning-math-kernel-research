@@ -39,21 +39,22 @@ namespace euler {
 // tweights:     oc4 | oc3, ic3, A, A, O2, I2, V, V
 // tinputs:  t2      | A, A, ic3, I2, T, V
 // toutput:  t2, oc4 | A, A, oc3, O2, T, V
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__execute_a061(
-    Type * __restrict output, Type * __restrict input,
-    Type * __restrict weights, Type * __restrict bias)
+
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__execute_a061(
+    OutputType * __restrict output, InputType * __restrict input,
+    WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(Type, atinput2, tinput_, mthr_,
+  MD2(TarrayType, atinput2, tinput_, mthr_,
       A * A * this->T * this->IC);
-  MD2(Type, atoutput2, toutput_, mthr_,
+  MD2(TarrayType, atoutput2, toutput_, mthr_,
       A * A * this->T * this->oc3 * this->O2 * V);
-  MD2(Type, atweights2, tweights_, this->oc4,
+  MD2(TarrayType, atweights2, tweights_, this->oc4,
       A * A * this->IC * this->oc3 * this->O2 * V);
 
-  MD3(Type, aoutput, output, this->n, this->oc4,
+  MD3(OutputType, aoutput, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
-  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
@@ -88,22 +89,22 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a061(
 // tinputa:  t2,      wA | hA, ic3, I2, T, V
 // toutput:  t2, oc4, wA | hA, oc3, O2, T, V
 // toutputa: t2, oc4, oc3, O2, T, wA, hA, V
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__execute_a0e1(
-    Type * __restrict output, Type * __restrict input,
-    Type * __restrict weights, Type * __restrict bias)
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__execute_a0e1(
+    OutputType * __restrict output, InputType * __restrict input,
+    WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(Type, atinputa2, tinput_, mthr_,
+  MD2(TarrayType, atinputa2, tinput_, mthr_,
       A * this->T * this->IC);
-  MD2(Type, atoutput2, toutput_, mthr_,
+  MD2(TarrayType, atoutput2, toutput_, mthr_,
       A * this->T * this->oc3 * this->O2 * V);
-  MD2(Type, atoutputa2, toutputa_, this->t2,
+  MD2(TarrayType, atoutputa2, toutputa_, this->t2,
       this->OC * A * (A - K + 1) * this->T);
-  MD3(Type, atweights3, tweights_, this->oc4, A,
+  MD3(TarrayType, atweights3, tweights_, this->oc4, A,
       A * this->IC * this->oc3 * this->O2 * V);
-  MD3(Type, aoutput, output, this->n, this->oc4,
+  MD3(OutputType, aoutput, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
-  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
@@ -118,7 +119,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a0e1(
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       size_t ithr = omp_get_thread_num();
 
-      MD6(Type, atoutputa6, &md2(atoutputa2, _t2, 0),
+      MD6(TarrayType, atoutputa6, &md2(atoutputa2, _t2, 0),
           this->oc4, this->oc3, this->O2, Tz, A, (A - K + 1) * V);
       trans_inputa(&md2(atinputa2, ithr, 0), input, _t2, _wA, Tz);
       gemma(&md2(atoutput2, ithr, 0), &md2(atinputa2, ithr, 0),
@@ -137,22 +138,22 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a0e1(
 // tinputa:  t2,      wA | hA, ic3, I2, T, V
 // toutput:  t2, oc4, wA | hA, oc3, O2, T, V
 // toutputa: t2, oc4, oc3, O2, T, wA, hA, V
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__execute_a0e0(
-    Type * __restrict output, Type * __restrict input,
-    Type * __restrict weights, Type * __restrict bias)
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__execute_a0e0(
+    OutputType * __restrict output, InputType * __restrict input,
+    WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(Type, atinput2, tinput_, this->t2,
+  MD2(TarrayType, atinput2, tinput_, this->t2,
       A * A * this->T * this->IC);
-  MD2(Type, atoutput2, toutput_, mthr_,
+  MD2(TarrayType, atoutput2, toutput_, mthr_,
       A * this->T * this->oc3 * this->O2 * V);
-  MD2(Type, atoutputa2, toutputa_, this->t2,
+  MD2(TarrayType, atoutputa2, toutputa_, this->t2,
       this->OC * A * (A - K + 1) * this->T);
-  MD3(Type, atweights3, tweights_, this->oc4, A,
+  MD3(TarrayType, atweights3, tweights_, this->oc4, A,
       A * this->IC * this->oc3 * this->O2 * V);
-  MD3(Type, aoutput, output, this->n, this->oc4,
+  MD3(OutputType, aoutput, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
-  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
@@ -169,9 +170,9 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a0e0(
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       size_t ithr = omp_get_thread_num();
 
-      MD6(Type, atoutputa6, &md2(atoutputa2, _t2, 0),
+      MD6(TarrayType, atoutputa6, &md2(atoutputa2, _t2, 0),
           this->oc4, this->oc3, this->O2, Tz, A, (A - K + 1) * V);
-      MD2(Type, atinputa2, &md2(atinput2, _t2, 0), A, A * Tz * this->IC);
+      MD2(TarrayType, atinputa2, &md2(atinput2, _t2, 0), A, A * Tz * this->IC);
       gemma(&md2(atoutput2, ithr, 0), &md2(atinputa2, _wA, 0),
           &md3(atweights3, _oc4, _wA, 0), _t2, Tz);
       trans_outputa_th(&md6(atoutputa6, _oc4, 0, 0, 0, _wA, 0),
@@ -187,23 +188,23 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a0e0(
 // tweights:     oc4, ic4 | oc3, ic3, A, A, O2, I2, V, V
 // tinputs:  t2,      ic4 | A, A, ic3, I2, T, V
 // toutput:  t2, oc4      | A, A, oc3, O2, T, V
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__execute_a071(
-    Type * __restrict output, Type * __restrict input,
-    Type * __restrict weights, Type * __restrict bias)
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__execute_a071(
+    OutputType * __restrict output, InputType * __restrict input,
+    WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(Type, atinput2, tinput_, mthr_,
+  MD2(TarrayType, atinput2, tinput_, mthr_,
       A * A * this->T * this->ic3 * this->I2 * V);
-  MD2(Type, atoutput2, toutput_, this->t2,
+  MD2(TarrayType, atoutput2, toutput_, this->t2,
       this->oc4 * A * A * this->T * this->oc3 * this->O2 * V);
-  MD3(Type, atweights3, tweights_, this->oc4, this->ic4,
+  MD3(TarrayType, atweights3, tweights_, this->oc4, this->ic4,
       A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
 
-  MD3(Type, ainput, input, this->n, this->ic4,
+  MD3(InputType, ainput, input, this->n, this->ic4,
       this->ih * this->iw * this->ic3 * this->I2 * V);
-  MD3(Type, aoutput, output, this->n, this->oc4,
+  MD3(OutputType, aoutput, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
-  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   if (is_first_run_) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
@@ -218,7 +219,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a071(
     iter_each(_oc4, this->oc4) {
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       size_t ithr = omp_get_thread_num();
-      MD2(Type, atoutput3, &md2(atoutput2, _t2, 0),
+      MD2(TarrayType, atoutput3, &md2(atoutput2, _t2, 0),
           this->oc4, A * A * Tz * this->oc3 * this->O2 * V);
 
       if (last_ic4 != _ic4 || last_t2 != _t2) {
@@ -239,23 +240,23 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a071(
     is_first_run_ = false;
 }
 
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__execute_a073(
-    Type * __restrict output, Type * __restrict input,
-    Type * __restrict weights, Type * __restrict bias)
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__execute_a073(
+    OutputType * __restrict output, InputType * __restrict input,
+    WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(Type, atinput2, tinput_, mthr_,
+  MD2(TarrayType, atinput2, tinput_, mthr_,
       A * A * this->T * this->ic3 * this->I2 * V);
-  MD2(Type, atoutput2, toutput_, mthr_,
+  MD2(TarrayType, atoutput2, toutput_, mthr_,
       A * A * this->T * this->oc3 * this->O2 * V);
-  MD3(Type, atweights3, tweights_, this->oc4, this->ic4,
+  MD3(TarrayType, atweights3, tweights_, this->oc4, this->ic4,
       A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
 
-  MD3(Type, ainput, input, this->n, this->ic4,
+  MD3(InputType, ainput, input, this->n, this->ic4,
       this->ih * this->iw * this->ic3 * this->I2 * V);
-  MD3(Type, aoutput, output, this->n, this->oc4,
+  MD3(OutputType, aoutput, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
-  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   if (is_first_run_) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
@@ -288,23 +289,23 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a073(
     is_first_run_ = false;
 }
 
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__execute_a07b(
-    Type * __restrict output, Type * __restrict input,
-    Type * __restrict weights, Type * __restrict bias)
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__execute_a07b(
+    OutputType * __restrict output, InputType * __restrict input,
+    WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(Type, atinput2, tinput_, mthr_,
+  MD2(TarrayType, atinput2, tinput_, mthr_,
       A * A * this->T * this->ic3 * this->I2 * V);
-  MD2(Type, atoutput2, toutput_, mthr_,
+  MD2(TarrayType, atoutput2, toutput_, mthr_,
       A * A * this->T * this->oc3 * this->O2 * V);
-  MD2(Type, atweights2, tweights_, mthr_,
+  MD2(TarrayType, atweights2, tweights_, mthr_,
       A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
 
-  MD3(Type, ainput, input, this->n, this->ic4,
+  MD3(InputType, ainput, input, this->n, this->ic4,
       this->ih * this->iw * this->ic3 * this->I2 * V);
-  MD3(Type, aoutput, output, this->n, this->oc4,
+  MD3(OutputType, aoutput, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
-  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   int last_ic4 = -1, last_t2 = -1, last_oc4 = -1;
 #pragma omp parallel num_threads(mthr_) proc_bind(close) firstprivate(last_t2, last_ic4, last_oc4)
@@ -331,23 +332,23 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a07b(
   }
 }
 
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__execute_a079(
-    Type * __restrict output, Type * __restrict input,
-    Type * __restrict weights, Type * __restrict bias)
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__execute_a079(
+    OutputType * __restrict output, InputType * __restrict input,
+    WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(Type, atinput2, tinput_, mthr_,
+  MD2(TarrayType, atinput2, tinput_, mthr_,
       A * A * this->T * this->ic3 * this->I2 * V);
-  MD2(Type, atoutput2, toutput_, this->t2,
+  MD2(TarrayType, atoutput2, toutput_, this->t2,
       this->oc4 * A * A * this->T * this->oc3 * this->O2 * V);
-  MD2(Type, atweights2, tweights_, mthr_,
+  MD2(TarrayType, atweights2, tweights_, mthr_,
       A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
 
-  MD3(Type, ainput, input, this->n, this->ic4,
+  MD3(InputType, ainput, input, this->n, this->ic4,
       this->ih * this->iw * this->ic3 * this->I2 * V);
-  MD3(Type, aoutput, output, this->n, this->oc4,
+  MD3(OutputType, aoutput, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
-  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   int last_ic4 = -1, last_t2 = -1, last_oc4 = -1;
 #pragma omp parallel num_threads(mthr_) proc_bind(close) firstprivate(last_t2, last_ic4, last_oc4)
@@ -357,7 +358,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a079(
     iter_each(_t2, this->t2) {
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       size_t ithr = omp_get_thread_num();
-      MD2(Type, atoutput3, &md2(atoutput2, _t2, 0),
+      MD2(TarrayType, atoutput3, &md2(atoutput2, _t2, 0),
           this->oc4, A * A * Tz * this->oc3 * this->O2 * V);
 
       if (last_ic4 != _ic4 || last_oc4 != _oc4) {
@@ -378,10 +379,10 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a079(
 }
 
 // Flat mode
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__execute_a000(
-    Type * __restrict output, Type * __restrict input,
-    Type * __restrict weights, Type * __restrict bias)
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__execute_a000(
+    OutputType * __restrict output, InputType * __restrict input,
+    WeightsType * __restrict weights, BiasType * __restrict bias)
 {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
@@ -396,18 +397,18 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a000(
   if (inference_acc_) is_first_run_ = false;
 }
 
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__execute_a033(
-    Type * __restrict output, Type * __restrict input,
-    Type * __restrict weights, Type * __restrict bias)
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__execute_a033(
+    OutputType * __restrict output, InputType * __restrict input,
+    WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD3(Type, ainput, input, this->n, this->ic4,
+  MD3(InputType, ainput, input, this->n, this->ic4,
       this->ih * this->iw * this->ic3 * this->I2 * V);
-  MD3(Type, atweights, tweights_, this->oc4, this->ic4,
+  MD3(TarrayType, atweights, tweights_, this->oc4, this->ic4,
       A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
-  MD3(Type, aoutput, output, this->n, this->oc4,
+  MD3(OutputType, aoutput, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
-  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   if (is_first_run_) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
@@ -434,29 +435,29 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a033(
     is_first_run_ = false;
 }
 
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::__execute_a161(
-    Type * __restrict output, Type * __restrict input,
-    Type * __restrict weights, Type * __restrict bias)
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__execute_a161(
+    OutputType * __restrict output, InputType * __restrict input,
+    WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(Type, atinput2, tinput_, mthr_, A * A * this->IC);
-  MD2(Type, atoutput2, toutput_, mthr_,
+  MD2(TarrayType, atinput2, tinput_, mthr_, A * A * this->IC);
+  MD2(TarrayType, atoutput2, toutput_, mthr_,
       A * A * this->T * this->oc3 * this->O2 * V);
-  MD2(Type, atweights2, tweights_, this->oc4,
+  MD2(TarrayType, atweights2, tweights_, this->oc4,
       A * A * this->IC * this->oc3 * this->O2 * V);
 
-  MD3(Type, aoutput, output, this->n, this->oc4,
+  MD3(OutputType, aoutput, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
-  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   MD2(uint8_t, atinput2_u8, tinput_u8_, mthr_,
       A * A * this->T * this->IC);
   MD2(int8_t, atweights_s8, tweights_s8_, this->oc4,
       A * A * this->IC * this->oc3 * this->O2 * V);
-  MD2(Type, atinput_qt_scale, tinput_qt_scale_, this->t2, this->A * this->A * this->T);
-  MD2(Type, atweights_qt_scale, tweights_qt_scale_,
+  MD2(TarrayType, atinput_qt_scale, tinput_qt_scale_, this->t2, this->A * this->A * this->T);
+  MD2(TarrayType, atweights_qt_scale, tweights_qt_scale_,
       this->oc4, this->oc3 * this->O2 * V * A * A);
-  MD2(Type, aweights_factor, tweights_factor_,
+  MD2(TarrayType, aweights_factor, tweights_factor_,
       this->oc4, A * A * this->oc3 * this->O2 * V);
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
@@ -468,7 +469,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a161(
     }
 
     auto t2_history = -1;
-    Type tinput_qt_scale = 0;
+    TarrayType tinput_qt_scale = 0;
 
 #pragma omp for nowait collapse(2)
     iter_each (_t2, this->t2) {
@@ -493,21 +494,21 @@ void elx_conv_wino_t<Type, A, K, V, I>::__execute_a161(
     is_first_run_ = false;
 }
 
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::execute(
-    Type * __restrict output, Type * __restrict input,
-    Type * __restrict weights, Type * __restrict bias)
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::execute(
+    OutputType * __restrict output, InputType * __restrict input,
+    WeightsType * __restrict weights, BiasType * __restrict bias)
 {
   if (is_bfmt_)
     return (this->*execute_opt_)(output, input, weights, bias);
   else {
-    Type *in = input;
-    Type *wei = weights;
-    Type *out = output_as_bfmt_ ? boutput_ : output;
+    InputType *in = input;
+    WeightsType *wei = weights;
+    OutputType *out = output_as_bfmt_ ? boutput_ : output;
 
     if (input_as_bfmt_) {
-      MD5(Type, abinput, binput_, this->n, this->ic2, this->ih, this->iw, V);
-      MD4(Type, ainput, input, this->n, this->ic, this->ih, this->iw);
+      MD5(InputType, abinput, binput_, this->n, this->ic2, this->ih, this->iw, V);
+      MD4(InputType, ainput, input, this->n, this->ic, this->ih, this->iw);
 
 #pragma omp parallel for collapse(3)
       iter_each (_n, this->n) {
@@ -525,9 +526,9 @@ void elx_conv_wino_t<Type, A, K, V, I>::execute(
     }
 
     if (weights_as_bfmt_) {
-      MD6(Type, abweights, bweights_, this->oc2, this->ic2,
+      MD6(WeightsType, abweights, bweights_, this->oc2, this->ic2,
           this->kh, this->kw, V, V);
-      MD4(Type, aweights, weights, this->oc, this->ic, this->kh, this->kw);
+      MD4(WeightsType, aweights, weights, this->oc, this->ic, this->kh, this->kw);
 
 #pragma omp parallel for collapse(3)
       iter_each (_oc2, this->oc2) {
@@ -551,8 +552,8 @@ void elx_conv_wino_t<Type, A, K, V, I>::execute(
     (this->*execute_opt_)(out, in, wei, bias);
 
     if (output_as_bfmt_) {
-      MD5(Type, aboutput, boutput_, this->n, this->oc2, this->oh, this->ow, V);
-      MD4(Type, aoutput, output, this->n, this->oc, this->oh, this->ow);
+      MD5(OutputType, aboutput, boutput_, this->n, this->oc2, this->oh, this->ow, V);
+      MD4(OutputType, aoutput, output, this->n, this->oc, this->oh, this->ow);
 
 #pragma omp parallel for collapse(3)
       iter_each (_n, this->n) {

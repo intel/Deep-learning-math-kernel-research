@@ -3,8 +3,8 @@
 #include "elk_conv_wino.hpp"
 
 namespace euler {
-template <typename Type, int ...configs> 
-class convolution_winograd_kernel_base<Type, ISA_COSIM_AVX512, configs...> :
+template <typename Type, typename Ktype, int ...configs>
+class convolution_winograd_kernel_base<Type, Ktype, ISA_COSIM_AVX512, configs...> :
   public cosim_base<Type> {
 protected:
     constexpr static int configs_[] {configs...};
@@ -13,9 +13,9 @@ protected:
     constexpr static int A = configs_[1];
     constexpr static int K = configs_[2];
     using target =
-      convolution_winograd_kernel_base<Type, ISA_SKX_AVX512, V, A, K>;
+      convolution_winograd_kernel_base<Type, Ktype, ISA_SKX_AVX512, V, A, K>;
     using cosim =
-      convolution_winograd_kernel_base<Type, ISA_GENERIC, V, A, K>;
+      convolution_winograd_kernel_base<Type, Ktype, ISA_GENERIC, V, A, K>;
 
   template <bool is_border> static inline
   void __trans_input(elx_conv_t<float> &xc, float atinput[A][A][V],

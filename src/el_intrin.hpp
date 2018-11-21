@@ -170,6 +170,18 @@ template <> struct _mm<16> {
   static inline __m128i cvtusepi32_epi8(__i<V> m) noexcept {
     return _mm512_cvtusepi32_epi8(m);
   }
+  static inline __m256i cvtps_ph(__m<V> a, int rounding) noexcept {
+    return _mm512_cvtps_ph(a, rounding);
+  }
+  static inline __m<V> cvtph_ps(__m256i a) noexcept {
+    return _mm512_cvtph_ps(a);
+  }
+  static inline __m256i load_si256(__m256i const *a) noexcept {
+    return _mm256_load_si256(a);
+  }
+  static inline void store_si256(__m256i *a, __m256i b) noexcept {
+    return _mm256_store_si256(a, b);
+  }
   static inline __m<V> roundscale_ps(__m<V> m, int imm8) noexcept {
     return _mm512_roundscale_ps(m, imm8);
   }
@@ -303,8 +315,9 @@ template <> struct _mm<8> {
   static inline __i<V> cvtps_epu32(__m<V> m) noexcept {
     return _mm256_cvtps_epu32(m);
   }
+  // depends on rounding mode
   static inline __i<V> cvt_roundps_epu32(__m<V> m, int imm8) noexcept {
-    return _mm256_cvt_roundps_epu32(m, imm8);
+    return _mm256_cvtps_epu32(m);
   }
   static inline __m128i cvtusepi32_epi8(__i<V> m) noexcept {
     return _mm256_cvtusepi32_epi8(m);

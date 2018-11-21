@@ -10,21 +10,24 @@
 
 namespace euler {
 
-template <typename Type, const int V, const int I>
-void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
+Template_elx_conv_direct_1x1_t
+void Instance_elx_conv_direct_1x1_t::bind_execute_functions()
 {
 #define BIND_KERNEL_2(S, F)                                                    \
   if (has_Ir) {                                                                \
-    gemm_kernel_binder::bind<float, float, V, 1, I, S, F, true>(O, T, func);   \
+    gemm_kernel_binder::bind<Instance_elx_conv_t, float, float, V, 1, I, S, F, \
+      true>(O, T, func);                                                       \
   } else {                                                                     \
-    gemm_kernel_binder::bind<float, float, V, 1, I, S, F, false>(O, T, func);  \
+    gemm_kernel_binder::bind<Instance_elx_conv_t, float, float, V, 1, I, S, F, \
+      false>(O, T, func);                                                      \
   }
 
 #define BIND_KERNEL_1(S, F)                                                    \
-  gemm_kernel_binder::bind<float, float, V, 1, I, S, F, false>(O, T, func);
+  gemm_kernel_binder::bind<Instance_elx_conv_t, float, float, V, 1, I, S, F,   \
+    false>(O, T, func);
 
   auto bind_kernel = [&](int O, int T,
-      gemm_kernel_binder::ker<float, float> **func, bool has_Ir) {
+      gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> **func, bool has_Ir) {
     switch (xopt_) {
     case (0xa061):
       BIND_KERNEL_2(1, GKF_CCC)
@@ -65,7 +68,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::bind_execute_functions()
 #define EXECUTE_CASE(n)                                                     \
   case 0x##n:                                                               \
     printf("execute_opt=" #n "\n");                                         \
-    execute_opt_ = &elx_conv_direct_1x1_t<Type, V, I>::__execute_##n;       \
+    execute_opt_ = &Instance_elx_conv_direct_1x1_t::__execute_##n;          \
     break
 
   switch (xopt_) {

@@ -36,18 +36,18 @@
 //
 namespace euler {
 
-template <typename Type, const int V, const int I>
-void elx_conv_direct_1x1_t<Type, V, I>::__execute_c060(
-    Type *output, Type *input, Type *weights, Type *bias)
+Template_elx_conv_direct_1x1_t
+void Instance_elx_conv_direct_1x1_t::__execute_c060(
+    OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   // weights: oc4*, oc3, O2(O2r), ic4*, ic3, I2, V, V
   // input:   t3*, ic4*, ic3, I2, t2*, T(Tr), V
   // output:  t3*, oc4*, oc3, O2(O2r), t2*, T(Tr), V
-  MD2(Type, aweights, weights, this->oc4, this->oc3 * this->O2 * this->IC * V);
-  MD3(Type, ainput, input, this->t3, this->ic4,
+  MD2(WeightsType, aweights, weights, this->oc4, this->oc3 * this->O2 * this->IC * V);
+  MD3(InputType, ainput, input, this->t3, this->ic4,
       this->ic3 * this->I2 * this->ih * this->iw * V);
-  MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
-  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   iter_each (_ic4, this->ic4) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
@@ -55,7 +55,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_c060(
     iter_each (_t3, this->t3) {
     iter_each (_oc4, this->oc4) {
     iter_each (_t2, this->t2) {
-      MD2(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
+      MD2(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
           this->oc3 * this->O2 * this->oh * this->ow * V);
       gemm_c060(&md2(aoutput2, _oc4, 0), &md3(ainput, _t3, _ic4, 0),
           &md2(aweights, _oc4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _t2);
@@ -63,18 +63,18 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_c060(
   }
 }
 
-template <typename Type, const int V, const int I>
-void elx_conv_direct_1x1_t<Type, V, I>::__execute_d060(
-    Type *output, Type *input, Type *weights, Type *bias)
+Template_elx_conv_direct_1x1_t
+void Instance_elx_conv_direct_1x1_t::__execute_d060(
+    OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   // weights: oc4*, oc3, O2(O2r), ic4*, ic3, I2, V, V
   // input:   t3*, ic4*, ic3, I2, ht*, S, wt*, T, S, V
   // output:  t3*, oc4*, oc3, O2(O2r), ht*wt*, T, V
-  MD2(Type, aweights, weights, this->oc4, this->oc3 * this->O2 * this->IC * V);
-  MD7(Type, ainput, input, this->t3, this->ic4, this->ic3 * this->I2,
+  MD2(WeightsType, aweights, weights, this->oc4, this->oc3 * this->O2 * this->IC * V);
+  MD7(InputType, ainput, input, this->t3, this->ic4, this->ic3 * this->I2,
       this->ht, this->hs, this->wt, this->T * this->ws * V);
-  MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
-  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   iter_each (_ic4, this->ic4) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
@@ -83,7 +83,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_d060(
     iter_each (_oc4, this->oc4) {
     iter_each (_ht, this->ht) {
     iter_each (_wt, this->wt) {
-      MD5(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
+      MD5(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
           this->oc3 * this->O2, this->ht, this->wt, this->T * V);
       gemm_d060(&md5(aoutput2, _oc4, 0, _ht, _wt, 0),
           &md7(ainput, _t3, _ic4, 0, _ht, 0, _wt, 0),
@@ -93,20 +93,20 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_d060(
   }
 }
 
-template <typename Type, const int V, const int I>
-void elx_conv_direct_1x1_t<Type, V, I>::__execute_e060(
-    Type *output, Type *input, Type *weights, Type *bias)
+Template_elx_conv_direct_1x1_t
+void Instance_elx_conv_direct_1x1_t::__execute_e060(
+    OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   // weights: oc4*, oc3, O2, ic4*, ic3, I2, V, V
   // input:   t3*, ic4*, ic3, I2, ht*, S, wt*, S, T, V
   // output:  t3*, oc4*, oc3, O2, ht*, wt*, T, V
-  MD7(Type, ainput, input, this->t3, this->ic4, this->ic3 * this->I2,
+  MD7(InputType, ainput, input, this->t3, this->ic4, this->ic3 * this->I2,
       this->ht, this->hs, this->wt, this->T * this->ws * V);
-  MD6(Type, aoutput, output, this->t3, this->oc4, this->oc3 * this->O2,
+  MD6(OutputType, aoutput, output, this->t3, this->oc4, this->oc3 * this->O2,
       this->ht, this->wt, this->T * V);
-  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-  MD3(Type, atweights, tweights_, this->oc4, this->ic4,
+  MD3(WeightsType, atweights, tweights_, this->oc4, this->ic4,
       this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
 
   if (is_first_run_) {
@@ -130,19 +130,19 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_e060(
     is_first_run_ = false;
 }
 
-template <typename Type, const int V, const int I>
-void elx_conv_direct_1x1_t<Type, V, I>::__execute_b061(
-    Type *output, Type *input, Type *weights, Type *bias)
+Template_elx_conv_direct_1x1_t
+void Instance_elx_conv_direct_1x1_t::__execute_b061(
+    OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   // weights: oc4*, oc3, O2(O2r), ic4*, ic3, I2, V, V
   // input:   t3*, ic4*, ic3, I2, t2*, T(Tr), V
   // output:  t3*, oc4*, oc3, O2(O2r), t2*, T(Tr), V
-  MD3(Type, ainput, input, this->t3, this->ic4,
+  MD3(InputType, ainput, input, this->t3, this->ic4,
       this->ic3 * this->I2 * this->ih * this->iw * V);
-  MD2(Type, aoutput, output, this->t3, this->OC * this->oh * this->ow);
-  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-  MD3(Type, atweights, tweights_, this->oc4, this->ic4,
+  MD3(WeightsType, atweights, tweights_, this->oc4, this->ic4,
       this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
 
   if (is_first_run_) {
@@ -150,7 +150,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b061(
   }
 
   if (this->oc4 == 1) {
-    MD2(Type, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
+    MD2(InputType, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
     iter_each (_ic4, this->ic4) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(4)
@@ -159,7 +159,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b061(
       iter_each (_ht, this->ht) {
       iter_each (_wt, this->wt) {
         size_t ithr = omp_get_thread_num();
-        MD5(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
+        MD5(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
             this->oc3 * this->O2, this->ht, this->wt, this->T * V);
 
         trans_input(&md2(atinput, ithr, 0),
@@ -169,7 +169,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b061(
       }}}}
     }
   } else {
-    MD4(Type, atinput, tinput_, mthr_, this->ht, this->wt,
+    MD4(InputType, atinput, tinput_, mthr_, this->ht, this->wt,
         this->ic3 * this->I2 * this->T * V);
     MD3(unsigned char, atinput_msk, tinput_msk_, mthr_, this->ht, this->wt);
     iter_each (_ic4, this->ic4) {
@@ -181,7 +181,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b061(
       iter_each (_ht, this->ht) {
       iter_each (_wt, this->wt) {
         size_t ithr = omp_get_thread_num();
-        MD5(Type, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
+        MD5(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
             this->oc3 * this->O2, this->ht, this->wt, this->T * V);
 
         if (_t3 != t3_history) {
@@ -204,16 +204,16 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_b061(
     is_first_run_ = false;
 }
 
-template <typename Type, const int V, const int I>
-void elx_conv_direct_1x1_t<Type, V, I>::__execute_a061(
-    Type *output, Type *input, Type *weights, Type *bias)
+Template_elx_conv_direct_1x1_t
+void Instance_elx_conv_direct_1x1_t::__execute_a061(
+    OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
-  MD2(Type, ainput, input, this->t3, this->ic * this->ih * this->iw);
-  MD2(Type, aoutput, output, this->t3, this->oc * this->oh * this->ow);
-  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(InputType, ainput, input, this->t3, this->ic * this->ih * this->iw);
+  MD2(OutputType, aoutput, output, this->t3, this->oc * this->oh * this->ow);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-  MD2(Type, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
-  MD3(Type, atweights, tweights_, this->oc4, this->ic4,
+  MD2(OutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
+  MD3(WeightsType, atweights, tweights_, this->oc4, this->ic4,
       this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
 
   if (is_first_run_) {
@@ -221,7 +221,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a061(
   }
 
   if (this->oc4 == 1) {
-    MD2(Type, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
+    MD2(InputType, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(4)
     iter_each (_t3, this->t3) {
@@ -237,7 +237,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a061(
           _oc4, _ht, _wt);
     }}}}
   } else {
-    MD4(Type, atinput, tinput_, mthr_, this->ht, this->wt,
+    MD4(InputType, atinput, tinput_, mthr_, this->ht, this->wt,
         this->ic3 * this->I2 * this->T * V);
     MD3(unsigned char, atinput_msk, tinput_msk_, mthr_, this->ht, this->wt);
     int t3_history = -1;
@@ -269,16 +269,16 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_a061(
     is_first_run_ = false;
 }
 
-template <typename Type, const int V, const int I>
-void elx_conv_direct_1x1_t<Type, V, I>::__execute_f061(
-    Type *output, Type *input, Type *weights, Type *bias)
+Template_elx_conv_direct_1x1_t
+void Instance_elx_conv_direct_1x1_t::__execute_f061(
+    OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
-  MD2(Type, ainput, input, this->t3, this->ic * this->ih * this->iw);
-  MD2(Type, aoutput, output, this->t3, this->oc * this->oh * this->ow);
-  MD2(Type, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(InputType, ainput, input, this->t3, this->ic * this->ih * this->iw);
+  MD2(OutputType, aoutput, output, this->t3, this->oc * this->oh * this->ow);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-  MD2(Type, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
-  MD3(Type, atweights, tweights_, this->oc4, this->ic4,
+  MD2(OutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
+  MD3(WeightsType, atweights, tweights_, this->oc4, this->ic4,
       this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
 
   if (is_first_run_) {
@@ -286,7 +286,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_f061(
   }
 
   if (this->oc4 == 1) {
-    MD2(Type, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
+    MD2(InputType, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(3)
     iter_each (_t3, this->t3) {
@@ -301,7 +301,7 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_f061(
           _oc4, _t2, Tz);
     }}}
   } else {
-    MD3(Type, atinput, tinput_, mthr_, this->t2,
+    MD3(InputType, atinput, tinput_, mthr_, this->t2,
         this->ic3 * this->I2 * this->T * V);
     MD2(unsigned char, atinput_msk, tinput_msk_, mthr_, this->t2);
     int t3_history = -1;
@@ -332,16 +332,16 @@ void elx_conv_direct_1x1_t<Type, V, I>::__execute_f061(
     is_first_run_ = false;
 }
 
-template <typename Type, const int V, const int I>
-void elx_conv_direct_1x1_t<Type, V, I>::execute(
-    Type *output, Type *input, Type *weights, Type *bias)
+Template_elx_conv_direct_1x1_t
+void Instance_elx_conv_direct_1x1_t::execute(
+    OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   if (is_bfmt_)
     (this->*execute_opt_)(output, input, weights, bias);
   else {
-    Type *in = input_as_bfmt_ ? binput_ : input;
-    Type *wei = weights_as_bfmt_ ? bweights_ : weights;
-    Type *out = output_as_bfmt_ ? boutput_ : output;
+    InputType *in = input_as_bfmt_ ? binput_ : input;
+    WeightsType *wei = weights_as_bfmt_ ? bweights_ : weights;
+    OutputType *out = output_as_bfmt_ ? boutput_ : output;
 
     if (input_as_bfmt_) {
       trans_input_2_blocked(in, input);

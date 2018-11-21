@@ -67,8 +67,6 @@ function __val_conv() {
 function val_conv() {
   __val_conv 0xa000 0
   __val_conv 0xa000 18
-  __val_conv 0xa010 0
-  __val_conv 0xa010 18
   __val_conv 0xa061 0
   __val_conv 0xa061 18
   __val_conv 0xa071 0

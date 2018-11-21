@@ -18,7 +18,7 @@ using ::testing::Values;
 using ::testing::Bool;
 using ::testing::Combine;
 
-template <typename Type, const int A, const int K, const int V, const int I>
+Template_elx_conv_wino_t
 void test_elk_trans_input(bool perf, bool show_diff, int execution_mode,
                           int input_format, int weights_format,
                           int output_format, bool with_bias, bool with_relu,
@@ -28,7 +28,7 @@ void test_elk_trans_input(bool perf, bool show_diff, int execution_mode,
   int ic = 64, ih = 224, iw = 224, oc = 64, oh = 224, ow = 224, kh = 3, kw = 3;
   int ph = 1, pw = 1;
 
-  eld_conv_t<Type> desc;
+  eld_conv_t<InputType, WeightsType, OutputType, BiasType> desc;
   desc.dims = {{mb, ic, ih, iw},
                {oc, ic, kh, kw},
                {mb, oc, oh, ow},
@@ -45,11 +45,12 @@ void test_elk_trans_input(bool perf, bool show_diff, int execution_mode,
   desc.execution_mode = execution_mode;
   desc.prop_kind = forward_inference;
 
-  elx_conv_wino_t<Type, A, 3, V, I> xc(desc);
+  elx_conv_wino_t<InputType, WeightsType, OutputType, BiasType,
+      TarrayType, A, 3, V, I> xc(desc);
 
-  alignas(64) Type atinput[A][A][V];
-  alignas(64) Type ainput[xc.ih][xc.iw][V];
-  alignas(64) Type ref_atinput[A][A][V];
+  alignas(64) TarrayType atinput[A][A][V];
+  alignas(64) InputType ainput[xc.ih][xc.iw][V];
+  alignas(64) TarrayType ref_atinput[A][A][V];
 
   for (int _ih = 0; _ih < xc.ih; ++_ih) {
     for (int _iw = 0; _iw < xc.iw; ++_iw) {
@@ -61,13 +62,14 @@ void test_elk_trans_input(bool perf, bool show_diff, int execution_mode,
 
   memset(atinput, 0, sizeof(atinput));
   TT(elk_trans_input, iterations, perf,
-     (convolution_winograd_kernel<Type, I, V, A, K>::
-      template trans_input<false>(xc, atinput,(Type *)&ainput, 0, 4, 0, 4)));
+     (Instance_convolution_winograd_kernel::
+      template trans_input<false>(xc, atinput,(InputType *)&ainput, 0, 4, 0, 4)));
 
   memset(ref_atinput, 0, sizeof(ref_atinput));
   TT(elk_trans_input, iterations, perf,
-     (convolution_winograd_kernel<Type, ISA_GENERIC, V, A, 3>::
-      template trans_input<false>(xc, ref_atinput, (Type *)&ainput, 0, 4, 0, 4)));
+     (convolution_winograd_kernel<InputType, WeightsType, OutputType, BiasType,
+      TarrayType, ISA_GENERIC, V, A, 3>::
+      template trans_input<false>(xc, ref_atinput, (InputType *)&ainput, 0, 4, 0, 4)));
 
   for (int _hA = 0; _hA < A; ++_hA) {
     for (int _wA = 0; _wA < A; ++_wA) {
@@ -89,7 +91,7 @@ class elkTransInputTest
 
 INSTANTIATE_TEST_CASE_P(elk_trans_input_test_common_params, elkTransInputTest,
                         Combine(Values(4, 5, 6, 7), // tile-size
-                                Values(0xa061, 0xa000, 0xa010,
+                                Values(0xa061, 0xa000,
                                        0xa071, 0xa079,
                                        0xa0e0, 0xa0e1),    // execution-mode
                                 Values(nChw16c, nchw),     // input_format
@@ -114,26 +116,26 @@ TEST_P(elkTransInputTest, combineTest) {
   int test_mb = ::testing::get<7>(GetParam());
   switch (test_tile_size) {
   case 4:
-        test_elk_trans_input<float, 4, 3, 16, ISA_SKX_AVX512>(
+        test_elk_trans_input<float, float, float, float, float, 4, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);
     break;
 
   case 5:
-    test_elk_trans_input<float, 5, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_input<float, float, float, float, float, 5, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);
     break;
   case 6:
-//     test_elk_trans_input<float, 6, 3, 16, ISA_SKX_AVX512>(
+//     test_elk_trans_input<float, float, float, float, 6, 3, 16, ISA_SKX_AVX512>(
 //         test_perf, show_diff, test_execution_mode, test_input_format,
 //         test_weights_format, test_output_format, test_with_bias, test_with_relu,
 //         test_mb);
     break;
   case 7:
-    test_elk_trans_input<float, 7, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_input<float, float, float, float, float, 7, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);

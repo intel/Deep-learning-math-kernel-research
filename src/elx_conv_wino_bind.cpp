@@ -10,32 +10,28 @@
 
 namespace euler {
 
-template <typename Type, const int A, const int K, const int V, const int I>
-void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::bind_execute_functions()
 {
   ker_trans_input_
-    = convolution_winograd_kernel<
-        Type, I, V, A, K>::template trans_input<no>;
+    = Instance_convolution_winograd_kernel::template trans_input<no>;
   ker_trans_input0_
-    = convolution_winograd_kernel<
-        Type, I, V, A, K>::template trans_input<is_border>;
+    = Instance_convolution_winograd_kernel::template trans_input<is_border>;
   ker_trans_inputa_
-    = convolution_winograd_kernel<
-        Type, I, V, A, K>::template trans_inputa<no>;
+    = Instance_convolution_winograd_kernel::template trans_inputa<no>;
   ker_trans_inputa0_
-    = convolution_winograd_kernel<
-        Type, I, V, A, K>::template trans_inputa<is_border>;
+    = Instance_convolution_winograd_kernel::template trans_inputa<is_border>;
   ker_trans_weights_
-    = convolution_winograd_kernel<Type, I, V, A, K>::trans_weights;
+    = Instance_convolution_winograd_kernel::trans_weights;
 
   // TODO: ker_trans_output_nobias_norelu_nosum (no fusion)
   // Fusion operation is done in related ker_trans_output_
-  ker_trans_output_nobias_ = convolution_winograd_kernel<Type, I, V, A, K>::
+  ker_trans_output_nobias_ = Instance_convolution_winograd_kernel::
       template trans_output<no, no, no, no>;
-  ker_trans_output0_nobias_ = convolution_winograd_kernel<Type, I, V, A, K>::
+  ker_trans_output0_nobias_ = Instance_convolution_winograd_kernel::
       template trans_output<is_border, no, no, no>;
 
-  using kernel_set = convolution_winograd_kernel<Type, I, V, A, K>;
+  using kernel_set = Instance_convolution_winograd_kernel;
   static const struct {
     decltype (ker_trans_output_) f1_;
     decltype (ker_trans_output0_) f2_;
@@ -110,19 +106,23 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
   ker_trans_output_acc_ = slot2.f1_;
   ker_trans_output0_acc_ = slot2.f2_;
 
-  ker_trans_outputa_th_ = convolution_winograd_kernel<Type, I, V, A, K>::
+  ker_trans_outputa_th_ = Instance_convolution_winograd_kernel::
       template trans_outputa_th<no, no, no, no>;
 
   auto bind_gemm_kernel =
       [&](int O, int T, bool has_Ir,
-      gemm_kernel_binder::ker<float, float> **func1,
-      gemm_kernel_binder::ker<uint8_t, int8_t> **func2) {
+      gemm_kernel_binder::ker<Instance_elx_conv_t, TarrayType, TarrayType> **func1,
+      gemm_kernel_binder::ker<Instance_elx_conv_t, uint8_t, int8_t> **func2) {
     if (this->Ir != V * this->Vx && has_Ir) {
-      gemm_kernel_binder::bind<float, float, V, 1, I, 1, GKF_CCC, true>(O, T, func1);
-      gemm_kernel_binder::bind<uint8_t, int8_t, V, 4, I, 1, GKF_CCC, true>(O, T, func2);
+      gemm_kernel_binder::bind<Instance_elx_conv_t, TarrayType, TarrayType,
+          V, 1, I, 1, GKF_CCC, true>(O, T, func1);
+      gemm_kernel_binder::bind<Instance_elx_conv_t, uint8_t, int8_t,
+          V, 4, I, 1, GKF_CCC, true>(O, T, func2);
     } else {
-      gemm_kernel_binder::bind<float, float, V, 1, I, 1, GKF_CCC, false>(O, T, func1);
-      gemm_kernel_binder::bind<uint8_t, int8_t, V, 4, I, 1, GKF_CCC, false>(O, T, func2);
+      gemm_kernel_binder::bind<Instance_elx_conv_t, TarrayType, TarrayType,
+          V, 1, I, 1, GKF_CCC, false>(O, T, func1);
+      gemm_kernel_binder::bind<Instance_elx_conv_t, uint8_t, int8_t,
+          V, 4, I, 1, GKF_CCC, false>(O, T, func2);
     }
   };
 
@@ -134,7 +134,7 @@ void elx_conv_wino_t<Type, A, K, V, I>::bind_execute_functions()
 #define EXECUTE_CASE(n)                                                      \
   case 0x##n:                                                                \
     printf("execute_opt=" #n "\n");                                          \
-    execute_opt_ = &elx_conv_wino_t<Type, A, K, V, I>::__execute_##n;        \
+    execute_opt_ = &Instance_elx_conv_wino_t::__execute_##n;                 \
     break
 
   switch (xopt_) {

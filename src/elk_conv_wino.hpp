@@ -15,6 +15,7 @@
 namespace euler {
 
 // Type: data type
+// TarrayType: tranform data type
 // T: tile blocking unit
 // A: tile size
 // K: kernel size
@@ -55,7 +56,8 @@ template <int ...configs> struct winograd_traits {
       "Template argument error! Please specify I, V, A, K...");
 };
 
-template <typename Type, int ...configs>
+template <typename InputType, typename WeightsType, typename OutputType,
+     typename BiasType, typename TarrayType, int ...configs>
 class convolution_winograd_kernel_base {
 protected:
   constexpr static int c_[] {configs...};
@@ -69,27 +71,36 @@ protected:
       "Template argument error! Please specify I, V, A, K...");
 
   template <bool is_border>
-  static inline void __trans_input(elx_conv_t<Type> &xc, Type atinput[A][A][V],
-      Type *input, int hT_start, int hT_end, int wT_start, int wT_end);
+  static inline void __trans_input(
+      elx_conv_t<InputType, WeightsType, OutputType, BiasType> &xc,
+      TarrayType atinput[A][A][V], InputType *input,
+      int hT_start, int hT_end, int wT_start, int wT_end);
 
   template <bool is_border>
-  static inline void __trans_inputa(elx_conv_t<Type> &xc, Type atinput[A][A][V],
-      Type *input, int wA, int hT_start, int hT_end, int wT_start, int wT_end);
+  static inline void __trans_inputa(
+      elx_conv_t<InputType, WeightsType, OutputType, BiasType> &xc,
+      TarrayType atinput[A][A][V], InputType *input,
+      int wA, int hT_start, int hT_end, int wT_start, int wT_end);
 
   template <bool ...conditions>
-  static inline void __trans_output(elx_conv_t<Type> &xc, Type *output,
-      Type *atoutput[A][A][V], Type *bias, int hOA_end, int wOA_end);
+  static inline void __trans_output(
+      elx_conv_t<InputType, WeightsType, OutputType, BiasType> &xc,
+      OutputType *output, TarrayType atoutput[A][A][V],
+      BiasType *bias, int hOA_end, int wOA_end);
 
   template <bool ...conditions>
-  static inline void __trans_outputa_th(elx_conv_t<Type> &xc, Type *toutputa,
-      Type *toutput, int Tz, bool stream_out);
+  static inline void __trans_outputa_th(
+      elx_conv_t<InputType, WeightsType, OutputType, BiasType> &xc,
+      TarrayType *toutputa, TarrayType *toutput, int Tz, bool stream_out);
 
   template <bool ...conditions>
-  static inline void __trans_outputa_bh(elx_conv_t<Type> &xc, Type *output,
-      Type *aoutputa[A][A - K + 1][V], Type *bias, int hOA_end, int wOA_end);
+  static inline void __trans_outputa_bh(
+      elx_conv_t<InputType, WeightsType, OutputType, BiasType> &xc,
+      OutputType *output, TarrayType aoutputa[A][A - K + 1][V],
+      BiasType *bias, int hOA_end, int wOA_end);
 
-  static inline void __trans_weights(Type atweights[A][A][V][V],
-      Type aweights[K][K][V][V]);
+  static inline void __trans_weights(TarrayType atweights[A][A][V][V],
+      WeightsType aweights[K][K][V][V]);
 };
 
 /*
@@ -106,65 +117,73 @@ class gemm_kernel_base {
 
 public:
   static inline void __gemm(
-      elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights,
+      elx_conv_t<InputType, WeightsType, OutputType, BiasType> &xc, Type *toutput, Type *tinput, Type *tweights,
       bool zero_out);
 
   static inline void __gemm_tail(
-      elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights,
+      elx_conv_t<InputType, WeightsType, OutputType, BiasType> &xc, Type *toutput, Type *tinput, Type *tweights,
       bool zero_out);
 };
 */
 
-template <typename Type, int ...configs>
+template <typename InputType, typename WeightsType, typename OutputType,
+     typename BiasType, typename TarrayType, int ...configs>
 class convolution_winograd_kernel :
-  public convolution_winograd_kernel_base<Type, configs...> {
-  using super = convolution_winograd_kernel_base<Type, configs...>;
+  public convolution_winograd_kernel_base<
+    InputType, WeightsType, OutputType, BiasType, TarrayType, configs...> {
+  using super = convolution_winograd_kernel_base<
+      InputType, WeightsType, OutputType, BiasType, TarrayType, configs...>;
   constexpr static int A = super::A;
   constexpr static int V = super::V;
   constexpr static int K = super::K;
 public:
   // Interfaces
   template <bool is_border>
-  static void trans_input(elx_conv_t<Type> &xc, Type atinput[A][A][V],
-      Type *input, int hA_start, int hA_end, int wA_start, int wA_end) {
+  static void trans_input(
+      elx_conv_t<InputType, WeightsType, OutputType, BiasType> &xc,
+      TarrayType atinput[A][A][V], InputType *input,
+      int hA_start, int hA_end, int wA_start, int wA_end) {
     super::template __trans_input<is_border>(
-        xc, atinput, input, hA_start, hA_end,
-        wA_start, wA_end);
+        xc, atinput, input, hA_start, hA_end, wA_start, wA_end);
   }
 
   template <bool is_border>
-  static void trans_inputa(elx_conv_t<Type> &xc, Type atinput[A][A][V],
-      Type *input, int wA, int hA_start, int hA_end, int wA_start,
-      int wA_end) {
+  static void trans_inputa(
+      elx_conv_t<InputType, WeightsType, OutputType, BiasType> &xc,
+      TarrayType atinput[A][A][V], InputType *input,
+      int wA, int hA_start, int hA_end, int wA_start, int wA_end) {
     super::template __trans_inputa<is_border>(
-        xc, atinput, input, wA, hA_start,
-        hA_end, wA_start, wA_end);
+        xc, atinput, input, wA, hA_start, hA_end, wA_start, wA_end);
   }
 
   template <bool ...conditions>
-  static void trans_output(elx_conv_t<Type>& xc, Type* output,
-      Type atoutput[A][A][V], Type *bias, int hOA_end, int wOA_end) {
+  static void trans_output(
+      elx_conv_t<InputType, WeightsType, OutputType, BiasType>& xc,
+      OutputType* output, TarrayType atoutput[A][A][V],
+      BiasType *bias, int hOA_end, int wOA_end) {
     super::template __trans_output<conditions...>(
-        xc, output, atoutput, bias, hOA_end,
-        wOA_end);
+        xc, output, atoutput, bias, hOA_end, wOA_end);
   }
 
   template <bool ...conditions>
-  static void trans_outputa_th(elx_conv_t<Type>& xc,
-      Type *toutputa, Type *toutput, int Tz, bool stream_out) {
+  static void trans_outputa_th(
+      elx_conv_t<InputType, WeightsType, OutputType, BiasType>& xc,
+      TarrayType *toutputa, TarrayType *toutput, int Tz, bool stream_out) {
     super::template __trans_outputa_th<conditions...>(
         xc, toutputa, toutput, Tz, stream_out);
   }
 
   template <bool ...conditions>
-  static void trans_outputa_bh(elx_conv_t<Type> &xc, Type *output,
-      Type atoutputa[A][A - K + 1][V], Type *bias, int hOA_end, int wOA_end) {
+  static void trans_outputa_bh(
+      elx_conv_t<InputType, WeightsType, OutputType, BiasType> &xc,
+      OutputType *output, TarrayType atoutputa[A][A - K + 1][V],
+      BiasType *bias, int hOA_end, int wOA_end) {
     super::template __trans_outputa_bh<conditions...>(
         xc, output, atoutputa, bias, hOA_end, wOA_end);
   }
 
   static void trans_weights(
-      Type atweights[A][A][V][V], Type aweights[K][K][V][V]) {
+      TarrayType atweights[A][A][V][V], WeightsType aweights[K][K][V][V]) {
     super::__trans_weights(atweights, aweights);
   }
 };
@@ -178,13 +197,13 @@ class gemm_kernel :
 
 public:
   static void gemm(
-      elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights,
+      elx_conv_t<InputType, WeightsType, OutputType, BiasType> &xc, Type *toutput, Type *tinput, Type *tweights,
       bool zero_out) {
     super::__gemm(xc, toutput, tinput, tweights, zero_out);
   }
 
   static void gemm_tail(
-      elx_conv_t<Type> &xc, Type *toutput, Type *tinput, Type *tweights,
+      elx_conv_t<InputType, WeightsType, OutputType, BiasType> &xc, Type *toutput, Type *tinput, Type *tweights,
       bool zero_out) {
     super::__gemm_tail(xc, toutput, tinput, tweights, zero_out);
   }

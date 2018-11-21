@@ -225,15 +225,16 @@ struct F_traits {
   static constexpr bool is_compact_output = (F & 0xF) == 0xC;
 };
 
-template <typename Dtype, typename Wtype, int V, int Vx, int I, typename KP>
+template <typename Xtype, typename Dtype, typename Wtype,
+     int V, int Vx, int I, typename KP>
 struct gemm_kernel_otj {
   static inline void execute(
-      elx_conv_t<float> &, float *, Dtype *, Wtype *, float *,
+      Xtype &, float *, Dtype *, Wtype *, float *,
       int, float *, float *, float *) {}
 };
 
-template <typename Dtype, typename Wtype, int V, int Vx, int... Kp>
-struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
+template <typename Xtype, typename Dtype, typename Wtype, int V, int Vx, int... Kp>
+struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
     estl::integer_sequence<Kp...>> {
   using kparams = estl::integer_sequence<Kp...>;
   static_assert(sizeof...(Kp) == 5,
@@ -257,7 +258,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   // f32f32f32 fma
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
-  op_fma(elx_conv_t<float> &xc,
+  op_fma(Xtype &xc,
       float *output, float *input, float *weights, float *bias, int attr,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
@@ -361,7 +362,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
 
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == true), void>::type
-  op_fma(elx_conv_t<float> &xc,
+  op_fma(Xtype &xc,
       float *output, float *input, float *weights, float *bias, int attr,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
@@ -495,7 +496,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
 
   template <int JO, int P>
   static inline typename std::enable_if<P == 2, void>::type
-  op_fma(elx_conv_t<float> &xc,
+  op_fma(Xtype &xc,
       float *output, float *input, float *weights, float *bias, int attr,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
@@ -635,7 +636,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
 
   template <int JO, int P>
   static inline typename std::enable_if<P == 4, void>::type
-  op_fma(elx_conv_t<float> &xc,
+  op_fma(Xtype &xc,
       float *output, float *input, float *weights, float *bias, int attr,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
@@ -823,7 +824,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   // u8s8f32 fma
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
-  op_fma(elx_conv_t<float> &xc,
+  op_fma(Xtype &xc,
       float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
@@ -933,7 +934,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   // TODO: handling V and Vx tail
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == true), void>::type
-  op_fma(elx_conv_t<float> &xc,
+  op_fma(Xtype &xc,
       float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
@@ -1074,7 +1075,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
 
   template <int JO, int P>
   static inline typename std::enable_if<P == 2, void>::type
-  op_fma(elx_conv_t<float> &xc,
+  op_fma(Xtype &xc,
       float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
@@ -1221,7 +1222,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
 
   template <int JO, int P>
   static inline typename std::enable_if<P == 4, void>::type
-  op_fma(elx_conv_t<float> &xc,
+  op_fma(Xtype &xc,
       float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
@@ -1421,7 +1422,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   template <int O = O, int T = T>
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 1)
       && (F_traits<F>::is_compact_weights)>::type
-  execute(elx_conv_t<float> &xc, float *output, Dtype *input, Wtype *weights,
+  execute(Xtype &xc, float *output, Dtype *input, Wtype *weights,
       float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
   {
     const int O_stride
@@ -1440,7 +1441,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   template <int O = O, int T = T>
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 1)
       && !(F_traits<F>::is_compact_weights)>::type
-  execute(elx_conv_t<float> &xc, float *output, Dtype *input, Wtype *weights,
+  execute(Xtype &xc, float *output, Dtype *input, Wtype *weights,
       float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
   {
     const int O_stride
@@ -1459,7 +1460,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   template <int O = O, int T = T>
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 2)
       && (F_traits<F>::is_compact_weights)>::type
-  execute(elx_conv_t<float> &xc, float *output, Dtype *input, Wtype *weights,
+  execute(Xtype &xc, float *output, Dtype *input, Wtype *weights,
       float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
   {
     const int O_stride
@@ -1482,7 +1483,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   template <int O = O, int T = T>
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 2)
       && !(F_traits<F>::is_compact_weights)>::type
-  execute(elx_conv_t<float> &xc, float *output, Dtype *input, Wtype *weights,
+  execute(Xtype &xc, float *output, Dtype *input, Wtype *weights,
       float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
   {
     const int O_stride
@@ -1505,7 +1506,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   template <int O = O, int T = T>
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 3)
       && (F_traits<F>::is_compact_weights)>::type
-  execute(elx_conv_t<float> &xc, float *output, Dtype *input, Wtype *weights,
+  execute(Xtype &xc, float *output, Dtype *input, Wtype *weights,
       float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
   {
     const int O_stride
@@ -1532,7 +1533,7 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   template <int O = O, int T = T>
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 3)
       && !(F_traits<F>::is_compact_weights)>::type
-  execute(elx_conv_t<float> &xc, float *output, Dtype *input, Wtype *weights,
+  execute(Xtype &xc, float *output, Dtype *input, Wtype *weights,
       float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
   {
     const int O_stride
@@ -1557,24 +1558,25 @@ struct gemm_kernel_otj<Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
 };
 
 struct gemm_kernel_binder {
-  template <typename Dtype, typename Wtype, int V, int Vx, int I, int... Kp>
-  using gemm_ker_cls = typename euler::gemm_kernel_otj<Dtype, Wtype,
+  template <typename Xtype, typename Dtype, typename Wtype,
+       int V, int Vx, int I, int... Kp>
+  using gemm_ker_cls = typename euler::gemm_kernel_otj<Xtype, Dtype, Wtype,
       V, Vx, I, estl::integer_sequence<Kp...>>;
 
-  template <typename Dtype, typename Wtype>
-  using ker = decltype(gemm_ker_cls<Dtype, Wtype,
+  template <typename Xtype, typename Dtype, typename Wtype>
+  using ker = decltype(gemm_ker_cls<Xtype, Dtype, Wtype,
       1, 1, 1, 1, 1, 1, 1, false>::execute);
 
 #if defined(WITH_GKTII) // gemm kernel template implicit instantiation
-  template <typename Dtype, typename Wtype,
+  template <typename Xtype, typename Dtype, typename Wtype,
        int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<Dtype, Wtype> **func)
+  static inline void bind(int O, int T, ker<Xtype, Dtype, Wtype> **func)
   {
     switch (O) {
     case 1:
       LOOP_FROM_TO(_T, 1, 32, {
         if (T == _T)
-          (*func = gemm_ker_cls<Dtype, Wtype, V, Vx, I,
+          (*func = gemm_ker_cls<Xtype, Dtype, Wtype, V, Vx, I,
                S, F, 1, _T, has_Ir>::execute);
       });
       if (T >= 32)
@@ -1583,7 +1585,7 @@ struct gemm_kernel_binder {
     case 2:
       LOOP_FROM_TO(_T, 1, 15, {
         if (T == _T)
-          (*func = gemm_ker_cls<Dtype, Wtype, V, Vx, I,
+          (*func = gemm_ker_cls<Xtype, Dtype, Wtype, V, Vx, I,
                S, F, 2, _T, has_Ir>::execute);
       });
       if (T >= 15)
@@ -1592,7 +1594,7 @@ struct gemm_kernel_binder {
     case 3:
       LOOP_FROM_TO(_T, 1, 15, {
         if (T == _T)
-          (*func = gemm_ker_cls<Dtype, Wtype, V, Vx, I,
+          (*func = gemm_ker_cls<Xtype, Dtype, Wtype, V, Vx, I,
                S, F, 3, _T, has_Ir>::execute);
       });
       if (T >= 15)
@@ -1601,7 +1603,7 @@ struct gemm_kernel_binder {
     case 4:
       LOOP_FROM_TO(_T, 1, 15, {
         if (T == _T)
-          (*func = gemm_ker_cls<Dtype, Wtype, V, Vx, I,
+          (*func = gemm_ker_cls<Xtype, Dtype, Wtype, V, Vx, I,
                S, F, 4, _T, has_Ir>::execute);
       });
       if (T >= 15)
@@ -1610,7 +1612,7 @@ struct gemm_kernel_binder {
     case 5:
       LOOP_FROM_TO(_T, 1, 6, {
         if (T == _T)
-          (*func = gemm_ker_cls<Dtype, Wtype, V, Vx, I,
+          (*func = gemm_ker_cls<Xtype, Dtype, Wtype, V, Vx, I,
                S, F, 5, _T, has_Ir>::execute);
       });
       if (T >= 6)
@@ -1619,7 +1621,7 @@ struct gemm_kernel_binder {
     case 6:
       LOOP_FROM_TO(_T, 1, 5, {
         if (T == _T)
-          (*func = gemm_ker_cls<Dtype, Wtype, V, Vx, I,
+          (*func = gemm_ker_cls<Xtype, Dtype, Wtype, V, Vx, I,
                S, F, 6, _T, has_Ir>::execute);
       });
       if (T >= 5)
@@ -1628,7 +1630,7 @@ struct gemm_kernel_binder {
     case 7:
       LOOP_FROM_TO(_T, 1, 4, {
         if (T == _T)
-          (*func = gemm_ker_cls<Dtype, Wtype, V, Vx, I,
+          (*func = gemm_ker_cls<Xtype, Dtype, Wtype, V, Vx, I,
                S, F, 7, _T, has_Ir>::execute);
       });
       if (T >= 4)
@@ -1637,7 +1639,7 @@ struct gemm_kernel_binder {
     case 8:
       LOOP_FROM_TO(_T, 1, 9, {
         if (T == _T)
-          (*func = gemm_ker_cls<Dtype, Wtype, V, Vx, I,
+          (*func = gemm_ker_cls<Xtype, Dtype, Wtype, V, Vx, I,
                S, F, 8, _T, has_Ir>::execute);
       });
       if (T >= 9)
@@ -1648,20 +1650,24 @@ struct gemm_kernel_binder {
     }
   }
 #else
-  // Save compile time
-  static ker<float, float> *ker_s1_ccc[8][32][2];
-  static ker<float, float> *ker_s1_ccd[8][32][2];
-  static ker<float, float> *ker_s1_dcd[8][32][2];
-  static ker<float, float> *ker_s1_ddd[8][32][2];
-  static ker<float, float> *ker_s2_ccc[8][32][2];
-  static ker<float, float> *ker_s2_ccd[8][32][2];
-  static ker<float, float> *ker_s2_dcd[8][32][2];
-  static ker<float, float> *ker_s2_ddd[8][32][2];
-  static ker<uint8_t, int8_t> *ker_i8_s1_ccc[8][32][2];
 
-  template <typename Dtype, typename Wtype,
+#define instance_elx_conv_t(type) elx_conv_t<type, type, type, type>
+  // Save compile time
+  static ker<instance_elx_conv_t(float), float, float> *ker_s1_ccc[8][32][2];
+  static ker<instance_elx_conv_t(float), float, float> *ker_s1_ccd[8][32][2];
+  static ker<instance_elx_conv_t(float), float, float> *ker_s1_dcd[8][32][2];
+  static ker<instance_elx_conv_t(float), float, float> *ker_s1_ddd[8][32][2];
+  static ker<instance_elx_conv_t(float), float, float> *ker_s2_ccc[8][32][2];
+  static ker<instance_elx_conv_t(float), float, float> *ker_s2_ccd[8][32][2];
+  static ker<instance_elx_conv_t(float), float, float> *ker_s2_dcd[8][32][2];
+  static ker<instance_elx_conv_t(float), float, float> *ker_s2_ddd[8][32][2];
+  static ker<instance_elx_conv_t(float), uint8_t, int8_t> *ker_i8_s1_ccc[8][32][2];
+  //static ker<instance_elx_conv_t(float16), float, float> *ker_f16_s1_ccc[8][32][2];
+
+  template <typename Xtype, typename Dtype, typename Wtype,
        int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<float, float> **func)
+  static inline void bind(int O, int T,
+      ker<instance_elx_conv_t(float), float, float> **func)
   {
     switch (F) {
     case GKF_CCC:
@@ -1693,9 +1699,24 @@ struct gemm_kernel_binder {
     }
   }
 
-  template <typename Dtype, typename Wtype,
+  /*template <typename Xtype, typename Dtype, typename Wtype,
        int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<uint8_t, int8_t> **func)
+  static inline void bind(int O, int T, ker<float16, float, float> **func)
+  {
+    switch (F) {
+    case GKF_CCC:
+      if (S == 1)
+        *func = ker_f16_s1_ccc[O - 1][T - 1][has_Ir];
+      break;
+    default:
+      break;
+    }
+  }*/
+
+  template <typename Xtype, typename Dtype, typename Wtype,
+       int V, int Vx, int I, int S, int F, bool has_Ir>
+  static inline void bind(int O, int T,
+      ker<instance_elx_conv_t(float), uint8_t, int8_t> **func)
   {
     switch (F) {
     case GKF_CCC:
@@ -1706,6 +1727,12 @@ struct gemm_kernel_binder {
       break;
     }
   }
+
+  /*template <typename Xtype, typename Dtype, typename Wtype,
+       int V, int Vx, int I, int S, int F, bool has_Ir>
+  static inline void bind(int O, int T,
+      ker<instance_elx_conv_t(float16), uint8_t, int8_t> **func)
+  {}*/
 #endif
 };
 

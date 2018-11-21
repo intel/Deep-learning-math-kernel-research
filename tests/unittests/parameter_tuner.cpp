@@ -15,7 +15,8 @@ public:
   int mode, blk_t, pat_o, blk_i, blk_o;
 };
 
-template <typename Type, int ...configs>
+template <typename InputType, typename WeightsType, typename OutputType,
+     typename BiasType, typename TarrayType, int ...configs>
 class tuner_test : public ::testing::TestWithParam<tuner_test_parameters> {
   constexpr static int I = euler::winograd_traits<configs...>::I;
   constexpr static int V = euler::winograd_traits<configs...>::V;
@@ -39,10 +40,12 @@ public:
     desc_.prop_kind = euler::forward_inference;
     desc_.tile_size = A;
 
-    p_xc_.reset(new euler::elx_conv_wino_t<Type, A, K, V, I> (desc_));
+    p_xc_.reset(new euler::elx_conv_wino_t<InputType, WeightsType, OutputType,
+        BiasType, TarrayType, A, K, V, I> (desc_));
   }
-  euler::eld_conv_t<Type> desc_;
-  std::unique_ptr<euler::elx_conv_wino_t<Type, A, K, V, I>> p_xc_;
+  euler::eld_conv_t<InputType, WeightsType, OutputType, BiasType> desc_;
+  std::unique_ptr<euler::elx_conv_wino_t<InputType, WeightsType, OutputType,
+      BiasType, TarrayType, A, K, V, I>> p_xc_;
 };
 
 #define l1 (32 * 1024)
@@ -50,8 +53,8 @@ public:
 #define l3 (39424 * 1024)
 #define skx_8180  28
 
-using tuner_test_tile_5 = tuner_test<float, euler::ISA_SKX_AVX512, 16, 5, 3>;
-using tuner_test_tile_6 = tuner_test<float, euler::ISA_SKX_AVX512, 16, 6, 3>;
+using tuner_test_tile_5 = tuner_test<float, float, float, float, float, euler::ISA_SKX_AVX512, 16, 5, 3>;
+using tuner_test_tile_6 = tuner_test<float, float, float, float, float, euler::ISA_SKX_AVX512, 16, 6, 3>;
 
 TEST_P(tuner_test_tile_5, tile_5) {
   auto p = testing::TestWithParam<tuner_test_parameters>::GetParam();

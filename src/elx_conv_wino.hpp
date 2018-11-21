@@ -2,6 +2,7 @@
 #define __ELX_CONV_WINO_HPP__
 
 #include <tuple>
+#include <iostream>
 
 #include "el_def.hpp"
 #include "el_utils.hpp"
@@ -42,36 +43,49 @@
 #include "kernel/elk_conv_wino_5x5_3x3_output_gen.hxx"
 #include "kernel/elk_conv_wino_5x5_3x3_weights_gen.hxx"
 
-#include "kernel/elk_conv_wino_kernels.cosim.hxx"
+//#include "kernel/elk_conv_wino_kernels.cosim.hxx"
 
 namespace euler {
 
-template <typename Type, const int A, const int K, const int V, const int I>
-class elx_conv_wino_t : public elx_conv_t<Type> {
+#define Template_elx_conv_wino_t                                  \
+template <typename InputType, typename WeightsType,               \
+     typename OutputType, typename BiasType, typename TarrayType, \
+     const int A, const int K, const int V, const int I>
+
+#define Instance_elx_conv_wino_t elx_conv_wino_t<InputType,       \
+    WeightsType, OutputType, BiasType, TarrayType, A, K, V, I>
+
+#define Instance_convolution_winograd_kernel                      \
+    convolution_winograd_kernel<InputType, WeightsType,           \
+    OutputType, BiasType, TarrayType, I, V, A, K>
+
+Template_elx_conv_wino_t
+class elx_conv_wino_t : public Instance_elx_conv_t {
 public:
   // Configurable parameters
-  using elx_conv_t<Type>::IC;
-  using elx_conv_t<Type>::OC;
-  using elx_conv_t<Type>::T;
-  using elx_conv_t<Type>::I2;
-  using elx_conv_t<Type>::O2;
-  using elx_conv_t<Type>::oc4;
-  using elx_conv_t<Type>::ic3;
-  using elx_conv_t<Type>::oc3;
-  using elx_conv_t<Type>::Vx;
-  constexpr static size_t elem_sz = sizeof(Type);
+  using Instance_elx_conv_t::IC;
+  using Instance_elx_conv_t::OC;
+  using Instance_elx_conv_t::T;
+  using Instance_elx_conv_t::I2;
+  using Instance_elx_conv_t::O2;
+  using Instance_elx_conv_t::oc4;
+  using Instance_elx_conv_t::ic3;
+  using Instance_elx_conv_t::oc3;
+  using Instance_elx_conv_t::Vx;
+  constexpr static size_t elem_sz = sizeof(WeightsType);
   constexpr static bool is_border = true;
   constexpr static bool has_bias = true;
   constexpr static bool has_relu = true;
   constexpr static bool has_sum = true;
   constexpr static bool no = false;
 public:
-  elx_conv_wino_t(eld_conv_t<Type> &dc);
+  elx_conv_wino_t(eld_conv_t<InputType, WeightsType, OutputType, BiasType> &dc);
   virtual ~elx_conv_wino_t();
 
-  virtual void execute(Type *output, Type *input, Type *weights, Type *bias);
+  virtual void execute(OutputType *output, InputType *input,
+      WeightsType *weights, BiasType *bias);
 
-  virtual void preprocess(Type *weights);
+  virtual void preprocess(WeightsType *weights);
 
   class exe_plan {
   public:
@@ -245,143 +259,134 @@ public:
   }
 
 private:
-  void __execute_a000(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a033(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a061(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a071(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a073(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a079(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a07b(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a0e0(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a0e1(Type *output, Type *input, Type *weights, Type *bias);
-  void __execute_a161(Type *output, Type *input, Type *weights, Type *bias);
+  void __execute_a000(OutputType *output, InputType *input,
+      WeightsType *weights, BiasType *bias);
+  void __execute_a033(OutputType *output, InputType *input,
+      WeightsType *weights, BiasType *bias);
+  void __execute_a061(OutputType *output, InputType *input,
+      WeightsType *weights, BiasType *bias);
+  void __execute_a071(OutputType *output, InputType *input,
+      WeightsType *weights, BiasType *bias);
+  void __execute_a073(OutputType *output, InputType *input,
+      WeightsType *weights, BiasType *bias);
+  void __execute_a079(OutputType *output, InputType *input,
+      WeightsType *weights, BiasType *bias);
+  void __execute_a07b(OutputType *output, InputType *input,
+      WeightsType *weights, BiasType *bias);
+  void __execute_a0e0(OutputType *output, InputType *input,
+      WeightsType *weights, BiasType *bias);
+  void __execute_a0e1(OutputType *output, InputType *input,
+      WeightsType *weights, BiasType *bias);
+  void __execute_a161(OutputType *output, InputType *input,
+      WeightsType *weights, BiasType *bias);
 
-  inline void __trans_input_plain(Type *tinput, Type *input, int _t2, int Tz);
-  inline void __trans_input_blocked(Type *tinput, Type *input, int _t2, int Tz);
-  void trans_input(Type *tinput, Type *input, int _t2, int Tz);
+  inline void __trans_input_plain(TarrayType *tinput, InputType *input, int _t2, int Tz);
+  inline void __trans_input_blocked(TarrayType *tinput, InputType *input, int _t2, int Tz);
+  void trans_input(TarrayType *tinput, InputType *input, int _t2, int Tz);
 
-  inline void __trans_input_plain(Type *tinput, Type *input);
-  inline void __trans_input_blocked(Type *tinput, Type *input);
-  void trans_input(Type *tinput, Type *input);
+  inline void __trans_input_plain(TarrayType *tinput, InputType *input);
+  inline void __trans_input_blocked(TarrayType *tinput, InputType *input);
+  void trans_input(TarrayType *tinput, InputType *input);
 
-  inline void __trans_input_u8_blocked(Type *tinput_qt_scale,
-      uint8_t *__restrict tinput_u8, Type *__restrict tinput,
-      Type *__restrict input, int _t2, int Tz);
-  void trans_input_u8(Type *tinput_qt_scale, uint8_t *__restrict tinput_u8,
-      Type *__restrict tinput, Type *__restrict input, int _t2, int Tz);
+  inline void __trans_input_u8_blocked(TarrayType *tinput_qt_scale,
+          uint8_t *__restrict tinput_u8, TarrayType *__restrict tinput,
+          InputType *__restrict input, int _t2, int Tz);
+  void trans_input_u8(TarrayType *tinput_qt_scale, uint8_t *__restrict tinput_u8,
+          TarrayType *__restrict tinput, InputType *__restrict input, int _t2, int Tz);
 
-  inline void __trans_inputa_plain(Type *tinput, Type *input, int _t2, int _wA, int Tz);
-  inline void __trans_inputa_blocked(Type *tinput, Type *input, int _t2, int _wA, int Tz);
-  void trans_inputa(Type *tinput, Type *input, int _t2, int _wA, int Tz);
+  inline void __trans_inputa_plain(TarrayType *tinput, InputType *input, int _t2, int _wA, int Tz);
+  inline void __trans_inputa_blocked(TarrayType *tinput, InputType *input, int _t2, int _wA, int Tz);
+  void trans_inputa(TarrayType *tinput, InputType *input, int _t2, int _wA, int Tz);
 
-  inline void __trans_output_plain(Type *output, Type *toutput, Type *bias, int _t2, int Tz, int _ic4);
-  inline void __trans_output_blocked(Type *output, Type *toutput, Type *bias, int _t2, int Tz, int _ic4);
-  void trans_output(Type *output, Type *toutput, Type *bias, int _t2, int Tz, int _ic4 = -1);
+  inline void __trans_output_plain(OutputType *output, TarrayType *toutput,
+          BiasType *bias, int _t2, int Tz, int _ic4);
+  inline void __trans_output_blocked(OutputType *output, TarrayType *toutput,
+          BiasType *bias, int _t2, int Tz, int _ic4);
+  void trans_output(OutputType *output, TarrayType *toutput, BiasType *bias,
+          int _t2, int Tz, int _ic4 = -1);
 
-  inline void __trans_output_plain(Type *output, Type *toutput, Type *bias, int _ic4);
-  inline void __trans_output_blocked(Type *output, Type *toutput, Type *bias, int _ic4);
-  void trans_output(Type *output, Type *toutput, Type *bias, int _ic4 = -1);
+  inline void __trans_output_plain(OutputType *output, TarrayType *toutput,
+          BiasType *bias, int _ic4);
+  inline void __trans_output_blocked(OutputType *output, TarrayType *toutput, BiasType *bias, int _ic4);
+  void trans_output(OutputType *output, TarrayType *toutput, BiasType *bias, int _ic4 = -1);
 
-  inline void __trans_outputa_bh_plain(Type *output, Type *toutputa, Type *bias);
-  inline void __trans_outputa_bh_blocked(Type *output, Type *toutputa, Type *bias);
-  void trans_outputa_bh(Type *output, Type *toutputa, Type *bias);
+  inline void __trans_outputa_bh_plain(OutputType *output, TarrayType *toutputa, BiasType *bias);
+  inline void __trans_outputa_bh_blocked(OutputType *output, TarrayType *toutputa, BiasType *bias);
+  void trans_outputa_bh(OutputType *output, TarrayType *toutputa, BiasType *bias);
 
-  void trans_outputa_th(Type *toutputa, Type *toutput, int Tz);
+  void trans_outputa_th(TarrayType *toutputa, TarrayType *toutput, int Tz);
 
-  inline void __trans_weights_plain(Type *tweights, Type *weights, int oc4);
-  inline void __trans_weights_blocked(Type *tweights, Type *weights, int oc4);
-  void trans_weights(Type *tweights, Type *weights, int oc4 = 1);
+  inline void __trans_weights_plain(TarrayType *tweights, WeightsType *weights, int oc4);
+  inline void __trans_weights_blocked(TarrayType *tweights, WeightsType *weights, int oc4);
+  void trans_weights(TarrayType *tweights, WeightsType *weights, int oc4 = 1);
 
-  inline void __trans_weights_s8_blocked(Type *tweights_qt_scale, Type *tweights_factor,
-      int8_t *tweights_s8, Type *tweights, Type *weights, int oc4);
-  void trans_weights_s8(Type *tweights_qt_scale, Type *tweights_factor,
-      int8_t *tweights_s8, Type *tweights, Type *weights, int oc4);
+  inline void __trans_weights_s8_blocked(TarrayType *tweights_qt_scale, TarrayType *tweights_factor,
+      int8_t *tweights_s8, TarrayType *tweights, WeightsType *weights, int oc4);
+  void trans_weights_s8(TarrayType *tweights_qt_scale, TarrayType *tweights_factor,
+      int8_t *tweights_s8, TarrayType *tweights, WeightsType *weights, int oc4);
 
-  inline void __trans_weightsf_plain(Type *tweights, Type *weights, int _ic4, int _oc4);
-  inline void __trans_weightsf_blocked(Type *tweights, Type *weights, int _ic4, int _oc4);
-  void trans_weightsf(Type *tweights, Type *weights, int _ic4, int _oc4);
+  inline void __trans_weightsf_plain(TarrayType *tweights, WeightsType *weights, int _ic4, int _oc4);
+  inline void __trans_weightsf_blocked(TarrayType *tweights, WeightsType *weights, int _ic4, int _oc4);
+  void trans_weightsf(TarrayType *tweights, WeightsType *weights, int _ic4, int _oc4);
 
-  inline void __trans_weightsa_plain(Type *tweights, Type *weights);
-  inline void __trans_weightsa_blocked(Type *tweights, Type *weights);
-  void trans_weightsa(Type *tweights, Type *weights);
+  inline void __trans_weightsa_plain(TarrayType *tweights, WeightsType *weights);
+  inline void __trans_weightsa_blocked(TarrayType *tweights, WeightsType *weights);
+  void trans_weightsa(TarrayType *tweights, WeightsType *weights);
 
-  void gemm(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz, int _ic4 = 0);
-  void gemm_non_acc(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz, int _ic4);
-  void gemm(Type *toutput, Type *tinput, Type *tweights, int _ic4 = 0);
-  void gemm_non_acc(Type *toutput, Type *tinput, Type *tweights, int _ic4 = 0);
-  void gemma(Type *toutput, Type *tinput, Type *tweights, int _t2, int Tz);
-  void gemm(Type *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
-      float *src_scale, float *weights_scale, float *factor, int _ic4 = 0);
+  void gemm(TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _t2, int Tz, int _ic4 = 0);
+  void gemm_non_acc(TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _t2, int Tz, int _ic4);
+  void gemm(TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _ic4 = 0);
+  void gemm_non_acc(TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _ic4 = 0);
+  void gemma(TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _t2, int Tz);
+  void gemm(TarrayType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
+      TarrayType *src_scale, TarrayType *weights_scale, TarrayType *factor, int _ic4 = 0);
 
-  void prepare_tweights(Type * __restrict weights);
+  void prepare_tweights(WeightsType * __restrict weights);
 
   void set_trans_buffers();
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  gemm_kernel_binder::ker<float, float> *ker_gemm_;
-  gemm_kernel_binder::ker<float, float> *ker_gemm0_;
-  gemm_kernel_binder::ker<float, float> *ker_gemm_tail_;
-  gemm_kernel_binder::ker<float, float> *ker_gemm0_tail_;
+  gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> *ker_gemm_;
+  gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> *ker_gemm0_;
+  gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> *ker_gemm_tail_;
+  gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> *ker_gemm0_tail_;
 
-  gemm_kernel_binder::ker<uint8_t, int8_t> *ker_i8_gemm_;
-  gemm_kernel_binder::ker<uint8_t, int8_t> *ker_i8_gemm0_;
-  gemm_kernel_binder::ker<uint8_t, int8_t> *ker_i8_gemm_tail_;
-  gemm_kernel_binder::ker<uint8_t, int8_t> *ker_i8_gemm0_tail_;
+  gemm_kernel_binder::ker<Instance_elx_conv_t, uint8_t, int8_t> *ker_i8_gemm_;
+  gemm_kernel_binder::ker<Instance_elx_conv_t, uint8_t, int8_t> *ker_i8_gemm0_;
+  gemm_kernel_binder::ker<Instance_elx_conv_t, uint8_t, int8_t> *ker_i8_gemm_tail_;
+  gemm_kernel_binder::ker<Instance_elx_conv_t, uint8_t, int8_t> *ker_i8_gemm0_tail_;
 
-  decltype(
-      convolution_winograd_kernel<
-        Type, I, V, A, K>::template trans_input<no>) *ker_trans_input_;
-  decltype(
-      convolution_winograd_kernel<
-        Type, I, V, A, K>::template trans_input<is_border>) *ker_trans_input0_;
-  decltype(
-      convolution_winograd_kernel<
-        Type, I, V, A, K>::template trans_inputa<no>) *ker_trans_inputa_;
-  decltype(
-      convolution_winograd_kernel<
-        Type, I, V, A, K>::template trans_inputa<is_border>) *ker_trans_inputa0_;
-  decltype(
-      convolution_winograd_kernel<
-        Type, I, V, A, K>::trans_weights) *ker_trans_weights_;
-  decltype(
-      convolution_winograd_kernel<
-        Type, I, V, A, K>::template
-        trans_output<false, false, false, false>) *ker_trans_output_;
-  decltype(
-      convolution_winograd_kernel<
-        Type, I, V, A, K>::template
-        trans_output<false, false, false, false>) *ker_trans_output0_;
-  decltype(
-      convolution_winograd_kernel<
-        Type, I, V, A, K>::template
-        trans_output<false, false, false, false>) *ker_trans_output_acc_;
-  decltype(
-      convolution_winograd_kernel<
-        Type, I, V, A, K>::template
-        trans_output<false, false, false, false>) *ker_trans_output0_acc_;
-  decltype(
-      convolution_winograd_kernel<
-      Type, I, V, A, K>::template
-      trans_output<false, false, false, false>) *ker_trans_output_nobias_;
-  decltype(
-      convolution_winograd_kernel<
-      Type, I, V, A, K>::template
-      trans_output<false, false, false, false>) *ker_trans_output0_nobias_;
-  decltype(
-      convolution_winograd_kernel<
-      Type, I, V, A, K>::template trans_outputa_th<
-      false, false, false, false>) *ker_trans_outputa_th_;
-  decltype(
-      convolution_winograd_kernel<
-      Type, I, V, A, K>::template
-      trans_outputa_bh<false, false, false, false>) *ker_trans_outputa_bh_;
-  decltype(
-      convolution_winograd_kernel<
-      Type, I, V, A, K>::template
-      trans_outputa_bh<false, false, false, false>) *ker_trans_outputa0_bh_;
+  decltype(Instance_convolution_winograd_kernel
+      ::template trans_input<no>) *ker_trans_input_;
+  decltype(Instance_convolution_winograd_kernel
+      ::template trans_input<no>) *ker_trans_input0_;
+  decltype(Instance_convolution_winograd_kernel
+      ::template trans_inputa<no>) *ker_trans_inputa_;
+  decltype(Instance_convolution_winograd_kernel
+      ::template trans_inputa<no>) *ker_trans_inputa0_;
+  decltype(Instance_convolution_winograd_kernel
+      ::trans_weights) *ker_trans_weights_;
+  decltype(Instance_convolution_winograd_kernel
+      ::template trans_output<false, false, false, false>) *ker_trans_output_;
+  decltype(Instance_convolution_winograd_kernel
+      ::template trans_output<false, false, false, false>) *ker_trans_output0_;
+  decltype(Instance_convolution_winograd_kernel
+      ::template trans_output<false, false, false, false>) *ker_trans_output_acc_;
+  decltype(Instance_convolution_winograd_kernel
+      ::template trans_output<false, false, false, false>) *ker_trans_output0_acc_;
+  decltype(Instance_convolution_winograd_kernel
+      ::template trans_output<false, false, false, false>) *ker_trans_output_nobias_;
+  decltype(Instance_convolution_winograd_kernel
+      ::template trans_output<false, false, false, false>) *ker_trans_output0_nobias_;
+  decltype(Instance_convolution_winograd_kernel
+      ::template trans_outputa_th<false, false, false, false>) *ker_trans_outputa_th_;
+  decltype(Instance_convolution_winograd_kernel
+      ::template trans_outputa_bh<false, false, false, false>) *ker_trans_outputa_bh_;
+  decltype(Instance_convolution_winograd_kernel
+      ::template trans_outputa_bh<false, false, false, false>) *ker_trans_outputa0_bh_;
 
-  void (elx_conv_wino_t::*execute_opt_)(Type *, Type *, Type *, Type *);
+  void (elx_conv_wino_t::*execute_opt_)(OutputType *, InputType *, WeightsType *, BiasType *);
 
   unsigned int xopt_;
   bool is_first_run_;
@@ -412,22 +417,22 @@ private:
   size_t tweights_qt_scale_size_;
   size_t tweights_factor_size_;
   size_t tweights_ci_size_;
-  Type *workspace_;
-  Type *scratch_;
+  TarrayType *workspace_;
+  TarrayType *scratch_;
 
-  Type *tweights_;
-  Type *tinput_;
-  Type *toutput_;
-  Type *toutputa_;
-  Type *binput_; // blocked input
-  Type *bweights_;
-  Type *boutput_;
+  TarrayType *tweights_;
+  TarrayType *tinput_;
+  TarrayType *toutput_;
+  TarrayType *toutputa_;
+  InputType *binput_; // blocked input
+  WeightsType *bweights_;
+  OutputType *boutput_;
   uint8_t *tinput_u8_;
-  Type *tinput_qt_scale_;
+  TarrayType *tinput_qt_scale_;
   int8_t *tweights_s8_;
-  Type *tweights_qt_scale_;
-  Type *tweights_factor_;
-  Type *tweights_ci_;
+  TarrayType *tweights_qt_scale_;
+  TarrayType *tweights_factor_;
+  TarrayType *tweights_ci_;
 
   int hOA_end_;
   int wOA_end_;
@@ -556,14 +561,14 @@ public:
 };
 
 #ifdef WITH_GK
-template class elx_conv_wino_t<float, 4, 3, 16, ISA_GENERIC>;
-template class elx_conv_wino_t<float, 4, 3, 16, ISA_COSIM_AVX512>;
-template class elx_conv_wino_t<float, 5, 3, 16, ISA_GENERIC>;
-template class elx_conv_wino_t<float, 5, 3, 16, ISA_COSIM_AVX512>;
-template class elx_conv_wino_t<float, 6, 3, 16, ISA_GENERIC>;
-template class elx_conv_wino_t<float, 6, 3, 16, ISA_COSIM_AVX512>;
-template class elx_conv_wino_t<float, 7, 3, 16, ISA_GENERIC>;
-template class elx_conv_wino_t<float, 7, 3, 16, ISA_COSIM_AVX512>;
+template class elx_conv_wino_t<float, float, float, float, float, 4, 3, 16, ISA_GENERIC>;
+//template class elx_conv_wino_t<float, float, 4, 3, 16, ISA_COSIM_AVX512>;
+template class elx_conv_wino_t<float, float, float, float, float, 5, 3, 16, ISA_GENERIC>;
+//template class elx_conv_wino_t<float, float, 5, 3, 16, ISA_COSIM_AVX512>;
+template class elx_conv_wino_t<float, float, float, float, float, 6, 3, 16, ISA_GENERIC>;
+//template class elx_conv_wino_t<float, float, 6, 3, 16, ISA_COSIM_AVX512>;
+template class elx_conv_wino_t<float, float, float, float, float, 7, 3, 16, ISA_GENERIC>;
+//template class elx_conv_wino_t<float, float, 7, 3, 16, ISA_COSIM_AVX512>;
 // template class elx_conv_wino_t<float, 5, 3, 8, ISA_GENERIC>;
 // template class elx_conv_wino_t<float, 5, 3, 8, ISA_COSIM_AVX512>;
 // template class elx_conv_wino_t<float, 6, 3, 8, ISA_GENERIC>;
@@ -571,13 +576,20 @@ template class elx_conv_wino_t<float, 7, 3, 16, ISA_COSIM_AVX512>;
 // template class elx_conv_wino_t<float, 7, 3, 8, ISA_GENERIC>;
 // template class elx_conv_wino_t<float, 7, 3, 8, ISA_COSIM_AVX512>;
 #endif
-template class elx_conv_wino_t<float, 4, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<float, 5, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<float, 6, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<float, 7, 3, 16, ISA_SKX_AVX512>;
-// template class elx_conv_wino_t<float, 5, 3, 8, ISA_SKX_AVX512>;
-// template class elx_conv_wino_t<float, 6, 3, 8, ISA_SKX_AVX512>;
-// template class elx_conv_wino_t<float, 7, 3, 8, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<float, float, float, float, float, 4, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<float, float, float, float, float, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<float, float, float, float, float, 6, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<float, float, float, float, float, 7, 3, 16, ISA_SKX_AVX512>;
+// FP16 interface / FP32 implementation
+// template class elx_conv_wino_t<short, short, short, short, float, 4, 3, 16, ISA_SKX_AVX512>;
+// template class elx_conv_wino_t<short, short, short, short, float, 5, 3, 16, ISA_SKX_AVX512>;
+// template class elx_conv_wino_t<short, short, short, short, float, 6, 3, 16, ISA_SKX_AVX512>;
+// template class elx_conv_wino_t<short, short, short, short, float, 7, 3, 16, ISA_SKX_AVX512>;
+// FP16 interface / FP16 implementation
+// template class elx_conv_wino_t<short, short, 4, 3, 16, ISA_SKX_AVX512>;
+// template class elx_conv_wino_t<short, short, 5, 3, 16, ISA_SKX_AVX512>;
+// template class elx_conv_wino_t<short, short, 6, 3, 16, ISA_SKX_AVX512>;
+// template class elx_conv_wino_t<short, short, 7, 3, 16, ISA_SKX_AVX512>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_WINO_HPP__

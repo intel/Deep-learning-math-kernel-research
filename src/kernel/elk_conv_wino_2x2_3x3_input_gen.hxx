@@ -11,12 +11,10 @@ namespace euler {
 
 // template <const bool is_border_>
 // Params:
-//    elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
+//    elx_conv_t<float, float, float, float> &xc, float atinput[A][A][V], float *input,
 //    int _hT_start, int _hT_end, int _wT_start, int _wT_end
- template <>
-class convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 4, 3> {
-  template<typename Type, int ...configs>
-    friend class convolution_winograd_kernel_base;
+template <>
+class convolution_winograd_kernel_base<float, float, float, float, float, ISA_GENERIC, 16, 4, 3> {
 protected:
   constexpr static int I = ISA_GENERIC;
   constexpr static int V = 16;
@@ -24,35 +22,37 @@ protected:
   constexpr static int K = 3;
 
   template <bool is_border>
-  static inline void __trans_input(elx_conv_t<float> &xc, float atinput[A][A][V],
-      float *input, int hT_start, int hT_end, int wT_start,
+  static inline void __trans_input(elx_conv_t<float, float, float, float> &xc,
+      float atinput[A][A][V], float *input, int hT_start, int hT_end, int wT_start,
       int wT_end);
 
   template <bool is_border>
-  static inline void __trans_inputa(elx_conv_t<float> &xc, float atinput[A][A][V],
-      float *input, int _wA, int _hA_start, int _hA_end, int _wA_start,
-      int _wA_end);
+  static inline void __trans_inputa(elx_conv_t<float, float, float, float> &xc,
+      float atinput[A][A][V], float *input, int _wA, int _hA_start, int _hA_end,
+      int _wA_start, int _wA_end);
 
   template <bool ...conditions>
-  static inline void __trans_output(elx_conv_t<float> &xc, float *output,
-      float atoutput[A][A][V], float *bias, int hOA_end, int wOA_end);
+  static inline void __trans_output(elx_conv_t<float, float, float, float> &xc,
+      float *output, float atoutput[A][A][V], float *bias, int hOA_end, int wOA_end);
 
   template <bool ...conditions>
-  static inline void __trans_outputa_th(elx_conv_t<float> &xc, float *toutputa,
-      float *toutput, int Tz, bool stream_out);
+  static inline void __trans_outputa_th(elx_conv_t<float, float, float, float> &xc,
+      float *toutputa, float *toutput, int Tz, bool stream_out);
 
   template <bool ...conditions>
-  static inline void __trans_outputa_bh(elx_conv_t<float> &xc, float *output,
-      float atoutputa[A][A - K + 1][V], float *bias, int hOA_end, int wOA_end);
+  static inline void __trans_outputa_bh(elx_conv_t<float, float, float, float> &xc,
+      float *output, float atoutputa[A][A - K + 1][V], float *bias, int hOA_end,
+      int wOA_end);
 
   static inline void __trans_weights(float atweights[A][A][V][V],
       float aweights[K][K][V][V]);
 };
 
 template <bool is_border>
-inline void convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 4, 3>::__trans_input(
-    elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
-    int hT_start, int hT_end, int wT_start, int wT_end) {
+inline void convolution_winograd_kernel_base<
+    float, float, float, float, float, ISA_GENERIC, 16, 4, 3>::__trans_input(
+      elx_conv_t<float, float, float, float> &xc, float atinput[A][A][V], float *input,
+      int hT_start, int hT_end, int wT_start, int wT_end) {
 
   auto f_cb = [&](int _h, int _w, int _V) {
     if (wT_end == -1) {
@@ -111,13 +111,13 @@ inline void convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 4, 3>::__tr
 
 // template <const bool is_border_>
 // Params:
-//   elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
+//   elx_conv_t<float, float, float, float> &xc, float atinput[A][A][V], float *input,
 //   int _wA, int _hT_start, int _hT_end, int _wT_start, int _wT_end)
 template <bool is_border>
-inline void convolution_winograd_kernel_base<float, ISA_GENERIC, 16, 4, 3>::
+inline void convolution_winograd_kernel_base<float, float, float, float, float, ISA_GENERIC, 16, 4, 3>::
 __trans_inputa(
-    elx_conv_t<float> &xc, float atinput[A][A][V], float *input, int wA,
-    int hT_start, int hT_end, int wT_start, int wT_end) {
+    elx_conv_t<float, float, float, float> &xc, float atinput[A][A][V],
+    float *input, int wA, int hT_start, int hT_end, int wT_start, int wT_end) {
 
   auto f_cb = [&](int _h, int _w, int _V) {
     if (wT_end == -1) {

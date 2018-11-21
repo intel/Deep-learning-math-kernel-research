@@ -10,11 +10,13 @@
 
 namespace euler {
 
-template <int V>
+template <typename InputType, typename WeightsType,
+     typename OutputType, typename BiasType, typename TarrayType, int V>
 template <bool ...conditions>
-inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, V, 6, 3>::
-__trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
-    float *bias, int hOA_end, int wOA_end) {
+inline void convolution_winograd_kernel_base<InputType, WeightsType, OutputType,
+       BiasType, TarrayType, ISA_SKX_AVX512, V, 6, 3>::
+__trans_output(Instance_elx_conv_t &xc, OutputType *output, TarrayType atoutput[A][A][V],
+    BiasType *bias, int hOA_end, int wOA_end) {
   __m<V> z2 = _mm<V>::set1_ps(2.0f);
   __m<V> z4 = _mm<V>::set1_ps(4.0f);
   __m<V> z8 = _mm<V>::set1_ps(8.0f);
@@ -48,13 +50,13 @@ __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
   bool fuse_bias = with_bias && (bias != nullptr);
   bool fuse_relu = with_relu && (bias != nullptr);
 
-  alignas(64) float dummy[16];
+  alignas(64) OutputType dummy[16];
   auto p_cb = [&](int _h, int _w) {
     if (wOA_end == -1) {
-      MD3(float, aoutput, output, A - K + 1, A - K + 1, V);
+      MD3(OutputType, aoutput, output, A - K + 1, A - K + 1, V);
       return &md3(aoutput, _h, _w, 0);
     } else {
-      MD3(float, aoutput, output, xc.oh, xc.ow, V);
+      MD3(OutputType, aoutput, output, xc.oh, xc.ow, V);
       if (is_border && (_h > hOA_end || _w > wOA_end))
         return dummy;
       else
@@ -72,7 +74,15 @@ __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
 #define P(_h, _w) p_cb(_h, _w)
 #define t(m, n) t##m##n
 #define OP(m,n) t(m,n) = _mm<V>::load_ps(T(m, n))
-#define ISTORE(i, j) _mm<V>::store_ps(P(i, j), p##i##j)
+//#define ISTORE(i, j) _mm<V>::store_ps(P(i, j), p##i##j);
+#define ISTORE(i, j)                                              \
+  if (std::is_same<OutputType, float>::value)                           \
+    _mm<V>::store_ps(P(i, j), p##i##j);                           \
+  else {                                                          \
+    auto f16 = _mm<V>::cvtps_ph(p##i##j,                          \
+        _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);           \
+    _mm<V>::store_si256((__m256i *)P(i, j), f16);                 \
+  }
 
   VECTOR_DEF(M6, M5);
 
@@ -236,19 +246,23 @@ __trans_output(elx_conv_t<float> &xc, float *output, float atoutput[A][A][V],
   ISTORE(3, 3);
 }
 
-template <int V>
+template <typename InputType, typename WeightsType,
+     typename OutputType, typename BiasType, typename TarrayType, int V>
 template <bool ...conditions>
-inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, V, 6, 3>::
-__trans_outputa_th(elx_conv_t<float> &xc, float *toutputa, float *toutput,
-    int Tz, bool stream_out) {  // TODO
+inline void convolution_winograd_kernel_base<InputType, WeightsType, OutputType,
+     BiasType, TarrayType, ISA_SKX_AVX512, V, 6, 3>::
+__trans_outputa_th(Instance_elx_conv_t &xc, TarrayType *toutputa, TarrayType *toutput,
+    int Tz, bool stream_out) {
   el_error("Unimplemented");
 }
 
-template <int V>
+template <typename InputType, typename WeightsType,
+     typename OutputType, typename BiasType, typename TarrayType, int V>
 template <bool ...conditions>
-inline void convolution_winograd_kernel_base<float, ISA_SKX_AVX512, V, 6, 3>::
-__trans_outputa_bh(elx_conv_t<float> &xc, float *output,
-    float atoutput[A][A - K + 1][V], float *bias, int hOA_end, int wOA_end) {
+inline void convolution_winograd_kernel_base<InputType, WeightsType, OutputType,
+     BiasType, TarrayType, ISA_SKX_AVX512, V, 6, 3>::
+__trans_outputa_bh(Instance_elx_conv_t &xc, OutputType *output,
+    TarrayType atoutput[A][A - K + 1][V], BiasType *bias, int hOA_end, int wOA_end) {
   // TODO
   el_error("Unimplemented");
 }
