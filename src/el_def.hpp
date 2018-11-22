@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <tuple>
 #include <omp.h>
 
 #define __GCC_COMPILER (__GNUC__ && !__INTEL_COMPILER && !__clang__)

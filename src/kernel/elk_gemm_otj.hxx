@@ -1651,23 +1651,22 @@ struct gemm_kernel_binder {
   }
 #else
 
-#define instance_elx_conv_t(type) elx_conv_t<type, type, type, type>
   // Save compile time
-  static ker<instance_elx_conv_t(float), float, float> *ker_s1_ccc[8][32][2];
-  static ker<instance_elx_conv_t(float), float, float> *ker_s1_ccd[8][32][2];
-  static ker<instance_elx_conv_t(float), float, float> *ker_s1_dcd[8][32][2];
-  static ker<instance_elx_conv_t(float), float, float> *ker_s1_ddd[8][32][2];
-  static ker<instance_elx_conv_t(float), float, float> *ker_s2_ccc[8][32][2];
-  static ker<instance_elx_conv_t(float), float, float> *ker_s2_ccd[8][32][2];
-  static ker<instance_elx_conv_t(float), float, float> *ker_s2_dcd[8][32][2];
-  static ker<instance_elx_conv_t(float), float, float> *ker_s2_ddd[8][32][2];
-  static ker<instance_elx_conv_t(float), uint8_t, int8_t> *ker_i8_s1_ccc[8][32][2];
-  //static ker<instance_elx_conv_t(float16), float, float> *ker_f16_s1_ccc[8][32][2];
+  static ker<elx_conv_t<conv::FP32>, float, float> *ker_s1_ccc[8][32][2];
+  static ker<elx_conv_t<conv::FP32>, float, float> *ker_s1_ccd[8][32][2];
+  static ker<elx_conv_t<conv::FP32>, float, float> *ker_s1_dcd[8][32][2];
+  static ker<elx_conv_t<conv::FP32>, float, float> *ker_s1_ddd[8][32][2];
+  static ker<elx_conv_t<conv::FP32>, float, float> *ker_s2_ccc[8][32][2];
+  static ker<elx_conv_t<conv::FP32>, float, float> *ker_s2_ccd[8][32][2];
+  static ker<elx_conv_t<conv::FP32>, float, float> *ker_s2_dcd[8][32][2];
+  static ker<elx_conv_t<conv::FP32>, float, float> *ker_s2_ddd[8][32][2];
+  static ker<elx_conv_t<conv::FP32>, uint8_t, int8_t> *ker_i8_s1_ccc[8][32][2];
+  //static ker<elx_conv_t<FP16>, float, float> *ker_f16_s1_ccc[8][32][2];
 
   template <typename Xtype, typename Dtype, typename Wtype,
        int V, int Vx, int I, int S, int F, bool has_Ir>
   static inline void bind(int O, int T,
-      ker<instance_elx_conv_t(float), float, float> **func)
+      ker<elx_conv_t<conv::FP32>, float, float> **func)
   {
     switch (F) {
     case GKF_CCC:
@@ -1716,7 +1715,7 @@ struct gemm_kernel_binder {
   template <typename Xtype, typename Dtype, typename Wtype,
        int V, int Vx, int I, int S, int F, bool has_Ir>
   static inline void bind(int O, int T,
-      ker<instance_elx_conv_t(float), uint8_t, int8_t> **func)
+      ker<elx_conv_t<conv::FP32>, uint8_t, int8_t> **func)
   {
     switch (F) {
     case GKF_CCC:
@@ -1731,7 +1730,7 @@ struct gemm_kernel_binder {
   /*template <typename Xtype, typename Dtype, typename Wtype,
        int V, int Vx, int I, int S, int F, bool has_Ir>
   static inline void bind(int O, int T,
-      ker<instance_elx_conv_t(float16), uint8_t, int8_t> **func)
+      ker<elx_conv_t<FP16>, uint8_t, int8_t> **func)
   {}*/
 #endif
 };

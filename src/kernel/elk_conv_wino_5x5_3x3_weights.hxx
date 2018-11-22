@@ -39,11 +39,11 @@ namespace euler {
   t6##n = MUL(r9_2, c2);                                                         \
   _mm<V>::store_ps(T(6, n), t6##n);
 
-template <typename InputType, typename WeightsType,
-     typename OutputType, typename BiasType, typename TarrayType, int V>
- inline void convolution_winograd_kernel_base<InputType, WeightsType, OutputType,
-     BiasType, TarrayType, ISA_SKX_AVX512, V, 7, 3>::
-__trans_weights(TarrayType atweights[A][A][V][V], WeightsType aweights[K][K][V][V]) {
+template <typename UserTypes, typename TarrayType, int V>
+inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
+    ISA_SKX_AVX512, V, 7, 3>::__trans_weights(TarrayType atweights[A][A][V][V],
+    WeightsType aweights[K][K][V][V])
+{
   ENABLE_AVX512F();
 
   __m<V> r1_5 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 5.0f));

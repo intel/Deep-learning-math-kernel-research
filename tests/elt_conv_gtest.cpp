@@ -56,7 +56,7 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
   printf("with_bias:%d, with_relu:%d \n", with_bias, with_relu);
 
   // 1, create convolution desc
-  eld_conv_t<float, float, float, float> desc;
+  eld_conv_t<conv::FP32> desc;
   desc.dims = {{mb, ic, ih, iw},
                {oc, ic, kh, kw},
                {mb, oc, oh, ow},
@@ -94,7 +94,7 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
   test::timer timer;
   timer.start();
   for (int n = 0; n < iterations; ++n) {
-    if (ELX_OK != elx_conv<float>(desc, output, input, weights, bias)) {
+    if (ELX_OK != elx_conv<conv::FP32>(desc, output, input, weights, bias)) {
       printf("Fail: Convolution execution error!\n");
       test::teardown_conv_data(input, weights, output, bias);
       return -1;

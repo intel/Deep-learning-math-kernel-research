@@ -8,36 +8,40 @@
 #include "elk_conv_wino.hpp"
 
 namespace euler {
-template <typename InputType, typename WeightsType,
-     typename OutputType, typename BiasType, typename TarrayType, int v>
-class convolution_winograd_kernel_base<InputType, WeightsType, OutputType, BiasType,
-    TarrayType, ISA_SKX_AVX512, v, 6, 3> {
-protected:
+template <typename UserTypes, typename TarrayType, int v>
+class convolution_winograd_kernel_base<UserTypes, TarrayType, ISA_SKX_AVX512, v,
+    6, 3> {
+  protected:
+  using InputType = typename UserTypes::InputType;
+  using WeightsType = typename UserTypes::WeightsType;
+  using OutputType = typename UserTypes::OutputType;
+  using BiasType = typename UserTypes::BiasType;
+
   constexpr static int V = v;
   constexpr static int I = ISA_SKX_AVX512;
   constexpr static int A = 6;
   constexpr static int K = 3;
 
   template <bool is_border> static inline
-  void __trans_input(Instance_elx_conv_t &xc, TarrayType atinput[A][A][V],
+  void __trans_input(elx_conv_t<UserTypes> &xc, TarrayType atinput[A][A][V],
       InputType *input, int hT_start, int hT_end, int wT_start,
       int wT_end);
 
   template <bool is_border>
-  static void __trans_inputa(Instance_elx_conv_t &xc, TarrayType atinput[A][A][V],
+  static void __trans_inputa(elx_conv_t<UserTypes> &xc, TarrayType atinput[A][A][V],
       InputType *input, int wA, int hA_start, int hA_end, int wA_start,
       int _wA_end);
 
   template <bool ...conditions>
-  static inline void __trans_output(Instance_elx_conv_t &xc, OutputType *output,
+  static inline void __trans_output(elx_conv_t<UserTypes> &xc, OutputType *output,
       TarrayType atoutput[A][A][V], BiasType *bias, int hOA_end, int wOA_end);
 
   template <bool ...conditions>
-  static inline void __trans_outputa_th(Instance_elx_conv_t &xc, TarrayType *toutputa,
+  static inline void __trans_outputa_th(elx_conv_t<UserTypes> &xc, TarrayType *toutputa,
       TarrayType *toutput, int Tz, bool stream_out);
 
   template <bool ...conditions>
-  static inline void __trans_outputa_bh(Instance_elx_conv_t &xc, OutputType *output,
+  static inline void __trans_outputa_bh(elx_conv_t<UserTypes> &xc, OutputType *output,
       TarrayType aoutputa[A][A - K + 1][V], BiasType *bias, int hOA_end, int wOA_end);
 
   static inline void __trans_weights(TarrayType atweights[A][A][V][V],
@@ -64,14 +68,13 @@ protected:
 #define MAX     _mm<V>::max_ps
 #define XOR     _mm<V>::xor_ps
 
-template <typename InputType, typename WeightsType,
-     typename OutputType, typename BiasType, typename TarrayType, int V>
+template <typename UserTypes, typename TarrayType, int V>
 template <bool is_border>
-inline void convolution_winograd_kernel_base<
-    InputType, WeightsType, OutputType, BiasType, TarrayType,
-    ISA_SKX_AVX512, V, 6, 3>::__trans_input(
-      Instance_elx_conv_t &xc, TarrayType atinput[A][A][V], InputType *input,
-      int hT_start, int hT_end, int wT_start, int wT_end) {
+inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
+    ISA_SKX_AVX512, V, 6, 3>::__trans_input(elx_conv_t<UserTypes> &xc,
+    TarrayType atinput[A][A][V], InputType *input, int hT_start, int hT_end,
+    int wT_start, int wT_end)
+{
 
   // Inputs
   __m<V> f00, f01, f02, f03, f04, f05,
@@ -313,14 +316,13 @@ inline void convolution_winograd_kernel_base<
   ISTORE(5, 5)
 }
 
-template <typename InputType, typename WeightsType,
-     typename OutputType, typename BiasType, typename TarrayType, int V>
+template <typename UserTypes, typename TarrayType, int V>
 template <bool is_border>
-inline void convolution_winograd_kernel_base<InputType, WeightsType, OutputType,
-     BiasType, TarrayType, ISA_SKX_AVX512, V, 6, 3>::
-__trans_inputa(
-    Instance_elx_conv_t &xc, TarrayType atinput[A][A][V], InputType *input, int wA,
-    int hT_start, int hT_end, int wT_start, int wT_end) {
+inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
+    ISA_SKX_AVX512, V, 6, 3>::__trans_inputa(elx_conv_t<UserTypes> &xc,
+    TarrayType atinput[A][A][V], InputType *input, int wA, int hT_start,
+    int hT_end, int wT_start, int wT_end)
+{
   // TODO
   el_error("Unimplemented");
 }

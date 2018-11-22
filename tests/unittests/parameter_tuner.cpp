@@ -43,9 +43,9 @@ public:
     p_xc_.reset(new euler::elx_conv_wino_t<InputType, WeightsType, OutputType,
         BiasType, TarrayType, A, K, V, I> (desc_));
   }
-  euler::eld_conv_t<InputType, WeightsType, OutputType, BiasType> desc_;
-  std::unique_ptr<euler::elx_conv_wino_t<InputType, WeightsType, OutputType,
-      BiasType, TarrayType, A, K, V, I>> p_xc_;
+  euler::eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> desc_;
+  std::unique_ptr<euler::elx_conv_wino_t<ConvTypes<InputType, WeightsType, OutputType,
+      BiasType>, TarrayType, A, K, V, I>> p_xc_;
 };
 
 #define l1 (32 * 1024)

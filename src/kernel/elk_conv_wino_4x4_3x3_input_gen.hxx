@@ -10,7 +10,7 @@
 namespace euler {
 
 template <>
-class convolution_winograd_kernel_base<float, float, float, float, float, ISA_GENERIC, 16, 6, 3> {
+class convolution_winograd_kernel_base<conv::FP32, float, ISA_GENERIC, 16, 6, 3> {
 protected:
   constexpr static int I = ISA_GENERIC;
   constexpr static int V = 16;
@@ -18,25 +18,25 @@ protected:
   constexpr static int K = 3;
 
   template <bool is_border>
-  static inline void __trans_input(elx_conv_t<float, float, float, float> &xc,
+  static inline void __trans_input(elx_conv_t<conv::FP32> &xc,
       float atinput[A][A][V], float *input, int hT_start, int hT_end, int wT_start,
       int wT_end);
 
   template <bool is_border>
-  static inline void __trans_inputa(elx_conv_t<float, float, float, float> &xc,
+  static inline void __trans_inputa(elx_conv_t<conv::FP32> &xc,
       float atinput[A][A][V], float *input, int _wA, int _hA_start, int _hA_end,
       int _wA_start, int _wA_end);
 
   template <bool ...conditions>
-  static inline void __trans_output(elx_conv_t<float, float, float, float> &xc,
+  static inline void __trans_output(elx_conv_t<conv::FP32> &xc,
       float *output, float atoutput[A][A][V], float *bias, int hOA_end, int wOA_end);
 
   template <bool ...conditions>
-  static inline void __trans_outputa_th(elx_conv_t<float, float, float, float> &xc,
+  static inline void __trans_outputa_th(elx_conv_t<conv::FP32> &xc,
       float *toutputa, float *toutput, int Tz, bool stream_out);
 
   template <bool ...conditions>
-  static inline void __trans_outputa_bh(elx_conv_t<float, float, float, float> &xc,
+  static inline void __trans_outputa_bh(elx_conv_t<conv::FP32> &xc,
       float *output, float atoutputa[A][A - K + 1][V], float *bias, int hOA_end,
       int wOA_end);
 
@@ -46,8 +46,8 @@ protected:
 
 template <bool is_border>
 inline void convolution_winograd_kernel_base<
-    float, float, float, float, float, ISA_GENERIC, 16, 6, 3>::__trans_input(
-    elx_conv_t<float, float, float, float> &xc, float atinput[A][A][V], float *input,
+    conv::FP32, float, ISA_GENERIC, 16, 6, 3>::__trans_input(
+    elx_conv_t<conv::FP32> &xc, float atinput[A][A][V], float *input,
     int hT_start, int hT_end, int wT_start, int wT_end) {
   const float z2 = 2.0f;
   const float z4 = 4.0f;
@@ -156,9 +156,9 @@ inline void convolution_winograd_kernel_base<
 }
 
 template <bool is_border>
-inline void convolution_winograd_kernel_base<float, float, float, float, float, ISA_GENERIC, 16, 6, 3>::
+inline void convolution_winograd_kernel_base<conv::FP32, float, ISA_GENERIC, 16, 6, 3>::
 __trans_inputa(
-    elx_conv_t<float, float, float, float> &xc, float atinput[A][A][V], float *input, int wA,
+    elx_conv_t<conv::FP32> &xc, float atinput[A][A][V], float *input, int wA,
     int hT_start, int hT_end, int wT_start, int wT_end) {
   // TODO
   el_error("Unimplemented");

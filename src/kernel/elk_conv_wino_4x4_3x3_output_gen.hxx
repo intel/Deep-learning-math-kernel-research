@@ -10,8 +10,8 @@
 
 namespace euler {
 template <bool ...conditions>
-inline void convolution_winograd_kernel_base<float, float, float, float, float, ISA_GENERIC, 16, 6, 3>::
-__trans_output(elx_conv_t<float, float, float, float> &xc, float *output,
+inline void convolution_winograd_kernel_base<conv::FP32, float, ISA_GENERIC, 16, 6, 3>::
+__trans_output(elx_conv_t<conv::FP32> &xc, float *output,
       float atoutput[A][A][V], float *bias, int hOA_end, int wOA_end) {
   const float z2 = 2.0f;
   const float z4 = 4.0f;
@@ -171,16 +171,16 @@ __trans_output(elx_conv_t<float, float, float, float> &xc, float *output,
 }
 
 template <bool ...conditions>
-inline void convolution_winograd_kernel_base<float, float, float, float, float, ISA_GENERIC, 16, 6, 3>::
-__trans_outputa_th(elx_conv_t<float, float, float, float> &xc, float *toutputa,
+inline void convolution_winograd_kernel_base<conv::FP32, float, ISA_GENERIC, 16, 6, 3>::
+__trans_outputa_th(elx_conv_t<conv::FP32> &xc, float *toutputa,
     float *toutput, int Tz, bool stream_out) {
   // TODO
   el_error("Unimplemented");
 }
 
 template <bool ...conditions>
-inline void convolution_winograd_kernel_base<float, float, float, float, float, ISA_GENERIC, 16, 6, 3>::
-__trans_outputa_bh(elx_conv_t<float, float, float, float> &xc, float *output,
+inline void convolution_winograd_kernel_base<conv::FP32, float, ISA_GENERIC, 16, 6, 3>::
+__trans_outputa_bh(elx_conv_t<conv::FP32> &xc, float *output,
     float atoutput[A][A - K + 1][V], float *bias, int hOA_end, int wOA_end) {
   // TODO
   el_error("Unimplemented");

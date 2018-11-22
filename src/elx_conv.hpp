@@ -14,13 +14,13 @@ namespace euler {
 // wino-gemm toutput : t2, A*A, oc3, O2, T, V
 // wino-gemm tweights: oc3, ic3, A*A, O2, I2, V, V
 
-#define Instance_elx_conv_t                        \
-    elx_conv_t<InputType, WeightsType, OutputType, BiasType>
+template <typename UserTypes> struct elx_conv_t {
+  public:
+  using InputType = typename UserTypes::InputType;
+  using WeightsType = typename UserTypes::WeightsType;
+  using OutputType = typename UserTypes::OutputType;
+  using BiasType = typename UserTypes::BiasType;
 
-template<typename InputType, typename WeightsType,
-    typename OutputType, typename BiasType>
-struct elx_conv_t {
- public:
   // dimensions
   int ic, oc, ih, iw, oh, ow, n, t, kh, kw;
   // dimensions in packed unit
@@ -77,19 +77,17 @@ struct elx_conv_t {
   int nthreads;
   int execution_mode;
 
-  elx_conv_t(eld_conv_t<InputType, WeightsType, OutputType, BiasType> &dc);
+  elx_conv_t(eld_conv_t<UserTypes> &dc);
   virtual ~elx_conv_t() {}
 
   virtual void execute(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias) = 0;
 
-  virtual void clflush() { return; }
-
   virtual void preprocess(WeightsType *weights) { return; }
 };
 
-template struct elx_conv_t<float, float, float, float>;
-//template struct elx_conv_t<short, short, short, short>;
+template struct elx_conv_t<conv::FP32>;
+//template struct elx_conv_t<conv::FP16>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_HPP__

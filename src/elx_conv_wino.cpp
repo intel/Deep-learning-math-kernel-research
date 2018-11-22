@@ -26,10 +26,9 @@ const float INT8GEMM_TWT_QTSCALE = 127.0;
 const float INT8GEMM_TIN_QTSCALE = 63.0;
 const float INT8GEMM_TIN_QTSHIFT = 64.0;
 
-Template_elx_conv_wino_t
-Instance_elx_conv_wino_t::elx_conv_wino_t(
-    eld_conv_t<InputType, WeightsType, OutputType, BiasType>& dc)
-    : elx_conv_t<InputType, WeightsType, OutputType, BiasType>(dc)
+Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
+    eld_conv_t<UserTypes> &dc)
+    : elx_conv_t<UserTypes>(dc)
 {
   // TODO: error when V!=16 && fmt=OIhw16i16o
   xopt_ = this->execution_mode;

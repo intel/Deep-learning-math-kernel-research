@@ -10,9 +10,8 @@
 namespace euler {
 
 Template_elx_conv_direct_1x1_t
-Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(
-    eld_conv_t<InputType, WeightsType, OutputType, BiasType>& dc)
-    : elx_conv_t<InputType, WeightsType, OutputType, BiasType>(dc)
+Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t<UserTypes> &dc)
+    : elx_conv_t<UserTypes>(dc)
 {
   // user input
   xopt_ = this->execution_mode;

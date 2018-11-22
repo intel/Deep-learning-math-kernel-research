@@ -68,20 +68,20 @@ TEST_P(elkTransWeightsTest, combineTest) {
   int test_tile_size = GetParam();
   switch (test_tile_size) {
   case 4:
-    test_elk_trans_weights<float, float, float, float, float, 4, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_weights<conv::FP32, float, 4, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff);
     break;
 
   case 5:
-    test_elk_trans_weights<float, float, float, float, float, 5, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_weights<conv::FP32, float, 5, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff);
     break;
   case 6:
-//     test_elk_trans_weights<float, 6, 3, 16, ISA_SKX_AVX512>(test_perf,
+//     test_elk_trans_weights<conv::FP32, float, 6, 3, 16, ISA_SKX_AVX512>(test_perf,
 //                                                             show_diff);
     break;
   case 7:
-    test_elk_trans_weights<float, float, float, float, float, 7, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_weights<conv::FP32, float, 7, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff);
     break;
   default:

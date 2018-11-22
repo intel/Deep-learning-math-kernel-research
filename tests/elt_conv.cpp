@@ -40,7 +40,7 @@ int main(int argc, char **argv)
     return 0;
 
   // 1, create convolution desc
-  eld_conv_t<float, float, float, float> desc;
+  eld_conv_t<conv::FP32> desc;
   desc.dims = {{ mb, ic, ih, iw },
                { oc, ic, kh, kw },
                { mb, oc, oh, ow },
@@ -67,7 +67,7 @@ int main(int argc, char **argv)
       = { input_as_blocked, weights_as_blocked, output_as_blocked };
 
   // 2. setup convolution
-  eld_conv_t<float, float, float, float> convs[RL_MAX];
+  eld_conv_t<conv::FP32> convs[RL_MAX];
   float *input[RL_MAX], *weights[RL_MAX], *output[RL_MAX], *bias[RL_MAX],
       *ref_output;
   const auto C = validate_results ?
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
 
   // 3. execute convolution
   for (auto c = 0; c < C; ++c) {
-    eld_conv_t<float, float, float, float> &_convs = convs[c];
+    eld_conv_t<conv::FP32> &_convs = convs[c];
     float *_weights = weights[c], *_bias = bias[c], *_input = input[c],
           *_output = output[c];
     if (double_buffering) {
@@ -123,8 +123,7 @@ int main(int argc, char **argv)
     } else if (output_as_input) {
       if (c > 0) _input = output[c - 1];
     }
-    if (ELX_OK != elx_conv<float, float, float, float>(
-            _convs, _output, _input, _weights, _bias)) {
+    if (ELX_OK != elx_conv<conv::FP32>(_convs, _output, _input, _weights, _bias)) {
       test::error("Fail: Convolution execution error!\n");
     }
   }
@@ -149,9 +148,9 @@ int main(int argc, char **argv)
     test::timer timer;
     for (auto n = 0; n < N / C; ++n) {
       for (auto c = 0; c < C; ++c) {
-        eld_conv_t<float, float, float, float> &_convs = convs[c];
-        float *_weights = weights[c], *_bias = bias[c],
-            *_input = input[c], *_output = output[c];
+        eld_conv_t<conv::FP32> &_convs = convs[c];
+        float *_weights = weights[c], *_bias = bias[c], *_input = input[c],
+              *_output = output[c];
         if (double_buffering) {
           if (c % 2 == 0) {
             _input = input[0];
@@ -165,8 +164,8 @@ int main(int argc, char **argv)
             _input = output[c - 1];
         }
         timer.start();
-        if (ELX_OK != elx_conv<float>(
-            _convs, _output, _input, _weights, _bias)) {
+        if (ELX_OK
+            != elx_conv<conv::FP32>(_convs, _output, _input, _weights, _bias)) {
           test::error("Fail: Convolution execution error!\n");
         }
         timer.stop();

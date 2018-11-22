@@ -9,43 +9,40 @@
 
 namespace euler {
 
-template<typename InputType, typename WeightsType,
-    typename OutputType, typename BiasType>
-eld_conv_t<InputType, WeightsType, OutputType, BiasType>::eld_conv_t() {
-  pads      = {1, 1, 1, 1};
-  strides   = {1, 1};
-  dilations = {1, 1};
-  sizes     = {0, 0, 0, 0};
+template <typename UserTypes> eld_conv_t<UserTypes>::eld_conv_t()
+{
+  pads = { 1, 1, 1, 1 };
+  strides = { 1, 1 };
+  dilations = { 1, 1 };
+  sizes = { 0, 0, 0, 0 };
   algorithm = CONV_DIRECT;
   tile_size = 0;
   with_relu = false;
   with_bias = false;
   with_ip_sum = false;
   with_op_sum = false;
-  xc        = nullptr;
+  xc = nullptr;
   nthreads = 0;
   execution_mode = 0;
-  blocking  = {0, 0};
-  flatting  = {0, 0};
-  partition = {1, 1};
-  streaming_hint = {0, 0, 0};
-  format_as_blocked = {false, false, false};
+  blocking = { 0, 0 };
+  flatting = { 0, 0 };
+  partition = { 1, 1 };
+  streaming_hint = { 0, 0, 0 };
+  format_as_blocked = { false, false, false };
 }
 
-template<typename InputType, typename WeightsType,
-    typename OutputType, typename BiasType>
-eld_conv_t<InputType, WeightsType, OutputType, BiasType>::~eld_conv_t() {
+template <typename UserTypes> eld_conv_t<UserTypes>::~eld_conv_t()
+{
   if (xc != nullptr) {
     delete xc;
   }
 }
 
-template<typename InputType, typename WeightsType,
-    typename OutputType, typename BiasType>
-int eld_conv_t<InputType, WeightsType, OutputType, BiasType>::setup() {
+template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
+{
   // Dimensions
-  if (dims.input.c != dims.weights.i || dims.input.n != dims.output.n ||
-      dims.output.c != dims.weights.o) {
+  if (dims.input.c != dims.weights.i || dims.input.n != dims.output.n
+      || dims.output.c != dims.weights.o) {
     el_error("Dimension error");
     return ELD_GENERAL_ERROR;
   }
@@ -121,8 +118,7 @@ int eld_conv_t<InputType, WeightsType, OutputType, BiasType>::setup() {
       el_error("Algorithm CONV_DIRECT_1X1 not supported for this shape.");
       return ELD_GENERAL_ERROR;
     }
-    xc = new elx_conv_direct_1x1_t<InputType, WeightsType, OutputType, BiasType,
-        float, 16, ISA_SKX_AVX512>(*this);
+    xc = new elx_conv_direct_1x1_t<UserTypes, float, 16, ISA_SKX_AVX512>(*this);
   } else if (algorithm == CONV_WINOGRAD) {
     // Winograd
     if (dilations.h > 1 || dilations.w > 1 ||
@@ -139,20 +135,16 @@ int eld_conv_t<InputType, WeightsType, OutputType, BiasType>::setup() {
       // TODO: forward, backward_data, backward_weights
       switch (tile_size) {
       case 4:
-        xc = new elx_conv_wino_t<InputType, WeightsType, OutputType, BiasType,
-           float, 4, 3, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_wino_t<UserTypes, float, 4, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       case 5:
-        xc = new elx_conv_wino_t<InputType, WeightsType, OutputType, BiasType,
-           float, 5, 3, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_wino_t<UserTypes, float, 5, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       case 6:
-        xc = new elx_conv_wino_t<InputType, WeightsType, OutputType, BiasType,
-           float, 6, 3, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_wino_t<UserTypes, float, 6, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       case 7:
-        xc = new elx_conv_wino_t<InputType, WeightsType, OutputType, BiasType,
-           float, 7, 3, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_wino_t<UserTypes, float, 7, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       default:
         el_error("Unimplemented tile size");
@@ -164,17 +156,10 @@ int eld_conv_t<InputType, WeightsType, OutputType, BiasType>::setup() {
   return ELD_OK;
 }
 
-template<typename InputType, typename WeightsType,
-    typename OutputType, typename BiasType>
-void eld_conv_t<InputType, WeightsType, OutputType, BiasType>::
-    preprocess(WeightsType *weights) {
+template <typename UserTypes>
+void eld_conv_t<UserTypes>::preprocess(WeightsType *weights)
+{
   this->xc->preprocess(weights);
-}
-
-template<typename InputType, typename WeightsType,
-    typename OutputType, typename BiasType>
-void eld_conv_t<InputType, WeightsType, OutputType, BiasType>::clflush() {
-  xc->clflush();
 }
 
 }  // namespace euler

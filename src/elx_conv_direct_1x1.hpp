@@ -11,17 +11,20 @@
 namespace euler {
 
 #define Template_elx_conv_direct_1x1_t                                         \
-    template <typename InputType, typename WeightsType, typename OutputType,   \
-        typename BiasType, typename TarrayType, const int V, const int I>
+  template <typename UserTypes, typename TarrayType, const int V, const int I>
 
 #define Instance_elx_conv_direct_1x1_t                                         \
-    elx_conv_direct_1x1_t<InputType, WeightsType, OutputType, BiasType,        \
-    TarrayType, V, I>
+    elx_conv_direct_1x1_t<UserTypes, TarrayType, V, I>
 
 Template_elx_conv_direct_1x1_t
-class elx_conv_direct_1x1_t : public Instance_elx_conv_t {
+class elx_conv_direct_1x1_t : public elx_conv_t<UserTypes> {
+  using InputType = typename UserTypes::InputType;
+  using WeightsType = typename UserTypes::WeightsType;
+  using OutputType = typename UserTypes::OutputType;
+  using BiasType = typename UserTypes::BiasType;
+
   public:
-  elx_conv_direct_1x1_t(eld_conv_t<InputType, WeightsType, OutputType, BiasType> &dc);
+  elx_conv_direct_1x1_t(eld_conv_t<UserTypes> &dc);
   virtual ~elx_conv_direct_1x1_t();
 
   virtual void execute(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
@@ -72,14 +75,14 @@ class elx_conv_direct_1x1_t : public Instance_elx_conv_t {
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> *ker_gemm_I_O_T_;
-  gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> *ker_gemm_I_O_Tr_;
-  gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> *ker_gemm_I_OrT_;
-  gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> *ker_gemm_I_OrTr_;
-  gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> *ker_gemm_IrO_T_;
-  gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> *ker_gemm_IrO_Tr_;
-  gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> *ker_gemm_IrOrT_;
-  gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> *ker_gemm_IrOrTr_;
+  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> *ker_gemm_I_O_T_;
+  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> *ker_gemm_I_O_Tr_;
+  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> *ker_gemm_I_OrT_;
+  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> *ker_gemm_I_OrTr_;
+  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> *ker_gemm_IrO_T_;
+  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> *ker_gemm_IrO_Tr_;
+  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> *ker_gemm_IrOrT_;
+  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> *ker_gemm_IrOrTr_;
 
   void (elx_conv_direct_1x1_t::*execute_opt_)(OutputType *, InputType *, WeightsType *, BiasType *);
 
@@ -121,14 +124,14 @@ class elx_conv_direct_1x1_t : public Instance_elx_conv_t {
 
 /*
 template<>
-class elx_conv_direct_1x1_t<short, 16, ISA_SKX_AVX512> : public elx_conv_t<short> {
+class elx_conv_direct_1x1_t<conv::FP16, 16, ISA_SKX_AVX512> : public elx_conv_t<conv::FP16> {
   public:
-  elx_conv_direct_1x1_t(eld_conv_t<short> &dc) : elx_conv_t<short>(dc) {}
+  elx_conv_direct_1x1_t(eld_conv_t<conv::FP16> &dc) : elx_conv_t<short>(dc) {}
   virtual void execute(short *output, short *input, short *weights, short *bias) {}
 };*/
 
-template class elx_conv_direct_1x1_t<float, float, float, float, float, 16, ISA_SKX_AVX512>;
-template class elx_conv_direct_1x1_t<float, float, float, float, float, 8, ISA_SKX_AVX512>;
+template class elx_conv_direct_1x1_t<conv::FP32, float, 16, ISA_SKX_AVX512>;
+template class elx_conv_direct_1x1_t<conv::FP32, float, 8, ISA_SKX_AVX512>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_DIRECT_1X1_HPP__

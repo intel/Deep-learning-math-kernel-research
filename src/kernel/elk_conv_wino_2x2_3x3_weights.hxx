@@ -11,11 +11,11 @@
 namespace euler {
 
 // float atweights[A][A][V][V] <- float aweights[K][K][V][V])
-template <typename InputType, typename WeightsType,
-     typename OutputType, typename BiasType, typename TarrayType, int V>
- inline void convolution_winograd_kernel_base<InputType, WeightsType, OutputType,
-     BiasType, TarrayType, ISA_SKX_AVX512, V, 4, 3>::
-__trans_weights(TarrayType atweights[A][A][V][V], WeightsType aweights[K][K][V][V]) {
+template <typename UserTypes, typename TarrayType, int V>
+inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
+    ISA_SKX_AVX512, V, 4, 3>::__trans_weights(TarrayType atweights[A][A][V][V],
+    WeightsType aweights[K][K][V][V])
+{
   ENABLE_AVX512F();
 
   // Constants

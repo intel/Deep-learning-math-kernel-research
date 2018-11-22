@@ -47,39 +47,44 @@
 
 namespace euler {
 
-#define Template_elx_conv_wino_t                                  \
-template <typename InputType, typename WeightsType,               \
-     typename OutputType, typename BiasType, typename TarrayType, \
-     const int A, const int K, const int V, const int I>
+#define Template_elx_conv_wino_t                                               \
+  template <typename UserTypes, typename TarrayType, const int A, const int K, \
+      const int V, const int I>
 
-#define Instance_elx_conv_wino_t elx_conv_wino_t<InputType,       \
-    WeightsType, OutputType, BiasType, TarrayType, A, K, V, I>
+#define Instance_elx_conv_wino_t                                               \
+  elx_conv_wino_t<UserTypes, TarrayType, A, K, V, I>
 
-#define Instance_convolution_winograd_kernel                      \
-    convolution_winograd_kernel<InputType, WeightsType,           \
-    OutputType, BiasType, TarrayType, I, V, A, K>
+#define Instance_convolution_winograd_kernel                                   \
+  convolution_winograd_kernel<UserTypes, TarrayType, I, V, A, K>
 
-Template_elx_conv_wino_t
-class elx_conv_wino_t : public Instance_elx_conv_t {
+template <typename UserTypes, typename TarrayType,
+         const int A, const int K, const int V, const int I>
+class elx_conv_wino_t : public elx_conv_t<UserTypes> {
 public:
   // Configurable parameters
-  using Instance_elx_conv_t::IC;
-  using Instance_elx_conv_t::OC;
-  using Instance_elx_conv_t::T;
-  using Instance_elx_conv_t::I2;
-  using Instance_elx_conv_t::O2;
-  using Instance_elx_conv_t::oc4;
-  using Instance_elx_conv_t::ic3;
-  using Instance_elx_conv_t::oc3;
-  using Instance_elx_conv_t::Vx;
+  using elx_conv_t<UserTypes>::IC;
+  using elx_conv_t<UserTypes>::OC;
+  using elx_conv_t<UserTypes>::T;
+  using elx_conv_t<UserTypes>::I2;
+  using elx_conv_t<UserTypes>::O2;
+  using elx_conv_t<UserTypes>::oc4;
+  using elx_conv_t<UserTypes>::ic3;
+  using elx_conv_t<UserTypes>::oc3;
+  using elx_conv_t<UserTypes>::Vx;
+  using InputType = typename UserTypes::InputType;
+  using WeightsType = typename UserTypes::WeightsType;
+  using OutputType = typename UserTypes::OutputType;
+  using BiasType = typename UserTypes::BiasType;
+
   constexpr static size_t elem_sz = sizeof(WeightsType);
   constexpr static bool is_border = true;
   constexpr static bool has_bias = true;
   constexpr static bool has_relu = true;
   constexpr static bool has_sum = true;
   constexpr static bool no = false;
+
 public:
-  elx_conv_wino_t(eld_conv_t<InputType, WeightsType, OutputType, BiasType> &dc);
+  elx_conv_wino_t(eld_conv_t<UserTypes> &dc);
   virtual ~elx_conv_wino_t();
 
   virtual void execute(OutputType *output, InputType *input,
@@ -351,15 +356,15 @@ private:
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> *ker_gemm_;
-  gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> *ker_gemm0_;
-  gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> *ker_gemm_tail_;
-  gemm_kernel_binder::ker<Instance_elx_conv_t, float, float> *ker_gemm0_tail_;
+  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> *ker_gemm_;
+  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> *ker_gemm0_;
+  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> *ker_gemm_tail_;
+  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> *ker_gemm0_tail_;
 
-  gemm_kernel_binder::ker<Instance_elx_conv_t, uint8_t, int8_t> *ker_i8_gemm_;
-  gemm_kernel_binder::ker<Instance_elx_conv_t, uint8_t, int8_t> *ker_i8_gemm0_;
-  gemm_kernel_binder::ker<Instance_elx_conv_t, uint8_t, int8_t> *ker_i8_gemm_tail_;
-  gemm_kernel_binder::ker<Instance_elx_conv_t, uint8_t, int8_t> *ker_i8_gemm0_tail_;
+  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, uint8_t, int8_t> *ker_i8_gemm_;
+  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, uint8_t, int8_t> *ker_i8_gemm0_;
+  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, uint8_t, int8_t> *ker_i8_gemm_tail_;
+  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, uint8_t, int8_t> *ker_i8_gemm0_tail_;
 
   decltype(Instance_convolution_winograd_kernel
       ::template trans_input<no>) *ker_trans_input_;
@@ -565,13 +570,13 @@ public:
 };
 
 #ifdef WITH_GK
-template class elx_conv_wino_t<float, float, float, float, float, 4, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_t<conv::FP32, float, 4, 3, 16, ISA_GENERIC>;
 //template class elx_conv_wino_t<float, float, 4, 3, 16, ISA_COSIM_AVX512>;
-template class elx_conv_wino_t<float, float, float, float, float, 5, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_t<conv::FP32, float, 5, 3, 16, ISA_GENERIC>;
 //template class elx_conv_wino_t<float, float, 5, 3, 16, ISA_COSIM_AVX512>;
-template class elx_conv_wino_t<float, float, float, float, float, 6, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_t<conv::FP32, float, 6, 3, 16, ISA_GENERIC>;
 //template class elx_conv_wino_t<float, float, 6, 3, 16, ISA_COSIM_AVX512>;
-template class elx_conv_wino_t<float, float, float, float, float, 7, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_t<conv::FP32, float, 7, 3, 16, ISA_GENERIC>;
 //template class elx_conv_wino_t<float, float, 7, 3, 16, ISA_COSIM_AVX512>;
 // template class elx_conv_wino_t<float, 5, 3, 8, ISA_GENERIC>;
 // template class elx_conv_wino_t<float, 5, 3, 8, ISA_COSIM_AVX512>;
@@ -580,15 +585,15 @@ template class elx_conv_wino_t<float, float, float, float, float, 7, 3, 16, ISA_
 // template class elx_conv_wino_t<float, 7, 3, 8, ISA_GENERIC>;
 // template class elx_conv_wino_t<float, 7, 3, 8, ISA_COSIM_AVX512>;
 #endif
-template class elx_conv_wino_t<float, float, float, float, float, 4, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<float, float, float, float, float, 5, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<float, float, float, float, float, 6, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<float, float, float, float, float, 7, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, float, 4, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, float, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, float, 6, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, float, 7, 3, 16, ISA_SKX_AVX512>;
 // FP16 interface / FP32 implementation
-// template class elx_conv_wino_t<short, short, short, short, float, 4, 3, 16, ISA_SKX_AVX512>;
-// template class elx_conv_wino_t<short, short, short, short, float, 5, 3, 16, ISA_SKX_AVX512>;
-// template class elx_conv_wino_t<short, short, short, short, float, 6, 3, 16, ISA_SKX_AVX512>;
-// template class elx_conv_wino_t<short, short, short, short, float, 7, 3, 16, ISA_SKX_AVX512>;
+// template class elx_conv_wino_t<conv::FP16, float, 4, 3, 16, ISA_SKX_AVX512>;
+// template class elx_conv_wino_t<conv::FP16, float, 5, 3, 16, ISA_SKX_AVX512>;
+// template class elx_conv_wino_t<conv::FP16, float, 6, 3, 16, ISA_SKX_AVX512>;
+// template class elx_conv_wino_t<conv::FP16, float, 7, 3, 16, ISA_SKX_AVX512>;
 // FP16 interface / FP16 implementation
 // template class elx_conv_wino_t<short, short, 4, 3, 16, ISA_SKX_AVX512>;
 // template class elx_conv_wino_t<short, short, 5, 3, 16, ISA_SKX_AVX512>;

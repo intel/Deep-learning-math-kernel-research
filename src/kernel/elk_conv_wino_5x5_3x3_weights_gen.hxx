@@ -33,7 +33,7 @@ namespace euler {
   T(6, n) = r9_2 * C(2);
 
 // float atweights[A][A][V][V] <- float aweights[K][K][V][V])
-inline void convolution_winograd_kernel_base<float, float, float, float, float, ISA_GENERIC, 16, 7, 3>::
+inline void convolution_winograd_kernel_base<conv::FP32, float, ISA_GENERIC, 16, 7, 3>::
 __trans_weights(float atweights[A][A][V][V], float aweights[K][K][V][V]) {
   const float r1_5 = 1.0f / 5.0f;
   const float r1_10 = 1.0f / 10.0f;

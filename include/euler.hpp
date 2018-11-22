@@ -2,8 +2,23 @@
 #define __EULER_HPP__
 
 #include <stddef.h>
+#include <tuple>
 
 namespace euler {
+
+template <typename... Types> struct ConvTypes {
+  static_assert(sizeof...(Types) == 4,
+      "Contolution types: input-type, weights-type, output-type, bias-type.");
+  using InputType = typename std::tuple_element<0, std::tuple<Types...>>::type;
+  using WeightsType = typename std::tuple_element<1, std::tuple<Types...>>::type;
+  using OutputType = typename std::tuple_element<2, std::tuple<Types...>>::type;
+  using BiasType = typename std::tuple_element<3, std::tuple<Types...>>::type;
+};
+
+namespace conv {
+  using FP32 = ConvTypes<float, float, float, float>;
+  using FP16 = ConvTypes<short, short, short, short>;
+};
 
 // Convolution algorithm
 enum {
@@ -52,14 +67,16 @@ enum prop_kinds {
     backward_weights
 };
 
-template<typename InputType, typename WeightsType,
-    typename OutputType, typename BiasType>
-struct elx_conv_t;
+template<typename UserTypes> struct elx_conv_t;
 
 // Convolution desc
-template<typename InputType, typename WeightsType,
-    typename OutputType, typename BiasType>
-struct eld_conv_t {
+template<typename UserTypes> struct eld_conv_t {
+
+    using InputType = typename UserTypes::InputType;
+    using WeightsType = typename UserTypes::WeightsType;
+    using OutputType = typename UserTypes::OutputType;
+    using BiasType = typename UserTypes::BiasType;
+
     // Conv parameters
     struct {
         struct { int n, c, h, w; } input;
@@ -116,18 +133,19 @@ struct eld_conv_t {
     struct { size_t input, weights, output, bias; } sizes;
 
     // Internal data used by elx
-    elx_conv_t<InputType, WeightsType, OutputType, BiasType> *xc;
+    elx_conv_t<UserTypes> *xc;
 };
 
-template struct eld_conv_t<float, float, float, float>;
-//template struct eld_conv_t<short>;
+template struct eld_conv_t<conv::FP32>;
+//template struct eld_conv_t<FP16>;
 
 // Convolution execution
-template<typename InputType, typename WeightsType,
-    typename OutputType, typename BiasType>
-int elx_conv(eld_conv_t<InputType, WeightsType, OutputType, BiasType> &desc,
-    OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
-
+template <typename UserTypes>
+int elx_conv(eld_conv_t<UserTypes> &desc,
+    typename UserTypes::OutputType *output,
+    typename UserTypes::InputType *input,
+    typename UserTypes::WeightsType *weights,
+    typename UserTypes::BiasType *bias);
 }
 
 #endif // __EULER_HPP__

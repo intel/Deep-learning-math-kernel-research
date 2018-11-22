@@ -10,13 +10,13 @@
 
 namespace euler {
 
-template <typename InputType, typename WeightsType,
-     typename OutputType, typename BiasType, typename TarrayType, int V>
-template <bool ...conditions>
-inline void convolution_winograd_kernel_base<InputType, WeightsType, OutputType,
-       BiasType, TarrayType, ISA_SKX_AVX512, V, 6, 3>::
-__trans_output(Instance_elx_conv_t &xc, OutputType *output, TarrayType atoutput[A][A][V],
-    BiasType *bias, int hOA_end, int wOA_end) {
+template <typename UserTypes, typename TarrayType, int V>
+template <bool... conditions>
+inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
+    ISA_SKX_AVX512, V, 6, 3>::__trans_output(elx_conv_t<UserTypes> &xc,
+    OutputType *output, TarrayType atoutput[A][A][V], BiasType *bias,
+    int hOA_end, int wOA_end)
+{
   __m<V> z2 = _mm<V>::set1_ps(2.0f);
   __m<V> z4 = _mm<V>::set1_ps(4.0f);
   __m<V> z8 = _mm<V>::set1_ps(8.0f);
@@ -246,23 +246,22 @@ __trans_output(Instance_elx_conv_t &xc, OutputType *output, TarrayType atoutput[
   ISTORE(3, 3);
 }
 
-template <typename InputType, typename WeightsType,
-     typename OutputType, typename BiasType, typename TarrayType, int V>
-template <bool ...conditions>
-inline void convolution_winograd_kernel_base<InputType, WeightsType, OutputType,
-     BiasType, TarrayType, ISA_SKX_AVX512, V, 6, 3>::
-__trans_outputa_th(Instance_elx_conv_t &xc, TarrayType *toutputa, TarrayType *toutput,
-    int Tz, bool stream_out) {
+template <typename UserTypes, typename TarrayType, int V>
+template <bool... conditions>
+inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
+    ISA_SKX_AVX512, V, 6, 3>::__trans_outputa_th(elx_conv_t<UserTypes> &xc,
+    TarrayType *toutputa, TarrayType *toutput, int Tz, bool stream_out)
+{
   el_error("Unimplemented");
 }
 
-template <typename InputType, typename WeightsType,
-     typename OutputType, typename BiasType, typename TarrayType, int V>
-template <bool ...conditions>
-inline void convolution_winograd_kernel_base<InputType, WeightsType, OutputType,
-     BiasType, TarrayType, ISA_SKX_AVX512, V, 6, 3>::
-__trans_outputa_bh(Instance_elx_conv_t &xc, OutputType *output,
-    TarrayType atoutput[A][A - K + 1][V], BiasType *bias, int hOA_end, int wOA_end) {
+template <typename UserTypes, typename TarrayType, int V>
+template <bool... conditions>
+inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
+    ISA_SKX_AVX512, V, 6, 3>::__trans_outputa_bh(elx_conv_t<UserTypes> &xc,
+    OutputType *output, TarrayType atoutput[A][A - K + 1][V], BiasType *bias,
+    int hOA_end, int wOA_end)
+{
   // TODO
   el_error("Unimplemented");
 }
