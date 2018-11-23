@@ -5,6 +5,7 @@
 #include <limits.h>
 #include "gtest/gtest.h"
 #include "euler.hpp"
+#include "el_def.hpp"
 #include "elt_unitests.hpp"
 #include "tests/elt_utils.hpp"
 #include "src/elk_conv_wino.hpp"
@@ -28,6 +29,7 @@ void test_elk_trans_output(bool perf, bool show_diff, int execution_mode,
   using WeightsType = typename UserTypes::WeightsType;
   using OutputType = typename UserTypes::OutputType;
   using BiasType = typename UserTypes::BiasType;
+  using TarrayType = typename TarrayTypes::TarrayType;
 
   int error = 0;
 
@@ -76,10 +78,11 @@ void test_elk_trans_output(bool perf, bool show_diff, int execution_mode,
       (float *)&aoutput, atoutput, abias, A - K, A - K)));
 
   TT(elk_trans_input, iterations, perf,
-     (convolution_winograd_kernel<InputType, WeightsType, OutputType, BiasType,
-      TarrayType, ISA_GENERIC, V, A, K>::
-      template trans_output<false, true, false, false>(
-        xc, (float *)ref_aoutput, atoutput, abias, A - K, A - K)));
+      (convolution_winograd_kernel<
+          euler::ConvTypes<InputType, WeightsType, OutputType, BiasType>,
+          TarrayType, ISA_GENERIC, V, A,
+          K>::template trans_output<false, true, false, false>(xc,
+          (float *)ref_aoutput, atoutput, abias, A - K, A - K)));
 
   for (int _oh = 0; _oh < xc.oh; ++_oh) {
     for (int _ow = 0; _ow < xc.ow; ++_ow) {
@@ -122,26 +125,26 @@ TEST_P(elkTransOutputTest, combineTest) {
   int test_mb = ::testing::get<7>(GetParam());
   switch (test_tile_size) {
   case 4:
-    test_elk_trans_output<float, float, float, float, float, 4, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_output<conv::FP32, wino::FP32, 4, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);
     break;
 
   case 5:
-    test_elk_trans_output<float, float, float, float, float, 5, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_output<conv::FP32, wino::FP32, 5, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);
     break;
   case 6:
-//     test_elk_trans_output<float, float, float, float, 6, 3, 16, ISA_SKX_AVX512>(
+//     test_elk_trans_output<conv::FP32, wino::FP32, 6, 3, 16, ISA_SKX_AVX512>(
 //         test_perf, show_diff, test_execution_mode, test_input_format,
 //         test_weights_format, test_output_format, test_with_bias, test_with_relu,
 //         test_mb);
     break;
   case 7:
-    test_elk_trans_output<float, float, float, float, float, 7, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_output<conv::FP32, wino::FP32, 7, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);

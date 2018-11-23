@@ -48,16 +48,16 @@
 namespace euler {
 
 #define Template_elx_conv_wino_t                                               \
-  template <typename UserTypes, typename TarrayType, const int A, const int K, \
-      const int V, const int I>
+  template <typename UserTypes, typename TarrayTypes, const int A,             \
+      const int K, const int V, const int I>
 
 #define Instance_elx_conv_wino_t                                               \
-  elx_conv_wino_t<UserTypes, TarrayType, A, K, V, I>
+  elx_conv_wino_t<UserTypes, TarrayTypes, A, K, V, I>
 
 #define Instance_convolution_winograd_kernel                                   \
   convolution_winograd_kernel<UserTypes, TarrayType, I, V, A, K>
 
-template <typename UserTypes, typename TarrayType,
+template <typename UserTypes, typename TarrayTypes,
          const int A, const int K, const int V, const int I>
 class elx_conv_wino_t : public elx_conv_t<UserTypes> {
 public:
@@ -75,6 +75,12 @@ public:
   using WeightsType = typename UserTypes::WeightsType;
   using OutputType = typename UserTypes::OutputType;
   using BiasType = typename UserTypes::BiasType;
+  using TinputType = typename TarrayTypes::TinputType;
+  using TweightsType = typename TarrayTypes::TweightsType;
+  using ToutputType = typename TarrayTypes::ToutputType;
+  using TscaleType = typename TarrayTypes::TscaleType;
+  // In case of TinputType = TweightsType = ToutputType
+  using TarrayType = typename TarrayTypes::TarrayType;
 
   constexpr static size_t elem_sz = sizeof(WeightsType);
   constexpr static bool is_border = true;
@@ -295,11 +301,11 @@ private:
   inline void __trans_input_blocked(TarrayType *tinput, InputType *input);
   void trans_input(TarrayType *tinput, InputType *input);
 
-  inline void __trans_input_u8_blocked(TarrayType *tinput_qt_scale,
-          uint8_t *__restrict tinput_u8, TarrayType *__restrict tinput,
+  inline void __trans_input_u8_blocked(TscaleType *tinput_qt_scale,
+          uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
           InputType *__restrict input, int _t2, int Tz);
-  void trans_input_u8(TarrayType *tinput_qt_scale, uint8_t *__restrict tinput_u8,
-          TarrayType *__restrict tinput, InputType *__restrict input, int _t2, int Tz);
+  void trans_input_u8(TscaleType *tinput_qt_scale, uint8_t *__restrict tinput_u8,
+          TinputType *__restrict tinput, InputType *__restrict input, int _t2, int Tz);
 
   inline void __trans_inputa_plain(TarrayType *tinput, InputType *input, int _t2, int _wA, int Tz);
   inline void __trans_inputa_blocked(TarrayType *tinput, InputType *input, int _t2, int _wA, int Tz);
@@ -327,10 +333,10 @@ private:
   inline void __trans_weights_blocked(TarrayType *tweights, WeightsType *weights, int oc4);
   void trans_weights(TarrayType *tweights, WeightsType *weights, int oc4 = 1);
 
-  inline void __trans_weights_s8_blocked(TarrayType *tweights_qt_scale, TarrayType *tweights_factor,
-      int8_t *tweights_s8, TarrayType *tweights, WeightsType *weights, int oc4);
-  void trans_weights_s8(TarrayType *tweights_qt_scale, TarrayType *tweights_factor,
-      int8_t *tweights_s8, TarrayType *tweights, WeightsType *weights, int oc4);
+  inline void __trans_weights_s8_blocked(TscaleType *tweights_qt_scale, TscaleType *tweights_factor,
+      int8_t *tweights_s8, TweightsType *tweights, WeightsType *weights, int oc4);
+  void trans_weights_s8(TscaleType *tweights_qt_scale, TscaleType *tweights_factor,
+      int8_t *tweights_s8, TweightsType *tweights, WeightsType *weights, int oc4);
 
   inline void __trans_weightsf_plain(TarrayType *tweights, WeightsType *weights, int _ic4, int _oc4);
   inline void __trans_weightsf_blocked(TarrayType *tweights, WeightsType *weights, int _ic4, int _oc4);
@@ -345,10 +351,10 @@ private:
   void gemm(TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _ic4 = 0);
   void gemm_non_acc(TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _ic4 = 0);
   void gemma(TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _t2, int Tz);
-  void gemm(TarrayType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
-      TarrayType *src_scale, TarrayType *weights_scale, TarrayType *factor, int _ic4 = 0);
-  void gemm_non_acc(TarrayType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
-      TarrayType *src_scale, TarrayType *weights_scale, TarrayType *factor, int _ic4 = 0);
+  void gemm(ToutputType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
+      TscaleType *src_scale, TscaleType *weights_scale, TscaleType *factor, int _ic4 = 0);
+  void gemm_non_acc(ToutputType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
+      TscaleType *src_scale, TscaleType *weights_scale, TscaleType *factor, int _ic4 = 0);
 
   void prepare_tweights(WeightsType * __restrict weights);
 
@@ -570,13 +576,13 @@ public:
 };
 
 #ifdef WITH_GK
-template class elx_conv_wino_t<conv::FP32, float, 4, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_t<conv::FP32, wino::FP32, 4, 3, 16, ISA_GENERIC>;
 //template class elx_conv_wino_t<float, float, 4, 3, 16, ISA_COSIM_AVX512>;
-template class elx_conv_wino_t<conv::FP32, float, 5, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_t<conv::FP32, wino::FP32, 5, 3, 16, ISA_GENERIC>;
 //template class elx_conv_wino_t<float, float, 5, 3, 16, ISA_COSIM_AVX512>;
-template class elx_conv_wino_t<conv::FP32, float, 6, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_t<conv::FP32, wino::FP32, 6, 3, 16, ISA_GENERIC>;
 //template class elx_conv_wino_t<float, float, 6, 3, 16, ISA_COSIM_AVX512>;
-template class elx_conv_wino_t<conv::FP32, float, 7, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_t<conv::FP32, wino::FP32, 7, 3, 16, ISA_GENERIC>;
 //template class elx_conv_wino_t<float, float, 7, 3, 16, ISA_COSIM_AVX512>;
 // template class elx_conv_wino_t<float, 5, 3, 8, ISA_GENERIC>;
 // template class elx_conv_wino_t<float, 5, 3, 8, ISA_COSIM_AVX512>;
@@ -585,10 +591,10 @@ template class elx_conv_wino_t<conv::FP32, float, 7, 3, 16, ISA_GENERIC>;
 // template class elx_conv_wino_t<float, 7, 3, 8, ISA_GENERIC>;
 // template class elx_conv_wino_t<float, 7, 3, 8, ISA_COSIM_AVX512>;
 #endif
-template class elx_conv_wino_t<conv::FP32, float, 4, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, float, 5, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, float, 6, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, float, 7, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, wino::FP32, 4, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, wino::FP32, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, wino::FP32, 6, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, wino::FP32, 7, 3, 16, ISA_SKX_AVX512>;
 // FP16 interface / FP32 implementation
 // template class elx_conv_wino_t<conv::FP16, float, 4, 3, 16, ISA_SKX_AVX512>;
 // template class elx_conv_wino_t<conv::FP16, float, 5, 3, 16, ISA_SKX_AVX512>;

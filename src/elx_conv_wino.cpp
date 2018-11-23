@@ -181,11 +181,11 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   }
 
   if (input_as_bfmt_)
-    binput_size = this->n * this->IC * this->ih * this->iw;
+    binput_size = this->n * this->IC * this->ih * this->iw * sizeof(InputType);
   if (weights_as_bfmt_)
-    bweights_size = this->OC * this->IC * this->kh * this->kw;
+    bweights_size = this->OC * this->IC * this->kh * this->kw * sizeof(WeightsType);
   if (output_as_bfmt_)
-    boutput_size = this->n * this->OC * this->oh * this->ow;
+    boutput_size = this->n * this->OC * this->oh * this->ow * sizeof(OutputType);
 
   tweights_ = nullptr;
   tinput_ = nullptr;
@@ -203,72 +203,72 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
 
   switch (xopt_) {
   case 0xa000:
-    tweights_size = A * A * this->IC * this->OC;
-    tinput_size = A * A * this->IC * this->t;
-    toutput_size = A * A * this->OC * this->t;
+    tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
+    tinput_size = A * A * this->IC * this->t * sizeof(TinputType);
+    toutput_size = A * A * this->OC * this->t * sizeof(ToutputType);
     break;
   case 0xa033:
-    tweights_size = A * A * this->IC * this->OC;
-    tinput_size = A * A * this->ic3 * this->I2 * V * this->t;
-    toutput_size = A * A * (this->OC / this->oc4) * this->t;
+    tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
+    tinput_size = A * A * this->ic3 * this->I2 * V * this->t * sizeof(TinputType);
+    toutput_size = A * A * (this->OC / this->oc4) * this->t * sizeof(ToutputType);
     break;
   case 0xa061:
-    tweights_size = A * A * this->IC * this->OC;
-    tinput_size = A * A * this->IC * this->T * mthr_;
-    toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_;
+    tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
+    tinput_size = A * A * this->IC * this->T * mthr_ * sizeof(TinputType);
+    toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
     break;
   case 0xa071:
-    tweights_size = A * A * this->IC * this->OC;
-    tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_;
-    toutput_size = A * A * this->OC * this->t;
+    tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
+    tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_ * sizeof(TinputType);
+    toutput_size = A * A * this->OC * this->t * sizeof(ToutputType);
     break;
   case 0xa073:
-    tweights_size = A * A * this->IC * this->OC;
-    tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_;
-    toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_;
+    tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
+    tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_ * sizeof(TinputType);
+    toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
     break;
   case 0xa079:
-    tweights_size = A * A * (this->IC / this->ic4) * (this->OC / this->oc4) * mthr_;
-    tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_;
-    toutput_size = A * A * this->OC * this->t;
+    tweights_size = A * A * (this->IC / this->ic4) * (this->OC / this->oc4) * mthr_ * sizeof(TweightsType);
+    tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_ * sizeof(TinputType);
+    toutput_size = A * A * this->OC * this->t * sizeof(ToutputType);
     break;
   case 0xa07b:
-    tweights_size = A * A * (this->IC / this->ic4) * (this->OC / this->oc4) * mthr_;
-    tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_;
-    toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_;
+    tweights_size = A * A * (this->IC / this->ic4) * (this->OC / this->oc4) * mthr_ * sizeof(TweightsType);
+    tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_ * sizeof(TinputType);
+    toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
     break;
   case 0xa0e0:
-    tweights_size = A * A * this->IC * this->OC;
-    tinput_size = A * A * this->IC * this->t;
-    toutput_size = A * (this->OC / this->oc4) * this->T * mthr_;
-    toutputa_size = A * (A - K + 1) * this->OC * this->t;
+    tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
+    tinput_size = A * A * this->IC * this->t * sizeof(TinputType);
+    toutput_size = A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
+    toutputa_size = A * (A - K + 1) * this->OC * this->t * sizeof(ToutputType);
     break;
   case 0xa0e1:
-    tweights_size = A * A * this->IC * this->OC;
-    tinput_size = A * this->IC * this->T * mthr_;
-    toutput_size = A * (this->OC / this->oc4) * this->T * mthr_;
-    toutputa_size = A * (A - K + 1) * this->OC * this->t;
+    tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
+    tinput_size = A * this->IC * this->T * mthr_ * sizeof(TinputType);
+    toutput_size = A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
+    toutputa_size = A * (A - K + 1) * this->OC * this->t * sizeof(ToutputType);
     break;
   case 0xa161:
-    tweights_size = A * A * this->IC * this->OC;
-    tinput_size = A * A * this->IC * mthr_;
-    toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_;
-    tinput_u8_size = A * A * this->IC * mthr_ * this->T / sizeof(InputType);
-    tinput_qt_scale_size = this->t2 * this->T * A * A;
-    tweights_s8_size = tweights_size / sizeof(WeightsType);
-    tweights_qt_scale_size = this->OC * A * A;
-    tweights_factor_size = this->OC * A * A; // * this->ic4
-    tweights_ci_size = this->OC;
+    tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
+    tinput_size = A * A * this->IC * mthr_ * sizeof(TinputType);
+    toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
+    tinput_u8_size = A * A * this->IC * mthr_ * this->T * sizeof(uint8_t);
+    tinput_qt_scale_size = this->t2 * this->T * A * A * sizeof(TscaleType);
+    tweights_s8_size = tweights_size / sizeof(TweightsType);
+    tweights_qt_scale_size = this->OC * A * A * sizeof(TscaleType);
+    tweights_factor_size = this->OC * A * A * sizeof(TscaleType); // * this->ic4
+    tweights_ci_size = this->OC * sizeof(TscaleType);
     break;
   case 0xa173:
-    tweights_size = A * A * this->IC * this->OC;
-    tinput_size = A * A * (this->IC / this->ic4) * mthr_;
-    toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_;
-    tinput_u8_size = A * A * (this->IC / this->ic4) * mthr_ * this->T / sizeof(InputType);
-    tinput_qt_scale_size = mthr_ * this->T * A * A;
-    tweights_s8_size = tweights_size / sizeof(WeightsType);
-    tweights_qt_scale_size = this->ic4 * this->OC * A * A;
-    tweights_factor_size = this->ic4 * this->OC * A * A;
+    tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
+    tinput_size = A * A * (this->IC / this->ic4) * mthr_ * sizeof(TinputType);
+    toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
+    tinput_u8_size = A * A * (this->IC / this->ic4) * mthr_ * this->T * sizeof(uint8_t);
+    tinput_qt_scale_size = mthr_ * this->T * A * A * sizeof(TscaleType);
+    tweights_s8_size = tweights_size / sizeof(TweightsType);
+    tweights_qt_scale_size = this->ic4 * this->OC * A * A * sizeof(TscaleType);
+    tweights_factor_size = this->ic4 * this->OC * A * A * sizeof(TscaleType);
     break;
   default:
       el_error("Config error!");
@@ -277,8 +277,8 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   }
 
   // TODO change align for different types
-#define WEIGHTS_MAX_PRELOAD 4
-  const size_t align = PAGE_SIZE / sizeof(InputType);
+#define WEIGHTS_MAX_PRELOAD 4 * sizeof(TweightsType)
+  const size_t align = PAGE_SIZE;
   if (tweights_size > 0)
     tweights_size += WEIGHTS_MAX_PRELOAD * V;
 
@@ -309,9 +309,9 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   }
   // TODO: user provided buffer
   if (scratch_size != 0)
-    scratch_ = (TarrayType *)galloc::acquire(scratch_size * sizeof(TarrayType));
+    scratch_ = (TarrayType *)galloc::acquire(scratch_size);
   if (workspace_size != 0)
-    MEMALIGN64(&workspace_, workspace_size * sizeof(TarrayType));
+    MEMALIGN64(&workspace_, workspace_size);
 
   set_trans_buffers();
 
@@ -334,23 +334,23 @@ void Instance_elx_conv_wino_t::set_trans_buffers()
 {
   if (workspace_ != nullptr) {
     tweights_ = workspace_;
-    tinput_ = (TarrayType *)galloc::get();
+    tinput_ = (TinputType *)galloc::get();
     // int8gemm supported in weights reuse case only.
-    tweights_qt_scale_ = tweights_ + tweights_size_;
-    tweights_factor_ = tweights_qt_scale_ + tweights_qt_scale_size_;
-    tweights_ci_ = tweights_factor_ + tweights_factor_size_;
-    tweights_s8_ = reinterpret_cast<int8_t *>(tweights_ci_ + tweights_ci_size_);
+    tweights_qt_scale_ = (TscaleType *)((char *)tweights_ + tweights_size_);
+    tweights_factor_ = (TscaleType *)((char *)tweights_qt_scale_ + tweights_qt_scale_size_);
+    tweights_ci_ = (TscaleType *)((char *)tweights_factor_ + tweights_factor_size_);
+    tweights_s8_ = (int8_t *)((char *)tweights_ci_ + tweights_ci_size_);
   } else {
-    tweights_ = (TarrayType *)galloc::get();
+    tweights_ = (TweightsType *)galloc::get();
     tinput_ = tweights_ + tweights_size_;
   }
-  toutput_ = tinput_ + tinput_size_;
-  toutputa_ = toutput_ + toutput_size_;
-  binput_ = reinterpret_cast<InputType *>(toutputa_ + toutputa_size_);
-  bweights_ = reinterpret_cast<WeightsType *>(binput_ + binput_size_);
-  boutput_ = reinterpret_cast<OutputType *>(bweights_ + bweights_size_);
-  tinput_qt_scale_ = reinterpret_cast<TarrayType *>(boutput_ + boutput_size_);
-  tinput_u8_ = reinterpret_cast<uint8_t *>(tinput_qt_scale_ + tinput_qt_scale_size_);
+  toutput_ = (ToutputType *)((char *)tinput_ + tinput_size_);
+  toutputa_ = (ToutputType *)((char *)toutput_ + toutput_size_);
+  binput_ = (InputType *)((char *)toutputa_ + toutputa_size_);
+  bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
+  boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);
+  tinput_qt_scale_ = (TscaleType *)((char *)boutput_ + boutput_size_);
+  tinput_u8_ = (uint8_t *)((char *)tinput_qt_scale_ + tinput_qt_scale_size_);
 }
 
 Template_elx_conv_wino_t
@@ -567,19 +567,19 @@ void Instance_elx_conv_wino_t::__trans_weights_blocked(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
-    TarrayType *tweights_qt_scale, TarrayType *tweights_factor, int8_t *tweights_s8,
-    TarrayType *tweights, WeightsType *weights, int oc4)
+    TscaleType *tweights_qt_scale, TscaleType *tweights_factor, int8_t *tweights_s8,
+    TweightsType *tweights, WeightsType *weights, int oc4)
 {
   _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
   MD12(WeightsType, aweights, weights, oc4, this->oc3, this->O1, this->O,
       this->ic4, this->ic3, this->I2, this->Vx, K, K, V, V);
-  MD12(TarrayType, atweights, tweights, oc4, this->ic4, this->oc3, this->ic3,
+  MD12(TweightsType, atweights, tweights, oc4, this->ic4, this->oc3, this->ic3,
       A, A, this->O1, this->I2, this->Vx, V, this->O, V);
   MD12(int8_t, atweights_s8, tweights_s8, oc4, this->ic4, this->oc3, this->ic3,
       A, A, this->O1, this->I2, V, this->O, V, this->Vx);
-  MD8(TarrayType, atweights_qt_scale, tweights_qt_scale, this->ic4, oc4, this->oc3, A, A,
+  MD8(TscaleType, atweights_qt_scale, tweights_qt_scale, this->ic4, oc4, this->oc3, A, A,
       this->O1, this->O, V);
-  MD8(TarrayType, atweights_factor, tweights_factor, this->ic4, oc4, this->oc3, A, A,
+  MD8(TscaleType, atweights_factor, tweights_factor, this->ic4, oc4, this->oc3, A, A,
       this->O1, this->O, this->V);
 
   __m<V> zero = _mm<V>::set1_ps(0.0);
@@ -595,12 +595,12 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
   iter_each (_I2, this->I2) {
   iter_each (_O, this->O) {
   iter_each (_iVx, this->Vx) {
-    alignas(64) TarrayType aout[A][A][V][V];
+    alignas(64) TweightsType aout[A][A][V][V];
     WeightsType *in = &md12(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _iVx, 0, 0, 0, 0);
     using Array = WeightsType[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TarrayType, float>::value) {
+    if (I == ISA_SKX_AVX512 && std::is_same<TweightsType, float>::value) {
       if (stream_wei_) {
         iter_each (_wA, A) {
         iter_each (_hA, A) {
@@ -630,7 +630,7 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
    }}}}}}}}
 #pragma omp barrier
 
-  // MD5(TarrayType, atweights_ci, tweights_ci_, oc4, this->oc3, this->O1, this->O, V);
+  // MD5(TscaleType, atweights_ci, tweights_ci_, oc4, this->oc3, this->O1, this->O, V);
   if (this->tweights_preprocessed_) {
 #if 0
 #pragma omp for nowait collapse(4) schedule(static)
@@ -658,7 +658,7 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
       iter_each (_iV, V) {
       iter_each (_iVx, this->Vx) {
         __m<V> mmax_abs;
-        TarrayType *max_abs = (TarrayType *)&mmax_abs;
+        TweightsType *max_abs = (TweightsType *)&mmax_abs;
 #pragma omp simd
         iter_each (_oV, V) {
           max_abs[_oV] =
@@ -719,7 +719,7 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
   }}}}}}}
 
   // I2 Vx V => I2 V Vx
-  MD12(TarrayType, _atweights, tweights, oc4, this->ic4, this->oc3, this->ic3,
+  MD12(TweightsType, _atweights, tweights, oc4, this->ic4, this->oc3, this->ic3,
       A, A, this->O1, this->I2, V, this->Vx, this->O, V);
 #pragma omp for nowait collapse(11) schedule(static)
   iter_each (_oc4, oc4) {
@@ -757,7 +757,7 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
     t0 = _mm<V>::roundscale_ps(t0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
 
     // int8_t
-    TarrayType *rounded = (TarrayType *)&t0;
+    TweightsType *rounded = (TweightsType *)&t0;
 #pragma omp simd
     iter_each (_oV, V) {
       md12(atweights_s8,
@@ -785,7 +785,7 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
   iter_each (_hA, A) {
   iter_each (_O1, this->O1) {
   iter_each (_O, this->O) {
-    if (I == ISA_SKX_AVX512 && std::is_same<TarrayType, float>::value) {
+    if (I == ISA_SKX_AVX512 && std::is_same<TscaleType, float>::value) {
       _mm512_store_ps(&md8(atweights_qt_scale, _ic4, _oc4, _oc3, _wA, _hA, _O1, _O, 0),
           _mm<V>::div_ps(
           *(__m<V> *)&md8(atweights_qt_scale, _ic4, _oc4, _oc3, _wA, _hA, _O1, _O, 0), mmscale));
@@ -810,8 +810,8 @@ void Instance_elx_conv_wino_t::trans_weights(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::trans_weights_s8(
-    TarrayType *tweights_qt_scale, TarrayType *tweights_factor, int8_t *tweights_s8,
-    TarrayType *tweights, WeightsType *weights, int oc4)
+    TscaleType *tweights_qt_scale, TscaleType *tweights_factor, int8_t *tweights_s8,
+    TweightsType *tweights, WeightsType *weights, int oc4)
 {
   if (weights_is_bfmt_ || weights_as_bfmt_)
     __trans_weights_s8_blocked(tweights_qt_scale, tweights_factor,
@@ -1363,16 +1363,16 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
-    TarrayType * tinput_qt_scale, uint8_t * __restrict tinput_u8,
-    TarrayType * __restrict tinput, InputType * __restrict input, int _t2, int Tz)
+    TscaleType * tinput_qt_scale, uint8_t * __restrict tinput_u8,
+    TinputType * __restrict tinput, InputType * __restrict input, int _t2, int Tz)
 {
   _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
   MD8(InputType, ainput, input, this->n,
       this->ic4, this->ic3, this->I2, this->Vx, this->ih, this->iw, V);
   // 4i,V temporarily here for store AVX instruction
-  MD6(TarrayType, atinput, tinput, this->ic3, this->I2, this->Vx, A, A, V);
+  MD6(TinputType, atinput, tinput, this->ic3, this->I2, this->Vx, A, A, V);
   MD7(uint8_t, atinput_u8, tinput_u8, A, A, this->ic3, this->I2, Tz, this->Vx, V);
-  MD3(TarrayType, atinput_qt_scale, tinput_qt_scale, A, A, Tz);
+  MD3(TscaleType, atinput_qt_scale, tinput_qt_scale, A, A, Tz);
 
   auto res = std::div(_t2 * this->T, this->nt);
   auto _n = res.quot;
@@ -1382,7 +1382,7 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
       this->ih, this->iw, this->tp, this->lp);
 
   iter_each (_T, Tz) {
-    alignas(64) TarrayType mmax_abs[A][A][V];
+    alignas(64) TinputType mmax_abs[A][A][V];
     iter_each (_wA, A) {
     iter_each (_hA, A) {
       __m<V> &_mmax_abs = *(__m<V> *)&mmax_abs[_wA][_hA][0];
@@ -1395,8 +1395,8 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
       auto _ih = t2spati_o.anchor_t_;
       auto _iw = t2spati_o.anchor_l_;
 
-      MD3(TarrayType, aout, &md6(atinput, _ic3, _I2, _Vx, 0, 0, 0), A, A, V);
-      using Array = TarrayType[A][A][V];
+      MD3(TinputType, aout, &md6(atinput, _ic3, _I2, _Vx, 0, 0, 0), A, A, V);
+      using Array = TinputType[A][A][V];
       InputType *in = &md8(ainput, t2spati_o.n_, 0, _ic3, _I2, _Vx, _ih, _iw, 0);
       if (!t2spati_o.is_border())
         ker_trans_input_(*this, *(Array *)&md3(aout, 0, 0, 0), in, 0, A - 1, 0, A - 1);
@@ -1414,7 +1414,7 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
 
     iter_each (_wA, A) {
     iter_each (_hA, A) {
-      TarrayType tinput_max_abs = 0.0;
+      TinputType tinput_max_abs = 0.0;
       iter_each (_V, V) {
         tinput_max_abs =
             mmax_abs[_wA][_hA][_V] > tinput_max_abs ?
@@ -1424,7 +1424,7 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
     }}
 
     // broadcast shift
-    TarrayType shift = INT8GEMM_TIN_QTSHIFT;
+    TinputType shift = INT8GEMM_TIN_QTSHIFT;
     __m<V> mmshift = _mm<V>::broadcastss_ps(*(__m128 *)(&shift));
 
     // quantization
@@ -1434,7 +1434,7 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
     iter_each (_wA, A) {
     iter_each (_hA, A) {
       // broadcast scale
-      TarrayType scale = INT8GEMM_TIN_QTSCALE / mmax_abs[_wA][_hA][0];
+      TscaleType scale = INT8GEMM_TIN_QTSCALE / mmax_abs[_wA][_hA][0];
       __m<V> mmscale = _mm<V>::broadcastss_ps(*(__m128 *)(&scale));
       // multi scale
       __m<V> mmresf32 = _mm<V>::mul_ps(*(__m<V> *)&md6(atinput, _ic3, _I2, _Vx, _wA, _hA, 0), mmscale);
@@ -1468,8 +1468,8 @@ void Instance_elx_conv_wino_t::trans_input(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::trans_input_u8(
-    TarrayType * tinput_qt_scale, uint8_t * __restrict tinput_u8,
-    TarrayType * __restrict tinput, InputType * __restrict input, int _t2, int Tz)
+    TscaleType * tinput_qt_scale, uint8_t * __restrict tinput_u8,
+    TinputType * __restrict tinput, InputType * __restrict input, int _t2, int Tz)
 {
   if (input_is_bfmt_ || input_as_bfmt_)
     __trans_input_u8_blocked(tinput_qt_scale, tinput_u8, tinput, input, _t2, Tz);
@@ -1927,19 +1927,19 @@ void Instance_elx_conv_wino_t::gemm(
 // facotr:        oc4 | oc3, A, A, O2, V
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::gemm(
-    TarrayType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
-    TarrayType *src_scale, TarrayType *weights_scale, TarrayType *factor, int _ic4)
+    ToutputType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
+    TscaleType *src_scale, TscaleType *weights_scale, TscaleType *factor, int _ic4)
 {
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_i8_gemm0_ : ker_i8_gemm_;
   auto ker_gemm_tail = (_t2 == this->t2 - 1) ? ker_i8_gemm0_tail_ : ker_i8_gemm_tail_;
 
   MD6(uint8_t, atinput, tinput, A, A, this->ic3, this->I2, Tz, V * this->Vx);
-  MD6(TarrayType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
+  MD6(ToutputType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
   MD5(int8_t, atweights, tweights, this->oc3, this->ic3, A, A,
       this->O2 * this->I2 * V * V * this->Vx);
-  MD5(TarrayType, aweights_scale, weights_scale, this->oc3, A, A, this->O2, V);
-  MD5(TarrayType, afactor, factor, this->oc3, A, A, this->O2, V);
-  MD3(TarrayType, asrc_scale, src_scale, A, A, Tz);
+  MD5(TscaleType, aweights_scale, weights_scale, this->oc3, A, A, this->O2, V);
+  MD5(TscaleType, afactor, factor, this->oc3, A, A, this->O2, V);
+  MD3(TscaleType, asrc_scale, src_scale, A, A, Tz);
 
   iter_each (_wA, A) {
   iter_each (_hA, A) {
@@ -2036,20 +2036,20 @@ void Instance_elx_conv_wino_t::gemm_non_acc(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::gemm_non_acc(
-    TarrayType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
-    TarrayType *src_scale, TarrayType *weights_scale,
-    TarrayType *factor, int _ic4)
+    ToutputType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
+    TscaleType *src_scale, TscaleType *weights_scale,
+    TscaleType *factor, int _ic4)
 {
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_i8_gemm0_ : ker_i8_gemm_;
   auto ker_gemm_tail = (_t2 == this->t2 - 1) ? ker_i8_gemm0_tail_ : ker_i8_gemm_tail_;
 
   MD6(uint8_t, atinput, tinput, A, A, this->ic3, this->I2, Tz, V * this->Vx);
-  MD6(TarrayType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
+  MD6(ToutputType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
   MD5(int8_t, atweights, tweights, this->oc3, this->ic3, A, A,
       this->O2 * this->I2 * V * V * this->Vx);
-  MD5(TarrayType, aweights_scale, weights_scale, this->oc3, A, A, this->O2, V);
-  MD5(TarrayType, afactor, factor, this->oc3, A, A, this->O2, V);
-  MD3(TarrayType, asrc_scale, src_scale, A, A, Tz);
+  MD5(TscaleType, aweights_scale, weights_scale, this->oc3, A, A, this->O2, V);
+  MD5(TscaleType, afactor, factor, this->oc3, A, A, this->O2, V);
+  MD3(TscaleType, asrc_scale, src_scale, A, A, Tz);
 
   bool scramble = (this->T == this->Tr) || (this->t2 >= 2 * mthr_);
   if (scramble) {

@@ -18,6 +18,13 @@ using ::testing::Values;
 
 Template_elx_conv_wino_t
 void test_elk_trans_weights(bool perf, bool show_diff) {
+
+  using InputType = typename UserTypes::InputType;
+  using WeightsType = typename UserTypes::WeightsType;
+  using OutputType = typename UserTypes::OutputType;
+  using BiasType = typename UserTypes::BiasType;
+  using TarrayType = typename TarrayTypes::TarrayType;
+
   alignas(64) WeightsType aweights[K][K][V][V];
   alignas(64) TarrayType atweights[A][A][V][V];
   alignas(64) TarrayType ref_atweights[A][A][V][V];
@@ -38,8 +45,10 @@ void test_elk_trans_weights(bool perf, bool show_diff) {
 
   memset(ref_atweights, 0, sizeof(ref_atweights));
   TT(ref_elk_trans_weights, iterations, perf,
-     (convolution_winograd_kernel<InputType, WeightsType, OutputType, BiasType,
-      TarrayType, ISA_GENERIC, V, A, K>::trans_weights(ref_atweights, aweights)));
+      (convolution_winograd_kernel<
+          euler::ConvTypes<InputType, WeightsType, OutputType, BiasType>,
+          TarrayType, ISA_GENERIC, V, A, K>::trans_weights(ref_atweights,
+          aweights)));
 
   for (int _hK = 0; _hK < K; ++_hK) {
     for (int _wK = 0; _wK < K; ++_wK) {
@@ -68,20 +77,20 @@ TEST_P(elkTransWeightsTest, combineTest) {
   int test_tile_size = GetParam();
   switch (test_tile_size) {
   case 4:
-    test_elk_trans_weights<conv::FP32, float, 4, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_weights<conv::FP32, wino::FP32, 4, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff);
     break;
 
   case 5:
-    test_elk_trans_weights<conv::FP32, float, 5, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_weights<conv::FP32, wino::FP32, 5, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff);
     break;
   case 6:
-//     test_elk_trans_weights<conv::FP32, float, 6, 3, 16, ISA_SKX_AVX512>(test_perf,
+//     test_elk_trans_weights<conv::FP32, wino::FP32, 6, 3, 16, ISA_SKX_AVX512>(test_perf,
 //                                                             show_diff);
     break;
   case 7:
-    test_elk_trans_weights<conv::FP32, float, 7, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_weights<conv::FP32, wino::FP32, 7, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff);
     break;
   default:

@@ -133,18 +133,20 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
       el_error("TODO: implement tile size auto-selection");
     } else {
       // TODO: forward, backward_data, backward_weights
+
+      using TarrayTypes = wino::FP32;
       switch (tile_size) {
       case 4:
-        xc = new elx_conv_wino_t<UserTypes, float, 4, 3, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 4, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       case 5:
-        xc = new elx_conv_wino_t<UserTypes, float, 5, 3, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 5, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       case 6:
-        xc = new elx_conv_wino_t<UserTypes, float, 6, 3, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 6, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       case 7:
-        xc = new elx_conv_wino_t<UserTypes, float, 7, 3, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 7, 3, 16, ISA_SKX_AVX512>(*this);
         break;
       default:
         el_error("Unimplemented tile size");

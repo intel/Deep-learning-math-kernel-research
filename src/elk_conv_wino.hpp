@@ -6,6 +6,7 @@
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/seq/elem.hpp>
 #include <boost/preprocessor/tuple/elem.hpp>
+#include "euler.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
