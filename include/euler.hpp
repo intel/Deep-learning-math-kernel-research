@@ -104,8 +104,8 @@ template<typename UserTypes> struct eld_conv_t {
     bool with_bias;
     bool with_ip_sum;
     bool with_op_sum;
+    bool f16c_opt;
     bool is_inference;
-    bool int8gemm;
 
     // Performance:
     // Number of thread teams, number of threads per team

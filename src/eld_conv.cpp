@@ -21,6 +21,7 @@ template <typename UserTypes> eld_conv_t<UserTypes>::eld_conv_t()
   with_bias = false;
   with_ip_sum = false;
   with_op_sum = false;
+  f16c_opt = false;
   xc = nullptr;
   nthreads = 0;
   execution_mode = 0;
@@ -133,24 +134,82 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
       el_error("TODO: implement tile size auto-selection");
     } else {
       // TODO: forward, backward_data, backward_weights
-
-      using TarrayTypes = wino::FP32;
-      switch (tile_size) {
-      case 4:
-        xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 4, 3, 16, ISA_SKX_AVX512>(*this);
-        break;
-      case 5:
-        xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 5, 3, 16, ISA_SKX_AVX512>(*this);
-        break;
-      case 6:
-        xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 6, 3, 16, ISA_SKX_AVX512>(*this);
-        break;
-      case 7:
-        xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 7, 3, 16, ISA_SKX_AVX512>(*this);
-        break;
-      default:
-        el_error("Unimplemented tile size");
-        break;
+      if (((execution_mode & 0xF00) == 0x100)
+          && (f16c_opt || std::is_same<UserTypes, conv::FP16>())) {
+        using TarrayTypes = wino::FP32_F16;
+        el_error("TODO: implement INT8 with F16C opt");
+#if 0
+        switch (tile_size) {
+        case 4:
+          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 4, 3, 16,
+              ISA_SKX_AVX512>(*this);
+          break;
+        case 5:
+          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 5, 3, 16,
+              ISA_SKX_AVX512>(*this);
+          break;
+        case 6:
+          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 6, 3, 16,
+              ISA_SKX_AVX512>(*this);
+          break;
+        case 7:
+          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 7, 3, 16,
+              ISA_SKX_AVX512>(*this);
+          break;
+        default:
+          el_error("Unimplemented tile size");
+          break;
+        }
+#endif
+      } else if (f16c_opt || std::is_same<UserTypes, conv::FP16>()) {
+        using TarrayTypes = wino::FP16;
+        el_error("TODO: implement F16C opt");
+#if 0
+        switch (tile_size) {
+        case 4:
+          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 4, 3, 16,
+              ISA_SKX_AVX512>(*this);
+          break;
+        case 5:
+          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 5, 3, 16,
+              ISA_SKX_AVX512>(*this);
+          break;
+        case 6:
+          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 6, 3, 16,
+              ISA_SKX_AVX512>(*this);
+          break;
+        case 7:
+          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 7, 3, 16,
+              ISA_SKX_AVX512>(*this);
+          break;
+        default:
+          el_error("Unimplemented tile size");
+          break;
+        }
+#endif
+      } else {
+        using TarrayTypes = wino::FP32;
+        switch (tile_size) {
+        case 4:
+          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 4, 3, 16,
+              ISA_SKX_AVX512>(*this);
+          break;
+        case 5:
+          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 5, 3, 16,
+              ISA_SKX_AVX512>(*this);
+          break;
+        case 6:
+          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 6, 3, 16,
+              ISA_SKX_AVX512>(*this);
+          break;
+        case 7:
+          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, 7, 3, 16,
+              ISA_SKX_AVX512>(*this);
+          break;
+        default:
+          el_error("Unimplemented tile size");
+          break;
+        }
       }
     }
   }

@@ -50,7 +50,7 @@ template <typename... Types> struct WinoTypes {
 // Types of t-buffer (tinput/tweights/toutput) unquantized (if any).
 namespace wino {
   using FP32 = WinoTypes<float, float, float>;
-  using FP32h = WinoTypes<float, float, short>;
+  using FP32_F16 = WinoTypes<float, float, short>;
   using FP16 = WinoTypes<short, short, short>;
 }
 

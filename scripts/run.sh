@@ -34,7 +34,7 @@ function conv_test() {
   streaming_weights=0; streaming_input=0; streaming_output=0
   input_format=nChw16c; weights_format=OIhw16i16o; output_format=nChw16c
   input_as_blocked=0; weights_as_blocked=0; output_as_blocked=0
-  with_ip_sum=0
+  with_ip_sum=0; f16c_opt=0
 
   OPTIND=1
   while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:f:l:B:A:T:a:-:" opt; do
@@ -143,6 +143,10 @@ function conv_test() {
             ;;
           with-ip-sum=*) with_ip_sum=${OPTARG#*=}
             ;;
+          f16c-opt) f16c_opt="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          f16c-opt=*) f16c_opt=${OPTARG#*=}
+            ;;
        esac
        ;;
     esac
@@ -164,7 +168,8 @@ function conv_test() {
     --input-as-blocked=$input_as_blocked \
     --weights-as-blocked=$weights_as_blocked \
     --output-as-blocked=$output_as_blocked   \
-    --with-ip-sum=$with_ip_sum
+    --with-ip-sum=$with_ip_sum \
+    --f16c-opt=$f16c_opt
   set +v
 }
 

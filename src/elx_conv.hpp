@@ -61,7 +61,7 @@ template <typename UserTypes> struct elx_conv_t {
   int prop_kind;
 
   // relu, bias, sum
-  bool with_relu, with_bias, with_ip_sum, with_op_sum;
+  bool with_relu, with_bias, with_ip_sum, with_op_sum, f16c_opt;
 
   // streaming hint
   int streaming_weights;

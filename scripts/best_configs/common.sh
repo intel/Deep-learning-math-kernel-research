@@ -10,18 +10,19 @@ cat <<!
   -A   Output buffer bas input
   -T   Preprocess tweights.
   -s   Inplace sum.
+  -H   Half precision opt.
   -h   This page.
 !
 }
 
-v=0; r=0; s=0; l=1; B=0; A=0; T=0; f=0
+v=0; r=0; s=0; l=1; B=0; A=0; T=0; f=0; H=0
 input_format=nChw16c
 weights_format=OIhw16i16o
 output_format=nChw16c
 tile_size=5
 
 OPTIND=1
-while getopts "vprsfl:BATh" opt; do
+while getopts "vprsfl:BATHh" opt; do
   case $opt in
     v)
       v=1
@@ -49,6 +50,9 @@ while getopts "vprsfl:BATh" opt; do
     T)
       T=1
       ;;
+    H)
+      H=1
+      ;;
     h)
       usage
       ;;
@@ -59,7 +63,7 @@ while getopts "vprsfl:BATh" opt; do
 done
 shift $((OPTIND-1))
 
-COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format -r$r --with-ip-sum=$s -l$l -f$f -B$B -A$A -T$T"
+COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format -r$r --with-ip-sum=$s -l$l -f$f -B$B -A$A -T$T --f16c_opt=$H"
 
 echo "Common option:" $COMMON
 echo

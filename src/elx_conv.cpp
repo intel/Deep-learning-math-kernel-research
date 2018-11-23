@@ -35,6 +35,7 @@ elx_conv_t<UserTypes>::elx_conv_t(eld_conv_t<UserTypes> &dc)
   this->with_bias = dc.with_bias;
   this->with_ip_sum = dc.with_ip_sum;
   this->with_op_sum = dc.with_op_sum;
+  this->f16c_opt = dc.f16c_opt;
 
   this->prop_kind = dc.prop_kind;
 
