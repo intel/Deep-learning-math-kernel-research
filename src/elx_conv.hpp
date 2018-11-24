@@ -14,13 +14,7 @@ namespace euler {
 // wino-gemm toutput : t2, A*A, oc3, O2, T, V
 // wino-gemm tweights: oc3, ic3, A*A, O2, I2, V, V
 
-template <typename UserTypes> struct elx_conv_t {
-  public:
-  using InputType = typename UserTypes::InputType;
-  using WeightsType = typename UserTypes::WeightsType;
-  using OutputType = typename UserTypes::OutputType;
-  using BiasType = typename UserTypes::BiasType;
-
+struct elx_conv_params_t {
   // dimensions
   int ic, oc, ih, iw, oh, ow, n, t, kh, kw;
   // dimensions in packed unit
@@ -76,6 +70,14 @@ template <typename UserTypes> struct elx_conv_t {
   // threading
   int nthreads;
   int execution_mode;
+};
+
+template <typename UserTypes> struct elx_conv_t : elx_conv_params_t {
+  public:
+  using InputType = typename UserTypes::InputType;
+  using WeightsType = typename UserTypes::WeightsType;
+  using OutputType = typename UserTypes::OutputType;
+  using BiasType = typename UserTypes::BiasType;
 
   elx_conv_t(eld_conv_t<UserTypes> &dc);
   virtual ~elx_conv_t() {}
