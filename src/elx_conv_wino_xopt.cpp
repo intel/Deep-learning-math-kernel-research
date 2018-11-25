@@ -47,11 +47,11 @@ void Instance_elx_conv_wino_t::__execute_a061(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(TarrayType, atinput2, tinput_, mthr_,
+  MD2(TinputType, atinput2, tinput_, mthr_,
       A * A * this->T * this->IC);
-  MD2(TarrayType, atoutput2, toutput_, mthr_,
+  MD2(ToutputType, atoutput2, toutput_, mthr_,
       A * A * this->T * this->oc3 * this->O2 * V);
-  MD2(TarrayType, atweights2, tweights_, this->oc4,
+  MD2(TweightsType, atweights2, tweights_, this->oc4,
       A * A * this->IC * this->oc3 * this->O2 * V);
 
   MD3(OutputType, aoutput, output, this->n, this->oc4,
@@ -96,13 +96,13 @@ void Instance_elx_conv_wino_t::__execute_a0e1(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(TarrayType, atinputa2, tinput_, mthr_,
+  MD2(TinputType, atinputa2, tinput_, mthr_,
       A * this->T * this->IC);
-  MD2(TarrayType, atoutput2, toutput_, mthr_,
+  MD2(ToutputType, atoutput2, toutput_, mthr_,
       A * this->T * this->oc3 * this->O2 * V);
-  MD2(TarrayType, atoutputa2, toutputa_, this->t2,
+  MD2(ToutputType, atoutputa2, toutputa_, this->t2,
       this->OC * A * (A - K + 1) * this->T);
-  MD3(TarrayType, atweights3, tweights_, this->oc4, A,
+  MD3(TweightsType, atweights3, tweights_, this->oc4, A,
       A * this->IC * this->oc3 * this->O2 * V);
   MD3(OutputType, aoutput, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
@@ -121,7 +121,7 @@ void Instance_elx_conv_wino_t::__execute_a0e1(
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       size_t ithr = omp_get_thread_num();
 
-      MD6(TarrayType, atoutputa6, &md2(atoutputa2, _t2, 0),
+      MD6(ToutputType, atoutputa6, &md2(atoutputa2, _t2, 0),
           this->oc4, this->oc3, this->O2, Tz, A, (A - K + 1) * V);
       trans_inputa(&md2(atinputa2, ithr, 0), input, _t2, _wA, Tz);
       gemma(&md2(atoutput2, ithr, 0), &md2(atinputa2, ithr, 0),
@@ -145,13 +145,13 @@ void Instance_elx_conv_wino_t::__execute_a0e0(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(TarrayType, atinput2, tinput_, this->t2,
+  MD2(TinputType, atinput2, tinput_, this->t2,
       A * A * this->T * this->IC);
-  MD2(TarrayType, atoutput2, toutput_, mthr_,
+  MD2(ToutputType, atoutput2, toutput_, mthr_,
       A * this->T * this->oc3 * this->O2 * V);
-  MD2(TarrayType, atoutputa2, toutputa_, this->t2,
+  MD2(ToutputType, atoutputa2, toutputa_, this->t2,
       this->OC * A * (A - K + 1) * this->T);
-  MD3(TarrayType, atweights3, tweights_, this->oc4, A,
+  MD3(TweightsType, atweights3, tweights_, this->oc4, A,
       A * this->IC * this->oc3 * this->O2 * V);
   MD3(OutputType, aoutput, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
@@ -172,9 +172,9 @@ void Instance_elx_conv_wino_t::__execute_a0e0(
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       size_t ithr = omp_get_thread_num();
 
-      MD6(TarrayType, atoutputa6, &md2(atoutputa2, _t2, 0),
+      MD6(ToutputType, atoutputa6, &md2(atoutputa2, _t2, 0),
           this->oc4, this->oc3, this->O2, Tz, A, (A - K + 1) * V);
-      MD2(TarrayType, atinputa2, &md2(atinput2, _t2, 0), A, A * Tz * this->IC);
+      MD2(TinputType, atinputa2, &md2(atinput2, _t2, 0), A, A * Tz * this->IC);
       gemma(&md2(atoutput2, ithr, 0), &md2(atinputa2, _wA, 0),
           &md3(atweights3, _oc4, _wA, 0), _t2, Tz);
       trans_outputa_th(&md6(atoutputa6, _oc4, 0, 0, 0, _wA, 0),
@@ -195,11 +195,11 @@ void Instance_elx_conv_wino_t::__execute_a071(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(TarrayType, atinput2, tinput_, mthr_,
+  MD2(TinputType, atinput2, tinput_, mthr_,
       A * A * this->T * this->ic3 * this->I2 * V);
-  MD2(TarrayType, atoutput2, toutput_, this->t2,
+  MD2(ToutputType, atoutput2, toutput_, this->t2,
       this->oc4 * A * A * this->T * this->oc3 * this->O2 * V);
-  MD3(TarrayType, atweights3, tweights_, this->oc4, this->ic4,
+  MD3(TweightsType, atweights3, tweights_, this->oc4, this->ic4,
       A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
 
   MD3(InputType, ainput, input, this->n, this->ic4,
@@ -221,7 +221,7 @@ void Instance_elx_conv_wino_t::__execute_a071(
     iter_each(_oc4, this->oc4) {
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       size_t ithr = omp_get_thread_num();
-      MD2(TarrayType, atoutput3, &md2(atoutput2, _t2, 0),
+      MD2(ToutputType, atoutput3, &md2(atoutput2, _t2, 0),
           this->oc4, A * A * Tz * this->oc3 * this->O2 * V);
 
       if (last_ic4 != _ic4 || last_t2 != _t2) {
@@ -247,11 +247,11 @@ void Instance_elx_conv_wino_t::__execute_a073(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(TarrayType, atinput2, tinput_, mthr_,
+  MD2(TinputType, atinput2, tinput_, mthr_,
       A * A * this->T * this->ic3 * this->I2 * V);
-  MD2(TarrayType, atoutput2, toutput_, mthr_,
+  MD2(ToutputType, atoutput2, toutput_, mthr_,
       A * A * this->T * this->oc3 * this->O2 * V);
-  MD3(TarrayType, atweights3, tweights_, this->oc4, this->ic4,
+  MD3(TweightsType, atweights3, tweights_, this->oc4, this->ic4,
       A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
 
   MD3(InputType, ainput, input, this->n, this->ic4,
@@ -296,11 +296,11 @@ void Instance_elx_conv_wino_t::__execute_a07b(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(TarrayType, atinput2, tinput_, mthr_,
+  MD2(TinputType, atinput2, tinput_, mthr_,
       A * A * this->T * this->ic3 * this->I2 * V);
-  MD2(TarrayType, atoutput2, toutput_, mthr_,
+  MD2(ToutputType, atoutput2, toutput_, mthr_,
       A * A * this->T * this->oc3 * this->O2 * V);
-  MD2(TarrayType, atweights2, tweights_, mthr_,
+  MD2(TweightsType, atweights2, tweights_, mthr_,
       A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
 
   MD3(InputType, ainput, input, this->n, this->ic4,
@@ -339,11 +339,11 @@ void Instance_elx_conv_wino_t::__execute_a079(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(TarrayType, atinput2, tinput_, mthr_,
+  MD2(TinputType, atinput2, tinput_, mthr_,
       A * A * this->T * this->ic3 * this->I2 * V);
-  MD2(TarrayType, atoutput2, toutput_, this->t2,
+  MD2(ToutputType, atoutput2, toutput_, this->t2,
       this->oc4 * A * A * this->T * this->oc3 * this->O2 * V);
-  MD2(TarrayType, atweights2, tweights_, mthr_,
+  MD2(TweightsType, atweights2, tweights_, mthr_,
       A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
 
   MD3(InputType, ainput, input, this->n, this->ic4,
@@ -360,7 +360,7 @@ void Instance_elx_conv_wino_t::__execute_a079(
     iter_each(_t2, this->t2) {
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       size_t ithr = omp_get_thread_num();
-      MD2(TarrayType, atoutput3, &md2(atoutput2, _t2, 0),
+      MD2(ToutputType, atoutput3, &md2(atoutput2, _t2, 0),
           this->oc4, A * A * Tz * this->oc3 * this->O2 * V);
 
       if (last_ic4 != _ic4 || last_oc4 != _oc4) {
@@ -406,7 +406,7 @@ void Instance_elx_conv_wino_t::__execute_a033(
 {
   MD3(InputType, ainput, input, this->n, this->ic4,
       this->ih * this->iw * this->ic3 * this->I2 * V);
-  MD3(TarrayType, atweights, tweights_, this->oc4, this->ic4,
+  MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
       A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
   MD3(OutputType, aoutput, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
@@ -442,8 +442,8 @@ void Instance_elx_conv_wino_t::__execute_a161(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(TarrayType, atinput2, tinput_, mthr_, A * A * this->IC);
-  MD2(TarrayType, atoutput2, toutput_, mthr_,
+  MD2(TinputType, atinput2, tinput_, mthr_, A * A * this->IC);
+  MD2(ToutputType, atoutput2, toutput_, mthr_,
       A * A * this->T * this->oc3 * this->O2 * V);
 
   MD3(OutputType, aoutput, output, this->n, this->oc4,
@@ -454,10 +454,10 @@ void Instance_elx_conv_wino_t::__execute_a161(
       A * A * this->T * this->IC);
   MD2(int8_t, atweights_s8, tweights_s8_, this->oc4,
       A * A * this->IC * this->oc3 * this->O2 * V);
-  MD2(TarrayType, atinput_qt_scale, tinput_qt_scale_, this->t2, this->A * this->A * this->T);
-  MD2(TarrayType, atweights_qt_scale, tweights_qt_scale_,
+  MD2(TscaleType, atinput_qt_scale, tinput_qt_scale_, this->t2, this->A * this->A * this->T);
+  MD2(TscaleType, atweights_qt_scale, tweights_qt_scale_,
       this->oc4, this->oc3 * this->O2 * V * A * A);
-  MD2(TarrayType, aweights_factor, tweights_factor_,
+  MD2(TscaleType, aweights_factor, tweights_factor_,
       this->oc4, A * A * this->oc3 * this->O2 * V);
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
@@ -469,7 +469,6 @@ void Instance_elx_conv_wino_t::__execute_a161(
     }
 
     auto t2_history = -1;
-    TarrayType tinput_qt_scale = 0;
 
 #pragma omp for nowait collapse(2)
     iter_each (_t2, this->t2) {
@@ -499,9 +498,9 @@ void Instance_elx_conv_wino_t::__execute_a173(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(TarrayType, atinput2, tinput_, mthr_,
+  MD2(TinputType, atinput2, tinput_, mthr_,
       A * A * this->ic3 * this->I2 * V * this->Vx);
-  MD2(TarrayType, atoutput2, toutput_, mthr_,
+  MD2(ToutputType, atoutput2, toutput_, mthr_,
       A * A * this->T * this->oc3 * this->O2 * V);
 
   MD3(InputType, ainput, input, this->n, this->ic4,
@@ -515,11 +514,11 @@ void Instance_elx_conv_wino_t::__execute_a173(
   MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
       A * A * this->ic3 * this->I2 * this->Vx * V * this->oc3 * this->O2 * V);
 
-  MD2(TarrayType, atinput_qt_scale, tinput_qt_scale_,
+  MD2(TscaleType, atinput_qt_scale, tinput_qt_scale_,
       mthr_, this->A * this->A * this->T);
-  MD3(TarrayType, atweights_qt_scale, tweights_qt_scale_, this->ic4,
+  MD3(TscaleType, atweights_qt_scale, tweights_qt_scale_, this->ic4,
       this->oc4, this->oc3 * this->O2 * V * A * A);
-  MD3(TarrayType, aweights_factor, tweights_factor_,
+  MD3(TscaleType, aweights_factor, tweights_factor_,
       this->ic4, this->oc4, this->oc3 * this->O2 * V * A * A);
 
   if (is_first_run_) {

@@ -23,11 +23,13 @@ void test_elk_trans_weights(bool perf, bool show_diff) {
   using WeightsType = typename UserTypes::WeightsType;
   using OutputType = typename UserTypes::OutputType;
   using BiasType = typename UserTypes::BiasType;
-  using TarrayType = typename InnerTypes::TarrayType;
+  using TinputType = typename InnerTypes::InputType;
+  using TweightsType = typename InnerTypes::WeightsType;
+  using ToutputType = typename InnerTypes::OutputType;
 
   alignas(64) WeightsType aweights[K][K][V][V];
-  alignas(64) TarrayType atweights[A][A][V][V];
-  alignas(64) TarrayType ref_atweights[A][A][V][V];
+  alignas(64) TweightsType atweights[A][A][V][V];
+  alignas(64) TweightsType ref_atweights[A][A][V][V];
 
   for (int _hK = 0; _hK < K; ++_hK) {
     for (int _wK = 0; _wK < K; ++_wK) {
@@ -47,7 +49,7 @@ void test_elk_trans_weights(bool perf, bool show_diff) {
   TT(ref_elk_trans_weights, iterations, perf,
       (convolution_winograd_kernel<
           euler::ConvTypes<InputType, WeightsType, OutputType, BiasType>,
-          TarrayType, ISA_GENERIC, V, A, K>::trans_weights(ref_atweights,
+          TweightsType, ISA_GENERIC, V, A, K>::trans_weights(ref_atweights,
           aweights)));
 
   for (int _hK = 0; _hK < K; ++_hK) {

@@ -27,7 +27,10 @@ void test_elk_trans_input(bool perf, bool show_diff, int execution_mode,
   using WeightsType = typename UserTypes::WeightsType;
   using OutputType = typename UserTypes::OutputType;
   using BiasType = typename UserTypes::BiasType;
-  using TarrayType = typename InnerTypes::TarrayType;
+  using TinputType = typename InnerTypes::InputType;
+  using TweightsType = typename InnerTypes::WeightsType;
+  using ToutputType = typename InnerTypes::OutputType;
+
 
   int error = 0;
 
@@ -53,9 +56,9 @@ void test_elk_trans_input(bool perf, bool show_diff, int execution_mode,
 
   elx_conv_wino_t<UserTypes, InnerTypes, float, A, 3, V, I> xc(desc);
 
-  alignas(64) TarrayType atinput[A][A][V];
+  alignas(64) TinputType atinput[A][A][V];
   alignas(64) InputType ainput[xc.ih][xc.iw][V];
-  alignas(64) TarrayType ref_atinput[A][A][V];
+  alignas(64) TinputType ref_atinput[A][A][V];
 
   for (int _ih = 0; _ih < xc.ih; ++_ih) {
     for (int _iw = 0; _iw < xc.iw; ++_iw) {
@@ -74,7 +77,7 @@ void test_elk_trans_input(bool perf, bool show_diff, int execution_mode,
   TT(elk_trans_input, iterations, perf,
       (convolution_winograd_kernel<
           euler::ConvTypes<InputType, WeightsType, OutputType, BiasType>,
-          TarrayType, ISA_GENERIC, V, A, 3>::template trans_input<false>(xc,
+          TinputType, ISA_GENERIC, V, A, 3>::template trans_input<false>(xc,
           ref_atinput, (InputType *)&ainput, 0, 4, 0, 4)));
 
   for (int _hA = 0; _hA < A; ++_hA) {

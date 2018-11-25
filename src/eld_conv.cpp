@@ -135,7 +135,7 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
     } else {
       // TODO: forward, backward_data, backward_weights
       if (((execution_mode & 0xF00) == 0x100)
-          && (f16c_opt || std::is_same<UserTypes, conv::FP16>())) {
+          && (f16c_opt || std::is_same<UserTypes, conv::FP16>::value)) {
         // using InnerTypes = conv_impl::FP32_F16;
         el_error("TODO: implement INT8 with F16C opt");
 #if 0
@@ -161,7 +161,7 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
           break;
         }
 #endif
-      } else if (f16c_opt || std::is_same<UserTypes, conv::FP16>()) {
+      } else if (f16c_opt || std::is_same<UserTypes, conv::FP16>::value) {
         // using InnerTypes = conv_impl::FP16;
         el_error("TODO: implement F16C opt");
 #if 0

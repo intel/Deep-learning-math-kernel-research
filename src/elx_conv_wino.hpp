@@ -51,7 +51,7 @@
   |Name          |XOPT  |F16C |UserTypes    |TarrayTypes   |InnerTypes   |TrOpType|GemmOpTypes|
   +--------------+------+-----+-------------+--------------+-------------+--------+-----------+
   |int8          |TBD   |false|u8,fp32,u8/s8|fp32          |u8,s8,fp32   |fp32    |u8,s8,int32|
-  |int8-f16c     |TBD   |false|u8,fp32,u8/s8|fp32,fp32,fp16|u8,s8,fp16   |fp32    |u8,s8,int32|
+  |int8-f16c     |TBD   |true |u8,fp32,u8/s8|fp32,fp32,fp16|u8,s8,fp16   |fp32    |u8,s8,int32|
   |bf16          |TBD   |false|bf16         |bf16          |bf16         |bf16    |bf16       |
   |fp16-int8     |A161… |true |fp16         |fp32,fp32,fp16|u8,s8,fp16   |fp32    |u8,s8,int32|
   |fp16          |A061… |true |fp16         |fp16          |fp16         |fp32    |fp32       |
@@ -69,14 +69,14 @@
 namespace euler {
 
 #define Template_elx_conv_wino_t                                               \
-  template <typename UserTypes, typename InnerTypes, typename TrOpType,       \
+  template <typename UserTypes, typename InnerTypes, typename TrOpType,        \
       const int A, const int K, const int V, const int I>
 
 #define Instance_elx_conv_wino_t                                               \
   elx_conv_wino_t<UserTypes, InnerTypes, TrOpType, A, K, V, I>
 
 #define Instance_convolution_winograd_kernel                                   \
-  convolution_winograd_kernel<UserTypes, TarrayType, I, V, A, K>
+  convolution_winograd_kernel<UserTypes, TrOpType, I, V, A, K>
 
 template <typename UserTypes, typename InnerTypes, typename TrOpType,
          const int A, const int K, const int V, const int I>
@@ -106,8 +106,6 @@ public:
       TrOpType, typename InnerTypes::WeightsType>::type;
   using ToutputType = typename InnerTypes::OutputType;
   using TscaleType = typename InnerTypes::ScaleType;
-  // In case of TinputType = TweightsType = ToutputType
-  using TarrayType = typename InnerTypes::TarrayType;
 
   constexpr static size_t elem_sz = sizeof(WeightsType);
   constexpr static bool is_border = true;
@@ -320,13 +318,13 @@ private:
   void __execute_a173(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
 
-  inline void __trans_input_plain(TarrayType *tinput, InputType *input, int _t2, int Tz);
-  inline void __trans_input_blocked(TarrayType *tinput, InputType *input, int _t2, int Tz);
-  void trans_input(TarrayType *tinput, InputType *input, int _t2, int Tz);
+  inline void __trans_input_plain(TinputType *tinput, InputType *input, int _t2, int Tz);
+  inline void __trans_input_blocked(TinputType *tinput, InputType *input, int _t2, int Tz);
+  void trans_input(TinputType *tinput, InputType *input, int _t2, int Tz);
 
-  inline void __trans_input_plain(TarrayType *tinput, InputType *input);
-  inline void __trans_input_blocked(TarrayType *tinput, InputType *input);
-  void trans_input(TarrayType *tinput, InputType *input);
+  inline void __trans_input_plain(TinputType *tinput, InputType *input);
+  inline void __trans_input_blocked(TinputType *tinput, InputType *input);
+  void trans_input(TinputType *tinput, InputType *input);
 
   inline void __trans_input_u8_blocked(TscaleType *tinput_qt_scale,
           uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
@@ -334,50 +332,50 @@ private:
   void trans_input_u8(TscaleType *tinput_qt_scale, uint8_t *__restrict tinput_u8,
           TinputType *__restrict tinput, InputType *__restrict input, int _t2, int Tz);
 
-  inline void __trans_inputa_plain(TarrayType *tinput, InputType *input, int _t2, int _wA, int Tz);
-  inline void __trans_inputa_blocked(TarrayType *tinput, InputType *input, int _t2, int _wA, int Tz);
-  void trans_inputa(TarrayType *tinput, InputType *input, int _t2, int _wA, int Tz);
+  inline void __trans_inputa_plain(TinputType *tinput, InputType *input, int _t2, int _wA, int Tz);
+  inline void __trans_inputa_blocked(TinputType *tinput, InputType *input, int _t2, int _wA, int Tz);
+  void trans_inputa(TinputType *tinput, InputType *input, int _t2, int _wA, int Tz);
 
-  inline void __trans_output_plain(OutputType *output, TarrayType *toutput,
+  inline void __trans_output_plain(OutputType *output, ToutputType *toutput,
           BiasType *bias, int _t2, int Tz, int _ic4);
-  inline void __trans_output_blocked(OutputType *output, TarrayType *toutput,
+  inline void __trans_output_blocked(OutputType *output, ToutputType *toutput,
           BiasType *bias, int _t2, int Tz, int _ic4);
-  void trans_output(OutputType *output, TarrayType *toutput, BiasType *bias,
+  void trans_output(OutputType *output, ToutputType *toutput, BiasType *bias,
           int _t2, int Tz, int _ic4 = -1);
 
-  inline void __trans_output_plain(OutputType *output, TarrayType *toutput,
+  inline void __trans_output_plain(OutputType *output, ToutputType *toutput,
           BiasType *bias, int _ic4);
-  inline void __trans_output_blocked(OutputType *output, TarrayType *toutput, BiasType *bias, int _ic4);
-  void trans_output(OutputType *output, TarrayType *toutput, BiasType *bias, int _ic4 = -1);
+  inline void __trans_output_blocked(OutputType *output, ToutputType *toutput, BiasType *bias, int _ic4);
+  void trans_output(OutputType *output, ToutputType *toutput, BiasType *bias, int _ic4 = -1);
 
-  inline void __trans_outputa_bh_plain(OutputType *output, TarrayType *toutputa, BiasType *bias);
-  inline void __trans_outputa_bh_blocked(OutputType *output, TarrayType *toutputa, BiasType *bias);
-  void trans_outputa_bh(OutputType *output, TarrayType *toutputa, BiasType *bias);
+  inline void __trans_outputa_bh_plain(OutputType *output, ToutputType *toutputa, BiasType *bias);
+  inline void __trans_outputa_bh_blocked(OutputType *output, ToutputType *toutputa, BiasType *bias);
+  void trans_outputa_bh(OutputType *output, ToutputType *toutputa, BiasType *bias);
 
-  void trans_outputa_th(TarrayType *toutputa, TarrayType *toutput, int Tz);
+  void trans_outputa_th(ToutputType *toutputa, ToutputType *toutput, int Tz);
 
-  inline void __trans_weights_plain(TarrayType *tweights, WeightsType *weights, int oc4);
-  inline void __trans_weights_blocked(TarrayType *tweights, WeightsType *weights, int oc4);
-  void trans_weights(TarrayType *tweights, WeightsType *weights, int oc4 = 1);
+  inline void __trans_weights_plain(TweightsType *tweights, WeightsType *weights, int oc4);
+  inline void __trans_weights_blocked(TweightsType *tweights, WeightsType *weights, int oc4);
+  void trans_weights(TweightsType *tweights, WeightsType *weights, int oc4 = 1);
 
   inline void __trans_weights_s8_blocked(TscaleType *tweights_qt_scale, TscaleType *tweights_factor,
       int8_t *tweights_s8, TweightsType *tweights, WeightsType *weights, int oc4);
   void trans_weights_s8(TscaleType *tweights_qt_scale, TscaleType *tweights_factor,
       int8_t *tweights_s8, TweightsType *tweights, WeightsType *weights, int oc4);
 
-  inline void __trans_weightsf_plain(TarrayType *tweights, WeightsType *weights, int _ic4, int _oc4);
-  inline void __trans_weightsf_blocked(TarrayType *tweights, WeightsType *weights, int _ic4, int _oc4);
-  void trans_weightsf(TarrayType *tweights, WeightsType *weights, int _ic4, int _oc4);
+  inline void __trans_weightsf_plain(TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4);
+  inline void __trans_weightsf_blocked(TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4);
+  void trans_weightsf(TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4);
 
-  inline void __trans_weightsa_plain(TarrayType *tweights, WeightsType *weights);
-  inline void __trans_weightsa_blocked(TarrayType *tweights, WeightsType *weights);
-  void trans_weightsa(TarrayType *tweights, WeightsType *weights);
+  inline void __trans_weightsa_plain(TweightsType *tweights, WeightsType *weights);
+  inline void __trans_weightsa_blocked(TweightsType *tweights, WeightsType *weights);
+  void trans_weightsa(TweightsType *tweights, WeightsType *weights);
 
-  void gemm(TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _t2, int Tz, int _ic4 = 0);
-  void gemm_non_acc(TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _t2, int Tz, int _ic4);
-  void gemm(TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _ic4 = 0);
-  void gemm_non_acc(TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _ic4 = 0);
-  void gemma(TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _t2, int Tz);
+  void gemm(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _t2, int Tz, int _ic4 = 0);
+  void gemm_non_acc(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _t2, int Tz, int _ic4);
+  void gemm(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _ic4 = 0);
+  void gemm_non_acc(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _ic4 = 0);
+  void gemma(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _t2, int Tz);
   void gemm(ToutputType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
       TscaleType *src_scale, TscaleType *weights_scale, TscaleType *factor, int _ic4 = 0);
   void gemm_non_acc(ToutputType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
@@ -459,22 +457,22 @@ private:
   size_t tweights_qt_scale_size_;
   size_t tweights_factor_size_;
   size_t tweights_ci_size_;
-  TarrayType *workspace_;
-  TarrayType *scratch_;
+  void *workspace_;
+  void *scratch_;
 
-  TarrayType *tweights_;
-  TarrayType *tinput_;
-  TarrayType *toutput_;
-  TarrayType *toutputa_;
+  TweightsType *tweights_;
+  TinputType *tinput_;
+  ToutputType *toutput_;
+  ToutputType *toutputa_;
   InputType *binput_; // blocked input
   WeightsType *bweights_;
   OutputType *boutput_;
   uint8_t *tinput_u8_;
-  TarrayType *tinput_qt_scale_;
+  TscaleType *tinput_qt_scale_;
   int8_t *tweights_s8_;
-  TarrayType *tweights_qt_scale_;
-  TarrayType *tweights_factor_;
-  TarrayType *tweights_ci_;
+  TscaleType *tweights_qt_scale_;
+  TscaleType *tweights_factor_;
+  TscaleType *tweights_ci_;
 
   int hOA_end_;
   int wOA_end_;

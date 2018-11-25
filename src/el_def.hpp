@@ -41,8 +41,6 @@ template <typename... Types> struct InnerTypes {
   using WeightsType = typename std::tuple_element<1, std::tuple<Types...>>::type;
   using OutputType = typename std::tuple_element<2, std::tuple<Types...>>::type;
   using BiasType = typename std::tuple_element<3, std::tuple<Types...>>::type;
-  // Using in cse of TinputType = TweightsType = ToutputType
-  using TarrayType = typename std::tuple_element<0, std::tuple<Types...>>::type;
   using ScaleType = typename std::tuple_element<2, std::tuple<Types...>>::type;
 };
 

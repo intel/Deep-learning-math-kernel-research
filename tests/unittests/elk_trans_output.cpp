@@ -29,7 +29,10 @@ void test_elk_trans_output(bool perf, bool show_diff, int execution_mode,
   using WeightsType = typename UserTypes::WeightsType;
   using OutputType = typename UserTypes::OutputType;
   using BiasType = typename UserTypes::BiasType;
-  using TarrayType = typename InnerTypes::TarrayType;
+  using TinputType = typename InnerTypes::InputType;
+  using TweightsType = typename InnerTypes::WeightsType;
+  using ToutputType = typename InnerTypes::OutputType;
+
 
   int error = 0;
 
@@ -53,7 +56,7 @@ void test_elk_trans_output(bool perf, bool show_diff, int execution_mode,
   desc.execution_mode = execution_mode;
   Instance_elx_conv_wino_t xc(desc);
 
-  alignas(64) TarrayType atoutput[A][A][V];
+  alignas(64) ToutputType atoutput[A][A][V];
   alignas(64) BiasType abias[V];
   alignas(64) OutputType aoutput[xc.oh][xc.ow][V];
   alignas(64) OutputType ref_aoutput[xc.oh][xc.ow][V];
@@ -80,7 +83,7 @@ void test_elk_trans_output(bool perf, bool show_diff, int execution_mode,
   TT(elk_trans_input, iterations, perf,
       (convolution_winograd_kernel<
           euler::ConvTypes<InputType, WeightsType, OutputType, BiasType>,
-          TarrayType, ISA_GENERIC, V, A,
+          TinputType, ISA_GENERIC, V, A,
           K>::template trans_output<false, true, false, false>(xc,
           (float *)ref_aoutput, atoutput, abias, A - K, A - K)));
 

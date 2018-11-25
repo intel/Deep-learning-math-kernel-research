@@ -309,7 +309,7 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   }
   // TODO: user provided buffer
   if (scratch_size != 0)
-    scratch_ = (TarrayType *)galloc::acquire(scratch_size);
+    scratch_ = galloc::acquire(scratch_size);
   if (workspace_size != 0)
     MEMALIGN64(&workspace_, workspace_size);
 
@@ -333,7 +333,7 @@ Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::set_trans_buffers()
 {
   if (workspace_ != nullptr) {
-    tweights_ = workspace_;
+    tweights_ = (TweightsType *)workspace_;
     tinput_ = (TinputType *)galloc::get();
     // int8gemm supported in weights reuse case only.
     tweights_qt_scale_ = (TscaleType *)((char *)tweights_ + tweights_size_);
@@ -393,12 +393,12 @@ Instance_elx_conv_wino_t::~elx_conv_wino_t()
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_weights_plain(
-    TarrayType * __restrict tweights, WeightsType * __restrict weights, int oc4)
+    TweightsType * __restrict tweights, WeightsType * __restrict weights, int oc4)
 {
   // oc2, ic2, hK, wK, V, V => oc4, ic4, oc3, ic3, wA, hA, O2, I2, V, V
   MD11(WeightsType, aweights_v, weights, oc4, this->oc3, this->O1, this->O, V,
       this->ic4, this->ic3, this->I2, V, K, K);
-  MD11(TarrayType, atweights, tweights, oc4, this->ic4, this->oc3, this->ic3,
+  MD11(TweightsType, atweights, tweights, oc4, this->ic4, this->oc3, this->ic3,
       A, A, this->O1, this->I2, V, this->O, V);
 
   SET_EPI32(this->ic * this->kh * this->kw)
@@ -474,7 +474,7 @@ void Instance_elx_conv_wino_t::__trans_weights_plain(
         && _O == this->O - 1;
 
     alignas(64) WeightsType ain[K][K][V][V];
-    alignas(64) TarrayType aout[A][A][V][V];
+    alignas(64) TweightsType aout[A][A][V][V];
 
     if (this->Ir != V || is_Ir || is_Or)
       readin_r(ain, _oc4, _oc3, _O1 * this->O + _O, _ic4, _ic3, _I2, is_Ir, is_Or);
@@ -484,7 +484,7 @@ void Instance_elx_conv_wino_t::__trans_weights_plain(
 
     ker_trans_weights_(aout, ain);
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TarrayType, float>::value) {
+    if (I == ISA_SKX_AVX512 && std::is_same<TweightsType, float>::value) {
       if (stream_wei_) {
         iter_each (_wA, A) {
         iter_each (_hA, A) {
@@ -515,12 +515,12 @@ void Instance_elx_conv_wino_t::__trans_weights_plain(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_weights_blocked(
-    TarrayType *tweights, WeightsType *weights, int oc4)
+    TweightsType *tweights, WeightsType *weights, int oc4)
 {
   // oc2, ic2, hK, wK, V, V => oc4, ic4, oc3, ic3, wA, hA, O2, I2, V, V
   MD11(WeightsType, aweights, weights, oc4, this->oc3, this->O1, this->O,
       this->ic4, this->ic3, this->I2 * this->Vx, K, K, V, V);
-  MD11(TarrayType, atweights, tweights, oc4, this->ic4, this->oc3, this->ic3,
+  MD11(TweightsType, atweights, tweights, oc4, this->ic4, this->oc3, this->ic3,
       A, A, this->O1, this->I2 * this->Vx, V, this->O, V);
 
 #pragma omp for nowait collapse(7) schedule(static)
@@ -531,12 +531,12 @@ void Instance_elx_conv_wino_t::__trans_weights_blocked(
   iter_each (_O1, this->O1) {
   iter_each (_I2, this->I2 * this->Vx) {
   iter_each (_O, this->O) {
-    alignas(64) TarrayType aout[A][A][V][V];
+    alignas(64) TweightsType aout[A][A][V][V];
     WeightsType *in = &md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, 0, 0, 0, 0);
     using Array = WeightsType[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TarrayType, float>::value) {
+    if (I == ISA_SKX_AVX512 && std::is_same<TweightsType, float>::value) {
       if (stream_wei_) {
         iter_each (_wA, A) {
         iter_each (_hA, A) {
@@ -800,7 +800,7 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::trans_weights(
-    TarrayType *tweights, WeightsType *weights, int oc4)
+    TweightsType *tweights, WeightsType *weights, int oc4)
 {
   if (weights_is_bfmt_ || weights_as_bfmt_)
     __trans_weights_blocked(tweights, weights, oc4);
@@ -822,11 +822,11 @@ void Instance_elx_conv_wino_t::trans_weights_s8(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_weightsf_plain(
-    TarrayType * __restrict tweights, WeightsType * __restrict weights, int _ic4, int _oc4)
+    TweightsType * __restrict tweights, WeightsType * __restrict weights, int _ic4, int _oc4)
 {
   MD11(WeightsType, aweights_v, weights, oc4, this->oc3, this->O1, this->O, V,
       this->ic4, this->ic3, this->I2, V, K, K);
-  MD9(TarrayType, atweights, tweights, this->oc3, this->ic3, A, A,
+  MD9(TweightsType, atweights, tweights, this->oc3, this->ic3, A, A,
       this->O1, this->I2, V, this->O, V);
 
   SET_EPI32(this->ic * this->kh * this->kw)
@@ -899,7 +899,7 @@ void Instance_elx_conv_wino_t::__trans_weightsf_plain(
         && _O == this->O - 1;
 
     alignas(64) WeightsType ain[K][K][V][V];
-    alignas(64) TarrayType aout[A][A][V][V];
+    alignas(64) TweightsType aout[A][A][V][V];
 
     if (this->Ir != V || is_Ir || is_Or)
       readin_r(ain, _oc4, _oc3, _O1 * this->O + _O, _ic4, _ic3, _I2, is_Ir, is_Or);
@@ -909,7 +909,7 @@ void Instance_elx_conv_wino_t::__trans_weightsf_plain(
 
     ker_trans_weights_(aout, ain);
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TarrayType, float>::value) {
+    if (I == ISA_SKX_AVX512 && std::is_same<TweightsType, float>::value) {
       if (stream_wei_) {
         iter_each (_wA, A) {
         iter_each (_hA, A) {
@@ -940,11 +940,11 @@ void Instance_elx_conv_wino_t::__trans_weightsf_plain(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_weightsf_blocked(
-    TarrayType *tweights, WeightsType *weights, int _ic4, int _oc4)
+    TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4)
 {
   MD11(WeightsType, aweights, weights, oc4, this->oc3, this->O1, this->O,
       this->ic4, this->ic3, this->I2, K, K, V, V);
-  MD9(TarrayType, atweights, tweights, this->oc3, this->ic3, A, A,
+  MD9(TweightsType, atweights, tweights, this->oc3, this->ic3, A, A,
       this->O1, this->I2, V, this->O, V);
 
   iter_each (_oc3, this->oc3) {
@@ -952,12 +952,12 @@ void Instance_elx_conv_wino_t::__trans_weightsf_blocked(
   iter_each (_O1, this->O1) {
   iter_each (_I2, this->I2) {
   iter_each (_O, this->O) {
-    alignas(64) TarrayType aout[A][A][V][V];
+    alignas(64) TweightsType aout[A][A][V][V];
     WeightsType *in = &md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, 0, 0, 0, 0);
     using Array = WeightsType[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TarrayType, float>::value) {
+    if (I == ISA_SKX_AVX512 && std::is_same<TweightsType, float>::value) {
       if (stream_wei_) {
         iter_each (_wA, A) {
         iter_each (_hA, A) {
@@ -988,7 +988,7 @@ void Instance_elx_conv_wino_t::__trans_weightsf_blocked(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::trans_weightsf(
-    TarrayType *tweights, WeightsType *weights, int _ic4, int _oc4)
+    TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4)
 {
   if (weights_is_bfmt_ || weights_as_bfmt_)
     __trans_weightsf_blocked(tweights, weights, _ic4, _oc4);
@@ -998,12 +998,12 @@ void Instance_elx_conv_wino_t::trans_weightsf(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_weightsa_blocked(
-    TarrayType *tweights, WeightsType *weights)
+    TweightsType *tweights, WeightsType *weights)
 {
   // oc2, ic2, hK, wK, V, V => oc4, ic4, wA, hA, oc3, ic3, O2, I2, V, V
   MD11(WeightsType, aweights, weights, this->oc4, this->oc3, this->O1, this->O,
       this->ic4, this->ic3, this->I2, K, K, V, V);
-  MD11(TarrayType, atweights, tweights, this->oc4, this->ic4, A, A, this->oc3,
+  MD11(TweightsType, atweights, tweights, this->oc4, this->ic4, A, A, this->oc3,
       this->ic3, this->O1, this->I2, V, this->O, V);
 
 #pragma omp for nowait collapse(7) schedule(static)
@@ -1014,12 +1014,12 @@ void Instance_elx_conv_wino_t::__trans_weightsa_blocked(
   iter_each (_O1, this->O1) {
   iter_each (_I2, this->I2) {
   iter_each (_O, this->O) {
-    alignas(64) TarrayType aout[A][A][V][V];
+    alignas(64) TweightsType aout[A][A][V][V];
     WeightsType *in = &md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, 0, 0, 0, 0);
     using Array = WeightsType[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TarrayType, float>::value) {
+    if (I == ISA_SKX_AVX512 && std::is_same<TweightsType, float>::value) {
       if (stream_wei_) {
         iter_each (_wA, A) {
         iter_each (_hA, A) {
@@ -1050,12 +1050,12 @@ void Instance_elx_conv_wino_t::__trans_weightsa_blocked(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_weightsa_plain(
-    TarrayType * __restrict tweights, WeightsType * __restrict weights)
+    TweightsType * __restrict tweights, WeightsType * __restrict weights)
 {
   // oc2, ic2, hK, wK, V, V => oc4, ic4, wA, hA, oc3, ic3, O2, I2, V, V
   MD11(WeightsType, aweights, weights, this->oc4, this->oc3, this->O1, this->O, V,
       this->ic4, this->ic3, this->I2, V, K, K);
-  MD11(TarrayType, atweights, tweights, this->oc4, this->ic4, A, A, this->oc3,
+  MD11(TweightsType, atweights, tweights, this->oc4, this->ic4, A, A, this->oc3,
       this->ic3, this->O1, this->I2, V, this->O, V);
 
   SET_EPI32(this->ic * this->kh * this->kw)
@@ -1131,7 +1131,7 @@ void Instance_elx_conv_wino_t::__trans_weightsa_plain(
         && _O == this->O - 1;
 
     alignas(64) WeightsType ain[K][K][V][V];
-    alignas(64) TarrayType aout[A][A][V][V];
+    alignas(64) TweightsType aout[A][A][V][V];
 
     if (this->Ir != V || is_Ir || is_Or)
       readin_r(ain, _oc4, _oc3, _O1 * this->O + _O, _ic4, _ic3, _I2, is_Ir, is_Or);
@@ -1141,7 +1141,7 @@ void Instance_elx_conv_wino_t::__trans_weightsa_plain(
 
     ker_trans_weights_(aout, ain);
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TarrayType, float>::value) {
+    if (I == ISA_SKX_AVX512 && std::is_same<TweightsType, float>::value) {
       if (stream_wei_) {
         iter_each (_wA, A) {
         iter_each (_hA, A) {
@@ -1172,7 +1172,7 @@ void Instance_elx_conv_wino_t::__trans_weightsa_plain(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::trans_weightsa(
-    TarrayType *tweights, WeightsType *weights)
+    TweightsType *tweights, WeightsType *weights)
 {
   if (weights_is_bfmt_ || weights_as_bfmt_)
     __trans_weightsa_blocked(tweights, weights);
@@ -1182,12 +1182,12 @@ void Instance_elx_conv_wino_t::trans_weightsa(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_input_plain(
-    TarrayType * __restrict tinput, InputType * __restrict input, int _t2, int Tz)
+    TinputType * __restrict tinput, InputType * __restrict input, int _t2, int Tz)
 {
   // n, IC, ih, iw => t2 | wA, hA, ic3, I2, T, V
-  MD6(TarrayType, atinput, tinput, A, A, this->ic3, this->I2, Tz, V);
+  MD6(TinputType, atinput, tinput, A, A, this->ic3, this->I2, Tz, V);
 
-  alignas(64) TarrayType aout[A][A][V];
+  alignas(64) TinputType aout[A][A][V];
   alignas(64) InputType ain[A][A][V];
   SET_EPI32(this->ih * this->iw)
 
@@ -1279,7 +1279,7 @@ void Instance_elx_conv_wino_t::__trans_input_plain(
 
     ker_trans_input_(*this, aout, (InputType *)ain, 0, 0, 0, -1);
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TarrayType, float>::value) {
+    if (I == ISA_SKX_AVX512 && std::is_same<TinputType, float>::value) {
       if (stream_in_) {
         iter_each (_wA, A) {
         iter_each (_hA, A) {
@@ -1306,14 +1306,14 @@ void Instance_elx_conv_wino_t::__trans_input_plain(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_input_blocked(
-    TarrayType * __restrict tinput, InputType * __restrict input, int _t2, int Tz)
+    TinputType * __restrict tinput, InputType * __restrict input, int _t2, int Tz)
 {
   // n, ic2, ih, iw, V => t2 | wA, hA, ic3, I2, T, V
   MD7(InputType, ainput, input, this->n, this->ic4, this->ic3, this->I2,
       this->ih, this->iw, V);
-  MD6(TarrayType, atinput, tinput, A, A, this->ic3, this->I2, Tz, V);
+  MD6(TinputType, atinput, tinput, A, A, this->ic3, this->I2, Tz, V);
 
-  alignas(64) TarrayType aout[A][A][V];
+  alignas(64) TinputType aout[A][A][V];
 
   auto res = std::div(_t2 * this->T, this->nt);
   auto _n = res.quot;
@@ -1336,7 +1336,7 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
 
     ++ t2spati_o;
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TarrayType, float>::value) {
+    if (I == ISA_SKX_AVX512 && std::is_same<TinputType, float>::value) {
       if (stream_in_) {
         iter_each (_wA, A) {
         iter_each (_hA, A) {
@@ -1458,7 +1458,7 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::trans_input(
-    TarrayType * __restrict tinput, InputType * __restrict input, int _t2, int Tz)
+    TinputType * __restrict tinput, InputType * __restrict input, int _t2, int Tz)
 {
   if (input_is_bfmt_ || input_as_bfmt_)
     __trans_input_blocked(tinput, input, _t2, Tz);
@@ -1479,20 +1479,20 @@ void Instance_elx_conv_wino_t::trans_input_u8(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_input_blocked(
-    TarrayType * __restrict tinput, InputType * __restrict input)
+    TinputType * __restrict tinput, InputType * __restrict input)
 {
   // n, ic2, ih, iw, V => t2, wA, hA, ic3, I2, T, V
   MD7(InputType, ainput, input, this->n, this->ic4, this->ic3, this->I2,
       this->ih, this->iw, V);
-  MD2(TarrayType, atinput2, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * V);
+  MD2(TinputType, atinput2, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * V);
 
 #pragma omp for nowait collapse(3)
   iter_each (_t2, this->t2) {
   iter_each (_ic3, this->ic3) {
   iter_each (_I2, this->I2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    MD6(TarrayType, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2, Tz, V);
-    alignas(64) TarrayType aout[A][A][V];
+    MD6(TinputType, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2, Tz, V);
+    alignas(64) TinputType aout[A][A][V];
 
     iter_each (_T, Tz) {
       int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
@@ -1506,7 +1506,7 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
         ker_trans_input0_(
             *this, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
 
-      if (I == ISA_SKX_AVX512 && std::is_same<TarrayType, float>::value) {
+      if (I == ISA_SKX_AVX512 && std::is_same<TinputType, float>::value) {
         if (stream_in_) {
           iter_each (_wA, A) {
           iter_each (_hA, A) {
@@ -1534,10 +1534,10 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_input_plain(
-    TarrayType * __restrict tinput, InputType * __restrict input)
+    TinputType * __restrict tinput, InputType * __restrict input)
 {
   // n, ic2, ih, iw, V => t2, wA, hA, ic3, I2, T, V
-  MD2(TarrayType, atinput2, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * V);
+  MD2(TinputType, atinput2, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * V);
 
   SET_EPI32(this->ih * this->iw)
 
@@ -1626,8 +1626,8 @@ void Instance_elx_conv_wino_t::__trans_input_plain(
   iter_each (_ic3, this->ic3) {
   iter_each (_I2, this->I2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    MD6(TarrayType, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2, Tz, V);
-    alignas(64) TarrayType aout[A][A][V];
+    MD6(TinputType, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2, Tz, V);
+    alignas(64) TinputType aout[A][A][V];
     alignas(64) InputType ain[A][A][V];
 
     iter_each (_T, Tz) {
@@ -1637,7 +1637,7 @@ void Instance_elx_conv_wino_t::__trans_input_plain(
         readin_v(_t2, _ic3, _I2, _T, ain);
       ker_trans_input_(*this, aout, (InputType *)ain, 0, 0, 0, -1);
 
-      if (I == ISA_SKX_AVX512 && std::is_same<TarrayType, float>::value) {
+      if (I == ISA_SKX_AVX512 && std::is_same<TinputType, float>::value) {
         if (stream_in_) {
           iter_each (_wA, A) {
           iter_each (_hA, A) {
@@ -1665,7 +1665,7 @@ void Instance_elx_conv_wino_t::__trans_input_plain(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::trans_input(
-    TarrayType *tinput, InputType *input)
+    TinputType *tinput, InputType *input)
 {
   if (input_is_bfmt_ || input_as_bfmt_)
     __trans_input_blocked(tinput, input);
@@ -1675,14 +1675,14 @@ void Instance_elx_conv_wino_t::trans_input(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_inputa_blocked(
-    TarrayType *tinput, InputType *input, int _t2, int _wA, int Tz)
+    TinputType *tinput, InputType *input, int _t2, int _wA, int Tz)
 {
   // n, ic2, ih, iw, V => t2, wA | hA, ic3, I2, T, V
   MD7(InputType, ainput, input, this->n, this->ic4, this->ic3, this->I2,
       this->ih, this->iw, V);
-  MD5(TarrayType, atinput, tinput, A, this->ic3, this->I2, Tz, V);
+  MD5(TinputType, atinput, tinput, A, this->ic3, this->I2, Tz, V);
 
-  alignas(64) TarrayType aout[A][A][V];
+  alignas(64) TinputType aout[A][A][V];
 
   iter_each (_ic3, this->ic3) {
   iter_each (_I2, this->I2) {
@@ -1699,7 +1699,7 @@ void Instance_elx_conv_wino_t::__trans_inputa_blocked(
           *this, aout, in, _wA, _hA_start, _hA_end, _wA_start, _wA_end);
     }
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TarrayType, float>::value) {
+    if (I == ISA_SKX_AVX512 && std::is_same<TinputType, float>::value) {
       if (stream_in_) {
         iter_each (_hA, A) {
           _mm<V>::stream_ps(&md5(atinput, _hA, _ic3, _I2, _T, 0),
@@ -1723,12 +1723,12 @@ void Instance_elx_conv_wino_t::__trans_inputa_blocked(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_inputa_plain(
-    TarrayType * __restrict tinput, InputType * __restrict input, int _t2, int _wA, int Tz)
+    TinputType * __restrict tinput, InputType * __restrict input, int _t2, int _wA, int Tz)
 {
   // n, ic2, ih, iw, V => t2, wA | hA, ic3, I2, T, V
-  MD5(TarrayType, atinput, tinput, A, this->ic3, this->I2, Tz, V);
+  MD5(TinputType, atinput, tinput, A, this->ic3, this->I2, Tz, V);
 
-  alignas(64) TarrayType aout[A][A][V];
+  alignas(64) TinputType aout[A][A][V];
   alignas(64) InputType ain[A][A][V];
   SET_EPI32(this->ih * this->iw)
 
@@ -1820,7 +1820,7 @@ void Instance_elx_conv_wino_t::__trans_inputa_plain(
       readin_v(_ic3, _I2, _T, ain);
     ker_trans_inputa_(*this, aout, (InputType *)ain, _wA, 0, A - 1, 0, -1);
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TarrayType, float>::value) {
+    if (I == ISA_SKX_AVX512 && std::is_same<TinputType, float>::value) {
       if (stream_in_) {
         iter_each (_hA, A)
           _mm<V>::stream_ps(&md5(atinput, _hA, _ic3, _I2, _T, 0),
@@ -1842,7 +1842,7 @@ void Instance_elx_conv_wino_t::__trans_inputa_plain(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::trans_inputa(
-    TarrayType *tinput, InputType *input, int _t2, int _wA, int Tz)
+    TinputType *tinput, InputType *input, int _t2, int _wA, int Tz)
 {
   if(input_is_bfmt_ || input_as_bfmt_)
     __trans_inputa_blocked(tinput, input, _t2, _wA, Tz);
@@ -1855,14 +1855,14 @@ void Instance_elx_conv_wino_t::trans_inputa(
 // toutput:  t2, oc4 | A, A, oc3, O2, T, V
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::gemm(
-    TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _t2, int Tz, int _ic4)
+    ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _t2, int Tz, int _ic4)
 {
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
   auto ker_gemm_tail = (_t2 == this->t2 - 1) ? ker_gemm0_tail_ : ker_gemm_tail_;
 
-  MD6(TarrayType, atinput, tinput, A, A, this->ic3, this->I2, Tz, V);
-  MD6(TarrayType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
-  MD5(TarrayType, atweights, tweights, this->oc3, this->ic3, A, A, this->O2 * this->I2 * V * V);
+  MD6(TinputType, atinput, tinput, A, A, this->ic3, this->I2, Tz, V);
+  MD6(ToutputType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
+  MD5(TweightsType, atweights, tweights, this->oc3, this->ic3, A, A, this->O2 * this->I2 * V * V);
 
   bool scramble = (this->T == this->Tr) || (this->t2 >= 2 * mthr_);
   if (scramble) {
@@ -1980,14 +1980,14 @@ void Instance_elx_conv_wino_t::gemm(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::gemm_non_acc(
-    TarrayType *toutput, TarrayType *tinput, TarrayType *tweights, int _t2, int Tz, int _ic4)
+    ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _t2, int Tz, int _ic4)
 {
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
   auto ker_gemm_tail = (_t2 == this->t2 - 1) ? ker_gemm0_tail_ : ker_gemm_tail_;
 
-  MD6(TarrayType, atinput, tinput, A, A, this->ic3, this->I2, Tz, V);
-  MD6(TarrayType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
-  MD5(TarrayType, atweights, tweights, this->oc3, this->ic3, A, A,
+  MD6(TinputType, atinput, tinput, A, A, this->ic3, this->I2, Tz, V);
+  MD6(ToutputType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
+  MD5(TweightsType, atweights, tweights, this->oc3, this->ic3, A, A,
       this->O2 * this->I2 * V * V);
 
   bool scramble = (this->T == this->Tr) || (this->t2 >= 2 * mthr_);
@@ -2132,12 +2132,12 @@ void Instance_elx_conv_wino_t::gemm_non_acc(
 // toutput:  t2, A, A, oc3, O2, T, V
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::gemm(
-    TarrayType * __restrict toutput, TarrayType * __restrict tinput,
-    TarrayType * __restrict tweights, int _ic4)
+    ToutputType * __restrict toutput, TinputType * __restrict tinput,
+    TweightsType * __restrict tweights, int _ic4)
 {
-  MD2(TarrayType, atinput2, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * V);
-  MD2(TarrayType, atoutput2, toutput, this->t2, A * A * this->T * this->oc3 * this->O2 * V);
-  MD5(TarrayType, atweights, tweights, this->oc3, this->ic3, A, A, this->O2 * this->I2 * V * V);
+  MD2(TinputType, atinput2, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * V);
+  MD2(ToutputType, atoutput2, toutput, this->t2, A * A * this->T * this->oc3 * this->O2 * V);
+  MD5(TweightsType, atweights, tweights, this->oc3, this->ic3, A, A, this->O2 * this->I2 * V * V);
 
 #pragma omp for nowait collapse(4)
   iter_each (_wA, A) {
@@ -2148,8 +2148,8 @@ void Instance_elx_conv_wino_t::gemm(
     auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
     auto ker_gemm_tail
         = (_t2 == this->t2 - 1) ? ker_gemm0_tail_ : ker_gemm_tail_;
-    MD6(TarrayType, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2, Tz, V);
-    MD6(TarrayType, atoutput6, &md2(atoutput2, _t2, 0), A, A, this->oc3, this->O2, Tz, V);
+    MD6(TinputType, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2, Tz, V);
+    MD6(ToutputType, atoutput6, &md2(atoutput2, _t2, 0), A, A, this->oc3, this->O2, Tz, V);
     bool last_ic4 = _ic4 == this->ic4 - 1;
     int ic3 = last_ic4 ? this->ic3 - 1 : this->ic3;
 
@@ -2176,12 +2176,12 @@ void Instance_elx_conv_wino_t::gemm(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::gemm_non_acc(
-    TarrayType * __restrict toutput, TarrayType * __restrict tinput,
-    TarrayType * __restrict tweights, int _ic4)
+    ToutputType * __restrict toutput, TinputType * __restrict tinput,
+    TweightsType * __restrict tweights, int _ic4)
 {
-  MD2(TarrayType, atinput2, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * V);
-  MD2(TarrayType, atoutput2, toutput, this->t2, A * A * this->T * this->oc3 * this->O2 * V);
-  MD5(TarrayType, atweights, tweights, this->oc3, this->ic3, A, A, this->O2 * this->I2 * V * V);
+  MD2(TinputType, atinput2, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * V);
+  MD2(ToutputType, atoutput2, toutput, this->t2, A * A * this->T * this->oc3 * this->O2 * V);
+  MD5(TweightsType, atweights, tweights, this->oc3, this->ic3, A, A, this->O2 * this->I2 * V * V);
 
 #pragma omp for nowait collapse(4)
   iter_each (_wA, A) {
@@ -2192,8 +2192,8 @@ void Instance_elx_conv_wino_t::gemm_non_acc(
     auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
     auto ker_gemm_tail
         = (_t2 == this->t2 - 1) ? ker_gemm0_tail_ : ker_gemm_tail_;
-    MD6(TarrayType, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2, Tz, V);
-    MD6(TarrayType, atoutput6, &md2(atoutput2, _t2, 0), A, A, this->oc3, this->O2, Tz, V);
+    MD6(TinputType, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2, Tz, V);
+    MD6(ToutputType, atoutput6, &md2(atoutput2, _t2, 0), A, A, this->oc3, this->O2, Tz, V);
     bool last_ic4 = _ic4 == this->ic4 - 1;
     int ic3 = last_ic4 ? this->ic3 - 1 : this->ic3;
 
@@ -2224,15 +2224,15 @@ void Instance_elx_conv_wino_t::gemm_non_acc(
 // toutput: t2, oc4, A | A, oc3, O2, T, V
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::gemma(
-    TarrayType * __restrict toutput, TarrayType * __restrict tinput,
-    TarrayType *tweights, int _t2, int Tz)
+    ToutputType * __restrict toutput, TinputType * __restrict tinput,
+    TweightsType *tweights, int _t2, int Tz)
 {
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
   auto ker_gemm_tail = (_t2 == this->t2 - 1) ? ker_gemm0_tail_ : ker_gemm_tail_;
 
-  MD5(TarrayType, atinput, tinput,  A, this->ic3, this->I2, Tz, V);
-  MD5(TarrayType, atoutput, toutput, A, this->oc3, this->O2, Tz, V);
-  MD4(TarrayType, atweights, tweights, A, this->oc3, this->ic3,
+  MD5(TinputType, atinput, tinput,  A, this->ic3, this->I2, Tz, V);
+  MD5(ToutputType, atoutput, toutput, A, this->oc3, this->O2, Tz, V);
+  MD4(TweightsType, atweights, tweights, A, this->oc3, this->ic3,
       this->O2 * this->I2 * V * V);
 
   iter_each (_hA, A) {
@@ -2256,14 +2256,14 @@ void Instance_elx_conv_wino_t::gemma(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_output_plain(
-    OutputType * __restrict output, TarrayType * __restrict toutput,
+    OutputType * __restrict output, ToutputType * __restrict toutput,
     BiasType * __restrict bias, int _t2, int Tz, int _ic4)
 {
   // A, A, oc3, O2, T, V -> n, OC, oh, ow
-  MD6(TarrayType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
+  MD6(ToutputType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
   MD3(BiasType, abias, bias, this->oc3, this->O2, V);
 
-  alignas(64) TarrayType ain[A][A][V];
+  alignas(64) ToutputType ain[A][A][V];
   alignas(64) OutputType aout[A - K + 1][A - K + 1][V];
   SET_EPI32(this->oh * this->ow)
 
@@ -2367,7 +2367,7 @@ void Instance_elx_conv_wino_t::__trans_output_plain(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_output_blocked(
-    OutputType *output, TarrayType *toutput, BiasType *bias, int _t2, int Tz, int _ic4)
+    OutputType *output, ToutputType *toutput, BiasType *bias, int _t2, int Tz, int _ic4)
 {
   auto ker_trans_output = (this->with_ip_sum || _ic4 > 0) ?
       ker_trans_output_acc_ : ker_trans_output_;
@@ -2375,12 +2375,12 @@ void Instance_elx_conv_wino_t::__trans_output_blocked(
       ker_trans_output0_acc_ : ker_trans_output0_;
 
   // A, A, oc3, O2, T, V -> n, oc2, oh, ow, V
-  MD6(TarrayType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
+  MD6(ToutputType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
   MD7(OutputType, aoutput, output, this->n, this->oc4, this->oc3, this->O2,
       this->oh, this->ow, V);
   MD3(BiasType, abias, bias, this->oc3, this->O2, V);
 
-  alignas(64) TarrayType ain[A][A][V];
+  alignas(64) ToutputType ain[A][A][V];
 
   auto res = std::div(_t2 * this->T, this->nt);
   auto _n_off = res.quot;
@@ -2416,7 +2416,7 @@ void Instance_elx_conv_wino_t::__trans_output_blocked(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::trans_output(
-    OutputType *output, TarrayType *toutput, BiasType *bias, int _t2, int Tz, int _ic4)
+    OutputType *output, ToutputType *toutput, BiasType *bias, int _t2, int Tz, int _ic4)
 {
   if (output_is_bfmt_ || output_as_bfmt_)
     __trans_output_blocked(output, toutput, bias, _t2, Tz, _ic4);
@@ -2428,10 +2428,10 @@ void Instance_elx_conv_wino_t::trans_output(
 // toutputa: t2, oc4 | oc3, O2, T, wA/A | hA/A-K+1, V
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::trans_outputa_th(
-    TarrayType *toutputa, TarrayType *toutput, int Tz)
+    ToutputType *toutputa, ToutputType *toutput, int Tz)
 {
-  MD4(TarrayType, atoutput, toutput, A, this->oc3 * this->O2, Tz, V);
-  MD4(TarrayType, atoutputa, toutputa, this->oc3 * this->O2, Tz, A, (A - K + 1) * V);
+  MD4(ToutputType, atoutput, toutput, A, this->oc3 * this->O2, Tz, V);
+  MD4(ToutputType, atoutputa, toutputa, this->oc3 * this->O2, Tz, A, (A - K + 1) * V);
 
   iter_each (_oc, this->oc3 * this->O2) {
   iter_each (_T, Tz) {
@@ -2444,24 +2444,24 @@ void Instance_elx_conv_wino_t::trans_outputa_th(
 // toutputa: t2, oc2, T, wA/A | hA/A-K+1, V
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_outputa_bh_blocked(
-    OutputType *output, TarrayType *toutputa, BiasType *bias)
+    OutputType *output, ToutputType *toutputa, BiasType *bias)
 {
   MD5(OutputType, aoutput, output, this->n, this->oc2, this->oh, this->ow, V);
   MD2(BiasType, abias, bias, this->oc2, V);
-  MD2(TarrayType, atoutputa2, toutputa, this->t2, A * (A - K + 1) * this->T * this->OC);
+  MD2(ToutputType, atoutputa2, toutputa, this->t2, A * (A - K + 1) * this->T * this->OC);
 
 #pragma omp for nowait collapse(2)
   iter_each (_t2, this->t2) {
   iter_each (_oc2, this->oc2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    MD3(TarrayType, atoutputa3, &md2(atoutputa2, _t2, 0), this->oc2, Tz,
+    MD3(ToutputType, atoutputa3, &md2(atoutputa2, _t2, 0), this->oc2, Tz,
         A * (A - K + 1) * V);
 
     iter_each (_T, Tz) {
       int _n, _oh, _ow, _hOA_end, _wOA_end;
       t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
       OutputType *out = &md5(aoutput, _n, _oc2, _oh, _ow, 0);
-      using Array1 = TarrayType[A][A - K + 1][V];
+      using Array1 = ToutputType[A][A - K + 1][V];
       Array1 *in = (Array1 *)&md3(atoutputa3, _oc2, _T, 0);
 
       if (_hOA_end < A - K || _wOA_end < A - K)
@@ -2478,10 +2478,10 @@ void Instance_elx_conv_wino_t::__trans_outputa_bh_blocked(
 // toutputa: t2, oc2, T, wA/A | hA/A-K+1, V
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_outputa_bh_plain(
-    OutputType * __restrict output, TarrayType * __restrict toutputa, BiasType *bias)
+    OutputType * __restrict output, ToutputType * __restrict toutputa, BiasType *bias)
 {
   MD2(BiasType, abias, bias, this->oc2, V);
-  MD2(TarrayType, atoutputa2, toutputa, this->t2, A * (A - K + 1) * this->T * this->OC);
+  MD2(ToutputType, atoutputa2, toutputa, this->t2, A * (A - K + 1) * this->T * this->OC);
 
   SET_EPI32(this->oh * this->ow)
 
@@ -2565,12 +2565,12 @@ void Instance_elx_conv_wino_t::__trans_outputa_bh_plain(
   iter_each (_t2, this->t2) {
   iter_each (_oc2, this->oc2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    MD3(TarrayType, atoutputa3, &md2(atoutputa2, _t2, 0), this->oc2, Tz,
+    MD3(ToutputType, atoutputa3, &md2(atoutputa2, _t2, 0), this->oc2, Tz,
         A * (A - K + 1) * V);
     alignas(64) OutputType aout[A - K + 1][A - K + 1][V];
 
     iter_each (_T, Tz) {
-      using Array1 = TarrayType[A][A - K + 1][V];
+      using Array1 = ToutputType[A][A - K + 1][V];
       Array1 *in = (Array1 *)&md3(atoutputa3, _oc2, _T, 0);
 
       ker_trans_outputa_bh_(
@@ -2586,7 +2586,7 @@ void Instance_elx_conv_wino_t::__trans_outputa_bh_plain(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::trans_outputa_bh(
-    OutputType *output, TarrayType *toutputa, BiasType *bias)
+    OutputType *output, ToutputType *toutputa, BiasType *bias)
 {
   if (output_is_bfmt_ || output_as_bfmt_)
     __trans_outputa_bh_blocked(output, toutputa, bias);
@@ -2597,12 +2597,12 @@ void Instance_elx_conv_wino_t::trans_outputa_bh(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_output_blocked(
-    OutputType *output, TarrayType *toutput, BiasType *bias, int _ic4)
+    OutputType *output, ToutputType *toutput, BiasType *bias, int _ic4)
 {
   // A, A, oc3, O2, T, V -> n, oc2, oh, ow, V
   MD7(OutputType, aoutput, output, this->n, this->oc4, this->oc3, this->O2,
       this->oh, this->ow, V);
-  MD2(TarrayType, atoutput2, toutput, this->t2, A * A * this->T * this->oc3 * this->O2 * V);
+  MD2(ToutputType, atoutput2, toutput, this->t2, A * A * this->T * this->oc3 * this->O2 * V);
   MD3(BiasType, abias, bias, this->oc3, this->O2, V);
 
   auto ker_trans_output = (this->with_ip_sum || _ic4 > 0) ?
@@ -2615,8 +2615,8 @@ void Instance_elx_conv_wino_t::__trans_output_blocked(
   iter_each (_oc3, this->oc3) {
   iter_each (_O2, this->O2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    MD6(TarrayType, atoutput, &md2(atoutput2, _t2, 0), A, A, this->oc3, this->O2, Tz, V);
-    alignas(64) TarrayType ain[A][A][V];
+    MD6(ToutputType, atoutput, &md2(atoutput2, _t2, 0), A, A, this->oc3, this->O2, Tz, V);
+    alignas(64) ToutputType ain[A][A][V];
 
     iter_each (_T, Tz) {
       iter_each (_wA, A) {
@@ -2644,11 +2644,11 @@ void Instance_elx_conv_wino_t::__trans_output_blocked(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_output_plain(
-    OutputType * __restrict output, TarrayType * __restrict toutput, BiasType *bias, int _ic4)
+    OutputType * __restrict output, ToutputType * __restrict toutput, BiasType *bias, int _ic4)
 {
   // A, A, oc3, O2, T, V -> n, OC, oh, ow
   MD3(BiasType, abias, bias, this->oc3, this->O2, V);
-  MD2(TarrayType, atoutput2, toutput, this->t2,
+  MD2(ToutputType, atoutput2, toutput, this->t2,
       A * A * this->T * this->oc3 * this->O2 * V);
 
   SET_EPI32(this->oh * this->ow)
@@ -2736,9 +2736,9 @@ void Instance_elx_conv_wino_t::__trans_output_plain(
   iter_each (_oc3, this->oc3) {
   iter_each (_O2, this->O2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    MD6(TarrayType, atoutput6, &md2(atoutput2, _t2, 0), A, A, this->oc3,
+    MD6(ToutputType, atoutput6, &md2(atoutput2, _t2, 0), A, A, this->oc3,
         this->O2, Tz, V);
-    alignas(64) TarrayType ain[A][A][V];
+    alignas(64) ToutputType ain[A][A][V];
     alignas(64) OutputType aout[A - K + 1][A - K + 1][V];
 
     iter_each (_T, Tz) {
@@ -2763,7 +2763,7 @@ void Instance_elx_conv_wino_t::__trans_output_plain(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::trans_output(
-    OutputType *output, TarrayType *toutput, BiasType *bias, int _ic4)
+    OutputType *output, ToutputType *toutput, BiasType *bias, int _ic4)
 {
   if (output_is_bfmt_ || output_as_bfmt_)
     __trans_output_blocked(output, toutput, bias, _ic4);
@@ -2775,12 +2775,12 @@ Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::prepare_tweights(
     WeightsType * __restrict weights) {
   trans_weights(tweights_, weights, this->oc4);
-  MD5(TarrayType, atweights_ci, tweights_ci_,
+  MD5(ToutputType, atweights_ci, tweights_ci_,
       this->oc4, this->oc3, this->O1, this->O, V);
 
   // confident interval
   if (weights_is_bfmt_ || weights_as_bfmt_) {
-    MD12(TarrayType, atweights, tweights_, this->oc4, this->ic4, this->oc3, this->ic3,
+    MD12(ToutputType, atweights, tweights_, this->oc4, this->ic4, this->oc3, this->ic3,
         A, A, this->O1, this->I2, this->Vx, V, this->O, V);
     __m<V> mmblk
         = _mm<V>::set1_ps(this->ic4 * this->ic3 * A * A * this->I2 * this->Vx * V);
