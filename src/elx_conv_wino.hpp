@@ -48,7 +48,7 @@
 /*
   Winograd data types: (input,weights,output)
   +--------------+------+-----+-------------+--------------+-------------+--------+-----------+
-  |Name          |XOPT  |F16C |UserTypes    |TarrayTypes   |IntITFTypes  |TrOpType|GemmOpTypes|
+  |Name          |XOPT  |F16C |UserTypes    |TarrayTypes   |InnerTypes   |TrOpType|GemmOpTypes|
   +--------------+------+-----+-------------+--------------+-------------+--------+-----------+
   |int8          |TBD   |false|u8,fp32,u8/s8|fp32          |u8,s8,fp32   |fp32    |u8,s8,int32|
   |int8-f16c     |TBD   |false|u8,fp32,u8/s8|fp32,fp32,fp16|u8,s8,fp16   |fp32    |u8,s8,int32|
@@ -61,24 +61,24 @@
   |fp32          |A061… |false|fp32         |fp32          |fp32         |fp32    |fp32       |
   +--------------+------+-----+-------------+--------------+-------------+--------+-----------+
 
-  * Non-INT8 mode, unquantized TarrayTypes equals to IntITFTypes.
+  * Non-INT8 mode, unquantized TarrayTypes equals to InnerTypes.
   * INT8 mode, input/weights type of TarrayTypes equals to TrOpType, outout type
-    of TarrayTypes equals to that of IntITFTypes.
+    of TarrayTypes equals to that of InnerTypes.
 */
 
 namespace euler {
 
 #define Template_elx_conv_wino_t                                               \
-  template <typename UserTypes, typename IntITFTypes, typename TrOpType,       \
+  template <typename UserTypes, typename InnerTypes, typename TrOpType,       \
       const int A, const int K, const int V, const int I>
 
 #define Instance_elx_conv_wino_t                                               \
-  elx_conv_wino_t<UserTypes, IntITFTypes, TrOpType, A, K, V, I>
+  elx_conv_wino_t<UserTypes, InnerTypes, TrOpType, A, K, V, I>
 
 #define Instance_convolution_winograd_kernel                                   \
   convolution_winograd_kernel<UserTypes, TarrayType, I, V, A, K>
 
-template <typename UserTypes, typename IntITFTypes, typename TrOpType,
+template <typename UserTypes, typename InnerTypes, typename TrOpType,
          const int A, const int K, const int V, const int I>
 class elx_conv_wino_t : public elx_conv_t<UserTypes> {
 public:
@@ -99,15 +99,15 @@ public:
 
   // t-buffer type
   using TinputType = typename std::conditional<
-      std::is_same<typename IntITFTypes::ITFinputType, uint8_t>::value,
-      TrOpType, typename IntITFTypes::ITFinputType>::type;
+      std::is_same<typename InnerTypes::InputType, uint8_t>::value,
+      TrOpType, typename InnerTypes::InputType>::type;
   using TweightsType = typename std::conditional<
-      std::is_same<typename IntITFTypes::ITFweightsType, int8_t>::value,
-      TrOpType, typename IntITFTypes::ITFweightsType>::type;
-  using ToutputType = typename IntITFTypes::ITFoutputType;
-  using TscaleType = typename IntITFTypes::ITFscaleType;
+      std::is_same<typename InnerTypes::WeightsType, int8_t>::value,
+      TrOpType, typename InnerTypes::WeightsType>::type;
+  using ToutputType = typename InnerTypes::OutputType;
+  using TscaleType = typename InnerTypes::ScaleType;
   // In case of TinputType = TweightsType = ToutputType
-  using TarrayType = typename IntITFTypes::ITFTarrayType;
+  using TarrayType = typename InnerTypes::TarrayType;
 
   constexpr static size_t elem_sz = sizeof(WeightsType);
   constexpr static bool is_border = true;
@@ -389,15 +389,15 @@ private:
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  gemm_kernel_binder::ker<itf_gemm::FP32> *ker_gemm_;
-  gemm_kernel_binder::ker<itf_gemm::FP32> *ker_gemm0_;
-  gemm_kernel_binder::ker<itf_gemm::FP32> *ker_gemm_tail_;
-  gemm_kernel_binder::ker<itf_gemm::FP32> *ker_gemm0_tail_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm0_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_tail_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm0_tail_;
 
-  gemm_kernel_binder::ker<itf_gemm::INT8_F32> *ker_i8_gemm_;
-  gemm_kernel_binder::ker<itf_gemm::INT8_F32> *ker_i8_gemm0_;
-  gemm_kernel_binder::ker<itf_gemm::INT8_F32> *ker_i8_gemm_tail_;
-  gemm_kernel_binder::ker<itf_gemm::INT8_F32> *ker_i8_gemm0_tail_;
+  gemm_kernel_binder::ker<conv_impl::INT8_F32> *ker_i8_gemm_;
+  gemm_kernel_binder::ker<conv_impl::INT8_F32> *ker_i8_gemm0_;
+  gemm_kernel_binder::ker<conv_impl::INT8_F32> *ker_i8_gemm_tail_;
+  gemm_kernel_binder::ker<conv_impl::INT8_F32> *ker_i8_gemm0_tail_;
 
   decltype(Instance_convolution_winograd_kernel
       ::template trans_input<no>) *ker_trans_input_;
@@ -603,13 +603,13 @@ public:
 };
 
 #ifdef WITH_GK
-template class elx_conv_wino_t<conv::FP32, itf_gemm::FP32, float, 4, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 4, 3, 16, ISA_GENERIC>;
 //template class elx_conv_wino_t<float, float, 4, 3, 16, ISA_COSIM_AVX512>;
-template class elx_conv_wino_t<conv::FP32, itf_gemm::FP32, float, 5, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 5, 3, 16, ISA_GENERIC>;
 //template class elx_conv_wino_t<float, float, 5, 3, 16, ISA_COSIM_AVX512>;
-template class elx_conv_wino_t<conv::FP32, itf_gemm::FP32, float, 6, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 6, 3, 16, ISA_GENERIC>;
 //template class elx_conv_wino_t<float, float, 6, 3, 16, ISA_COSIM_AVX512>;
-template class elx_conv_wino_t<conv::FP32, itf_gemm::FP32, float, 7, 3, 16, ISA_GENERIC>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 7, 3, 16, ISA_GENERIC>;
 //template class elx_conv_wino_t<float, float, 7, 3, 16, ISA_COSIM_AVX512>;
 // template class elx_conv_wino_t<float, 5, 3, 8, ISA_GENERIC>;
 // template class elx_conv_wino_t<float, 5, 3, 8, ISA_COSIM_AVX512>;
@@ -618,10 +618,10 @@ template class elx_conv_wino_t<conv::FP32, itf_gemm::FP32, float, 7, 3, 16, ISA_
 // template class elx_conv_wino_t<float, 7, 3, 8, ISA_GENERIC>;
 // template class elx_conv_wino_t<float, 7, 3, 8, ISA_COSIM_AVX512>;
 #endif
-template class elx_conv_wino_t<conv::FP32, itf_gemm::FP32, float, 4, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, itf_gemm::FP32, float, 5, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, itf_gemm::FP32, float, 6, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, itf_gemm::FP32, float, 7, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 4, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 6, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 7, 3, 16, ISA_SKX_AVX512>;
 // FP16 interface / FP32 implementation
 // template class elx_conv_wino_t<conv::FP16, float, 4, 3, 16, ISA_SKX_AVX512>;
 // template class elx_conv_wino_t<conv::FP16, float, 5, 3, 16, ISA_SKX_AVX512>;

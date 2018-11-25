@@ -136,24 +136,24 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
       // TODO: forward, backward_data, backward_weights
       if (((execution_mode & 0xF00) == 0x100)
           && (f16c_opt || std::is_same<UserTypes, conv::FP16>())) {
-        // using IntITFTypes = itf_gemm::FP32_F16;
+        // using InnerTypes = conv_impl::FP32_F16;
         el_error("TODO: implement INT8 with F16C opt");
 #if 0
         switch (tile_size) {
         case 4:
-          xc = new elx_conv_wino_t<UserTypes, IntITFTypes, float, 4, 3, 16,
+          xc = new elx_conv_wino_t<UserTypes, InnerTypes, float, 4, 3, 16,
               ISA_SKX_AVX512>(*this);
           break;
         case 5:
-          xc = new elx_conv_wino_t<UserTypes, IntITFTypes, float, 5, 3, 16,
+          xc = new elx_conv_wino_t<UserTypes, InnerTypes, float, 5, 3, 16,
               ISA_SKX_AVX512>(*this);
           break;
         case 6:
-          xc = new elx_conv_wino_t<UserTypes, IntITFTypes, float, 6, 3, 16,
+          xc = new elx_conv_wino_t<UserTypes, InnerTypes, float, 6, 3, 16,
               ISA_SKX_AVX512>(*this);
           break;
         case 7:
-          xc = new elx_conv_wino_t<UserTypes, IntITFTypes, float, 7, 3, 16,
+          xc = new elx_conv_wino_t<UserTypes, InnerTypes, float, 7, 3, 16,
               ISA_SKX_AVX512>(*this);
           break;
         default:
@@ -162,24 +162,24 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
         }
 #endif
       } else if (f16c_opt || std::is_same<UserTypes, conv::FP16>()) {
-        // using IntITFTypes = itf_gemm::FP16;
+        // using InnerTypes = conv_impl::FP16;
         el_error("TODO: implement F16C opt");
 #if 0
         switch (tile_size) {
         case 4:
-          xc = new elx_conv_wino_t<UserTypes, IntITFTypes, float, 4, 3, 16,
+          xc = new elx_conv_wino_t<UserTypes, InnerTypes, float, 4, 3, 16,
               ISA_SKX_AVX512>(*this);
           break;
         case 5:
-          xc = new elx_conv_wino_t<UserTypes, IntITFTypes, float, 5, 3, 16,
+          xc = new elx_conv_wino_t<UserTypes, InnerTypes, float, 5, 3, 16,
               ISA_SKX_AVX512>(*this);
           break;
         case 6:
-          xc = new elx_conv_wino_t<UserTypes, IntITFTypes, float, 6, 3, 16,
+          xc = new elx_conv_wino_t<UserTypes, InnerTypes, float, 6, 3, 16,
               ISA_SKX_AVX512>(*this);
           break;
         case 7:
-          xc = new elx_conv_wino_t<UserTypes, IntITFTypes, float, 7, 3, 16,
+          xc = new elx_conv_wino_t<UserTypes, InnerTypes, float, 7, 3, 16,
               ISA_SKX_AVX512>(*this);
           break;
         default:
@@ -188,22 +188,22 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
         }
 #endif
       } else {
-        using IntITFTypes = itf_gemm::FP32;
+        using InnerTypes = conv_impl::FP32;
         switch (tile_size) {
         case 4:
-          xc = new elx_conv_wino_t<UserTypes, IntITFTypes, float, 4, 3, 16,
+          xc = new elx_conv_wino_t<UserTypes, InnerTypes, float, 4, 3, 16,
               ISA_SKX_AVX512>(*this);
           break;
         case 5:
-          xc = new elx_conv_wino_t<UserTypes, IntITFTypes, float, 5, 3, 16,
+          xc = new elx_conv_wino_t<UserTypes, InnerTypes, float, 5, 3, 16,
               ISA_SKX_AVX512>(*this);
           break;
         case 6:
-          xc = new elx_conv_wino_t<UserTypes, IntITFTypes, float, 6, 3, 16,
+          xc = new elx_conv_wino_t<UserTypes, InnerTypes, float, 6, 3, 16,
               ISA_SKX_AVX512>(*this);
           break;
         case 7:
-          xc = new elx_conv_wino_t<UserTypes, IntITFTypes, float, 7, 3, 16,
+          xc = new elx_conv_wino_t<UserTypes, InnerTypes, float, 7, 3, 16,
               ISA_SKX_AVX512>(*this);
           break;
         default:

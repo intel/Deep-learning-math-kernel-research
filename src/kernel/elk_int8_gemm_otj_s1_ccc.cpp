@@ -11,9 +11,9 @@ namespace euler {
 
 #undef E
 #define E(O, T, r)                                                             \
-  gemm_kernel_binder::gemm_ker_cls<itf_gemm::INT8_F32,                         \
+  gemm_kernel_binder::gemm_ker_cls<conv_impl::INT8_F32,                        \
       16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T, r>::execute
-  gemm_kernel_binder::ker<itf_gemm::INT8_F32>
+  gemm_kernel_binder::ker<conv_impl::INT8_F32>
     *gemm_kernel_binder::ker_i8_s1_ccc[8][32][2] =
   { // 8
     { // 32

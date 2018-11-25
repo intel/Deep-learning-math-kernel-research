@@ -34,24 +34,24 @@ enum {
 
 #define PAGE_SIZE 4096
 
-template <typename... Types> struct IntITFTypes {
+template <typename... Types> struct InnerTypes {
   static_assert(sizeof...(Types) == 4,
-      "gemm interface. gemm-input/weights/output/bias itf data type");
-  using ITFinputType = typename std::tuple_element<0, std::tuple<Types...>>::type;
-  using ITFweightsType = typename std::tuple_element<1, std::tuple<Types...>>::type;
-  using ITFoutputType = typename std::tuple_element<2, std::tuple<Types...>>::type;
-  using ITFbiasType = typename std::tuple_element<3, std::tuple<Types...>>::type;
+      "Inner types input/weights/output/bias data type");
+  using InputType = typename std::tuple_element<0, std::tuple<Types...>>::type;
+  using WeightsType = typename std::tuple_element<1, std::tuple<Types...>>::type;
+  using OutputType = typename std::tuple_element<2, std::tuple<Types...>>::type;
+  using BiasType = typename std::tuple_element<3, std::tuple<Types...>>::type;
   // Using in cse of TinputType = TweightsType = ToutputType
-  using ITFTarrayType = typename std::tuple_element<0, std::tuple<Types...>>::type;
-  using ITFscaleType = typename std::tuple_element<2, std::tuple<Types...>>::type;
+  using TarrayType = typename std::tuple_element<0, std::tuple<Types...>>::type;
+  using ScaleType = typename std::tuple_element<2, std::tuple<Types...>>::type;
 };
 
-namespace itf_gemm {
-  using FP16 = IntITFTypes<short, short, short, short>;
-  using FP32 = IntITFTypes<float, float, float, float>;
-  using FP32_F16 = IntITFTypes<float, float, short, float>;
-  using INT8_F16 = IntITFTypes<uint8_t, int8_t, short, float>;
-  using INT8_F32 = IntITFTypes<uint8_t, int8_t, float, float>;
+namespace conv_impl {
+  using FP16 = InnerTypes<short, short, short, short>;
+  using FP32 = InnerTypes<float, float, float, float>;
+  using FP32_F16 = InnerTypes<float, float, short, float>;
+  using INT8_F16 = InnerTypes<uint8_t, int8_t, short, float>;
+  using INT8_F32 = InnerTypes<uint8_t, int8_t, float, float>;
 };
 
 } // namespace euler

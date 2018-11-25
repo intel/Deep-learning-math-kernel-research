@@ -29,7 +29,7 @@ void test_elk_trans_output(bool perf, bool show_diff, int execution_mode,
   using WeightsType = typename UserTypes::WeightsType;
   using OutputType = typename UserTypes::OutputType;
   using BiasType = typename UserTypes::BiasType;
-  using TarrayType = typename IntITFTypes::ITFTarrayType;
+  using TarrayType = typename InnerTypes::TarrayType;
 
   int error = 0;
 
@@ -125,26 +125,26 @@ TEST_P(elkTransOutputTest, combineTest) {
   int test_mb = ::testing::get<7>(GetParam());
   switch (test_tile_size) {
   case 4:
-    test_elk_trans_output<conv::FP32, itf_gemm::FP32, float, 4, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_output<conv::FP32, conv_impl::FP32, float, 4, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);
     break;
 
   case 5:
-    test_elk_trans_output<conv::FP32, itf_gemm::FP32, float, 5, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_output<conv::FP32, conv_impl::FP32, float, 5, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);
     break;
   case 6:
-//     test_elk_trans_output<conv::FP32, itf_gemm::FP32, float, 6, 3, 16, ISA_SKX_AVX512>(
+//     test_elk_trans_output<conv::FP32, conv_impl::FP32, float, 6, 3, 16, ISA_SKX_AVX512>(
 //         test_perf, show_diff, test_execution_mode, test_input_format,
 //         test_weights_format, test_output_format, test_with_bias, test_with_relu,
 //         test_mb);
     break;
   case 7:
-    test_elk_trans_output<conv::FP32, itf_gemm::FP32, float, 7, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_output<conv::FP32, conv_impl::FP32, float, 7, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);
