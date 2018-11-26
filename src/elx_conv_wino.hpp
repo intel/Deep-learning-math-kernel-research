@@ -48,7 +48,7 @@
 /*
   Winograd data types: (input,weights,output)
   +--------------+------+-----+-------------+--------------+-------------+--------+-----------+
-  |Name          |XOPT  |F16C |UserTypes    |TarrayTypes   |InnerTypes   |TrOpType|GemmOpTypes|
+  |Name          |XOPT  |F16C |UserTypes    |TarrayTypes   |GarrayTypes  |TrOpType|GemmOpTypes|
   +--------------+------+-----+-------------+--------------+-------------+--------+-----------+
   |int8          |TBD   |false|u8,fp32,u8/s8|fp32          |u8,s8,fp32   |fp32    |u8,s8,int32|
   |int8-f16c     |TBD   |true |u8,fp32,u8/s8|fp32,fp32,fp16|u8,s8,fp16   |fp32    |u8,s8,int32|
@@ -61,24 +61,24 @@
   |fp32          |A061… |false|fp32         |fp32          |fp32         |fp32    |fp32       |
   +--------------+------+-----+-------------+--------------+-------------+--------+-----------+
 
-  * Non-INT8 mode, unquantized TarrayTypes equals to InnerTypes.
-  * INT8 mode, input/weights type of TarrayTypes equals to TrOpType, outout type
-    of TarrayTypes equals to that of InnerTypes.
+  * Non-INT8 mode, unquantized TarrayTypes equals to GarrayTypes.
+  * INT8 mode, input/weights type of TarrayTypes equals to TrOpType, output type
+    of TarrayTypes equals to output of GarrayTypes.
 */
 
 namespace euler {
 
 #define Template_elx_conv_wino_t                                               \
-  template <typename UserTypes, typename InnerTypes, typename TrOpType,        \
+  template <typename UserTypes, typename TarrayTypes, typename TrOpType,       \
       const int A, const int K, const int V, const int I>
 
 #define Instance_elx_conv_wino_t                                               \
-  elx_conv_wino_t<UserTypes, InnerTypes, TrOpType, A, K, V, I>
+  elx_conv_wino_t<UserTypes, TarrayTypes, TrOpType, A, K, V, I>
 
 #define Instance_convolution_winograd_kernel                                   \
   convolution_winograd_kernel<UserTypes, TrOpType, I, V, A, K>
 
-template <typename UserTypes, typename InnerTypes, typename TrOpType,
+template <typename UserTypes, typename TarrayTypes, typename TrOpType,
          const int A, const int K, const int V, const int I>
 class elx_conv_wino_t : public elx_conv_t<UserTypes> {
 public:
@@ -98,14 +98,10 @@ public:
   using BiasType = typename UserTypes::BiasType;
 
   // t-buffer type
-  using TinputType = typename std::conditional<
-      std::is_same<typename InnerTypes::InputType, uint8_t>::value,
-      TrOpType, typename InnerTypes::InputType>::type;
-  using TweightsType = typename std::conditional<
-      std::is_same<typename InnerTypes::WeightsType, int8_t>::value,
-      TrOpType, typename InnerTypes::WeightsType>::type;
-  using ToutputType = typename InnerTypes::OutputType;
-  using TscaleType = typename InnerTypes::ScaleType;
+  using TinputType = typename TarrayTypes::InputType;
+  using TweightsType = typename TarrayTypes::WeightsType;
+  using ToutputType = typename TarrayTypes::OutputType;
+  using TscaleType = typename TarrayTypes::ScaleType;
 
   constexpr static size_t elem_sz = sizeof(WeightsType);
   constexpr static bool is_border = true;

@@ -27,7 +27,7 @@ void test_elk_trans_input(bool perf, bool show_diff, int execution_mode,
   using WeightsType = typename UserTypes::WeightsType;
   using OutputType = typename UserTypes::OutputType;
   using BiasType = typename UserTypes::BiasType;
-  using TinputType = typename InnerTypes::InputType;
+  using TinputType = typename TarrayTypes::InputType;
 
   int error = 0;
 
@@ -51,7 +51,7 @@ void test_elk_trans_input(bool perf, bool show_diff, int execution_mode,
   desc.execution_mode = execution_mode;
   desc.prop_kind = forward_inference;
 
-  elx_conv_wino_t<UserTypes, InnerTypes, float, A, 3, V, I> xc(desc);
+  elx_conv_wino_t<UserTypes, TarrayTypes, float, A, 3, V, I> xc(desc);
 
   alignas(64) TinputType atinput[A][A][V];
   alignas(64) InputType ainput[xc.ih][xc.iw][V];

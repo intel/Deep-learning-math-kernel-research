@@ -34,7 +34,7 @@ enum {
 
 #define PAGE_SIZE 4096
 
-template <typename... Types> struct InnerTypes {
+template <typename... Types> struct ConvImplTypes {
   static_assert(sizeof...(Types) == 4,
       "Inner types input/weights/output/bias data type");
   using InputType = typename std::tuple_element<0, std::tuple<Types...>>::type;
@@ -45,11 +45,11 @@ template <typename... Types> struct InnerTypes {
 };
 
 namespace conv_impl {
-  using FP16 = InnerTypes<short, short, short, short>;
-  using FP32 = InnerTypes<float, float, float, float>;
-  using FP32_F16 = InnerTypes<float, float, short, float>;
-  using INT8_F16 = InnerTypes<uint8_t, int8_t, short, float>;
-  using INT8_F32 = InnerTypes<uint8_t, int8_t, float, float>;
+  using FP16 = ConvImplTypes<short, short, short, short>;
+  using FP32 = ConvImplTypes<float, float, float, float>;
+  using FP32_F16 = ConvImplTypes<float, float, short, float>;
+  using INT8_F16 = ConvImplTypes<uint8_t, int8_t, short, float>;
+  using INT8_F32 = ConvImplTypes<uint8_t, int8_t, float, float>;
 };
 
 } // namespace euler

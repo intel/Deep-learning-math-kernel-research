@@ -223,30 +223,30 @@ struct F_traits {
   static constexpr bool is_compact_output = (F & 0xF) == 0xC;
 };
 
-template <typename InnerTypes, int V, int Vx, int I, typename KP>
+template <typename GarrayTypes, int V, int Vx, int I, typename KP>
 struct gemm_kernel_otj {
   static inline void execute(
-      elx_conv_params_t &, typename InnerTypes::OutputType *,
-      typename InnerTypes::InputType *,
-      typename InnerTypes::WeightsType *,
-      typename InnerTypes::BiasType *, int,
-      typename InnerTypes::ScaleType *,
-      typename InnerTypes::ScaleType *,
-      typename InnerTypes::ScaleType *) {}
+      elx_conv_params_t &, typename GarrayTypes::OutputType *,
+      typename GarrayTypes::InputType *,
+      typename GarrayTypes::WeightsType *,
+      typename GarrayTypes::BiasType *, int,
+      typename GarrayTypes::ScaleType *,
+      typename GarrayTypes::ScaleType *,
+      typename GarrayTypes::ScaleType *) {}
 };
 
-template <typename InnerTypes, int V, int Vx, int ...Kp>
-struct gemm_kernel_otj<InnerTypes, V, Vx, ISA_SKX_AVX512,
+template <typename GarrayTypes, int V, int Vx, int ...Kp>
+struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     estl::integer_sequence<Kp...>> {
   using kparams = estl::integer_sequence<Kp...>;
   static_assert(sizeof...(Kp) == 5,
-      "Kernel parameters must be InnerTypes, V, Vx, I, <S, F, O, T, has_Ir>");
+      "Kernel parameters must be GarrayTypes, V, Vx, I, <S, F, O, T, has_Ir>");
 
-  using InputType = typename InnerTypes::InputType;
-  using WeightsType = typename InnerTypes::WeightsType;
-  using OutputType = typename InnerTypes::OutputType;
-  using BiasType = typename InnerTypes::BiasType;
-  using ScaleType = typename InnerTypes::ScaleType;
+  using InputType = typename GarrayTypes::InputType;
+  using WeightsType = typename GarrayTypes::WeightsType;
+  using OutputType = typename GarrayTypes::OutputType;
+  using BiasType = typename GarrayTypes::BiasType;
+  using ScaleType = typename GarrayTypes::ScaleType;
 
   constexpr static auto S = estl::get<0, int, kparams>();
   constexpr static auto F = estl::get<1, int, kparams>();
@@ -1572,22 +1572,22 @@ struct gemm_kernel_otj<InnerTypes, V, Vx, ISA_SKX_AVX512,
 };
 
 struct gemm_kernel_binder {
-  template <typename InnerTypes, int V, int Vx, int I, int... Kp>
-  using gemm_ker_cls = typename euler::gemm_kernel_otj<InnerTypes,
+  template <typename GarrayTypes, int V, int Vx, int I, int... Kp>
+  using gemm_ker_cls = typename euler::gemm_kernel_otj<GarrayTypes,
       V, Vx, I, estl::integer_sequence<Kp...>>;
 
-  template <typename InnerTypes>
-  using ker = decltype(gemm_ker_cls<InnerTypes, 1, 1, 1, 1, 1, 1, 1, false>::execute);
+  template <typename GarrayTypes>
+  using ker = decltype(gemm_ker_cls<GarrayTypes, 1, 1, 1, 1, 1, 1, 1, false>::execute);
 
 #if defined(WITH_GKTII) // gemm kernel template implicit instantiation
-  template <typename InnerTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<InnerTypes> **func)
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  static inline void bind(int O, int T, ker<GarrayTypes> **func)
   {
     switch (O) {
     case 1:
       LOOP_FROM_TO(_T, 1, 32, {
         if (T == _T)
-          (*func = gemm_ker_cls< InnerTypes, V, Vx, I,
+          (*func = gemm_ker_cls< GarrayTypes, V, Vx, I,
                S, F, 1, _T, has_Ir>::execute);
       });
       if (T >= 32)
@@ -1596,7 +1596,7 @@ struct gemm_kernel_binder {
     case 2:
       LOOP_FROM_TO(_T, 1, 15, {
         if (T == _T)
-          (*func = gemm_ker_cls<InnerTypes, V, Vx, I,
+          (*func = gemm_ker_cls<GarrayTypes, V, Vx, I,
                S, F, 2, _T, has_Ir>::execute);
       });
       if (T >= 15)
@@ -1605,7 +1605,7 @@ struct gemm_kernel_binder {
     case 3:
       LOOP_FROM_TO(_T, 1, 15, {
         if (T == _T)
-          (*func = gemm_ker_cls<InnerTypes, V, Vx, I,
+          (*func = gemm_ker_cls<GarrayTypes, V, Vx, I,
                S, F, 3, _T, has_Ir>::execute);
       });
       if (T >= 15)
@@ -1614,7 +1614,7 @@ struct gemm_kernel_binder {
     case 4:
       LOOP_FROM_TO(_T, 1, 15, {
         if (T == _T)
-          (*func = gemm_ker_cls<InnerTypes, V, Vx, I,
+          (*func = gemm_ker_cls<GarrayTypes, V, Vx, I,
                S, F, 4, _T, has_Ir>::execute);
       });
       if (T >= 15)
@@ -1623,7 +1623,7 @@ struct gemm_kernel_binder {
     case 5:
       LOOP_FROM_TO(_T, 1, 6, {
         if (T == _T)
-          (*func = gemm_ker_cls<InnerTypes, V, Vx, I,
+          (*func = gemm_ker_cls<GarrayTypes, V, Vx, I,
                S, F, 5, _T, has_Ir>::execute);
       });
       if (T >= 6)
@@ -1632,7 +1632,7 @@ struct gemm_kernel_binder {
     case 6:
       LOOP_FROM_TO(_T, 1, 5, {
         if (T == _T)
-          (*func = gemm_ker_cls<InnerTypes, V, Vx, I,
+          (*func = gemm_ker_cls<GarrayTypes, V, Vx, I,
                S, F, 6, _T, has_Ir>::execute);
       });
       if (T >= 5)
@@ -1641,7 +1641,7 @@ struct gemm_kernel_binder {
     case 7:
       LOOP_FROM_TO(_T, 1, 4, {
         if (T == _T)
-          (*func = gemm_ker_cls<InnerTypes, V, Vx, I,
+          (*func = gemm_ker_cls<GarrayTypes, V, Vx, I,
                S, F, 7, _T, has_Ir>::execute);
       });
       if (T >= 4)
@@ -1650,7 +1650,7 @@ struct gemm_kernel_binder {
     case 8:
       LOOP_FROM_TO(_T, 1, 9, {
         if (T == _T)
-          (*func = gemm_ker_cls<InnerTypes, V, Vx, I,
+          (*func = gemm_ker_cls<GarrayTypes, V, Vx, I,
                S, F, 8, _T, has_Ir>::execute);
       });
       if (T >= 9)

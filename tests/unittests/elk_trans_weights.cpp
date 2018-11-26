@@ -23,7 +23,7 @@ void test_elk_trans_weights(bool perf, bool show_diff) {
   using WeightsType = typename UserTypes::WeightsType;
   using OutputType = typename UserTypes::OutputType;
   using BiasType = typename UserTypes::BiasType;
-  using TweightsType = typename InnerTypes::WeightsType;
+  using TweightsType = typename TarrayTypes::WeightsType;
 
   alignas(64) WeightsType aweights[K][K][V][V];
   alignas(64) TweightsType atweights[A][A][V][V];
