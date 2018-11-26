@@ -54,4 +54,21 @@ namespace wino {
   using FP16 = WinoTypes<short, short, short>;
 }
 
+template <typename... Types> struct IntITFTypes {
+  static_assert(sizeof...(Types) == 4,
+      "gemm interface. gemm-input/weights/output/bias itf data type");
+  using ITFinputType = typename std::tuple_element<0, std::tuple<Types...>>::type;
+  using ITFweightsType = typename std::tuple_element<1, std::tuple<Types...>>::type;
+  using ITFoutputType = typename std::tuple_element<2, std::tuple<Types...>>::type;
+  using ITFbiasType = typename std::tuple_element<3, std::tuple<Types...>>::type;
+  using ITFscaleType = typename std::tuple_element<2, std::tuple<Types...>>::type;
+};
+
+namespace itf_gemm {
+  using FP16 = IntITFTypes<short, short, short, short>;
+  using FP32 = IntITFTypes<float, float, float, float>;
+  using INT8_F16 = IntITFTypes<uint8_t, int8_t, short, float>;
+  using INT8_F32 = IntITFTypes<uint8_t, int8_t, float, float>;
+};
+
 } // namespace euler

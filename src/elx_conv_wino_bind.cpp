@@ -111,17 +111,17 @@ void Instance_elx_conv_wino_t::bind_execute_functions()
 
   auto bind_gemm_kernel =
       [&](int O, int T, bool has_Ir,
-      gemm_kernel_binder::ker<elx_conv_t<UserTypes>, TarrayType, TarrayType> **func1,
-      gemm_kernel_binder::ker<elx_conv_t<UserTypes>, uint8_t, int8_t> **func2) {
+      gemm_kernel_binder::ker<itf_gemm::FP32> **func1,
+      gemm_kernel_binder::ker<itf_gemm::INT8_F32> **func2) {
     if (this->Ir != V * this->Vx && has_Ir) {
-      gemm_kernel_binder::bind<elx_conv_t<UserTypes>, TarrayType, TarrayType,
+      gemm_kernel_binder::bind<itf_gemm::FP32,
           V, 1, I, 1, GKF_CCC, true>(O, T, func1);
-      gemm_kernel_binder::bind<elx_conv_t<UserTypes>, uint8_t, int8_t,
+      gemm_kernel_binder::bind<itf_gemm::INT8_F32,
           V, 4, I, 1, GKF_CCC, true>(O, T, func2);
     } else {
-      gemm_kernel_binder::bind<elx_conv_t<UserTypes>, TarrayType, TarrayType,
+      gemm_kernel_binder::bind<itf_gemm::FP32,
           V, 1, I, 1, GKF_CCC, false>(O, T, func1);
-      gemm_kernel_binder::bind<elx_conv_t<UserTypes>, uint8_t, int8_t,
+      gemm_kernel_binder::bind<itf_gemm::INT8_F32,
           V, 4, I, 1, GKF_CCC, false>(O, T, func2);
     }
   };

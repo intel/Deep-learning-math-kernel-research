@@ -15,19 +15,19 @@ Instance_elx_conv_direct_1x1_t::bind_execute_functions()
 {
 #define BIND_KERNEL_2(S, F)                                                    \
   if (has_Ir) {                                                                \
-    gemm_kernel_binder::bind<elx_conv_t<UserTypes>, float, float, V, 1, I, S,  \
+    gemm_kernel_binder::bind<itf_gemm::FP32, V, 1, I, S,                       \
         F, true>(O, T, func);                                                  \
   } else {                                                                     \
-    gemm_kernel_binder::bind<elx_conv_t<UserTypes>, float, float, V, 1, I, S,  \
+    gemm_kernel_binder::bind<itf_gemm::FP32, V, 1, I, S,                       \
         F, false>(O, T, func);                                                 \
   }
 
 #define BIND_KERNEL_1(S, F)                                                    \
-  gemm_kernel_binder::bind<elx_conv_t<UserTypes>, float, float, V, 1, I, S, F, \
+  gemm_kernel_binder::bind<itf_gemm::FP32, V, 1, I, S, F,                      \
       false>(O, T, func);
 
   auto bind_kernel = [&](int O, int T,
-      gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> **func, bool has_Ir) {
+      gemm_kernel_binder::ker<itf_gemm::FP32> **func, bool has_Ir) {
     switch (xopt_) {
     case (0xa061):
       BIND_KERNEL_2(1, GKF_CCC)

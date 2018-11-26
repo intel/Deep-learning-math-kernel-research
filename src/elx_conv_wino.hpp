@@ -379,15 +379,15 @@ private:
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> *ker_gemm_;
-  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> *ker_gemm0_;
-  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> *ker_gemm_tail_;
-  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, float, float> *ker_gemm0_tail_;
+  gemm_kernel_binder::ker<itf_gemm::FP32> *ker_gemm_;
+  gemm_kernel_binder::ker<itf_gemm::FP32> *ker_gemm0_;
+  gemm_kernel_binder::ker<itf_gemm::FP32> *ker_gemm_tail_;
+  gemm_kernel_binder::ker<itf_gemm::FP32> *ker_gemm0_tail_;
 
-  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, uint8_t, int8_t> *ker_i8_gemm_;
-  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, uint8_t, int8_t> *ker_i8_gemm0_;
-  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, uint8_t, int8_t> *ker_i8_gemm_tail_;
-  gemm_kernel_binder::ker<elx_conv_t<UserTypes>, uint8_t, int8_t> *ker_i8_gemm0_tail_;
+  gemm_kernel_binder::ker<itf_gemm::INT8_F32> *ker_i8_gemm_;
+  gemm_kernel_binder::ker<itf_gemm::INT8_F32> *ker_i8_gemm0_;
+  gemm_kernel_binder::ker<itf_gemm::INT8_F32> *ker_i8_gemm_tail_;
+  gemm_kernel_binder::ker<itf_gemm::INT8_F32> *ker_i8_gemm0_tail_;
 
   decltype(Instance_convolution_winograd_kernel
       ::template trans_input<no>) *ker_trans_input_;

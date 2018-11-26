@@ -136,7 +136,7 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
       // TODO: forward, backward_data, backward_weights
       if (((execution_mode & 0xF00) == 0x100)
           && (f16c_opt || std::is_same<UserTypes, conv::FP16>())) {
-        using TarrayTypes = wino::FP32_F16;
+        // using TarrayTypes = wino::FP32_F16;
         el_error("TODO: implement INT8 with F16C opt");
 #if 0
         switch (tile_size) {
@@ -162,7 +162,7 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
         }
 #endif
       } else if (f16c_opt || std::is_same<UserTypes, conv::FP16>()) {
-        using TarrayTypes = wino::FP16;
+        // using TarrayTypes = wino::FP16;
         el_error("TODO: implement F16C opt");
 #if 0
         switch (tile_size) {

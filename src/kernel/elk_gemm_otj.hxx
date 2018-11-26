@@ -6,14 +6,12 @@
 #include "el_stl.hpp"
 #include "elx_conv.hpp"
 
-// Dtype: data type
-// Wtype: weights type
 // S: stride
 // O: OC blocking unit
 // T: tile blocking unit
 // F: format
 // V: vector size
-// Vx: packed size of data with Dtype
+// Vx: packed size of data with ITFinputType
 // I: ISA
 // has_Ir: has tailing ic
 
@@ -225,20 +223,30 @@ struct F_traits {
   static constexpr bool is_compact_output = (F & 0xF) == 0xC;
 };
 
-template <typename Xtype, typename Dtype, typename Wtype,
-     int V, int Vx, int I, typename KP>
+template <typename IntITFTypes, int V, int Vx, int I, typename KP>
 struct gemm_kernel_otj {
   static inline void execute(
-      Xtype &, float *, Dtype *, Wtype *, float *,
-      int, float *, float *, float *) {}
+      elx_conv_params_t &, typename IntITFTypes::ITFoutputType *,
+      typename IntITFTypes::ITFinputType *,
+      typename IntITFTypes::ITFweightsType *,
+      typename IntITFTypes::ITFbiasType *, int,
+      typename IntITFTypes::ITFscaleType *,
+      typename IntITFTypes::ITFscaleType *,
+      typename IntITFTypes::ITFscaleType *) {}
 };
 
-template <typename Xtype, typename Dtype, typename Wtype, int V, int Vx, int... Kp>
-struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
+template <typename IntITFTypes, int V, int Vx, int ...Kp>
+struct gemm_kernel_otj<IntITFTypes, V, Vx, ISA_SKX_AVX512,
     estl::integer_sequence<Kp...>> {
   using kparams = estl::integer_sequence<Kp...>;
   static_assert(sizeof...(Kp) == 5,
-      "Kernel parameters must be Wtype, Otype, V, Vx, I, <S, F, O, T, has_Ir>");
+      "Kernel parameters must be IntITFTypes, V, Vx, I, <S, F, O, T, has_Ir>");
+
+  using ITFinputType = typename IntITFTypes::ITFinputType;
+  using ITFweightsType = typename IntITFTypes::ITFweightsType;
+  using ITFoutputType = typename IntITFTypes::ITFoutputType;
+  using ITFbiasType = typename IntITFTypes::ITFbiasType;
+  using ITFscaleType = typename IntITFTypes::ITFscaleType;
 
   constexpr static auto S = estl::get<0, int, kparams>();
   constexpr static auto F = estl::get<1, int, kparams>();
@@ -247,18 +255,18 @@ struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   constexpr static auto has_Ir = estl::get<4, bool, kparams>();
 
   // Jamming components
-  constexpr static int J = J_traits<O, T, has_Ir, Wtype>::J;
-  constexpr static int JO0 = J_traits<O, T, has_Ir, Wtype>::O0;
-  constexpr static int JP0 = J_traits<O, T, has_Ir, Wtype>::P0;
-  constexpr static int JO1 = J_traits<O, T, has_Ir, Wtype>::O1;
-  constexpr static int JP1 = J_traits<O, T, has_Ir, Wtype>::P1;
-  constexpr static int JO2 = J_traits<O, T, has_Ir, Wtype>::O2;
-  constexpr static int JP2 = J_traits<O, T, has_Ir, Wtype>::P2;
+  constexpr static int J = J_traits<O, T, has_Ir, ITFweightsType>::J;
+  constexpr static int JO0 = J_traits<O, T, has_Ir, ITFweightsType>::O0;
+  constexpr static int JP0 = J_traits<O, T, has_Ir, ITFweightsType>::P0;
+  constexpr static int JO1 = J_traits<O, T, has_Ir, ITFweightsType>::O1;
+  constexpr static int JP1 = J_traits<O, T, has_Ir, ITFweightsType>::P1;
+  constexpr static int JO2 = J_traits<O, T, has_Ir, ITFweightsType>::O2;
+  constexpr static int JP2 = J_traits<O, T, has_Ir, ITFweightsType>::P2;
 
   // f32f32f32 fma
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
-  op_fma(Xtype &xc,
+  op_fma(elx_conv_params_t &xc,
       float *output, float *input, float *weights, float *bias, int attr,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
@@ -362,7 +370,7 @@ struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
 
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == true), void>::type
-  op_fma(Xtype &xc,
+  op_fma(elx_conv_params_t &xc,
       float *output, float *input, float *weights, float *bias, int attr,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
@@ -496,7 +504,7 @@ struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
 
   template <int JO, int P>
   static inline typename std::enable_if<P == 2, void>::type
-  op_fma(Xtype &xc,
+  op_fma(elx_conv_params_t &xc,
       float *output, float *input, float *weights, float *bias, int attr,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
@@ -636,7 +644,7 @@ struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
 
   template <int JO, int P>
   static inline typename std::enable_if<P == 4, void>::type
-  op_fma(Xtype &xc,
+  op_fma(elx_conv_params_t &xc,
       float *output, float *input, float *weights, float *bias, int attr,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
@@ -824,7 +832,7 @@ struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   // u8s8f32 fma
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
-  op_fma(Xtype &xc,
+  op_fma(elx_conv_params_t &xc,
       float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
@@ -934,7 +942,7 @@ struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   // TODO: handling V and Vx tail
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == true), void>::type
-  op_fma(Xtype &xc,
+  op_fma(elx_conv_params_t &xc,
       float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
@@ -1075,7 +1083,7 @@ struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
 
   template <int JO, int P>
   static inline typename std::enable_if<P == 2, void>::type
-  op_fma(Xtype &xc,
+  op_fma(elx_conv_params_t &xc,
       float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
@@ -1222,7 +1230,7 @@ struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
 
   template <int JO, int P>
   static inline typename std::enable_if<P == 4, void>::type
-  op_fma(Xtype &xc,
+  op_fma(elx_conv_params_t &xc,
       float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
@@ -1420,17 +1428,18 @@ struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 1)
+  static inline typename std::enable_if<(J_traits<O, T, has_Ir, ITFweightsType>::J == 1)
       && (F_traits<F>::is_compact_weights)>::type
-  execute(Xtype &xc, float *output, Dtype *input, Wtype *weights,
-      float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
+  execute(elx_conv_params_t &xc, ITFoutputType *output, ITFinputType *input,
+      ITFweightsType *weights, ITFscaleType *bias, int attr,
+      ITFscaleType *src_scale, ITFscaleType *weights_scale, ITFscaleType *factor)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(Wtype, aweights, weights, xc.O1, xc.I2 * V * O * V * Vx);
-    MD2(float, aoutput, output, xc.O1, O * O_stride);
-    MD2(float, abias, bias, xc.O1, O * V);
+    MD2(ITFweightsType, aweights, weights, xc.O1, xc.I2 * V * O * V * Vx);
+    MD2(ITFoutputType, aoutput, output, xc.O1, O * O_stride);
+    MD2(ITFbiasType, abias, bias, xc.O1, O * V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       op_fma<JO0, JP0>(xc, &md2(aoutput, _O1, 0), input, &md2(aweights, _O1, 0),
@@ -1439,17 +1448,18 @@ struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 1)
+  static inline typename std::enable_if<(J_traits<O, T, has_Ir, ITFweightsType>::J == 1)
       && !(F_traits<F>::is_compact_weights)>::type
-  execute(Xtype &xc, float *output, Dtype *input, Wtype *weights,
-      float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
+  execute(elx_conv_params_t &xc, ITFoutputType *output, ITFinputType *input,
+      ITFweightsType *weights, ITFscaleType *bias, int attr,
+      ITFscaleType *src_scale, ITFscaleType *weights_scale, ITFscaleType *factor)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(Wtype, aweights, weights, xc.O1, O * xc.IC * V);
-    MD2(float, aoutput, output, xc.O1, O * O_stride);
-    MD2(float, abias, bias, xc.O1, O * V);
+    MD2(ITFweightsType, aweights, weights, xc.O1, O * xc.IC * V);
+    MD2(ITFoutputType, aoutput, output, xc.O1, O * O_stride);
+    MD2(ITFbiasType, abias, bias, xc.O1, O * V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       op_fma<JO0, JP0>(xc, &md2(aoutput, _O1, 0), input, &md2(aweights, _O1, 0),
@@ -1458,17 +1468,18 @@ struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 2)
+  static inline typename std::enable_if<(J_traits<O, T, has_Ir, ITFweightsType>::J == 2)
       && (F_traits<F>::is_compact_weights)>::type
-  execute(Xtype &xc, float *output, Dtype *input, Wtype *weights,
-      float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
+  execute(elx_conv_params_t &xc, ITFoutputType *output, ITFinputType *input,
+      ITFweightsType *weights, ITFscaleType *bias, int attr,
+      ITFscaleType *src_scale, ITFscaleType *weights_scale, ITFscaleType *factor)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD4(Wtype, aweights, weights, xc.O1, xc.I2 * V, O, V * Vx);
-    MD3(float, aoutput, output, xc.O1, O, O_stride);
-    MD3(float, abias, bias, xc.O1, O, V);
+    MD4(ITFweightsType, aweights, weights, xc.O1, xc.I2 * V, O, V * Vx);
+    MD3(ITFoutputType, aoutput, output, xc.O1, O, O_stride);
+    MD3(ITFbiasType, abias, bias, xc.O1, O, V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       op_fma<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
@@ -1481,17 +1492,18 @@ struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 2)
+  static inline typename std::enable_if<(J_traits<O, T, has_Ir, ITFweightsType>::J == 2)
       && !(F_traits<F>::is_compact_weights)>::type
-  execute(Xtype &xc, float *output, Dtype *input, Wtype *weights,
-      float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
+  execute(elx_conv_params_t &xc, ITFoutputType *output, ITFinputType *input,
+      ITFweightsType *weights, ITFscaleType *bias, int attr,
+      ITFscaleType *src_scale, ITFscaleType *weights_scale, ITFscaleType *factor)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD3(Wtype, aweights, weights, xc.O1, O, xc.IC * V);
-    MD3(float, aoutput, output, xc.O1, O, O_stride);
-    MD3(float, abias, bias, xc.O1, O, V);
+    MD3(ITFweightsType, aweights, weights, xc.O1, O, xc.IC * V);
+    MD3(ITFoutputType, aoutput, output, xc.O1, O, O_stride);
+    MD3(ITFbiasType, abias, bias, xc.O1, O, V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       op_fma<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
@@ -1504,17 +1516,18 @@ struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 3)
+  static inline typename std::enable_if<(J_traits<O, T, has_Ir, ITFweightsType>::J == 3)
       && (F_traits<F>::is_compact_weights)>::type
-  execute(Xtype &xc, float *output, Dtype *input, Wtype *weights,
-      float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
+  execute(elx_conv_params_t &xc, ITFoutputType *output, ITFinputType *input,
+      ITFweightsType *weights, ITFscaleType *bias, int attr,
+      ITFscaleType *src_scale, ITFscaleType *weights_scale, ITFscaleType *factor)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD4(Wtype, aweights, weights, xc.O1, xc.I2 * V, O, V * Vx);
-    MD3(float, aoutput, output, xc.O1, O, O_stride);
-    MD3(float, abias, bias, xc.O1, O, V);
+    MD4(ITFweightsType, aweights, weights, xc.O1, xc.I2 * V, O, V * Vx);
+    MD3(ITFoutputType, aoutput, output, xc.O1, O, O_stride);
+    MD3(ITFbiasType, abias, bias, xc.O1, O, V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       op_fma<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
@@ -1531,17 +1544,18 @@ struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<(J_traits<O, T, has_Ir, Wtype>::J == 3)
+  static inline typename std::enable_if<(J_traits<O, T, has_Ir, ITFweightsType>::J == 3)
       && !(F_traits<F>::is_compact_weights)>::type
-  execute(Xtype &xc, float *output, Dtype *input, Wtype *weights,
-      float *bias, int attr, float *src_scale, float *weights_scale, float *factor)
+  execute(elx_conv_params_t &xc, ITFoutputType *output, ITFinputType *input,
+      ITFweightsType *weights, ITFscaleType *bias, int attr,
+      ITFscaleType *src_scale, ITFscaleType *weights_scale, ITFscaleType *factor)
   {
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD3(Wtype, aweights, weights, xc.O1, O, xc.IC * V);
-    MD3(float, aoutput, output, xc.O1, O, O_stride);
-    MD3(float, abias, bias, xc.O1, O, V);
+    MD3(ITFweightsType, aweights, weights, xc.O1, O, xc.IC * V);
+    MD3(ITFoutputType, aoutput, output, xc.O1, O, O_stride);
+    MD3(ITFbiasType, abias, bias, xc.O1, O, V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       op_fma<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
@@ -1558,25 +1572,22 @@ struct gemm_kernel_otj<Xtype, Dtype, Wtype, V, Vx, ISA_SKX_AVX512,
 };
 
 struct gemm_kernel_binder {
-  template <typename Xtype, typename Dtype, typename Wtype,
-       int V, int Vx, int I, int... Kp>
-  using gemm_ker_cls = typename euler::gemm_kernel_otj<Xtype, Dtype, Wtype,
+  template <typename IntITFTypes, int V, int Vx, int I, int... Kp>
+  using gemm_ker_cls = typename euler::gemm_kernel_otj<IntITFTypes,
       V, Vx, I, estl::integer_sequence<Kp...>>;
 
-  template <typename Xtype, typename Dtype, typename Wtype>
-  using ker = decltype(gemm_ker_cls<Xtype, Dtype, Wtype,
-      1, 1, 1, 1, 1, 1, 1, false>::execute);
+  template <typename IntITFTypes>
+  using ker = decltype(gemm_ker_cls<IntITFTypes, 1, 1, 1, 1, 1, 1, 1, false>::execute);
 
 #if defined(WITH_GKTII) // gemm kernel template implicit instantiation
-  template <typename Xtype, typename Dtype, typename Wtype,
-       int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<Xtype, Dtype, Wtype> **func)
+  template <typename IntITFTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  static inline void bind(int O, int T, ker<IntITFTypes> **func)
   {
     switch (O) {
     case 1:
       LOOP_FROM_TO(_T, 1, 32, {
         if (T == _T)
-          (*func = gemm_ker_cls<Xtype, Dtype, Wtype, V, Vx, I,
+          (*func = gemm_ker_cls< IntITFTypes, V, Vx, I,
                S, F, 1, _T, has_Ir>::execute);
       });
       if (T >= 32)
@@ -1585,7 +1596,7 @@ struct gemm_kernel_binder {
     case 2:
       LOOP_FROM_TO(_T, 1, 15, {
         if (T == _T)
-          (*func = gemm_ker_cls<Xtype, Dtype, Wtype, V, Vx, I,
+          (*func = gemm_ker_cls<IntITFTypes, V, Vx, I,
                S, F, 2, _T, has_Ir>::execute);
       });
       if (T >= 15)
@@ -1594,7 +1605,7 @@ struct gemm_kernel_binder {
     case 3:
       LOOP_FROM_TO(_T, 1, 15, {
         if (T == _T)
-          (*func = gemm_ker_cls<Xtype, Dtype, Wtype, V, Vx, I,
+          (*func = gemm_ker_cls<IntITFTypes, V, Vx, I,
                S, F, 3, _T, has_Ir>::execute);
       });
       if (T >= 15)
@@ -1603,7 +1614,7 @@ struct gemm_kernel_binder {
     case 4:
       LOOP_FROM_TO(_T, 1, 15, {
         if (T == _T)
-          (*func = gemm_ker_cls<Xtype, Dtype, Wtype, V, Vx, I,
+          (*func = gemm_ker_cls<IntITFTypes, V, Vx, I,
                S, F, 4, _T, has_Ir>::execute);
       });
       if (T >= 15)
@@ -1612,7 +1623,7 @@ struct gemm_kernel_binder {
     case 5:
       LOOP_FROM_TO(_T, 1, 6, {
         if (T == _T)
-          (*func = gemm_ker_cls<Xtype, Dtype, Wtype, V, Vx, I,
+          (*func = gemm_ker_cls<IntITFTypes, V, Vx, I,
                S, F, 5, _T, has_Ir>::execute);
       });
       if (T >= 6)
@@ -1621,7 +1632,7 @@ struct gemm_kernel_binder {
     case 6:
       LOOP_FROM_TO(_T, 1, 5, {
         if (T == _T)
-          (*func = gemm_ker_cls<Xtype, Dtype, Wtype, V, Vx, I,
+          (*func = gemm_ker_cls<IntITFTypes, V, Vx, I,
                S, F, 6, _T, has_Ir>::execute);
       });
       if (T >= 5)
@@ -1630,7 +1641,7 @@ struct gemm_kernel_binder {
     case 7:
       LOOP_FROM_TO(_T, 1, 4, {
         if (T == _T)
-          (*func = gemm_ker_cls<Xtype, Dtype, Wtype, V, Vx, I,
+          (*func = gemm_ker_cls<IntITFTypes, V, Vx, I,
                S, F, 7, _T, has_Ir>::execute);
       });
       if (T >= 4)
@@ -1639,7 +1650,7 @@ struct gemm_kernel_binder {
     case 8:
       LOOP_FROM_TO(_T, 1, 9, {
         if (T == _T)
-          (*func = gemm_ker_cls<Xtype, Dtype, Wtype, V, Vx, I,
+          (*func = gemm_ker_cls<IntITFTypes, V, Vx, I,
                S, F, 8, _T, has_Ir>::execute);
       });
       if (T >= 9)
@@ -1652,21 +1663,19 @@ struct gemm_kernel_binder {
 #else
 
   // Save compile time
-  static ker<elx_conv_t<conv::FP32>, float, float> *ker_s1_ccc[8][32][2];
-  static ker<elx_conv_t<conv::FP32>, float, float> *ker_s1_ccd[8][32][2];
-  static ker<elx_conv_t<conv::FP32>, float, float> *ker_s1_dcd[8][32][2];
-  static ker<elx_conv_t<conv::FP32>, float, float> *ker_s1_ddd[8][32][2];
-  static ker<elx_conv_t<conv::FP32>, float, float> *ker_s2_ccc[8][32][2];
-  static ker<elx_conv_t<conv::FP32>, float, float> *ker_s2_ccd[8][32][2];
-  static ker<elx_conv_t<conv::FP32>, float, float> *ker_s2_dcd[8][32][2];
-  static ker<elx_conv_t<conv::FP32>, float, float> *ker_s2_ddd[8][32][2];
-  static ker<elx_conv_t<conv::FP32>, uint8_t, int8_t> *ker_i8_s1_ccc[8][32][2];
+  static ker<itf_gemm::FP32> *ker_s1_ccc[8][32][2];
+  static ker<itf_gemm::FP32> *ker_s1_ccd[8][32][2];
+  static ker<itf_gemm::FP32> *ker_s1_dcd[8][32][2];
+  static ker<itf_gemm::FP32> *ker_s1_ddd[8][32][2];
+  static ker<itf_gemm::FP32> *ker_s2_ccc[8][32][2];
+  static ker<itf_gemm::FP32> *ker_s2_ccd[8][32][2];
+  static ker<itf_gemm::FP32> *ker_s2_dcd[8][32][2];
+  static ker<itf_gemm::FP32> *ker_s2_ddd[8][32][2];
+  static ker<itf_gemm::INT8_F32> *ker_i8_s1_ccc[8][32][2];
   //static ker<elx_conv_t<FP16>, float, float> *ker_f16_s1_ccc[8][32][2];
 
-  template <typename Xtype, typename Dtype, typename Wtype,
-       int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T,
-      ker<elx_conv_t<conv::FP32>, float, float> **func)
+  template <typename ITFTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  static inline void bind(int O, int T, ker<itf_gemm::FP32> **func)
   {
     switch (F) {
     case GKF_CCC:
@@ -1698,9 +1707,8 @@ struct gemm_kernel_binder {
     }
   }
 
-  /*template <typename Xtype, typename Dtype, typename Wtype,
-       int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<float16, float, float> **func)
+  /*template <typename ITFTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  static inline void bind(int O, int T, ker<itf_gemm::FP16> **func)
   {
     switch (F) {
     case GKF_CCC:
@@ -1712,10 +1720,8 @@ struct gemm_kernel_binder {
     }
   }*/
 
-  template <typename Xtype, typename Dtype, typename Wtype,
-       int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T,
-      ker<elx_conv_t<conv::FP32>, uint8_t, int8_t> **func)
+  template <typename ITFTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  static inline void bind(int O, int T, ker<itf_gemm::INT8_F32> **func)
   {
     switch (F) {
     case GKF_CCC:
@@ -1727,10 +1733,8 @@ struct gemm_kernel_binder {
     }
   }
 
-  /*template <typename Xtype, typename Dtype, typename Wtype,
-       int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T,
-      ker<elx_conv_t<FP16>, uint8_t, int8_t> **func)
+  /*template <typename ITFTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  static inline void bind(int O, int T, ker<itf_gemm::INT8_F16> **func)
   {}*/
 #endif
 };
