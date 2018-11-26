@@ -313,6 +313,8 @@ private:
       WeightsType *weights, BiasType *bias);
   void __execute_a0e1(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
+  void __execute_a133(OutputType *output, InputType *input,
+      WeightsType *weights, BiasType *bias);
   void __execute_a161(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
   void __execute_a173(OutputType *output, InputType *input,
@@ -327,21 +329,23 @@ private:
   void trans_input(TinputType *tinput, InputType *input);
 
   inline void __trans_input_u8_blocked(TscaleType *tinput_qt_scale,
-          uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
-          InputType *__restrict input, int _t2, int Tz);
+      uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
+      InputType *__restrict input, int _t2, int Tz);
   void trans_input_u8(TscaleType *tinput_qt_scale, uint8_t *__restrict tinput_u8,
-          TinputType *__restrict tinput, InputType *__restrict input, int _t2, int Tz);
+      TinputType *__restrict tinput, InputType *__restrict input, int _t2, int Tz);
+  void trans_input_quantization(uint8_t *tinput_u8, TscaleType *tinput_qt_scale,
+      TscaleType *tinput_max_abs, InputType *tinput);
 
   inline void __trans_inputa_plain(TinputType *tinput, InputType *input, int _t2, int _wA, int Tz);
   inline void __trans_inputa_blocked(TinputType *tinput, InputType *input, int _t2, int _wA, int Tz);
   void trans_inputa(TinputType *tinput, InputType *input, int _t2, int _wA, int Tz);
 
   inline void __trans_output_plain(OutputType *output, ToutputType *toutput,
-          BiasType *bias, int _t2, int Tz, int _ic4);
+      BiasType *bias, int _t2, int Tz, int _ic4);
   inline void __trans_output_blocked(OutputType *output, ToutputType *toutput,
-          BiasType *bias, int _t2, int Tz, int _ic4);
+      BiasType *bias, int _t2, int Tz, int _ic4);
   void trans_output(OutputType *output, ToutputType *toutput, BiasType *bias,
-          int _t2, int Tz, int _ic4 = -1);
+      int _t2, int Tz, int _ic4 = -1);
 
   inline void __trans_output_plain(OutputType *output, ToutputType *toutput,
           BiasType *bias, int _ic4);
@@ -379,6 +383,8 @@ private:
   void gemm(ToutputType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
       TscaleType *src_scale, TscaleType *weights_scale, TscaleType *factor, int _ic4 = 0);
   void gemm_non_acc(ToutputType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
+      TscaleType *src_scale, TscaleType *weights_scale, TscaleType *factor, int _ic4 = 0);
+  void gemm_non_acc(ToutputType *toutput, uint8_t *tinput, int8_t *tweights,
       TscaleType *src_scale, TscaleType *weights_scale, TscaleType *factor, int _ic4 = 0);
 
   void prepare_tweights(WeightsType * __restrict weights);
@@ -453,6 +459,7 @@ private:
   size_t boutput_size_;
   size_t tinput_u8_size_;
   size_t tinput_qt_scale_size_;
+  size_t tinput_max_abs_size_;
   size_t tweights_s8_size_;
   size_t tweights_qt_scale_size_;
   size_t tweights_factor_size_;
@@ -469,6 +476,7 @@ private:
   OutputType *boutput_;
   uint8_t *tinput_u8_;
   TscaleType *tinput_qt_scale_;
+  TscaleType *tinput_max_abs_;
   int8_t *tweights_s8_;
   TscaleType *tweights_qt_scale_;
   TscaleType *tweights_factor_;

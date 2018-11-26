@@ -31,6 +31,8 @@ namespace euler {
 // -------------+------------+--------------+-------------
 //     A0e1     |   FP32     |  t + o + wA  |    I
 // -------------+------------+--------------+-------------
+//     A133     |   INT8     |    i + o     |  I + O
+// -------------+------------+--------------+-------------
 //     A161     |   INT8     |    t + o     |    I
 // -------------+------------+--------------+-------------
 //     A173     |   INT8     |  i + t + o   |  I + O
@@ -428,6 +430,56 @@ void Instance_elx_conv_wino_t::__execute_a033(
       }
 #pragma omp barrier
       gemm_non_acc(toutput_, tinput_, &md3(atweights, _oc4, _ic4, 0), _ic4);
+#pragma omp barrier
+      trans_output(&md3(aoutput, 0, _oc4, 0), toutput_, &md2(abias, _oc4, 0), _ic4);
+    }}
+  }
+
+  if (inference_acc_)
+    is_first_run_ = false;
+}
+
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__execute_a133(
+    OutputType * __restrict output, InputType * __restrict input,
+    WeightsType * __restrict weights, BiasType * __restrict bias)
+{
+  MD3(InputType, ainput, input, this->n, this->ic4,
+      this->ih * this->iw * this->ic3 * this->I2 * this->Vx * V);
+  MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
+      A * A * this->ic3 * this->I2 * this->Vx * V * this->oc3 * this->O2 * V);
+  MD3(OutputType, aoutput, output, this->n, this->oc4,
+      this->oh * this->ow * this->oc3 * this->O2 * V);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+
+  MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
+      A * A * this->ic3 * this->I2 * this->Vx * V * this->oc3 * this->O2 * V);
+
+  MD3(TscaleType, atweights_qt_scale, tweights_qt_scale_, this->ic4,
+      this->oc4, this->oc3 * this->O2 * V * A * A);
+  MD3(TscaleType, aweights_factor, tweights_factor_,
+      this->ic4, this->oc4, this->oc3 * this->O2 * V * A * A);
+
+  if (is_first_run_) {
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+    trans_weights_s8(tweights_qt_scale_, tweights_factor_,
+        tweights_s8_, tweights_, weights, this->oc4);
+  }
+
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+  {
+    int last_ic4 = -1;
+    iter_each(_ic4, this->ic4) {
+    iter_each(_oc4, this->oc4) {
+      if (_ic4 != last_ic4) {
+        trans_input(tinput_, &md3(ainput, 0, _ic4, 0));
+        trans_input_quantization(tinput_u8_, tinput_qt_scale_, tinput_max_abs_, tinput_);
+        last_ic4 = _ic4;
+      }
+#pragma omp barrier
+      gemm_non_acc(toutput_, tinput_u8_, &md3(atweights_s8, _oc4, _ic4, 0),
+          tinput_qt_scale_, &md3(atweights_qt_scale, _ic4, _oc4, 0),
+          &md3(aweights_factor, _ic4, _oc4, 0), _ic4);
 #pragma omp barrier
       trans_output(&md3(aoutput, 0, _oc4, 0), toutput_, &md2(abias, _oc4, 0), _ic4);
     }}
