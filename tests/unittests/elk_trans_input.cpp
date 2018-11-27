@@ -27,7 +27,7 @@ void test_elk_trans_input(bool perf, bool show_diff, int execution_mode,
   using WeightsType = typename UserTypes::WeightsType;
   using OutputType = typename UserTypes::OutputType;
   using BiasType = typename UserTypes::BiasType;
-  using TarrayType = typename TarrayTypes::TarrayType;
+  using TarrayType = typename IntITFTypes::ITFTarrayType;
 
   int error = 0;
 
@@ -51,7 +51,7 @@ void test_elk_trans_input(bool perf, bool show_diff, int execution_mode,
   desc.execution_mode = execution_mode;
   desc.prop_kind = forward_inference;
 
-  elx_conv_wino_t<UserTypes, TarrayTypes, A, 3, V, I> xc(desc);
+  elx_conv_wino_t<UserTypes, IntITFTypes, float, A, 3, V, I> xc(desc);
 
   alignas(64) TarrayType atinput[A][A][V];
   alignas(64) InputType ainput[xc.ih][xc.iw][V];
@@ -122,26 +122,26 @@ TEST_P(elkTransInputTest, combineTest) {
   int test_mb = ::testing::get<7>(GetParam());
   switch (test_tile_size) {
   case 4:
-        test_elk_trans_input<euler::conv::FP32, euler::wino::FP32, 4, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_input<euler::conv::FP32, euler::itf_gemm::FP32, float, 4, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);
     break;
 
   case 5:
-    test_elk_trans_input<euler::conv::FP32, euler::wino::FP32, 5, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_input<euler::conv::FP32, euler::itf_gemm::FP32, float, 5, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);
     break;
   case 6:
-//     test_elk_trans_input<euler::conv::FP32, euler::wino::FP32, 6, 3, 16, ISA_SKX_AVX512>(
+//     test_elk_trans_input<euler::conv::FP32, euler::itf_gemm::FP32, float, 6, 3, 16, ISA_SKX_AVX512>(
 //         test_perf, show_diff, test_execution_mode, test_input_format,
 //         test_weights_format, test_output_format, test_with_bias, test_with_relu,
 //         test_mb);
     break;
   case 7:
-    test_elk_trans_input<euler::conv::FP32, euler::wino::FP32, 7, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_input<euler::conv::FP32, euler::itf_gemm::FP32, float, 7, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff, test_execution_mode, test_input_format,
         test_weights_format, test_output_format, test_with_bias, test_with_relu,
         test_mb);

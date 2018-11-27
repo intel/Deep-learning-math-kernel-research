@@ -42,7 +42,7 @@ public:
 
     p_xc_.reset(new euler::elx_conv_wino_t<
         euler::ConvTypes<InputType, WeightsType, OutputType, BiasType>,
-        euler::WinoTypes<TarrayType, TarrayType, TarrayType>, A, K, V, I>(
+        euler::IntITFTypes<TarrayType, TarrayType, TarrayType, TarrayType>, float, A, K, V, I>(
         desc_));
   }
   euler::eld_conv_t<
@@ -50,7 +50,7 @@ public:
       desc_;
   std::unique_ptr<euler::elx_conv_wino_t<
       euler::ConvTypes<InputType, WeightsType, OutputType, BiasType>,
-      euler::WinoTypes<TarrayType, TarrayType, TarrayType>, A, K, V, I>>
+      euler::IntITFTypes<TarrayType, TarrayType, TarrayType, TarrayType>, float, A, K, V, I>>
       p_xc_;
 };
 

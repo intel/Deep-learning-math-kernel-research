@@ -34,26 +34,6 @@ enum {
 
 #define PAGE_SIZE 4096
 
-template <typename... Types> struct WinoTypes {
-  static_assert(sizeof...(Types) == 3,
-      "Winograd impl. types: transformed-input-type, "
-      "transformed-weights-type, output-type-for-transform, "
-      "transform-opnd-type.");
-  using TinputType = typename std::tuple_element<0, std::tuple<Types...>>::type;
-  using TweightsType = typename std::tuple_element<1, std::tuple<Types...>>::type;
-  using ToutputType = typename std::tuple_element<2, std::tuple<Types...>>::type;
-  // Using in cse of TinputType = TweightsType = ToutputType
-  using TarrayType = typename std::tuple_element<0, std::tuple<Types...>>::type;
-  using TscaleType = typename std::tuple_element<2, std::tuple<Types...>>::type;
-};
-
-// Types of t-buffer (tinput/tweights/toutput) unquantized (if any).
-namespace wino {
-  using FP32 = WinoTypes<float, float, float>;
-  using FP32_F16 = WinoTypes<float, float, short>;
-  using FP16 = WinoTypes<short, short, short>;
-}
-
 template <typename... Types> struct IntITFTypes {
   static_assert(sizeof...(Types) == 4,
       "gemm interface. gemm-input/weights/output/bias itf data type");
@@ -61,12 +41,15 @@ template <typename... Types> struct IntITFTypes {
   using ITFweightsType = typename std::tuple_element<1, std::tuple<Types...>>::type;
   using ITFoutputType = typename std::tuple_element<2, std::tuple<Types...>>::type;
   using ITFbiasType = typename std::tuple_element<3, std::tuple<Types...>>::type;
+  // Using in cse of TinputType = TweightsType = ToutputType
+  using ITFTarrayType = typename std::tuple_element<0, std::tuple<Types...>>::type;
   using ITFscaleType = typename std::tuple_element<2, std::tuple<Types...>>::type;
 };
 
 namespace itf_gemm {
   using FP16 = IntITFTypes<short, short, short, short>;
   using FP32 = IntITFTypes<float, float, float, float>;
+  using FP32_F16 = IntITFTypes<float, float, short, float>;
   using INT8_F16 = IntITFTypes<uint8_t, int8_t, short, float>;
   using INT8_F32 = IntITFTypes<uint8_t, int8_t, float, float>;
 };

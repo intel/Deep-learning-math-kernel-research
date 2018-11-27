@@ -23,7 +23,7 @@ void test_elk_trans_weights(bool perf, bool show_diff) {
   using WeightsType = typename UserTypes::WeightsType;
   using OutputType = typename UserTypes::OutputType;
   using BiasType = typename UserTypes::BiasType;
-  using TarrayType = typename TarrayTypes::TarrayType;
+  using TarrayType = typename IntITFTypes::ITFTarrayType;
 
   alignas(64) WeightsType aweights[K][K][V][V];
   alignas(64) TarrayType atweights[A][A][V][V];
@@ -77,20 +77,20 @@ TEST_P(elkTransWeightsTest, combineTest) {
   int test_tile_size = GetParam();
   switch (test_tile_size) {
   case 4:
-    test_elk_trans_weights<conv::FP32, wino::FP32, 4, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_weights<conv::FP32, itf_gemm::FP32, float, 4, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff);
     break;
 
   case 5:
-    test_elk_trans_weights<conv::FP32, wino::FP32, 5, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_weights<conv::FP32, itf_gemm::FP32, float, 5, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff);
     break;
   case 6:
-//     test_elk_trans_weights<conv::FP32, wino::FP32, 6, 3, 16, ISA_SKX_AVX512>(test_perf,
+//     test_elk_trans_weights<conv::FP32, itf_gemm::FP32, float, 6, 3, 16, ISA_SKX_AVX512>(test_perf,
 //                                                             show_diff);
     break;
   case 7:
-    test_elk_trans_weights<conv::FP32, wino::FP32, 7, 3, 16, ISA_SKX_AVX512>(
+    test_elk_trans_weights<conv::FP32, itf_gemm::FP32, float, 7, 3, 16, ISA_SKX_AVX512>(
         test_perf, show_diff);
     break;
   default:
