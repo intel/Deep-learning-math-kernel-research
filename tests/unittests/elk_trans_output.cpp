@@ -30,7 +30,6 @@ void test_elk_trans_output(bool perf, bool show_diff, int execution_mode,
   using OutputType = typename UserTypes::OutputType;
   using BiasType = typename UserTypes::BiasType;
   using TinputType = typename InnerTypes::InputType;
-  using TweightsType = typename InnerTypes::WeightsType;
   using ToutputType = typename InnerTypes::OutputType;
 
 

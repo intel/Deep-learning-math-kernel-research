@@ -10,11 +10,11 @@
 
 namespace euler {
 
-template <typename UserTypes, typename TarrayType, int V>
+template <typename UserTypes, typename TrOpType, int V>
 template <bool... conditions>
-inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
+inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 6, 3>::__trans_output(elx_conv_t<UserTypes> &xc,
-    OutputType *output, TarrayType atoutput[A][A][V], BiasType *bias,
+    OutputType *output, TrOpType atoutput[A][A][V], BiasType *bias,
     int hOA_end, int wOA_end)
 {
   __m<V> z2 = _mm<V>::set1_ps(2.0f);
@@ -246,20 +246,20 @@ inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
   ISTORE(3, 3);
 }
 
-template <typename UserTypes, typename TarrayType, int V>
+template <typename UserTypes, typename TrOpType, int V>
 template <bool... conditions>
-inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
+inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 6, 3>::__trans_outputa_th(elx_conv_t<UserTypes> &xc,
-    TarrayType *toutputa, TarrayType *toutput, int Tz, bool stream_out)
+    TrOpType *toutputa, TrOpType *toutput, int Tz, bool stream_out)
 {
   el_error("Unimplemented");
 }
 
-template <typename UserTypes, typename TarrayType, int V>
+template <typename UserTypes, typename TrOpType, int V>
 template <bool... conditions>
-inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
+inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 6, 3>::__trans_outputa_bh(elx_conv_t<UserTypes> &xc,
-    OutputType *output, TarrayType atoutput[A][A - K + 1][V], BiasType *bias,
+    OutputType *output, TrOpType atoutput[A][A - K + 1][V], BiasType *bias,
     int hOA_end, int wOA_end)
 {
   // TODO

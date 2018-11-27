@@ -9,10 +9,6 @@
 
 namespace euler {
 
-// template <const bool is_border_>
-// Params:
-//    elx_conv_t<float, float, float, float> &xc, float atinput[A][A][V], float *input,
-//    int _hT_start, int _hT_end, int _wT_start, int _wT_end
 template <>
 class convolution_winograd_kernel_base<conv::FP32, float, ISA_GENERIC, 16, 4, 3> {
 protected:
@@ -49,8 +45,8 @@ protected:
 };
 
 template <bool is_border>
-inline void convolution_winograd_kernel_base<conv::FP32, float, ISA_GENERIC, 16, 4,
-    3>::__trans_input(elx_conv_t<conv::FP32> &xc, float atinput[A][A][V],
+inline void convolution_winograd_kernel_base<conv::FP32, float, ISA_GENERIC,
+    16, 4, 3>::__trans_input(elx_conv_t<conv::FP32> &xc, float atinput[A][A][V],
     float *input, int hT_start, int hT_end, int wT_start, int wT_end)
 {
 
@@ -109,15 +105,10 @@ inline void convolution_winograd_kernel_base<conv::FP32, float, ISA_GENERIC, 16,
   }
 }
 
-// template <const bool is_border_>
-// Params:
-//   elx_conv_t<float, float, float, float> &xc, float atinput[A][A][V], float *input,
-//   int _wA, int _hT_start, int _hT_end, int _wT_start, int _wT_end)
 template <bool is_border>
-inline void convolution_winograd_kernel_base<conv::FP32, float, ISA_GENERIC, 16, 4, 3>::
-__trans_inputa(
-    elx_conv_t<conv::FP32> &xc, float atinput[A][A][V],
-    float *input, int wA, int hT_start, int hT_end, int wT_start, int wT_end) {
+inline void convolution_winograd_kernel_base<conv::FP32, float, ISA_GENERIC,
+   16, 4, 3>::__trans_inputa(elx_conv_t<conv::FP32> &xc, float atinput[A][A][V],
+     float *input, int wA, int hT_start, int hT_end, int wT_start, int wT_end) {
 
   auto f_cb = [&](int _h, int _w, int _V) {
     if (wT_end == -1) {

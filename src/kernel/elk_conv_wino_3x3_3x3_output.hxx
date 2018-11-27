@@ -43,11 +43,11 @@ namespace euler {
   if (fuse_relu)                                                               \
     p2##n = MAX(p2##n, zero);
 
-template <typename UserTypes, typename TarrayType, int V>
+template <typename UserTypes, typename TrOpType, int V>
 template <bool... conditions>
-inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
+inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 5, 3>::__trans_output(elx_conv_t<UserTypes> &xc,
-    OutputType *output, TarrayType atoutput[A][A][V], BiasType *bias,
+    OutputType *output, TrOpType atoutput[A][A][V], BiasType *bias,
     int hOA_end, int wOA_end)
 {
   ENABLE_AVX512F();
@@ -111,14 +111,11 @@ inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
   MATRIX_DEF(3, 3);
 }
 
-// Params:
-//   elx_conv_t<float> &xc, float *toutputa, float *toutput, int Tz,
-//   bool stream_out
-template <typename UserTypes, typename TarrayType, int V>
+template <typename UserTypes, typename TrOpType, int V>
 template <bool... conditions>
-inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
+inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 5, 3>::__trans_outputa_th(elx_conv_t<UserTypes> &xc,
-    TarrayType *toutputa, TarrayType *toutput, int Tz, bool stream_out)
+    TrOpType *toutputa, TrOpType *toutput, int Tz, bool stream_out)
 {
   ENABLE_AVX512F();
 
@@ -159,11 +156,11 @@ inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
 //   elx_conv_t<float> &xc,
 //   float *output, float atoutput[A][A - K + 1][V], float *bias,
 //   int _hOA_end, int _wOA_end
-template <typename UserTypes, typename TarrayType, int V>
+template <typename UserTypes, typename TrOpType, int V>
 template <bool... conditions>
-inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
+inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 5, 3>::__trans_outputa_bh(elx_conv_t<UserTypes> &xc,
-    OutputType *output, TarrayType atoutput[A][A - K + 1][V], BiasType *bias,
+    OutputType *output, TrOpType atoutput[A][A - K + 1][V], BiasType *bias,
     int hOA_end, int wOA_end)
 {
 

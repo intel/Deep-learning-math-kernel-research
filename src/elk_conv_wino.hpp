@@ -15,8 +15,6 @@
 
 namespace euler {
 
-// Type: data type
-// TarrayType: tranform data type
 // T: tile blocking unit
 // A: tile size
 // K: kernel size
@@ -57,7 +55,7 @@ template <int ...configs> struct winograd_traits {
       "Template argument error! Please specify I, V, A, K...");
 };
 
-template <typename UserTypes, typename TarrayType, int ...configs>
+template <typename UserTypes, typename TrOpType, int ...configs>
 class convolution_winograd_kernel_base {
 
   using InputType = typename UserTypes::InputType;
@@ -79,33 +77,35 @@ protected:
   template <bool is_border>
   static inline void __trans_input(
       elx_conv_t<UserTypes> &xc,
-      TarrayType atinput[A][A][V], InputType *input,
+      TrOpType atinput[A][A][V], InputType *input,
       int hT_start, int hT_end, int wT_start, int wT_end);
 
   template <bool is_border>
   static inline void __trans_inputa(
       elx_conv_t<UserTypes> &xc,
-      TarrayType atinput[A][A][V], InputType *input,
+      TrOpType atinput[A][A][V], InputType *input,
       int wA, int hT_start, int hT_end, int wT_start, int wT_end);
 
   template <bool ...conditions>
   static inline void __trans_output(
       elx_conv_t<UserTypes> &xc,
-      OutputType *output, TarrayType atoutput[A][A][V],
+      OutputType *output, TrOpType atoutput[A][A][V],
       BiasType *bias, int hOA_end, int wOA_end);
 
   template <bool ...conditions>
   static inline void __trans_outputa_th(
       elx_conv_t<UserTypes> &xc,
-      TarrayType *toutputa, TarrayType *toutput, int Tz, bool stream_out);
+      TrOpType *toutputa, TrOpType *toutput,
+      int Tz, bool stream_out);
 
   template <bool ...conditions>
   static inline void __trans_outputa_bh(
       elx_conv_t<UserTypes> &xc,
-      OutputType *output, TarrayType aoutputa[A][A - K + 1][V],
+      OutputType *output, TrOpType aoutputa[A][A - K + 1][V],
       BiasType *bias, int hOA_end, int wOA_end);
 
-  static inline void __trans_weights(TarrayType atweights[A][A][V][V],
+  static inline void __trans_weights(
+      TrOpType atweights[A][A][V][V],
       WeightsType aweights[K][K][V][V]);
 };
 
@@ -132,12 +132,12 @@ public:
 };
 */
 
-template <typename UserTypes, typename TarrayType, int... configs>
+template <typename UserTypes, typename TrOpType, int... configs>
 class convolution_winograd_kernel
-    : public convolution_winograd_kernel_base<UserTypes, TarrayType,
-          configs...> {
+    : public convolution_winograd_kernel_base<UserTypes, TrOpType, configs...>
+{
   using super
-      = convolution_winograd_kernel_base<UserTypes, TarrayType, configs...>;
+      = convolution_winograd_kernel_base<UserTypes, TrOpType, configs...>;
   using InputType = typename UserTypes::InputType;
   using WeightsType = typename UserTypes::WeightsType;
   using OutputType = typename UserTypes::OutputType;
@@ -152,8 +152,8 @@ class convolution_winograd_kernel
   template <bool is_border>
   static void trans_input(
       elx_conv_t<UserTypes> &xc,
-      TarrayType atinput[A][A][V], InputType *input, int hA_start, int hA_end,
-      int wA_start, int wA_end)
+      TrOpType atinput[A][A][V], InputType *input,
+      int hA_start, int hA_end, int wA_start, int wA_end)
   {
     super::template __trans_input<is_border>(
         xc, atinput, input, hA_start, hA_end, wA_start, wA_end);
@@ -162,7 +162,7 @@ class convolution_winograd_kernel
   template <bool is_border>
   static void trans_inputa(
       elx_conv_t<UserTypes> &xc,
-      TarrayType atinput[A][A][V], InputType *input,
+      TrOpType atinput[A][A][V], InputType *input,
       int wA, int hA_start, int hA_end, int wA_start, int wA_end) {
     super::template __trans_inputa<is_border>(
         xc, atinput, input, wA, hA_start, hA_end, wA_start, wA_end);
@@ -171,7 +171,7 @@ class convolution_winograd_kernel
   template <bool ...conditions>
   static void trans_output(
       elx_conv_t<UserTypes>& xc,
-      OutputType* output, TarrayType atoutput[A][A][V],
+      OutputType* output, TrOpType atoutput[A][A][V],
       BiasType *bias, int hOA_end, int wOA_end) {
     super::template __trans_output<conditions...>(
         xc, output, atoutput, bias, hOA_end, wOA_end);
@@ -180,7 +180,7 @@ class convolution_winograd_kernel
   template <bool ...conditions>
   static void trans_outputa_th(
       elx_conv_t<UserTypes>& xc,
-      TarrayType *toutputa, TarrayType *toutput, int Tz, bool stream_out) {
+      TrOpType *toutputa, TrOpType *toutput, int Tz, bool stream_out) {
     super::template __trans_outputa_th<conditions...>(
         xc, toutputa, toutput, Tz, stream_out);
   }
@@ -188,14 +188,14 @@ class convolution_winograd_kernel
   template <bool ...conditions>
   static void trans_outputa_bh(
       elx_conv_t<UserTypes> &xc,
-      OutputType *output, TarrayType atoutputa[A][A - K + 1][V],
+      OutputType *output, TrOpType atoutputa[A][A - K + 1][V],
       BiasType *bias, int hOA_end, int wOA_end) {
     super::template __trans_outputa_bh<conditions...>(
         xc, output, atoutputa, bias, hOA_end, wOA_end);
   }
 
   static void trans_weights(
-      TarrayType atweights[A][A][V][V], WeightsType aweights[K][K][V][V]) {
+      TrOpType atweights[A][A][V][V], WeightsType aweights[K][K][V][V]) {
     super::__trans_weights(atweights, aweights);
   }
 };

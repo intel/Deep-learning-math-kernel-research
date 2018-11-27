@@ -8,9 +8,9 @@
 #include "elk_conv_wino.hpp"
 
 namespace euler {
-template <typename UserTypes, typename TarrayType, int v>
-class convolution_winograd_kernel_base<UserTypes, TarrayType, ISA_SKX_AVX512, v,
-    6, 3> {
+template <typename UserTypes, typename TrOpType, int v>
+class convolution_winograd_kernel_base<UserTypes, TrOpType,
+    ISA_SKX_AVX512, v, 6, 3> {
   protected:
   using InputType = typename UserTypes::InputType;
   using WeightsType = typename UserTypes::WeightsType;
@@ -23,29 +23,27 @@ class convolution_winograd_kernel_base<UserTypes, TarrayType, ISA_SKX_AVX512, v,
   constexpr static int K = 3;
 
   template <bool is_border> static inline
-  void __trans_input(elx_conv_t<UserTypes> &xc, TarrayType atinput[A][A][V],
-      InputType *input, int hT_start, int hT_end, int wT_start,
-      int wT_end);
+  void __trans_input(elx_conv_t<UserTypes> &xc, TrOpType atinput[A][A][V],
+      InputType *input, int hT_start, int hT_end, int wT_start, int wT_end);
 
   template <bool is_border>
-  static void __trans_inputa(elx_conv_t<UserTypes> &xc, TarrayType atinput[A][A][V],
-      InputType *input, int wA, int hA_start, int hA_end, int wA_start,
-      int _wA_end);
+  static void __trans_inputa(elx_conv_t<UserTypes> &xc, TrOpType atinput[A][A][V],
+      InputType *input, int wA, int hA_start, int hA_end, int wA_start, int _wA_end);
 
   template <bool ...conditions>
   static inline void __trans_output(elx_conv_t<UserTypes> &xc, OutputType *output,
-      TarrayType atoutput[A][A][V], BiasType *bias, int hOA_end, int wOA_end);
+      TrOpType atoutput[A][A][V], BiasType *bias, int hOA_end, int wOA_end);
 
   template <bool ...conditions>
-  static inline void __trans_outputa_th(elx_conv_t<UserTypes> &xc, TarrayType *toutputa,
-      TarrayType *toutput, int Tz, bool stream_out);
+  static inline void __trans_outputa_th(elx_conv_t<UserTypes> &xc,
+      TrOpType *toutputa, TrOpType *toutput, int Tz, bool stream_out);
 
   template <bool ...conditions>
   static inline void __trans_outputa_bh(elx_conv_t<UserTypes> &xc, OutputType *output,
-      TarrayType aoutputa[A][A - K + 1][V], BiasType *bias, int hOA_end, int wOA_end);
+      TrOpType aoutputa[A][A - K + 1][V], BiasType *bias, int hOA_end, int wOA_end);
 
-  static inline void __trans_weights(TarrayType atweights[A][A][V][V],
-      WeightsType aweights[K][K][V][V]);
+  static inline void __trans_weights(
+      TrOpType atweights[A][A][V][V], WeightsType aweights[K][K][V][V]);
 };
 
 #undef ADD
@@ -68,12 +66,12 @@ class convolution_winograd_kernel_base<UserTypes, TarrayType, ISA_SKX_AVX512, v,
 #define MAX     _mm<V>::max_ps
 #define XOR     _mm<V>::xor_ps
 
-template <typename UserTypes, typename TarrayType, int V>
+template <typename UserTypes, typename TrOpType, int V>
 template <bool is_border>
-inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
-    ISA_SKX_AVX512, V, 6, 3>::__trans_input(elx_conv_t<UserTypes> &xc,
-    TarrayType atinput[A][A][V], InputType *input, int hT_start, int hT_end,
-    int wT_start, int wT_end)
+inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
+    ISA_SKX_AVX512, V, 6, 3>::__trans_input(
+      elx_conv_t<UserTypes> &xc, TrOpType atinput[A][A][V], InputType *input,
+      int hT_start, int hT_end, int wT_start, int wT_end)
 {
 
   // Inputs
@@ -316,11 +314,11 @@ inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
   ISTORE(5, 5)
 }
 
-template <typename UserTypes, typename TarrayType, int V>
+template <typename UserTypes, typename TrOpType, int V>
 template <bool is_border>
-inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
+inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 6, 3>::__trans_inputa(elx_conv_t<UserTypes> &xc,
-    TarrayType atinput[A][A][V], InputType *input, int wA, int hT_start,
+    TrOpType atinput[A][A][V], InputType *input, int wA, int hT_start,
     int hT_end, int wT_start, int wT_end)
 {
   // TODO

@@ -9,13 +9,9 @@
 
 namespace euler {
 
-// template <const bool is_border_>
-// Params:
-//    elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
-//    int _hT_start, int _hT_end, int _wT_start, int _wT_end
-template <typename UserTypes, typename TarrayType, int v>
-class convolution_winograd_kernel_base<UserTypes, TarrayType, ISA_SKX_AVX512, v,
-    4, 3> {
+template <typename UserTypes, typename TrOpType, int v>
+class convolution_winograd_kernel_base<UserTypes, TrOpType,
+    ISA_SKX_AVX512, v, 4, 3> {
   protected:
   using InputType = typename UserTypes::InputType;
   using WeightsType = typename UserTypes::WeightsType;
@@ -28,38 +24,37 @@ class convolution_winograd_kernel_base<UserTypes, TarrayType, ISA_SKX_AVX512, v,
   constexpr static int K = 3;
 
   template <bool is_border> static inline
-  void __trans_input(elx_conv_t<UserTypes> &xc, TarrayType atinput[A][A][V],
-      InputType *input, int hT_start, int hT_end, int wT_start,
-      int wT_end);
+  void __trans_input(elx_conv_t<UserTypes> &xc, TrOpType atinput[A][A][V],
+      InputType *input, int hT_start, int hT_end, int wT_start, int wT_end);
 
   template <bool is_border>
-  static void __trans_inputa(elx_conv_t<UserTypes> &xc, TarrayType atinput[A][A][V],
-      InputType *input, int wA, int hA_start, int hA_end, int wA_start,
-      int _wA_end);
+  static void __trans_inputa(elx_conv_t<UserTypes> &xc, TrOpType atinput[A][A][V],
+      InputType *input, int wA, int hA_start, int hA_end, int wA_start, int _wA_end);
 
   template <bool ...conditions>
   static inline void __trans_output(elx_conv_t<UserTypes> &xc, OutputType *output,
-      TarrayType atoutput[A][A][V], BiasType *bias, int hOA_end, int wOA_end);
+      TrOpType atoutput[A][A][V], BiasType *bias, int hOA_end, int wOA_end);
 
   template <bool ...conditions>
-  static inline void __trans_outputa_th(elx_conv_t<UserTypes> &xc, TarrayType *toutputa,
-      TarrayType *toutput, int Tz, bool stream_out);
+  static inline void __trans_outputa_th(elx_conv_t<UserTypes> &xc,
+      TrOpType *toutputa, TrOpType *toutput, int Tz, bool stream_out);
 
   template <bool ...conditions>
   static inline void __trans_outputa_bh(elx_conv_t<UserTypes> &xc, OutputType *output,
-      TarrayType aoutputa[A][A - K + 1][V], BiasType *bias, int hOA_end, int wOA_end);
+      TrOpType aoutputa[A][A - K + 1][V], BiasType *bias, int hOA_end, int wOA_end);
 
-  static inline void __trans_weights(TarrayType atweights[A][A][V][V],
-      WeightsType aweights[K][K][V][V]);
+  static inline void __trans_weights(
+      TrOpType atweights[A][A][V][V], WeightsType aweights[K][K][V][V]);
 };
 
 
-template <typename UserTypes, typename TarrayType, int V>
+template <typename UserTypes, typename TrOpType, int V>
 template <bool is_border>
-inline void convolution_winograd_kernel_base<UserTypes,TarrayType,
+inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 4, 3>::__trans_input(
-      elx_conv_t<UserTypes> &xc, TarrayType atinput[A][A][V], InputType *input,
-      int hT_start, int hT_end, int wT_start, int wT_end) {
+      elx_conv_t<UserTypes> &xc, TrOpType atinput[A][A][V], InputType *input,
+      int hT_start, int hT_end, int wT_start, int wT_end)
+{
   ENABLE_AVX512F();
 
   // Inputs
@@ -154,15 +149,11 @@ inline void convolution_winograd_kernel_base<UserTypes,TarrayType,
    _mm<V>::store_ps(T(3, 3), t33);
 }
 
-// template <const bool is_border_>
-// Params:
-//   elx_conv_t<float> &xc, float atinput[A][A][V], float *input,
-//   int _wA, int _hT_start, int _hT_end, int _wT_start, int _wT_end)
-template <typename UserTypes, typename TarrayType, int V>
+template <typename UserTypes, typename TrOpType, int V>
 template <bool is_border>
-inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
+inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 4, 3>::__trans_inputa(elx_conv_t<UserTypes> &xc,
-    TarrayType atinput[A][A][V], InputType *input, int wA, int hT_start,
+    TrOpType atinput[A][A][V], InputType *input, int wA, int hT_start,
     int hT_end, int wT_start, int wT_end)
 {
   ENABLE_AVX512F();

@@ -10,9 +10,9 @@
 
 namespace euler {
 
-template <typename UserTypes, typename TarrayType, int V>
-inline void convolution_winograd_kernel_base<UserTypes, TarrayType,
-    ISA_SKX_AVX512, V, 6, 3>::__trans_weights(TarrayType atweights[A][A][V][V],
+template <typename UserTypes, typename TrOpType, int V>
+inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
+    ISA_SKX_AVX512, V, 6, 3>::__trans_weights(TrOpType atweights[A][A][V][V],
     WeightsType aweights[K][K][V][V])
 {
   auto z0 = _mm<V>::setzero_ps();
