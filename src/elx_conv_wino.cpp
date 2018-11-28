@@ -315,7 +315,7 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
       + tweights_qt_scale_size_ + tweights_factor_size_ + tweights_ci_size_;
   size_t scratch_size = tinput_size_ + toutput_size_ + toutputa_size_
       + binput_size_ + bweights_size_ + boutput_size_ + tinput_u8_size_
-      + tinput_qt_scale_size_;
+      + tinput_qt_scale_size_ + tinput_max_abs_size_;
 
   if (xopt_ == 0xa079 || xopt_ == 0xa07b) {
     scratch_size += tweights_size_;
