@@ -473,6 +473,7 @@ void Instance_elx_conv_wino_t::__execute_a133(
     iter_each(_oc4, this->oc4) {
       if (_ic4 != last_ic4) {
         trans_input(tinput_, &md3(ainput, 0, _ic4, 0));
+#pragma omp barrier
         trans_input_quantization(tinput_u8_, tinput_qt_scale_, tinput_max_abs_, tinput_);
         last_ic4 = _ic4;
       }
