@@ -1501,10 +1501,11 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
       this->ih, this->iw, V);
   MD2(TinputType, atinput2, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * this->Vx * V);
 
+  // ICC-19 bug, build crash in case of t2 first
 #pragma omp for nowait collapse(3)
-  iter_each (_t2, this->t2) {
   iter_each (_ic3, this->ic3) {
   iter_each (_I2, this->I2 * this->Vx) {
+  iter_each (_t2, this->t2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
     MD6(TinputType, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2 * this->Vx, Tz, V);
     alignas(64) TinputType aout[A][A][V];
@@ -2886,10 +2887,11 @@ void Instance_elx_conv_wino_t::__trans_output_plain(
     }
   };
 
+  // ICC-19 bug, build crash in case of t2 first
 #pragma omp for nowait collapse(3)
-  iter_each (_t2, this->t2) {
   iter_each (_oc3, this->oc3) {
   iter_each (_O2, this->O2) {
+  iter_each (_t2, this->t2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
     MD6(ToutputType, atoutput6, &md2(atoutput2, _t2, 0), A, A, this->oc3,
         this->O2, Tz, V);
