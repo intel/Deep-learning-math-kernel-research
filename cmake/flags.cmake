@@ -27,6 +27,10 @@ if (WITH_GKTII)
   list(APPEND __opt_flags "-DWITH_GKTII")
 endif()
 
+if (WITH_VNNI)
+  list(APPEND __opt_flags "-DWITH_VNNI")
+endif()
+
 if (CMAKE_CXX_COMPILER MATCHES "icpc")
   list(APPEND __opt_flags "-xHost")
   #  list(APPEND __opt_flags "-qopt-report=5")

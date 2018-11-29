@@ -263,6 +263,19 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   constexpr static int JO2 = J_traits<O, T, has_Ir, WeightsType>::O2;
   constexpr static int JP2 = J_traits<O, T, has_Ir, WeightsType>::P2;
 
+  static inline __i<V> __op_int8_fma(__i<V>& out, __i<V>& a, __i<V>& b) {
+    // TODO: check ISA
+#if defined(WITH_VNNI)
+    out = _mm512_dpbusds_epi32(out, a, b);
+#else
+    __i<V> one = _mm<V>::set1_epi16(1);
+    __i<V> t0 = _mm<V>::maddubs_epi16(a, b);
+    t0 = _mm<V>::madd_epi16(t0, one);
+    out = _mm<V>::add_epi32(t0, out);
+#endif
+    return out;
+  }
+
   // f32f32f32 fma
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
@@ -837,7 +850,6 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
-    __i<V> one = _mm<V>::set1_epi16(1);
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V * Vx: xc.ih * xc.iw * V * Vx;
     const int O_stride
@@ -888,9 +900,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
-            __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][0]);
-            t0 = _mm<V>::madd_epi16(t0, one);
-            mmout[_O][_T] = _mm<V>::add_epi32(t0, mmout[_O][_T]);
+            mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][0]);
           }
         }
       }
@@ -947,7 +957,6 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
-    __i<V> one = _mm<V>::set1_epi16(1);
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V * Vx: xc.ih * xc.iw * V * Vx;
     const int O_stride
@@ -999,9 +1008,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
-            __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][0]);
-            t0 = _mm<V>::madd_epi16(t0, one);
-            mmout[_O][_T] = _mm<V>::add_epi32(t0, mmout[_O][_T]);
+            mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][0]);
           }
         }
       }
@@ -1029,9 +1036,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
-            __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][0]);
-            t0 = _mm<V>::madd_epi16(t0, one);
-            mmout[_O][_T] = _mm<V>::add_epi32(t0, mmout[_O][_T]);
+            mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][0]);
           }
         }
       }
@@ -1088,7 +1093,6 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
-    __i<V> one = _mm<V>::set1_epi16(1);
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V * Vx: xc.ih * xc.iw * V * Vx;
     const int O_stride
@@ -1152,9 +1156,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
-            __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][0]);
-            t0 = _mm<V>::madd_epi16(t0, one);
-            mmout[_O][_T] = _mm<V>::add_epi32(t0, mmout[_O][_T]);
+            mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][0]);
           }
         }
         // _P = 1
@@ -1177,9 +1179,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 1, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
-            __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][1]);
-            t0 = _mm<V>::madd_epi16(t0, one);
-            mmout[_O][_T] = _mm<V>::add_epi32(t0, mmout[_O][_T]);
+            mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][1]);
           }
         }
       }
@@ -1235,7 +1235,6 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
-    __i<V> one = _mm<V>::set1_epi16(1);
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V * Vx: xc.ih * xc.iw * V * Vx;
     const int O_stride
@@ -1301,9 +1300,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
-            __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][0]);
-            t0 = _mm<V>::madd_epi16(t0, one);
-            mmout[_O][_T] = _mm<V>::add_epi32(t0, mmout[_O][_T]);
+            mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][0]);
           }
         }
         // _P = 1
@@ -1326,9 +1323,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 1, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
-            __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][1]);
-            t0 = _mm<V>::madd_epi16(t0, one);
-            mmout[_O][_T] = _mm<V>::add_epi32(t0, mmout[_O][_T]);
+            mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][1]);
           }
         }
         // _P = 2
@@ -1351,9 +1346,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 2, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
-            __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][2]);
-            t0 = _mm<V>::madd_epi16(t0, one);
-            mmout[_O][_T] = _mm<V>::add_epi32(t0, mmout[_O][_T]);
+            mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][2]);
           }
         }
         // _P = 3
@@ -1376,9 +1369,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 3, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
-            __i<V> t0 = _mm<V>::maddubs_epi16(bcast, mmwei[_O][3]);
-            t0 = _mm<V>::madd_epi16(t0, one);
-            mmout[_O][_T] = _mm<V>::add_epi32(t0, mmout[_O][_T]);
+            mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][3]);
           }
         }
       }
