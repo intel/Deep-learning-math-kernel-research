@@ -677,7 +677,7 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
 #pragma omp simd
         iter_each (_oV, V) {
           max_abs[_oV] =
-              md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iVx, _iV, _O, _oV) >= 0 ?
+              md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iVx, _iV, _O, _oV) >= 0.0 ?
               md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iVx, _iV, _O, _oV) :
               -md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iVx, _iV, _O, _oV);
         }
@@ -1960,18 +1960,18 @@ void Instance_elx_conv_wino_t::trans_input_quantization(
     MD3(TscaleType, atinput_qt_scale, &md2(atinput_qt_scale2, _t2, 0), A, A, Tz);
     iter_each (_T, Tz) {
       __m<V> &mmax_abs = *(__m<V> *)&md4(atinput_max_abs, _wA, _hA, _T, 0);
-      mmax_abs = _mm<V>::set1_ps(0);
+      mmax_abs = _mm<V>::set1_ps(0.0);
       iter_each (_ic3, this->ic3) {
       iter_each (_I2, this->I2) {
       iter_each (_Vx, this->Vx) {
         __m<V> mmax_cur = *(__m<V> *)&md7(atinput7, _wA, _hA, _ic3, _I2, _Vx, _T, 0);
         InputType *max_cur = (InputType *)&mmax_cur;
         iter_each (_V, V)
-          max_cur[_V] = max_cur[_V] > 0 ? max_cur[_V] : -max_cur[_V];
+          max_cur[_V] = max_cur[_V] > 0.0 ? max_cur[_V] : -max_cur[_V];
         mmax_abs = _mm<V>::max_ps(mmax_cur, mmax_abs);
       }}}
 
-      md3(atinput_qt_scale, _wA, _hA, _T) = 0;
+      md3(atinput_qt_scale, _wA, _hA, _T) = 0.0;
       iter_each (_V, V)
         md3(atinput_qt_scale, _wA, _hA, _T) =
             md3(atinput_qt_scale, _wA, _hA, _T) >
