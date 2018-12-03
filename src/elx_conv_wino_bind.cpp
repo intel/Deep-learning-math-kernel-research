@@ -111,18 +111,31 @@ void Instance_elx_conv_wino_t::bind_execute_functions()
 
   auto bind_gemm_kernel =
       [&](int O, int T, bool has_Ir,
-      gemm_kernel_binder::ker<conv_impl::FP32> **func1,
-      gemm_kernel_binder::ker<conv_impl::INT8_F32> **func2) {
+      ker_type **func1, i8_ker_type **func2) {
     if (this->Ir != V * this->Vx && has_Ir) {
-      gemm_kernel_binder::bind<conv_impl::FP32,
-          V, 1, I, 1, GKF_CCC, true>(O, T, func1);
-      gemm_kernel_binder::bind<conv_impl::INT8_F32,
-          V, 4, I, 1, GKF_CCC, true>(O, T, func2);
+      if (this->f16c_opt) {
+        gemm_kernel_binder::bind<conv_impl::FP16,
+            V, 1, I, 1, GKF_CCC, true>(O, T, func1);
+        gemm_kernel_binder::bind<conv_impl::INT8_F16,
+            V, 4, I, 1, GKF_CCC, true>(O, T, func2);
+      } else {
+        gemm_kernel_binder::bind<conv_impl::FP32,
+            V, 1, I, 1, GKF_CCC, true>(O, T, func1);
+        gemm_kernel_binder::bind<conv_impl::INT8_F32,
+            V, 4, I, 1, GKF_CCC, true>(O, T, func2);
+      }
     } else {
-      gemm_kernel_binder::bind<conv_impl::FP32,
-          V, 1, I, 1, GKF_CCC, false>(O, T, func1);
-      gemm_kernel_binder::bind<conv_impl::INT8_F32,
-          V, 4, I, 1, GKF_CCC, false>(O, T, func2);
+      if (this->f16c_opt) {
+        gemm_kernel_binder::bind<conv_impl::FP16,
+            V, 1, I, 1, GKF_CCC, false>(O, T, func1);
+        gemm_kernel_binder::bind<conv_impl::INT8_F16,
+            V, 4, I, 1, GKF_CCC, false>(O, T, func2);
+      } else {
+        gemm_kernel_binder::bind<conv_impl::FP32,
+            V, 1, I, 1, GKF_CCC, false>(O, T, func1);
+        gemm_kernel_binder::bind<conv_impl::INT8_F32,
+            V, 4, I, 1, GKF_CCC, false>(O, T, func2);
+      }
     }
   };
 
@@ -137,6 +150,14 @@ void Instance_elx_conv_wino_t::bind_execute_functions()
     execute_opt_ = &Instance_elx_conv_wino_t::__execute_##n;                 \
     break
 
+#define EXECUTE_FP32_CASE(n)                                                 \
+  case 0x##n:                                                                \
+    printf("execute_opt=" #n "\n");                                          \
+    if (!std::is_same<TarrayTypes, conv_impl::FP32>::value)                  \
+      el_error("Unimplemented non-fp32 type for a0e0/a0e1 mode");            \
+    execute_opt_ = &Instance_elx_conv_wino_t::__execute_##n;                 \
+    break
+
   switch (xopt_) {
   EXECUTE_CASE(a000);
   EXECUTE_CASE(a033);
@@ -146,8 +167,8 @@ void Instance_elx_conv_wino_t::bind_execute_functions()
   EXECUTE_CASE(a079);
   EXECUTE_CASE(a07b);
   EXECUTE_CASE(a0e0);
-  EXECUTE_CASE(a0e1);
-  EXECUTE_CASE(a133);
+  EXECUTE_FP32_CASE(a0e1);
+  EXECUTE_FP32_CASE(a133);
   EXECUTE_CASE(a161);
   EXECUTE_CASE(a173);
   default:

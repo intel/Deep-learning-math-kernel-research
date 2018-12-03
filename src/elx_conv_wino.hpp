@@ -330,7 +330,7 @@ private:
   void trans_input_u8(TscaleType *tinput_qt_scale, uint8_t *__restrict tinput_u8,
       TinputType *__restrict tinput, InputType *__restrict input, int _t2, int Tz);
   void trans_input_quantization(uint8_t *tinput_u8, TscaleType *tinput_qt_scale,
-      TscaleType *tinput_max_abs, InputType *tinput);
+      TscaleType *tinput_max_abs, TinputType *tinput);
 
   inline void __trans_inputa_plain(TinputType *tinput, InputType *input, int _t2, int _wA, int Tz);
   inline void __trans_inputa_blocked(TinputType *tinput, InputType *input, int _t2, int _wA, int Tz);
@@ -348,11 +348,13 @@ private:
   inline void __trans_output_blocked(OutputType *output, ToutputType *toutput, BiasType *bias, int _ic4);
   void trans_output(OutputType *output, ToutputType *toutput, BiasType *bias, int _ic4 = -1);
 
-  inline void __trans_outputa_bh_plain(OutputType *output, ToutputType *toutputa, BiasType *bias);
-  inline void __trans_outputa_bh_blocked(OutputType *output, ToutputType *toutputa, BiasType *bias);
-  void trans_outputa_bh(OutputType *output, ToutputType *toutputa, BiasType *bias);
+  inline void __trans_outputa_bh_plain(OutputType *output, TrOpType *toutputa, BiasType *bias);
+  inline void __trans_outputa_bh_blocked(OutputType *output, TrOpType *toutputa, BiasType *bias);
+  void trans_outputa_bh(OutputType *output, TrOpType *toutputa, BiasType *bias);
 
-  void trans_outputa_th(ToutputType *toutputa, ToutputType *toutput, int Tz);
+  // TODO support fp16 for 0e0/0e1 mode,
+  // currently, use void* type for building happy
+  void trans_outputa_th(TrOpType *toutputa, void *toutput, int Tz);
 
   inline void __trans_weights_plain(TweightsType *tweights, WeightsType *weights, int oc4);
   inline void __trans_weights_blocked(TweightsType *tweights, WeightsType *weights, int oc4);
@@ -389,15 +391,25 @@ private:
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm0_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_tail_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm0_tail_;
+  using i8_ker_type = typename std::conditional<
+      std::is_same<TarrayTypes, conv_impl::FP32>::value,
+      gemm_kernel_binder::ker<conv_impl::INT8_F32>,
+      gemm_kernel_binder::ker<conv_impl::INT8_F16>>::type;
 
-  gemm_kernel_binder::ker<conv_impl::INT8_F32> *ker_i8_gemm_;
-  gemm_kernel_binder::ker<conv_impl::INT8_F32> *ker_i8_gemm0_;
-  gemm_kernel_binder::ker<conv_impl::INT8_F32> *ker_i8_gemm_tail_;
-  gemm_kernel_binder::ker<conv_impl::INT8_F32> *ker_i8_gemm0_tail_;
+  using ker_type = typename std::conditional<
+      std::is_same<TarrayTypes, conv_impl::FP32>::value,
+      gemm_kernel_binder::ker<conv_impl::FP32>,
+      gemm_kernel_binder::ker<conv_impl::FP16>>::type;
+
+  ker_type *ker_gemm_;
+  ker_type *ker_gemm0_;
+  ker_type *ker_gemm_tail_;
+  ker_type *ker_gemm0_tail_;
+
+  i8_ker_type *ker_i8_gemm_;
+  i8_ker_type *ker_i8_gemm0_;
+  i8_ker_type *ker_i8_gemm_tail_;
+  i8_ker_type *ker_i8_gemm0_tail_;
 
   decltype(Instance_convolution_winograd_kernel
       ::template trans_input<no>) *ker_trans_input_;
@@ -466,7 +478,7 @@ private:
   TweightsType *tweights_;
   TinputType *tinput_;
   ToutputType *toutput_;
-  ToutputType *toutputa_;
+  TrOpType *toutputa_;
   InputType *binput_; // blocked input
   WeightsType *bweights_;
   OutputType *boutput_;
@@ -613,27 +625,16 @@ template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 6, 3, 16, ISA
 //template class elx_conv_wino_t<float, float, 6, 3, 16, ISA_COSIM_AVX512>;
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 7, 3, 16, ISA_GENERIC>;
 //template class elx_conv_wino_t<float, float, 7, 3, 16, ISA_COSIM_AVX512>;
-// template class elx_conv_wino_t<float, 5, 3, 8, ISA_GENERIC>;
-// template class elx_conv_wino_t<float, 5, 3, 8, ISA_COSIM_AVX512>;
-// template class elx_conv_wino_t<float, 6, 3, 8, ISA_GENERIC>;
-// template class elx_conv_wino_t<float, 6, 3, 8, ISA_COSIM_AVX512>;
-// template class elx_conv_wino_t<float, 7, 3, 8, ISA_GENERIC>;
-// template class elx_conv_wino_t<float, 7, 3, 8, ISA_COSIM_AVX512>;
 #endif
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 4, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 5, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 6, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 7, 3, 16, ISA_SKX_AVX512>;
-// FP16 interface / FP32 implementation
-// template class elx_conv_wino_t<conv::FP16, float, 4, 3, 16, ISA_SKX_AVX512>;
-// template class elx_conv_wino_t<conv::FP16, float, 5, 3, 16, ISA_SKX_AVX512>;
-// template class elx_conv_wino_t<conv::FP16, float, 6, 3, 16, ISA_SKX_AVX512>;
-// template class elx_conv_wino_t<conv::FP16, float, 7, 3, 16, ISA_SKX_AVX512>;
-// FP16 interface / FP16 implementation
-// template class elx_conv_wino_t<short, short, 4, 3, 16, ISA_SKX_AVX512>;
-// template class elx_conv_wino_t<short, short, 5, 3, 16, ISA_SKX_AVX512>;
-// template class elx_conv_wino_t<short, short, 6, 3, 16, ISA_SKX_AVX512>;
-// template class elx_conv_wino_t<short, short, 7, 3, 16, ISA_SKX_AVX512>;
+
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP16, float, 4, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP16, float, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP16, float, 6, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP16, float, 7, 3, 16, ISA_SKX_AVX512>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_WINO_HPP__

@@ -80,7 +80,6 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
 
 #undef OP
 #define p_(m, n) p##m##n
-//#define OP(m,n) _mm<V>::store_ps(P(m, n), p_(m, n))
 #define OP(m,n)                                         \
   if (std::is_same<OutputType, float>::value)           \
     _mm<V>::store_ps(P(m, n), p_(m, n));                \
@@ -100,8 +99,8 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
 {
   ENABLE_AVX512F();
 
-  MD4(float, atoutput, toutput, A, xc.oc3 * xc.O2, Tz, V);
-  MD2(float, atoutputa, toutputa, A - K + 1, V);
+  MD4(TrOpType, atoutput, toutput, A, xc.oc3 * xc.O2, Tz, V);
+  MD2(TrOpType, atoutputa, toutputa, A - K + 1, V);
 
 #undef P
 #undef T

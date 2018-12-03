@@ -53,6 +53,7 @@ int main(int argc, char **argv)
   desc.with_bias = with_bias;
   desc.with_relu = with_relu;
   desc.with_ip_sum = with_ip_sum;
+  desc.f16c_opt = f16c_opt;
   desc.algorithm = alg;
   desc.tile_size = tile_size;
   desc.prop_kind = prop_kind;

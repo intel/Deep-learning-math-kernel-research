@@ -107,4 +107,27 @@ struct galloc {
   }
 };
 
+union Fp32
+{
+  uint32_t u;
+  float f;
+};
+
+static inline float half_2_float(uint16_t value)
+{
+  Fp32 out;
+  const Fp32 magic = { (254U - 15U) << 23 };
+  const Fp32 was_infnan = { (127U + 16U) << 23 };
+
+  out.u = (value & 0x7FFFU) << 13;   /* exponent/mantissa bits */
+  out.f *= magic.f;                  /* exponent adjust */
+  if (out.f >= was_infnan.f)         /* make sure Inf/NaN survive */
+  {
+    out.u |= 255U << 23;
+  }
+  out.u |= (value & 0x8000U) << 16;  /* sign bit */
+
+  return out.f;
+}
+
 }

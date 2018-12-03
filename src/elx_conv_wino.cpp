@@ -243,13 +243,13 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
     tinput_size = A * A * this->IC * this->t * sizeof(TinputType);
     toutput_size = A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
-    toutputa_size = A * (A - K + 1) * this->OC * this->t * sizeof(ToutputType);
+    toutputa_size = A * (A - K + 1) * this->OC * this->t * sizeof(TrOpType);
     break;
   case 0xa0e1:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
     tinput_size = A * this->IC * this->T * mthr_ * sizeof(TinputType);
     toutput_size = A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
-    toutputa_size = A * (A - K + 1) * this->OC * this->t * sizeof(ToutputType);
+    toutputa_size = A * (A - K + 1) * this->OC * this->t * sizeof(TrOpType);
     break;
   case 0xa133:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
@@ -359,7 +359,7 @@ void Instance_elx_conv_wino_t::set_trans_buffers()
     tinput_ = tweights_ + tweights_size_;
   }
   toutput_ = (ToutputType *)((char *)tinput_ + tinput_size_);
-  toutputa_ = (ToutputType *)((char *)toutput_ + toutput_size_);
+  toutputa_ = (TrOpType *)((char *)toutput_ + toutput_size_);
   binput_ = (InputType *)((char *)toutputa_ + toutputa_size_);
   bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
   boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);
@@ -489,7 +489,7 @@ void Instance_elx_conv_wino_t::__trans_weights_plain(
         && _O == this->O - 1;
 
     alignas(64) WeightsType ain[K][K][V][V];
-    alignas(64) TweightsType aout[A][A][V][V];
+    alignas(64) TrOpType aout[A][A][V][V];
 
     if (this->Ir != V || is_Ir || is_Or)
       readin_r(ain, _oc4, _oc3, _O1 * this->O + _O, _ic4, _ic3, _I2, is_Ir, is_Or);
@@ -499,12 +499,13 @@ void Instance_elx_conv_wino_t::__trans_weights_plain(
 
     ker_trans_weights_(aout, ain);
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TweightsType, float>::value) {
+    if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
+        && std::is_same<TweightsType, float>::value) {
       if (stream_wei_) {
         iter_each (_wA, A) {
         iter_each (_hA, A) {
         iter_each (_iV, V) {
-          _mm512_stream_ps(&md11(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
+          _mm<V>::stream_ps(&md11(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
               _O1, _I2, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
         }}}
       } else {
@@ -513,6 +514,28 @@ void Instance_elx_conv_wino_t::__trans_weights_plain(
         iter_each (_iV, V) {
           _mm512_store_ps(&md11(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
               _O1, _I2, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
+        }}}
+      }
+    } else if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
+       && std::is_same<TweightsType, float16>::value) {
+      if (stream_wei_) {
+        iter_each (_wA, A) {
+        iter_each (_hA, A) {
+        iter_each (_iV, V) {
+          auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&aout[_wA][_hA][_iV][0],
+              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+          _mm<V>::stream_si256((__m256i *)&md11(atweights, _oc4, _ic4, _oc3,
+                               _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
+
+        }}}
+      } else {
+        iter_each (_wA, A) {
+        iter_each (_hA, A) {
+        iter_each (_iV, V) {
+          auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&aout[_wA][_hA][_iV][0],
+              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+          _mm<V>::store_si256((__m256i *)&md11(atweights, _oc4, _ic4, _oc3,
+                               _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
         }}}
       }
     } else {
@@ -546,17 +569,18 @@ void Instance_elx_conv_wino_t::__trans_weights_blocked(
   iter_each (_O1, this->O1) {
   iter_each (_I2, this->I2 * this->Vx) {
   iter_each (_O, this->O) {
-    alignas(64) TweightsType aout[A][A][V][V];
+    alignas(64) TrOpType aout[A][A][V][V];
     WeightsType *in = &md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, 0, 0, 0, 0);
     using Array = WeightsType[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TweightsType, float>::value) {
+    if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
+        && std::is_same<TweightsType, float>::value) {
       if (stream_wei_) {
         iter_each (_wA, A) {
         iter_each (_hA, A) {
         iter_each (_iV, V) {
-          _mm512_stream_ps(&md11(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
+          _mm<V>::stream_ps(&md11(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
               _O1, _I2, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
         }}}
       } else {
@@ -565,6 +589,28 @@ void Instance_elx_conv_wino_t::__trans_weights_blocked(
         iter_each (_iV, V) {
           _mm512_store_ps(&md11(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
               _O1, _I2, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
+        }}}
+      }
+    } else if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
+       && std::is_same<TweightsType, float16>::value) {
+      if (stream_wei_) {
+        iter_each (_wA, A) {
+        iter_each (_hA, A) {
+        iter_each (_iV, V) {
+          auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&aout[_wA][_hA][_iV][0],
+              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+          _mm<V>::stream_si256((__m256i *)&md11(atweights, _oc4, _ic4, _oc3,
+                               _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
+
+        }}}
+      } else {
+        iter_each (_wA, A) {
+        iter_each (_hA, A) {
+        iter_each (_iV, V) {
+          auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&aout[_wA][_hA][_iV][0],
+              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+          _mm<V>::store_si256((__m256i *)&md11(atweights, _oc4, _ic4, _oc3,
+                               _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
         }}}
       }
     } else {
@@ -610,7 +656,7 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
   iter_each (_I2, this->I2) {
   iter_each (_O, this->O) {
   iter_each (_iVx, this->Vx) {
-    alignas(64) TweightsType aout[A][A][V][V];
+    alignas(64) TrOpType aout[A][A][V][V];
     WeightsType *in = &md12(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _iVx, 0, 0, 0, 0);
     using Array = WeightsType[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
@@ -620,7 +666,7 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
         iter_each (_wA, A) {
         iter_each (_hA, A) {
         iter_each (_iV, V) {
-          _mm512_stream_ps(&md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
+          _mm<V>::stream_ps(&md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
               _O1, _I2, _iVx, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
         }}}
       } else {
@@ -914,7 +960,7 @@ void Instance_elx_conv_wino_t::__trans_weightsf_plain(
         && _O == this->O - 1;
 
     alignas(64) WeightsType ain[K][K][V][V];
-    alignas(64) TweightsType aout[A][A][V][V];
+    alignas(64) TrOpType aout[A][A][V][V];
 
     if (this->Ir != V || is_Ir || is_Or)
       readin_r(ain, _oc4, _oc3, _O1 * this->O + _O, _ic4, _ic3, _I2, is_Ir, is_Or);
@@ -929,7 +975,7 @@ void Instance_elx_conv_wino_t::__trans_weightsf_plain(
         iter_each (_wA, A) {
         iter_each (_hA, A) {
         iter_each (_iV, V) {
-          _mm512_stream_ps(&md9(atweights, _oc3, _ic3, _wA, _hA,
+          _mm<V>::stream_ps(&md9(atweights, _oc3, _ic3, _wA, _hA,
               _O1, _I2, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
         }}}
       } else {
@@ -967,7 +1013,7 @@ void Instance_elx_conv_wino_t::__trans_weightsf_blocked(
   iter_each (_O1, this->O1) {
   iter_each (_I2, this->I2) {
   iter_each (_O, this->O) {
-    alignas(64) TweightsType aout[A][A][V][V];
+    alignas(64) TrOpType aout[A][A][V][V];
     WeightsType *in = &md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, 0, 0, 0, 0);
     using Array = WeightsType[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
@@ -977,7 +1023,7 @@ void Instance_elx_conv_wino_t::__trans_weightsf_blocked(
         iter_each (_wA, A) {
         iter_each (_hA, A) {
         iter_each (_iV, V) {
-          _mm512_stream_ps(&md9(atweights, _oc3, _ic3, _wA, _hA,
+          _mm<V>::stream_ps(&md9(atweights, _oc3, _ic3, _wA, _hA,
               _O1, _I2, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
         }}}
       } else {
@@ -1029,7 +1075,7 @@ void Instance_elx_conv_wino_t::__trans_weightsa_blocked(
   iter_each (_O1, this->O1) {
   iter_each (_I2, this->I2) {
   iter_each (_O, this->O) {
-    alignas(64) TweightsType aout[A][A][V][V];
+    alignas(64) TrOpType aout[A][A][V][V];
     WeightsType *in = &md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, 0, 0, 0, 0);
     using Array = WeightsType[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
@@ -1039,7 +1085,7 @@ void Instance_elx_conv_wino_t::__trans_weightsa_blocked(
         iter_each (_wA, A) {
         iter_each (_hA, A) {
         iter_each (_iV, V) {
-          _mm512_stream_ps(&md11(atweights, _oc4, _ic4, _wA, _hA, _oc3, _ic3,
+          _mm<V>::stream_ps(&md11(atweights, _oc4, _ic4, _wA, _hA, _oc3, _ic3,
               _O1, _I2, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
         }}}
       } else {
@@ -1146,7 +1192,7 @@ void Instance_elx_conv_wino_t::__trans_weightsa_plain(
         && _O == this->O - 1;
 
     alignas(64) WeightsType ain[K][K][V][V];
-    alignas(64) TweightsType aout[A][A][V][V];
+    alignas(64) TrOpType aout[A][A][V][V];
 
     if (this->Ir != V || is_Ir || is_Or)
       readin_r(ain, _oc4, _oc3, _O1 * this->O + _O, _ic4, _ic3, _I2, is_Ir, is_Or);
@@ -1161,7 +1207,7 @@ void Instance_elx_conv_wino_t::__trans_weightsa_plain(
         iter_each (_wA, A) {
         iter_each (_hA, A) {
         iter_each (_iV, V) {
-          _mm512_stream_ps(&md11(atweights, _oc4, _ic4, _wA, _hA, _oc3, _ic3,
+          _mm<V>::stream_ps(&md11(atweights, _oc4, _ic4, _wA, _hA, _oc3, _ic3,
               _O1, _I2, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
         }}}
       } else {
@@ -1202,7 +1248,7 @@ void Instance_elx_conv_wino_t::__trans_input_plain(
   // n, IC, ih, iw => t2 | wA, hA, ic3, I2, T, V
   MD6(TinputType, atinput, tinput, A, A, this->ic3, this->I2, Tz, V);
 
-  alignas(64) TinputType aout[A][A][V];
+  alignas(64) TrOpType aout[A][A][V];
   alignas(64) InputType ain[A][A][V];
   SET_EPI32(this->ih * this->iw)
 
@@ -1328,7 +1374,7 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
       this->ih, this->iw, V);
   MD6(TinputType, atinput, tinput, A, A, this->ic3, this->I2, Tz, V);
 
-  alignas(64) TinputType aout[A][A][V];
+  alignas(64) TrOpType aout[A][A][V];
 
   auto res = std::div(_t2 * this->T, this->nt);
   auto _n = res.quot;
@@ -1351,7 +1397,8 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
 
     ++ t2spati_o;
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TinputType, float>::value) {
+    if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
+        && std::is_same<TinputType, float>::value) {
       if (stream_in_) {
         iter_each (_wA, A) {
         iter_each (_hA, A) {
@@ -1363,6 +1410,25 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
         iter_each (_hA, A) {
           _mm<V>::store_ps(&md6(atinput, _wA, _hA, _ic3, _I2, _T, 0),
               *((__m<V> *)&aout[_wA][_hA][0]));
+        }}
+      }
+    } else if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
+       && std::is_same<TinputType, float16>::value) {
+      if (stream_in_) {
+        iter_each (_wA, A) {
+        iter_each (_hA, A) {
+          auto fp16v = _mm<V>::cvtps_ph(*((__m<V> *)&aout[_wA][_hA][0]),
+              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+          _mm<V>::stream_si256(
+              (__m256i *)&md6(atinput, _wA, _hA, _ic3, _I2, _T, 0), fp16v);
+        }}
+      } else {
+        iter_each (_wA, A) {
+        iter_each (_hA, A) {
+          auto fp16v = _mm<V>::cvtps_ph(*((__m<V> *)&aout[_wA][_hA][0]),
+              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+          _mm<V>::store_si256(
+              (__m256i *)&md6(atinput, _wA, _hA, _ic3, _I2, _T, 0), fp16v);
         }}
       }
     } else {
@@ -1411,7 +1477,7 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
       auto _iw = t2spati_o.anchor_l_;
 
       MD3(TinputType, aout, &md6(atinput, _ic3, _I2, _Vx, 0, 0, 0), A, A, V);
-      using Array = TinputType[A][A][V];
+      using Array = TrOpType[A][A][V];
       InputType *in = &md8(ainput, t2spati_o.n_, 0, _ic3, _I2, _Vx, _ih, _iw, 0);
       if (!t2spati_o.is_border())
         ker_trans_input_(*this, *(Array *)&md3(aout, 0, 0, 0), in, 0, A - 1, 0, A - 1);
@@ -1508,7 +1574,7 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
   iter_each (_t2, this->t2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
     MD6(TinputType, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2 * this->Vx, Tz, V);
-    alignas(64) TinputType aout[A][A][V];
+    alignas(64) TrOpType aout[A][A][V];
 
     iter_each (_T, Tz) {
       int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
@@ -1522,7 +1588,8 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
         ker_trans_input0_(
             *this, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
 
-      if (I == ISA_SKX_AVX512 && std::is_same<TinputType, float>::value) {
+      if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
+          && std::is_same<TinputType, float>::value) {
         if (stream_in_) {
           iter_each (_wA, A) {
           iter_each (_hA, A) {
@@ -1534,6 +1601,25 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
           iter_each (_hA, A) {
             _mm<V>::store_ps(&md6(atinput6, _wA, _hA, _ic3, _I2, _T, 0),
                           *((__m<V> *)&aout[_wA][_hA][0]));
+          }}
+        }
+      } else if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
+         && std::is_same<TinputType, float16>::value) {
+        if (stream_in_) {
+          iter_each (_wA, A) {
+          iter_each (_hA, A) {
+            auto fp16v = _mm<V>::cvtps_ph(*((__m<V> *)&aout[_wA][_hA][0]),
+                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            _mm<V>::stream_si256(
+                (__m256i *)&md6(atinput6, _wA, _hA, _ic3, _I2, _T, 0), fp16v);
+          }}
+        } else {
+          iter_each (_wA, A) {
+          iter_each (_hA, A) {
+            auto fp16v = _mm<V>::cvtps_ph(*((__m<V> *)&aout[_wA][_hA][0]),
+                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            _mm<V>::store_si256(
+                (__m256i *)&md6(atinput6, _wA, _hA, _ic3, _I2, _T, 0), fp16v);
           }}
         }
       } else {
@@ -1643,7 +1729,7 @@ void Instance_elx_conv_wino_t::__trans_input_plain(
   iter_each (_I2, this->I2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
     MD6(TinputType, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2, Tz, V);
-    alignas(64) TinputType aout[A][A][V];
+    alignas(64) TrOpType aout[A][A][V];
     alignas(64) InputType ain[A][A][V];
 
     iter_each (_T, Tz) {
@@ -1698,7 +1784,7 @@ void Instance_elx_conv_wino_t::__trans_inputa_blocked(
       this->ih, this->iw, V);
   MD5(TinputType, atinput, tinput, A, this->ic3, this->I2, Tz, V);
 
-  alignas(64) TinputType aout[A][A][V];
+  alignas(64) TrOpType aout[A][A][V];
 
   iter_each (_ic3, this->ic3) {
   iter_each (_I2, this->I2) {
@@ -1744,7 +1830,7 @@ void Instance_elx_conv_wino_t::__trans_inputa_plain(
   // n, ic2, ih, iw, V => t2, wA | hA, ic3, I2, T, V
   MD5(TinputType, atinput, tinput, A, this->ic3, this->I2, Tz, V);
 
-  alignas(64) TinputType aout[A][A][V];
+  alignas(64) TrOpType aout[A][A][V];
   alignas(64) InputType ain[A][A][V];
   SET_EPI32(this->ih * this->iw)
 
@@ -1943,18 +2029,18 @@ void Instance_elx_conv_wino_t::gemm(
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::trans_input_quantization(
     uint8_t *tinput_u8, TscaleType *tinput_qt_scale,
-    TscaleType *tinput_max_abs, InputType *tinput) {
+    TscaleType *tinput_max_abs, TinputType *tinput) {
   MD2(uint8_t, atinput2_u8, tinput_u8, this->t2, A * A * this->T * this->ic3 * this->I2 * this->Vx * V);
   MD2(TscaleType, atinput_qt_scale2, tinput_qt_scale, this->t2, A * A * this->T);
   MD2(TscaleType, atinput_max_abs2, tinput_max_abs, this->t2, A * A * this->T * V);
-  MD2(InputType, atinput2, tinput, this->t2, A * A * this->ic3 * this->I2 * this->Vx * this->T * V);
+  MD2(TinputType, atinput2, tinput, this->t2, A * A * this->ic3 * this->I2 * this->Vx * this->T * V);
 
 #pragma omp for nowait collapse(3)
   iter_each (_t2, this->t2) {
   iter_each (_wA, A) {
   iter_each (_hA, A) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    MD7(InputType, atinput7, &md2(atinput2, _t2, 0),
+    MD7(TinputType, atinput7, &md2(atinput2, _t2, 0),
         A, A, this->ic3, this->I2, this->Vx, Tz, V);
     MD4(TscaleType, atinput_max_abs, &md2(atinput_max_abs2, _t2, 0), A, A, Tz, V);
     MD3(TscaleType, atinput_qt_scale, &md2(atinput_qt_scale2, _t2, 0), A, A, Tz);
@@ -1965,7 +2051,7 @@ void Instance_elx_conv_wino_t::trans_input_quantization(
       iter_each (_I2, this->I2) {
       iter_each (_Vx, this->Vx) {
         __m<V> mmax_cur = *(__m<V> *)&md7(atinput7, _wA, _hA, _ic3, _I2, _Vx, _T, 0);
-        InputType *max_cur = (InputType *)&mmax_cur;
+        TinputType *max_cur = (TinputType *)&mmax_cur;
         iter_each (_V, V)
           max_cur[_V] = max_cur[_V] > 0.0 ? max_cur[_V] : -max_cur[_V];
         mmax_abs = _mm<V>::max_ps(mmax_cur, mmax_abs);
@@ -1994,7 +2080,7 @@ void Instance_elx_conv_wino_t::trans_input_quantization(
   iter_each (_I2, this->I2) {
   iter_each (_Vx, this->Vx) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    MD7(InputType, atinput7, &md2(atinput2, _t2, 0),
+    MD7(TinputType, atinput7, &md2(atinput2, _t2, 0),
         A, A, this->ic3, this->I2, this->Vx, Tz, V);
     MD3(TscaleType, atinput_qt_scale, &md2(atinput_qt_scale2, _t2, 0), A, A, Tz);
     MD7(uint8_t, atinput_u8, &md2(atinput2_u8, _t2, 0), A, A, this->ic3,
@@ -2419,7 +2505,7 @@ void Instance_elx_conv_wino_t::__trans_output_plain(
   MD6(ToutputType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
   MD3(BiasType, abias, bias, this->oc3, this->O2, V);
 
-  alignas(64) ToutputType ain[A][A][V];
+  alignas(64) TrOpType ain[A][A][V];
   alignas(64) OutputType aout[A - K + 1][A - K + 1][V];
   SET_EPI32(this->oh * this->ow)
 
@@ -2507,7 +2593,10 @@ void Instance_elx_conv_wino_t::__trans_output_plain(
     iter_each (_hA, A) {
 #pragma omp simd
     iter_each (_V, V) {
-      ain[_wA][_hA][_V] = md6(atoutput, _wA, _hA, _oc3, _O2, _T, _V);
+      if (std::is_same<ToutputType, float>::value)
+        ain[_wA][_hA][_V] = md6(atoutput, _wA, _hA, _oc3, _O2, _T, _V);
+      else
+        ain[_wA][_hA][_V] = half_2_float(md6(atoutput, _wA, _hA, _oc3, _O2, _T, _V));
     }}}
 
     ker_trans_output_(
@@ -2536,7 +2625,7 @@ void Instance_elx_conv_wino_t::__trans_output_blocked(
       this->oh, this->ow, V);
   MD3(BiasType, abias, bias, this->oc3, this->O2, V);
 
-  alignas(64) ToutputType ain[A][A][V];
+  alignas(64) TrOpType ain[A][A][V];
 
   auto res = std::div(_t2 * this->T, this->nt);
   auto _n_off = res.quot;
@@ -2551,7 +2640,10 @@ void Instance_elx_conv_wino_t::__trans_output_blocked(
     iter_each (_hA, A) {
 #pragma omp simd
     iter_each (_V, V) {
-      ain[_wA][_hA][_V] = md6(atoutput, _wA, _hA, _oc3, _O2, _T, _V);
+      if (std::is_same<ToutputType, float>::value)
+        ain[_wA][_hA][_V] = md6(atoutput, _wA, _hA, _oc3, _O2, _T, _V);
+      else
+        ain[_wA][_hA][_V] = half_2_float(md6(atoutput, _wA, _hA, _oc3, _O2, _T, _V));
     }}}
 
     auto _n = t2spato_o.n_;
@@ -2584,10 +2676,10 @@ void Instance_elx_conv_wino_t::trans_output(
 // toutputa: t2, oc4 | oc3, O2, T, wA/A | hA/A-K+1, V
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::trans_outputa_th(
-    ToutputType *toutputa, ToutputType *toutput, int Tz)
+    TrOpType *toutputa, void *toutput, int Tz)
 {
-  MD4(ToutputType, atoutput, toutput, A, this->oc3 * this->O2, Tz, V);
-  MD4(ToutputType, atoutputa, toutputa, this->oc3 * this->O2, Tz, A, (A - K + 1) * V);
+  MD4(TrOpType, atoutput, toutput, A, this->oc3 * this->O2, Tz, V);
+  MD4(TrOpType, atoutputa, toutputa, this->oc3 * this->O2, Tz, A, (A - K + 1) * V);
 
   iter_each (_oc, this->oc3 * this->O2) {
   iter_each (_T, Tz) {
@@ -2600,24 +2692,24 @@ void Instance_elx_conv_wino_t::trans_outputa_th(
 // toutputa: t2, oc2, T, wA/A | hA/A-K+1, V
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_outputa_bh_blocked(
-    OutputType *output, ToutputType *toutputa, BiasType *bias)
+    OutputType *output, TrOpType *toutputa, BiasType *bias)
 {
   MD5(OutputType, aoutput, output, this->n, this->oc2, this->oh, this->ow, V);
   MD2(BiasType, abias, bias, this->oc2, V);
-  MD2(ToutputType, atoutputa2, toutputa, this->t2, A * (A - K + 1) * this->T * this->OC);
+  MD2(TrOpType, atoutputa2, toutputa, this->t2, A * (A - K + 1) * this->T * this->OC);
 
 #pragma omp for nowait collapse(2)
   iter_each (_t2, this->t2) {
   iter_each (_oc2, this->oc2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    MD3(ToutputType, atoutputa3, &md2(atoutputa2, _t2, 0), this->oc2, Tz,
+    MD3(TrOpType, atoutputa3, &md2(atoutputa2, _t2, 0), this->oc2, Tz,
         A * (A - K + 1) * V);
 
     iter_each (_T, Tz) {
       int _n, _oh, _ow, _hOA_end, _wOA_end;
       t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
       OutputType *out = &md5(aoutput, _n, _oc2, _oh, _ow, 0);
-      using Array1 = ToutputType[A][A - K + 1][V];
+      using Array1 = TrOpType[A][A - K + 1][V];
       Array1 *in = (Array1 *)&md3(atoutputa3, _oc2, _T, 0);
 
       if (_hOA_end < A - K || _wOA_end < A - K)
@@ -2634,10 +2726,10 @@ void Instance_elx_conv_wino_t::__trans_outputa_bh_blocked(
 // toutputa: t2, oc2, T, wA/A | hA/A-K+1, V
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_outputa_bh_plain(
-    OutputType * __restrict output, ToutputType * __restrict toutputa, BiasType *bias)
+    OutputType * __restrict output, TrOpType * __restrict toutputa, BiasType *bias)
 {
   MD2(BiasType, abias, bias, this->oc2, V);
-  MD2(ToutputType, atoutputa2, toutputa, this->t2, A * (A - K + 1) * this->T * this->OC);
+  MD2(TrOpType, atoutputa2, toutputa, this->t2, A * (A - K + 1) * this->T * this->OC);
 
   SET_EPI32(this->oh * this->ow)
 
@@ -2721,12 +2813,12 @@ void Instance_elx_conv_wino_t::__trans_outputa_bh_plain(
   iter_each (_t2, this->t2) {
   iter_each (_oc2, this->oc2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    MD3(ToutputType, atoutputa3, &md2(atoutputa2, _t2, 0), this->oc2, Tz,
+    MD3(TrOpType, atoutputa3, &md2(atoutputa2, _t2, 0), this->oc2, Tz,
         A * (A - K + 1) * V);
     alignas(64) OutputType aout[A - K + 1][A - K + 1][V];
 
     iter_each (_T, Tz) {
-      using Array1 = ToutputType[A][A - K + 1][V];
+      using Array1 = TrOpType[A][A - K + 1][V];
       Array1 *in = (Array1 *)&md3(atoutputa3, _oc2, _T, 0);
 
       ker_trans_outputa_bh_(
@@ -2742,7 +2834,7 @@ void Instance_elx_conv_wino_t::__trans_outputa_bh_plain(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::trans_outputa_bh(
-    OutputType *output, ToutputType *toutputa, BiasType *bias)
+    OutputType *output, TrOpType *toutputa, BiasType *bias)
 {
   if (output_is_bfmt_ || output_as_bfmt_)
     __trans_outputa_bh_blocked(output, toutputa, bias);
@@ -2772,14 +2864,17 @@ void Instance_elx_conv_wino_t::__trans_output_blocked(
   iter_each (_O2, this->O2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
     MD6(ToutputType, atoutput, &md2(atoutput2, _t2, 0), A, A, this->oc3, this->O2, Tz, V);
-    alignas(64) ToutputType ain[A][A][V];
+    alignas(64) TrOpType ain[A][A][V];
 
     iter_each (_T, Tz) {
       iter_each (_wA, A) {
       iter_each (_hA, A) {
 #pragma omp simd
       iter_each (_V, V) {
-        ain[_wA][_hA][_V] = md6(atoutput, _wA, _hA, _oc3, _O2, _T, _V);
+        if (std::is_same<ToutputType, float>::value)
+          ain[_wA][_hA][_V] = md6(atoutput, _wA, _hA, _oc3, _O2, _T, _V);
+        else
+          ain[_wA][_hA][_V] = half_2_float(md6(atoutput, _wA, _hA, _oc3, _O2, _T, _V));
       }}}
 
       int _n, _oh, _ow, _hOA_end, _wOA_end;
@@ -2895,7 +2990,7 @@ void Instance_elx_conv_wino_t::__trans_output_plain(
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
     MD6(ToutputType, atoutput6, &md2(atoutput2, _t2, 0), A, A, this->oc3,
         this->O2, Tz, V);
-    alignas(64) ToutputType ain[A][A][V];
+    alignas(64) TrOpType ain[A][A][V];
     alignas(64) OutputType aout[A - K + 1][A - K + 1][V];
 
     iter_each (_T, Tz) {
@@ -2903,7 +2998,10 @@ void Instance_elx_conv_wino_t::__trans_output_plain(
       iter_each (_hA, A) {
 #pragma omp simd
       iter_each (_V, V) {
-        ain[_wA][_hA][_V] = md6(atoutput6, _wA, _hA, _oc3, _O2, _T, _V);
+        if (std::is_same<ToutputType, float>::value)
+          ain[_wA][_hA][_V] = md6(atoutput6, _wA, _hA, _oc3, _O2, _T, _V);
+        else
+          ain[_wA][_hA][_V] = half_2_float(md6(atoutput6, _wA, _hA, _oc3, _O2, _T, _V));
       }}}
 
       ker_trans_output_(

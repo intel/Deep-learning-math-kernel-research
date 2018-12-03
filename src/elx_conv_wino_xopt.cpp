@@ -102,7 +102,7 @@ void Instance_elx_conv_wino_t::__execute_a0e1(
       A * this->T * this->IC);
   MD2(ToutputType, atoutput2, toutput_, mthr_,
       A * this->T * this->oc3 * this->O2 * V);
-  MD2(ToutputType, atoutputa2, toutputa_, this->t2,
+  MD2(TrOpType, atoutputa2, toutputa_, this->t2,
       this->OC * A * (A - K + 1) * this->T);
   MD3(TweightsType, atweights3, tweights_, this->oc4, A,
       A * this->IC * this->oc3 * this->O2 * V);
@@ -123,7 +123,7 @@ void Instance_elx_conv_wino_t::__execute_a0e1(
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       size_t ithr = omp_get_thread_num();
 
-      MD6(ToutputType, atoutputa6, &md2(atoutputa2, _t2, 0),
+      MD6(TrOpType, atoutputa6, &md2(atoutputa2, _t2, 0),
           this->oc4, this->oc3, this->O2, Tz, A, (A - K + 1) * V);
       trans_inputa(&md2(atinputa2, ithr, 0), input, _t2, _wA, Tz);
       gemma(&md2(atoutput2, ithr, 0), &md2(atinputa2, ithr, 0),
@@ -151,7 +151,7 @@ void Instance_elx_conv_wino_t::__execute_a0e0(
       A * A * this->T * this->IC);
   MD2(ToutputType, atoutput2, toutput_, mthr_,
       A * this->T * this->oc3 * this->O2 * V);
-  MD2(ToutputType, atoutputa2, toutputa_, this->t2,
+  MD2(TrOpType, atoutputa2, toutputa_, this->t2,
       this->OC * A * (A - K + 1) * this->T);
   MD3(TweightsType, atweights3, tweights_, this->oc4, A,
       A * this->IC * this->oc3 * this->O2 * V);
@@ -174,7 +174,7 @@ void Instance_elx_conv_wino_t::__execute_a0e0(
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       size_t ithr = omp_get_thread_num();
 
-      MD6(ToutputType, atoutputa6, &md2(atoutputa2, _t2, 0),
+      MD6(TrOpType, atoutputa6, &md2(atoutputa2, _t2, 0),
           this->oc4, this->oc3, this->O2, Tz, A, (A - K + 1) * V);
       MD2(TinputType, atinputa2, &md2(atinput2, _t2, 0), A, A * Tz * this->IC);
       gemma(&md2(atoutput2, ithr, 0), &md2(atinputa2, _wA, 0),

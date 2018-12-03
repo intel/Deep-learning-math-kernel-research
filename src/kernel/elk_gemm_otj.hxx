@@ -40,7 +40,7 @@ const int GKF_DDD = 0xddd;
 template <int O, int T, bool has_Ir, typename Wtype, typename C = void>
 struct P_traits {};
 
-// if Wtype = float
+// if Wtype = fp32 || fp16
 //   O == 1: T + P <= 32
 //   O > 1: O (T + P) + 1 <= 32
 // if Wtype = int8_t
@@ -48,6 +48,12 @@ struct P_traits {};
 //   O > 1: O (T + P) + 1(bcast) + 1(one) + 1(t0) <= 32
 template <int T>
 struct P_traits<1, T, false, float,
+    typename std::enable_if<(T <= 28)>::type> {
+  static constexpr int P = 4;
+};
+
+template <int T>
+struct P_traits<1, T, false, float16,
     typename std::enable_if<(T <= 28)>::type> {
   static constexpr int P = 4;
 };
@@ -65,6 +71,12 @@ struct P_traits<1, T, false, float,
 };
 
 template <int T>
+struct P_traits<1, T, false, float16,
+    typename std::enable_if<(T == 29 || T == 30)>::type> {
+  static constexpr int P = 2;
+};
+
+template <int T>
 struct P_traits<1, T, false, int8_t,
     typename std::enable_if<(T == 27 || T == 28)>::type> {
   static constexpr int P = 2;
@@ -77,6 +89,12 @@ struct P_traits<1, T, false, float,
 };
 
 template <int T>
+struct P_traits<1, T, false, float16,
+    typename std::enable_if<(T >= 31)>::type> {
+  static constexpr int P = 1;
+};
+
+template <int T>
 struct P_traits<1, T, false, int8_t,
     typename std::enable_if<(T >= 29)>::type> {
   static constexpr int P = 1;
@@ -84,6 +102,12 @@ struct P_traits<1, T, false, int8_t,
 
 template <int O, int T>
 struct P_traits<O, T, false, float,
+    typename std::enable_if<(O > 1 && (31 / O - T) >= 4)>::type> {
+  static constexpr int P = 4;
+};
+
+template <int O, int T>
+struct P_traits<O, T, false, float16,
     typename std::enable_if<(O > 1 && (31 / O - T) >= 4)>::type> {
   static constexpr int P = 4;
 };
@@ -102,6 +126,13 @@ struct P_traits<O, T, false, float,
 };
 
 template <int O, int T>
+struct P_traits<O, T, false, float16,
+    typename std::enable_if<(
+        O > 1 && (31 / O - T == 2 || 31 / O - T == 3))>::type> {
+  static constexpr int P = 2;
+};
+
+template <int O, int T>
 struct P_traits<O, T, false, int8_t,
     typename std::enable_if<(
         O > 1 && (29 / O - T == 2 || 29 / O - T == 3))>::type> {
@@ -110,6 +141,12 @@ struct P_traits<O, T, false, int8_t,
 
 template <int O, int T>
 struct P_traits<O, T, false, float,
+    typename std::enable_if<(O > 1 && (31 / O - T) == 1)>::type> {
+  static constexpr int P = 1;
+};
+
+template <int O, int T>
+struct P_traits<O, T, false, float16,
     typename std::enable_if<(O > 1 && (31 / O - T) == 1)>::type> {
   static constexpr int P = 1;
 };
@@ -203,6 +240,20 @@ struct J_traits<O, T, has_Ir, float,
 };
 
 template <int O, int T, bool has_Ir>
+struct J_traits<O, T, has_Ir, float16,
+    typename std::enable_if<((O == 1 && T < 32)) || (O == 2 && T < 15)
+        || (O == 3 && T < 10) || (O == 4 && T < 7) || (O == 5 && T < 6)
+        || (O == 6 && T < 5) || (O == 7 && T < 4) || (O == 8 && T < 3)>::type> {
+  static constexpr int J = 1;
+  static constexpr int O0 = O;
+  static constexpr int O1 = 0;
+  static constexpr int O2 = 0;
+  static constexpr int P0 = P_traits<O0, T, has_Ir, float16>::P;
+  static constexpr int P1 = 0;
+  static constexpr int P2 = 0;
+};
+
+template <int O, int T, bool has_Ir>
 struct J_traits<O, T, has_Ir, int8_t,
     typename std::enable_if<((O == 1 && T < 32)) || (O == 2 && T < 15)
         || (O == 3 && T < 10) || (O == 4 && T < 7) || (O == 5 && T < 6)
@@ -278,27 +329,45 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
   // f32f32f32 fma
   template <int JO, int P>
-  static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
+  static inline typename std::enable_if<
+      !std::is_same<InputType, uint8_t>::value
+      && (P == 1 && has_Ir == false), void>::type
   op_fma(elx_conv_params_t &xc,
-      float *output, float *input, float *weights, float *bias, int attr,
-      float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
+      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
+      int attr, ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor,
+      int _O1, int _O0)
   {
+    static_assert(std::is_same<InputType, float>::value ||
+        std::is_same<InputType, float16>::value, "only fp32/fp16 input type");
+    static_assert(std::is_same<WeightsType, float>::value ||
+        std::is_same<WeightsType, float16>::value, "only fp32/fp16 weights type");
+    static_assert(std::is_same<OutputType, float>::value ||
+         std::is_same<OutputType, float16>::value, "only fp32/fp16 output type");
+    static_assert(std::is_same<BiasType, float>::value ||
+         std::is_same<BiasType, float16>::value, "only fp32/fp16 bias type");
+
     __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(float, aoutput, output, JO, O_stride);
-    MD2(float, ainput, input, xc.I2, I2_stride);
-    MD2(float, abias2, bias, JO, V);
+    MD2(OutputType, aoutput, output, JO, O_stride);
+    MD2(InputType, ainput, input, xc.I2, I2_stride);
+    MD2(BiasType, abias2, bias, JO, V);
 
     if (get_attr(attr, r_output_idx)) {
       if (get_attr(attr, bias_idx)) {
         // load bias
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          __m<V> tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
+          __m<V> tmp;
+          if (std::is_same<BiasType, float>::value) {
+            tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
+          } else {
+            auto fp16v = _mm<V>::load_si256((__m256i *)&md2(abias2, _O, 0));
+            tmp = _mm<V>::cvtph_ps(fp16v);
+          }
 #pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
@@ -318,9 +387,15 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
           for (int _T = 0; _T < T; ++_T) {
-            MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-            mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
-                _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+            MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
+            if (std::is_same<OutputType, float>::value) {
+              mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
+                  _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+            } else {
+              auto fp16v = _mm<V>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+              mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
+                  _mm<V>::cvtph_ps(fp16v));
+            }
           }
         }
       }
@@ -330,8 +405,13 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-          mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
+          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
+          if (std::is_same<OutputType, float>::value) {
+            mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
+          } else {
+            auto fp16v = _mm<V>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+            mmout[_O][_T] =  _mm<V>::cvtph_ps(fp16v);
+          }
         }
       }
     }
@@ -342,22 +422,41 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
-            mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 0, _O, 0));
+            MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 0, _O, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md5(aweights5, _I2, _V, 0, _O, 0));
+              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
+            }
           } else {
-            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            mmwei[_O][0]
-                = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
+            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][0]
+                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md6(aweights6, _O, 0, _I2, _V, 0, 0));
+              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
+            }
           }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
-            MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-            __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
-            mmout[_O][_T]
-                = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
+            if (std::is_same<InputType, float>::value) {
+              __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
+              mmout[_O][_T]
+                  = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            } else {
+              __m<V> mmbcst = _mm<V>::set1_ps(
+                  half_2_float(md4(ainput4, _T, 0, _V, 0)));
+              mmout[_O][_T]
+                  = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            }
           }
         }
       }
@@ -368,41 +467,72 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
-        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
         if (get_attr(attr, relu_idx)) {
           __m<V> zero = _mm<V>::setzero_ps();
           mmout[_O][_T] = _mm<V>::max_ps(mmout[_O][_T], zero);
         }
-        if (get_attr(attr, s_output_idx))
-          _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
-        else
-          _mm<V>::store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+        if (get_attr(attr, s_output_idx)) {
+          if (std::is_same<OutputType, float>::value) {
+            _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+          } else {
+            auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
+                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            _mm<V>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+          }
+        } else {
+          if (std::is_same<OutputType, float>::value) {
+            _mm<V>::store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+          } else {
+            auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
+                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            _mm<V>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+          }
+        }
       }
     }
   }
 
   template <int JO, int P>
-  static inline typename std::enable_if<(P == 1 && has_Ir == true), void>::type
+  static inline typename std::enable_if<
+      !std::is_same<InputType, uint8_t>::value
+      && (P == 1 && has_Ir == true), void>::type
   op_fma(elx_conv_params_t &xc,
-      float *output, float *input, float *weights, float *bias, int attr,
-      float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
+      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
+      int attr, ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor,
+      int _O1, int _O0)
   {
+    static_assert(std::is_same<InputType, float>::value ||
+        std::is_same<InputType, float16>::value, "only fp32/fp16 input type");
+    static_assert(std::is_same<WeightsType, float>::value ||
+        std::is_same<WeightsType, float16>::value, "only fp32/fp16 weights type");
+    static_assert(std::is_same<OutputType, float>::value ||
+         std::is_same<OutputType, float16>::value, "only fp32/fp16 output type");
+    static_assert(std::is_same<BiasType, float>::value ||
+         std::is_same<BiasType, float16>::value, "only fp32/fp16 bias type");
+
     __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(float, aoutput, output, JO, O_stride);
-    MD2(float, ainput, input, xc.I2, I2_stride);
-    MD2(float, abias2, bias, JO, V);
+    MD2(OutputType, aoutput, output, JO, O_stride);
+    MD2(InputType, ainput, input, xc.I2, I2_stride);
+    MD2(BiasType, abias2, bias, JO, V);
 
     if (get_attr(attr, r_output_idx)) {
       if (get_attr(attr, bias_idx)) {
         // load bias
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          __m<V> tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
+          __m<V> tmp;
+          if (std::is_same<BiasType, float>::value) {
+            tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
+          } else {
+            auto fp16v = _mm<V>::load_si256((__m256i *)&md2(abias2, _O, 0));
+            tmp = _mm<V>::cvtph_ps(fp16v);
+          }
 #pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
@@ -422,9 +552,15 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
           for (int _T = 0; _T < T; ++_T) {
-            MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-            mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
-                _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+            MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
+            if (std::is_same<OutputType, float>::value) {
+              mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
+                  _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+            } else {
+              auto fp16v = _mm<V>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+              mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
+                  _mm<V>::cvtph_ps(fp16v));
+            }
           }
         }
       }
@@ -434,8 +570,13 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-          mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
+          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
+          if (std::is_same<OutputType, float>::value) {
+            mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
+          } else {
+            auto fp16v = _mm<V>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+            mmout[_O][_T] =  _mm<V>::cvtph_ps(fp16v);
+          }
         }
       }
     }
@@ -446,22 +587,41 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V, 1, O, V);
-            mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 0, _O, 0));
+            MD5(WeightsType, aweights5, weights, xc.I2, V, 1, O, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 0, _O, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md5(aweights5, _I2, _V, 0, _O, 0));
+              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
+            }
           } else {
-            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V, 1, V);
-            mmwei[_O][0]
-                = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
+            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V, 1, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][0]
+                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md6(aweights6, _O, 0, _I2, _V, 0, 0));
+              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
+            }
           }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
-            MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V, 1);
-            __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
-            mmout[_O][_T]
-                = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V, 1);
+            if (std::is_same<InputType, float>::value) {
+              __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
+              mmout[_O][_T]
+                  = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            } else {
+              __m<V> mmbcst = _mm<V>::set1_ps(
+                  half_2_float(md4(ainput4, _T, 0, _V, 0)));
+              mmout[_O][_T]
+                  = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            }
           }
         }
       }
@@ -473,23 +633,42 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V, 1, O, V);
-            mmwei[_O][0]
-                = _mm<V>::load_ps(&md5(aweights5, xc.I2 - 1, _V, 0, _O, 0));
+            MD5(WeightsType, aweights5, weights, xc.I2, V, 1, O, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][0]
+                  = _mm<V>::load_ps(&md5(aweights5, xc.I2 - 1, _V, 0, _O, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md5(aweights5, xc.I2 - 1, _V, 0, _O, 0));
+              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
+            }
           } else {
-            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V, 1, V);
-            mmwei[_O][0]
-                = _mm<V>::load_ps(&md6(aweights6, _O, 0, xc.I2 - 1, _V, 0, 0));
+            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V, 1, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][0]
+                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, xc.I2 - 1, _V, 0, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md6(aweights6, _O, 0, xc.I2 - 1, _V, 0, 0));
+              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
+            }
           }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
-            MD4(float, ainput4, &md2(ainput, xc.I2 - 1, 0), T, S, V, 1);
-            __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
-            mmout[_O][_T]
-                = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            MD4(InputType, ainput4, &md2(ainput, xc.I2 - 1, 0), T, S, V, 1);
+            if (std::is_same<InputType, float>::value) {
+              __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
+              mmout[_O][_T]
+                  = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            } else {
+              __m<V> mmbcst = _mm<V>::set1_ps(
+                  half_2_float(md4(ainput4, _T, 0, _V, 0)));
+              mmout[_O][_T]
+                  = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            }
           }
         }
       }
@@ -501,45 +680,81 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
-        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
         if (get_attr(attr, relu_idx)) {
           __m<V> zero = _mm<V>::setzero_ps();
           mmout[_O][_T] = _mm<V>::max_ps(mmout[_O][_T], zero);
         }
-        if (get_attr(attr, s_output_idx))
-          _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
-        else
-          _mm<V>::store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+        if (get_attr(attr, s_output_idx)) {
+          if (std::is_same<OutputType, float>::value) {
+            _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+          } else {
+            auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
+                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            _mm<V>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+          }
+        } else {
+          if (std::is_same<OutputType, float>::value) {
+            _mm<V>::store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+          } else {
+            auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
+                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            _mm<V>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+          }
+        }
       }
     }
   }
 
 
   template <int JO, int P>
-  static inline typename std::enable_if<P == 2, void>::type
+  static inline typename std::enable_if<
+      !std::is_same<InputType, uint8_t>::value && P == 2, void>::type
   op_fma(elx_conv_params_t &xc,
-      float *output, float *input, float *weights, float *bias, int attr,
-      float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
+      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
+      int attr, ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor,
+      int _O1, int _O0)
   {
+    static_assert(std::is_same<InputType, float>::value ||
+        std::is_same<InputType, float16>::value, "only fp32/fp16 input type");
+    static_assert(std::is_same<WeightsType, float>::value ||
+        std::is_same<WeightsType, float16>::value, "only fp32/fp16 weights type");
+    static_assert(std::is_same<OutputType, float>::value ||
+         std::is_same<OutputType, float16>::value, "only fp32/fp16 output type");
+    static_assert(std::is_same<BiasType, float>::value ||
+         std::is_same<BiasType, float16>::value, "only fp32/fp16 bias type");
+
     __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(float, aoutput, output, JO, O_stride);
-    MD2(float, ainput, input, xc.I2, I2_stride);
-    MD2(float, abias2, bias, JO, V);
+    MD2(OutputType, aoutput, output, JO, O_stride);
+    MD2(InputType, ainput, input, xc.I2, I2_stride);
+    MD2(BiasType, abias2, bias, JO, V);
 
     // preload weights
 #pragma unroll(JO)
     for (int _O = 0; _O < JO; ++_O) {
       if (F_traits<F>::is_compact_weights) {
-        MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
-        mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
+        MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
+        if (std::is_same<WeightsType, float>::value) {
+          mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
+        } else {
+          auto fp16v = _mm<V>::load_si256(
+              (__m256i *)&md5(aweights5, 0, 0, 0, _O, 0));
+          mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
+        }
       } else {
-        MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-        mmwei[_O][0] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 0, 0));
+        MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+        if (std::is_same<WeightsType, float>::value) {
+          mmwei[_O][0] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 0, 0));
+        } else {
+          auto fp16v = _mm<V>::load_si256(
+              (__m256i *)&md6(aweights6, _O, 0, 0, 0, 0, 0));
+          mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
+        }
       }
     }
 
@@ -548,7 +763,13 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         // load bias
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          __m<V> tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
+          __m<V> tmp;
+          if (std::is_same<BiasType, float>::value) {
+            tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
+          } else {
+            auto fp16v = _mm<V>::load_si256((__m256i *)&md2(abias2, _O, 0));
+            tmp = _mm<V>::cvtph_ps(fp16v);
+          }
 #pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
@@ -568,9 +789,15 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
           for (int _T = 0; _T < T; ++_T) {
-            MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-            mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
-                _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+            MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
+            if (std::is_same<OutputType, float>::value) {
+              mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
+                  _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+            } else {
+              auto fp16v = _mm<V>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+              mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
+                  _mm<V>::cvtph_ps(fp16v));
+            }
           }
         }
       }
@@ -580,8 +807,13 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-          mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
+          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
+          if (std::is_same<OutputType, float>::value) {
+            mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
+          } else {
+            auto fp16v = _mm<V>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+            mmout[_O][_T] =  _mm<V>::cvtph_ps(fp16v);
+          }
         }
       }
     }
@@ -593,19 +825,33 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
-            mmwei[_O][1] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 1, _O, 0));
+            MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][1] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 1, _O, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md5(aweights5, _I2, _V, 1, _O, 0));
+              mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
+            }
           } else {
-            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            mmwei[_O][1]
-                = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 1, 0));
+            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][1]
+                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 1, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md6(aweights6, _O, 0, _I2, _V, 1, 0));
+              mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
+            }
           }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m<V> mmbcst
-              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
+          MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
+          auto f32 = std::is_same<InputType, float>::value
+              ? md4(ainput4, _T, 0, _V, 0)
+              : half_2_float(md4(ainput4, _T, 0, _V, 0));
+          __m<V> mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&f32);
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -615,20 +861,34 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
-            mmwei[_O][0]
-                = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
+            MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][0]
+                  = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md5(aweights5, _I2, _V + 1, 0, _O, 0));
+              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
+            }
           } else {
-            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            mmwei[_O][0]
-                = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
+            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][0]
+                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
+              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
+            }
           }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m<V> mmbcst
-              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
+          MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
+          auto f32 = std::is_same<InputType, float>::value
+              ? md4(ainput4, _T, 0, _V, 1)
+              : half_2_float(md4(ainput4, _T, 0, _V, 1));
+          __m<V> mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&f32);
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -642,46 +902,88 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
-        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
         if (get_attr(attr, relu_idx)) {
           __m<V> zero = _mm<V>::setzero_ps();
           mmout[_O][_T] = _mm<V>::max_ps(mmout[_O][_T], zero);
         }
-        if (get_attr(attr, s_output_idx))
-          _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
-        else
-          _mm<V>::store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+        if (get_attr(attr, s_output_idx)) {
+          if (std::is_same<OutputType, float>::value) {
+            _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+          } else {
+            auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
+                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            _mm<V>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+          }
+        } else {
+          if (std::is_same<OutputType, float>::value) {
+            _mm<V>::store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+          } else {
+            auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
+                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            _mm<V>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+          }
+        }
       }
     }
   }
 
   template <int JO, int P>
-  static inline typename std::enable_if<P == 4, void>::type
+  static inline typename std::enable_if<
+      !std::is_same<InputType, uint8_t>::value && P == 4, void>::type
   op_fma(elx_conv_params_t &xc,
-      float *output, float *input, float *weights, float *bias, int attr,
-      float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
+      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
+      int attr, ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor,
+      int _O1, int _O0)
   {
+    static_assert(std::is_same<InputType, float>::value ||
+        std::is_same<InputType, float16>::value, "only fp32/fp16 input type");
+    static_assert(std::is_same<WeightsType, float>::value ||
+        std::is_same<WeightsType, float16>::value, "only fp32/fp16 weights type");
+    static_assert(std::is_same<OutputType, float>::value ||
+         std::is_same<OutputType, float16>::value, "only fp32/fp16 output type");
+    static_assert(std::is_same<BiasType, float>::value ||
+         std::is_same<BiasType, float16>::value, "only fp32/fp16 bias type");
+
     __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(float, aoutput, output, JO, O_stride);
-    MD2(float, ainput, input, xc.I2, I2_stride);
-    MD2(float, abias2, bias, JO, V);
+    MD2(OutputType, aoutput, output, JO, O_stride);
+    MD2(InputType, ainput, input, xc.I2, I2_stride);
+    MD2(BiasType, abias2, bias, JO, V);
 
     // preload weights
 #pragma unroll(JO)
     for (int _O = 0; _O < JO; ++_O) {
       if (F_traits<F>::is_compact_weights) {
-        MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
-        mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
-        mmwei[_O][1] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 1, _O, 0));
+        MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
+        if (std::is_same<WeightsType, float>::value) {
+          mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
+          mmwei[_O][1] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 1, _O, 0));
+        } else {
+          auto fp16v = _mm<V>::load_si256(
+              (__m256i *)&md5(aweights5, 0, 0, 0, _O, 0));
+          mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
+          fp16v = _mm<V>::load_si256(
+              (__m256i *)&md5(aweights5, 0, 0, 1, _O, 0));
+          mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
+        }
       } else {
-        MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-        mmwei[_O][0] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 0, 0));
-        mmwei[_O][1] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 1, 0));
+        MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+        if (std::is_same<WeightsType, float>::value) {
+          mmwei[_O][0] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 0, 0));
+          mmwei[_O][1] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 1, 0));
+        } else {
+          auto fp16v = _mm<V>::load_si256(
+              (__m256i *)&md6(aweights6, _O, 0, 0, 0, 0, 0));
+          mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
+          fp16v = _mm<V>::load_si256(
+              (__m256i *)&md6(aweights6, _O, 0, 0, 0, 1, 0));
+          mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
+        }
       }
     }
     if (get_attr(attr, r_output_idx)) {
@@ -689,7 +991,13 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         // load bias
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
-          __m<V> tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
+          __m<V> tmp;
+          if (std::is_same<BiasType, float>::value) {
+            tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
+          } else {
+            auto fp16v = _mm<V>::load_si256((__m256i *)&md2(abias2, _O, 0));
+            tmp = _mm<V>::cvtph_ps(fp16v);
+          }
 #pragma unroll(T)
           for (int _T = 0; _T < T; ++_T)
             mmout[_O][_T] = tmp;
@@ -709,9 +1017,15 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
           for (int _T = 0; _T < T; ++_T) {
-            MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-            mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
-                _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+            MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
+            if (std::is_same<OutputType, float>::value) {
+              mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
+                  _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+            } else {
+              auto fp16v = _mm<V>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+              mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
+                  _mm<V>::cvtph_ps(fp16v));
+            }
           }
         }
       }
@@ -721,8 +1035,13 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
-          mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
+          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
+          if (std::is_same<OutputType, float>::value) {
+            mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
+          } else {
+            auto fp16v = _mm<V>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+            mmout[_O][_T] =  _mm<V>::cvtph_ps(fp16v);
+          }
         }
       }
     }
@@ -734,19 +1053,33 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
-            mmwei[_O][2] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 2, _O, 0));
+            MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][2] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 2, _O, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md5(aweights5, _I2, _V, 2, _O, 0));
+              mmwei[_O][2] = _mm<V>::cvtph_ps(fp16v);
+            }
           } else {
-            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            mmwei[_O][2]
-                = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 2, 0));
+            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][2]
+                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 2, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md6(aweights6, _O, 0, _I2, _V, 2, 0));
+              mmwei[_O][2] = _mm<V>::cvtph_ps(fp16v);
+            }
           }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m<V> mmbcst
-              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
+          MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
+          auto f32 = std::is_same<InputType, float>::value
+              ? md4(ainput4, _T, 0, _V, 0)
+              : half_2_float(md4(ainput4, _T, 0, _V, 0));
+          __m<V> mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&f32);
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -756,19 +1089,33 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         // _P = 1
         for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
-            mmwei[_O][3] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 3, _O, 0));
+            MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][3] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 3, _O, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md5(aweights5, _I2, _V, 3, _O, 0));
+              mmwei[_O][3] = _mm<V>::cvtph_ps(fp16v);
+            }
           } else {
-            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            mmwei[_O][3]
-                = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 3, 0));
+            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][3]
+                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 3, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md6(aweights6, _O, 0, _I2, _V, 3, 0));
+              mmwei[_O][3] = _mm<V>::cvtph_ps(fp16v);
+            }
           }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m<V> mmbcst
-              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
+          MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
+          auto f32 = std::is_same<InputType, float>::value
+              ? md4(ainput4, _T, 0, _V, 1)
+              : half_2_float(md4(ainput4, _T, 0, _V, 1));
+          __m<V> mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&f32);
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -778,20 +1125,34 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
-            mmwei[_O][0]
-                = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
+            MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][0]
+                  = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md5(aweights5, _I2, _V + 1, 0, _O, 0));
+              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
+            }
           } else {
-            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            mmwei[_O][0]
-                = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
+            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][0]
+                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
+              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
+            }
           }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m<V> mmbcst
-              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0,  _V, 2));
+          MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
+          auto f32 = std::is_same<InputType, float>::value
+              ? md4(ainput4, _T, 0, _V, 2)
+              : half_2_float(md4(ainput4, _T, 0, _V, 2));
+          __m<V> mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&f32);
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -801,20 +1162,34 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(JO)
         for (int _O = 0; _O < JO; ++_O) {
           if (F_traits<F>::is_compact_weights) {
-            MD5(float, aweights5, weights, xc.I2, V / P, P, O, V);
-            mmwei[_O][1]
-                = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 1, _O, 0));
+            MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][1]
+                  = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 1, _O, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md5(aweights5, _I2, _V + 1, 1, _O, 0));
+              mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
+            }
           } else {
-            MD6(float, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            mmwei[_O][1]
-                = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 1, 0));
+            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+            if (std::is_same<WeightsType, float>::value) {
+              mmwei[_O][1]
+                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 1, 0));
+            } else {
+              auto fp16v = _mm<V>::load_si256(
+                  (__m256i *)&md6(aweights6, _O, 0, _I2, _V + 1, 1, 0));
+              mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
+            }
           }
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD4(float, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m<V> mmbcst
-              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 3));
+          MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
+          auto f32 = std::is_same<InputType, float>::value
+              ? md4(ainput4, _T, 0, _V, 3)
+              : half_2_float(md4(ainput4, _T, 0, _V, 3));
+          __m<V> mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&f32);
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -822,21 +1197,33 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         }
       }
     }
-
     // store output
 #pragma unroll(JO)
     for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
-        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
         if (get_attr(attr, relu_idx)) {
           __m<V> zero = _mm<V>::setzero_ps();
           mmout[_O][_T] = _mm<V>::max_ps(mmout[_O][_T], zero);
         }
-        if (get_attr(attr, s_output_idx))
-          _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
-        else
-          _mm<V>::store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+        if (get_attr(attr, s_output_idx)) {
+          if (std::is_same<OutputType, float>::value) {
+            _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+          } else {
+            auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
+                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            _mm<V>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+          }
+        } else {
+          if (std::is_same<OutputType, float>::value) {
+            _mm<V>::store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+          } else {
+            auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
+                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            _mm<V>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+          }
+        }
       }
     }
   }
@@ -847,7 +1234,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
   op_fma(elx_conv_params_t &xc,
       float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
-      float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
+      ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor, int _O1, int _O0)
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
@@ -954,7 +1341,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(P == 1 && has_Ir == true), void>::type
   op_fma(elx_conv_params_t &xc,
       float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
-      float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
+      ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor, int _O1, int _O0)
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
@@ -1090,7 +1477,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<P == 2, void>::type
   op_fma(elx_conv_params_t &xc,
       float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
-      float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
+      ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor, int _O1, int _O0)
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
@@ -1232,7 +1619,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<P == 4, void>::type
   op_fma(elx_conv_params_t &xc,
       float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
-      float *src_scale, float *weights_scale, float *factor, int _O1, int _O0)
+      ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor, int _O1, int _O0)
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
@@ -1662,10 +2049,10 @@ struct gemm_kernel_binder {
   static ker<conv_impl::FP32> *ker_s2_ccd[8][32][2];
   static ker<conv_impl::FP32> *ker_s2_dcd[8][32][2];
   static ker<conv_impl::FP32> *ker_s2_ddd[8][32][2];
+  static ker<conv_impl::FP16> *ker_f16_s1_ccc[8][32][2];
   static ker<conv_impl::INT8_F32> *ker_i8_s1_ccc[8][32][2];
-  //static ker<elx_conv_t<FP16>, float, float> *ker_f16_s1_ccc[8][32][2];
 
-  template <typename ITFTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
   static inline void bind(int O, int T, ker<conv_impl::FP32> **func)
   {
     switch (F) {
@@ -1698,7 +2085,7 @@ struct gemm_kernel_binder {
     }
   }
 
-  /*template <typename ITFTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
   static inline void bind(int O, int T, ker<conv_impl::FP16> **func)
   {
     switch (F) {
@@ -1709,9 +2096,9 @@ struct gemm_kernel_binder {
     default:
       break;
     }
-  }*/
+  }
 
-  template <typename ITFTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
   static inline void bind(int O, int T, ker<conv_impl::INT8_F32> **func)
   {
     switch (F) {
@@ -1724,9 +2111,9 @@ struct gemm_kernel_binder {
     }
   }
 
-  /*template <typename ITFTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
   static inline void bind(int O, int T, ker<conv_impl::INT8_F16> **func)
-  {}*/
+  {}
 #endif
 };
 

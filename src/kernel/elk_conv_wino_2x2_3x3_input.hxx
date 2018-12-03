@@ -70,7 +70,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   auto f_cb = [&](int _h, int _w) {
     if (wT_end == -1) {
       MD3(InputType, ainput, input, A, A, V);
-      if (std::is_same<WeightsType, float>::value)
+      if (std::is_same<InputType, float>::value)
         return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
       else {
         auto f16 = _mm<V>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));

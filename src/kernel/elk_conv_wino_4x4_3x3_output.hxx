@@ -74,9 +74,9 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
 #define P(_h, _w) p_cb(_h, _w)
 #define t(m, n) t##m##n
 #define OP(m,n) t(m,n) = _mm<V>::load_ps(T(m, n))
-//#define ISTORE(i, j) _mm<V>::store_ps(P(i, j), p##i##j);
+
 #define ISTORE(i, j)                                              \
-  if (std::is_same<OutputType, float>::value)                           \
+  if (std::is_same<OutputType, float>::value)                     \
     _mm<V>::store_ps(P(i, j), p##i##j);                           \
   else {                                                          \
     auto f16 = _mm<V>::cvtps_ph(p##i##j,                          \

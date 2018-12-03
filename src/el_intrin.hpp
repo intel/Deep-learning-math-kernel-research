@@ -41,8 +41,8 @@ template <> struct _mm<16> {
   static inline void store_ps(void *adrs, __m<V> m) noexcept {
     _mm512_store_ps(adrs, m);
   }
-  static inline void stream_ps(float *adrs, __m<V> m) noexcept {
-    _mm512_stream_ps(adrs, m);
+  static inline void stream_ps(void *adrs, __m<V> m) noexcept {
+    _mm512_stream_ps((float *)adrs, m);
   }
   static inline void i32scatter_ps(void *adrs, __i<V> vidx,
       __m<V> m, int scale) noexcept {
@@ -181,6 +181,9 @@ template <> struct _mm<16> {
   }
   static inline void store_si256(__m256i *a, __m256i b) noexcept {
     return _mm256_store_si256(a, b);
+  }
+  static inline void stream_si256(__m256i *a, __m256i b) noexcept {
+    return _mm256_stream_si256(a, b);
   }
   static inline __m<V> roundscale_ps(__m<V> m, int imm8) noexcept {
     return _mm512_roundscale_ps(m, imm8);

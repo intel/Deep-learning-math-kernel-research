@@ -129,14 +129,6 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
 #define f(m, n) f##m##n
 #define OP(m,n) f(m, n) = F(m, n)
 #define ISTORE(i, j) _mm<V>::store_ps(T(i, j), t##i##j);
-/*#define ISTORE(i, j)                                              \
-  if(std::is_same<Type, float>::value)                            \
-    _mm<V>::store_ps(T(i, j), t##i##j);                           \
-  else {                                                          \
-    auto f16 = _mm<V>::cvtps_ph(t##i##j,                          \
-        _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);           \
-    _mm<V>::store_si256((__m256i *)T(i, j), f16);                 \
-  }*/
 
   VECTOR_DEF(M6, ME3);
 

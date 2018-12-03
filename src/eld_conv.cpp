@@ -162,9 +162,9 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
         }
 #endif
       } else if (f16c_opt || std::is_same<UserTypes, conv::FP16>::value) {
-        // using TarrayTypes = conv_impl::FP16;
-        el_error("TODO: implement F16C opt");
-#if 0
+        static_assert(std::is_same<UserTypes, conv::FP32>::value,
+            "TODO: implement FP16 UserTypes");
+        using TarrayTypes = conv_impl::FP16;
         switch (tile_size) {
         case 4:
           xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,
@@ -186,7 +186,6 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
           el_error("Unimplemented tile size");
           break;
         }
-#endif
       } else {
         using TarrayTypes = conv_impl::FP32;
         switch (tile_size) {

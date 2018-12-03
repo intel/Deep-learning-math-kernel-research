@@ -25,6 +25,15 @@ namespace euler {
   c##n = ADD(FMADD(z16, ADD(t##n##2, t##n##3), ADD(t##n##0, t##n##1)),         \
          FMADD(z1_16, ADD(t##n##4, t##n##5), t##n##6));
 
+#define STORE(i, j)                                                            \
+  if (std::is_same<OutputType, float>::value)                                  \
+    _mm<V>::store_ps(P(i, j), p##i##j);                                        \
+  else {                                                                       \
+    auto f16 = _mm<V>::cvtps_ph(p##i##j,                                       \
+        _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);                        \
+    _mm<V>::store_si256((__m256i *)P(i, j), f16);                              \
+  }
+
 #define AVX512_CALCULATE_O(n)                                                  \
   __m<V> p0##n = ADD(ADD(ADD(ADD(ADD(c0, c1), c2), c3), c4), c5);              \
   if (fuse_bias)                                                               \
@@ -35,7 +44,7 @@ namespace euler {
     zero = XOR(zero, zero);                                                    \
     p0##n = MAX(p0##n, zero);                                                  \
   }                                                                            \
-  _mm<V>::store_ps(P(0, n), p0##n);                                            \
+  STORE(0, n)                                                                  \
   __m<V> p1##n = ADD(FMADD(z2, SUB(c2, c3), c0), FMSUB(z1_2, SUB(c4, c5), c1));\
   if (fuse_bias)                                                               \
     p1##n = ADD(p1##n, *(__m<V>*)bias);                                        \
@@ -43,7 +52,7 @@ namespace euler {
     p1##n = ADD(p1##n, *(__m<V>*)P(1, n));                                     \
   if (fuse_relu)                                                               \
     p1##n = MAX(p1##n, zero);                                                  \
-  _mm<V>::store_ps(P(1, n), p1##n);                                            \
+  STORE(1, n)                                                                  \
   __m<V> p2##n = ADD(FMADD(z4, ADD(c2, c3), c0), FMADD(z1_4, ADD(c4, c5), c1));\
   if (fuse_bias)                                                               \
     p2##n = ADD(p2##n, *(__m<V>*)bias);                                        \
@@ -51,7 +60,7 @@ namespace euler {
     p2##n = ADD(p2##n, *(__m<V>*)P(2, n));                                     \
   if (fuse_relu)                                                               \
     p2##n = MAX(p2##n, zero);                                                  \
-  _mm<V>::store_ps(P(2, n), p2##n);                                            \
+  STORE(2, n)                                                                  \
   __m<V> p3##n = ADD(FMADD(z8, SUB(c2, c3), c0), FMSUB(z1_8, SUB(c4, c5), c1));\
   if (fuse_bias)                                                               \
     p3##n = ADD(p3##n, *(__m<V>*)bias);                                        \
@@ -59,7 +68,7 @@ namespace euler {
     p3##n = ADD(p3##n, *(__m<V>*)P(3, n));                                     \
   if (fuse_relu)                                                               \
     p3##n = MAX(p3##n, zero);                                                  \
-  _mm<V>::store_ps(P(3, n), p3##n);                                            \
+  STORE(3, n)                                                                  \
   __m<V> p4##n = ADD(FMADD(z16, ADD(c2, c3), c0), FMADD(z1_16, ADD(c4, c5), c1));
 
 #define AVX512_ADD_B(n);                                                       \
@@ -69,7 +78,7 @@ namespace euler {
     p4##n = ADD(p4##n, *(__m<V>*)P(4, n));                                     \
   if (fuse_relu)                                                               \
     p4##n = MAX(p4##n, zero);                                                  \
-  _mm<V>::store_ps(P(4, n), p4##n);
+  STORE(4, n)
 
 // template <const bool is_border_, const bool with_bias>
 // Params:
