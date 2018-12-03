@@ -1809,7 +1809,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 1)
       && (F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_params_t &xc, OutputType *output, InputType *input,
-      WeightsType *weights, ScaleType *bias, int attr,
+      WeightsType *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor)
   {
     const int O_stride
@@ -1829,7 +1829,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 1)
       && !(F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_params_t &xc, OutputType *output, InputType *input,
-      WeightsType *weights, ScaleType *bias, int attr,
+      WeightsType *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor)
   {
     const int O_stride
@@ -1849,7 +1849,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 2)
       && (F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_params_t &xc, OutputType *output, InputType *input,
-      WeightsType *weights, ScaleType *bias, int attr,
+      WeightsType *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor)
   {
     const int O_stride
@@ -1873,7 +1873,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 2)
       && !(F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_params_t &xc, OutputType *output, InputType *input,
-      WeightsType *weights, ScaleType *bias, int attr,
+      WeightsType *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor)
   {
     const int O_stride
@@ -1897,7 +1897,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 3)
       && (F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_params_t &xc, OutputType *output, InputType *input,
-      WeightsType *weights, ScaleType *bias, int attr,
+      WeightsType *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor)
   {
     const int O_stride
@@ -1925,7 +1925,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 3)
       && !(F_traits<F>::is_compact_weights)>::type
   execute(elx_conv_params_t &xc, OutputType *output, InputType *input,
-      WeightsType *weights, ScaleType *bias, int attr,
+      WeightsType *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor)
   {
     const int O_stride
