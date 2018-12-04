@@ -457,12 +457,12 @@ void Instance_elx_conv_wino_t::__execute_a133(
 
   MD3(TscaleType, atweights_qt_scale, tweights_qt_scale_, this->ic4,
       this->oc4, this->oc3 * this->O2 * V * A * A);
-  MD3(TscaleType, aweights_factor, tweights_factor_,
+  MD3(TscaleType, aweights_qt_factor, tweights_qt_factor_,
       this->ic4, this->oc4, this->oc3 * this->O2 * V * A * A);
 
   if (is_first_run_) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
-    trans_weights_s8(tweights_qt_scale_, tweights_factor_,
+    trans_weights_s8(tweights_qt_scale_, tweights_qt_factor_,
         tweights_s8_, tweights_, weights, this->oc4);
   }
 
@@ -474,13 +474,14 @@ void Instance_elx_conv_wino_t::__execute_a133(
       if (_ic4 != last_ic4) {
         trans_input(tinput_, &md3(ainput, 0, _ic4, 0));
 #pragma omp barrier
-        trans_input_quantization(tinput_u8_, tinput_qt_scale_, tinput_max_abs_, tinput_);
+        trans_input_quantization(tinput_u8_, tinput_qt_scale_,
+            tinput_qt_factor_, tinput_max_abs_, tinput_);
         last_ic4 = _ic4;
       }
 #pragma omp barrier
       gemm_non_acc(toutput_, tinput_u8_, &md3(atweights_s8, _oc4, _ic4, 0),
-          tinput_qt_scale_, &md3(atweights_qt_scale, _ic4, _oc4, 0),
-          &md3(aweights_factor, _ic4, _oc4, 0), _ic4);
+          tinput_qt_scale_, tinput_qt_factor_, &md3(atweights_qt_scale, _ic4, _oc4, 0),
+          &md3(aweights_qt_factor, _ic4, _oc4, 0), _ic4);
 #pragma omp barrier
       trans_output(&md3(aoutput, 0, _oc4, 0), toutput_, &md2(abias, _oc4, 0), _ic4);
     }}
@@ -495,7 +496,7 @@ void Instance_elx_conv_wino_t::__execute_a161(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(TinputType, atinput2, tinput_, mthr_, A * A * this->IC);
+  MD2(TinputType, atinput2, tinput_, mthr_, A * A * this->I2 * this->Vx * V);
   MD2(ToutputType, atoutput2, toutput_, mthr_,
       A * A * this->T * this->oc3 * this->O2 * V);
 
@@ -507,16 +508,17 @@ void Instance_elx_conv_wino_t::__execute_a161(
       A * A * this->T * this->IC);
   MD2(int8_t, atweights_s8, tweights_s8_, this->oc4,
       A * A * this->IC * this->oc3 * this->O2 * V);
-  MD2(TscaleType, atinput_qt_scale, tinput_qt_scale_, this->t2, this->A * this->A * this->T);
+  MD2(TscaleType, atinput_qt_scale, tinput_qt_scale_,
+      mthr_, this->ic3 * this->A * this->A * 2 * this->T);
   MD2(TscaleType, atweights_qt_scale, tweights_qt_scale_,
-      this->oc4, this->oc3 * this->O2 * V * A * A);
-  MD2(TscaleType, aweights_factor, tweights_factor_,
-      this->oc4, A * A * this->oc3 * this->O2 * V);
+      this->oc4, this->oc3 * this->ic3 * this->O2 * V * A * A);
+  MD2(TscaleType, aweights_qt_factor, tweights_qt_factor_,
+      this->oc4, this->oc3 * this->ic3 * this->O2 * V * A * A);
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
     if (is_first_run_) {
-      trans_weights_s8(tweights_qt_scale_, tweights_factor_,
+      trans_weights_s8(tweights_qt_scale_, tweights_qt_factor_,
           tweights_s8_, tweights_, weights, this->oc4);
 #pragma omp barrier
     }
@@ -529,16 +531,20 @@ void Instance_elx_conv_wino_t::__execute_a161(
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       size_t ithr = omp_get_thread_num();
 
+      ToutputType *tbuf = (toutput_size_ >= tinput_size_)
+                              ? &md2(atoutput2, ithr, 0)
+                              : (ToutputType *)&md2(atinput2, ithr, 0);
+
       if (t2_history != _t2) {
-        trans_input_u8(
-            &md2(atinput_qt_scale, _t2, 0), &md2(atinput2_u8, ithr, 0),
-            &md2(atinput2, ithr, 0), input, _t2, Tz);
+        trans_input_u8(&md2(atinput_qt_scale, ithr, 0),
+            &md2(atinput2_u8, ithr, 0), (TinputType *)tbuf, input, _t2, Tz);
         t2_history = _t2;
       }
-      gemm(&md2(atoutput2, ithr, 0), &md2(atinput2_u8, ithr, 0),
-          &md2(atweights_s8, _oc4, 0), _t2, Tz, &md2(atinput_qt_scale, _t2, 0),
-          &md2(atweights_qt_scale, _oc4, 0), &md2(aweights_factor, _oc4, 0));
-      trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
+      gemm(tbuf, &md2(atinput2_u8, ithr, 0),
+          &md2(atweights_s8, _oc4, 0), _t2, Tz,
+          &md2(atinput_qt_scale, ithr, 0),
+          &md2(atweights_qt_scale, _oc4, 0), &md2(aweights_qt_factor, _oc4, 0));
+      trans_output(&md3(aoutput, 0, _oc4, 0), tbuf,
           &md2(abias, _oc4, 0), _t2, Tz);
     }}
   }
@@ -568,15 +574,15 @@ void Instance_elx_conv_wino_t::__execute_a173(
       A * A * this->ic3 * this->I2 * this->Vx * V * this->oc3 * this->O2 * V);
 
   MD2(TscaleType, atinput_qt_scale, tinput_qt_scale_,
-      mthr_, this->A * this->A * this->T);
-  MD3(TscaleType, atweights_qt_scale, tweights_qt_scale_, this->ic4,
-      this->oc4, this->oc3 * this->O2 * V * A * A);
-  MD3(TscaleType, aweights_factor, tweights_factor_,
-      this->ic4, this->oc4, this->oc3 * this->O2 * V * A * A);
+      mthr_, this->ic3 * this->A * this->A * 2 * this->T);
+  MD3(TscaleType, atweights_qt_scale, tweights_qt_scale_, this->oc4,
+      this->ic4, this->oc3 * this->ic3 * this->O2 * V * A * A);
+  MD3(TscaleType, aweights_qt_factor, tweights_qt_factor_,
+      this->oc4, this->ic4, this->oc3 * this->ic3 * this->O2 * V * A * A);
 
   if (is_first_run_) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
-    trans_weights_s8(tweights_qt_scale_, tweights_factor_,
+    trans_weights_s8(tweights_qt_scale_, tweights_qt_factor_,
         tweights_s8_, tweights_, weights, this->oc4);
   }
 
@@ -591,16 +597,17 @@ void Instance_elx_conv_wino_t::__execute_a173(
 
       if (last_ic4 != _ic4 || last_t2 != _t2) {
         trans_input_u8(
-            &md2(atinput_qt_scale, ithr, 0), &md2(atinput2_u8, ithr, 0),
-            &md2(atinput2, ithr, 0), &md3(ainput, 0, _ic4, 0), _t2, Tz);
+            &md2(atinput_qt_scale, ithr, 0),
+            &md2(atinput2_u8, ithr, 0), &md2(atinput2, ithr, 0),
+            &md3(ainput, 0, _ic4, 0), _t2, Tz);
         last_t2 = _t2;
         last_ic4 = _ic4;
       }
       gemm_non_acc(&md2(atoutput2, ithr, 0), &md2(atinput2_u8, ithr, 0),
           &md3(atweights_s8, _oc4, _ic4, 0), _t2, Tz,
           &md2(atinput_qt_scale, ithr, 0),
-          &md3(atweights_qt_scale, _ic4, _oc4, 0),
-          &md3(aweights_factor, _ic4, _oc4, 0),
+          &md3(atweights_qt_scale, _oc4, _ic4, 0),
+          &md3(aweights_qt_factor, _oc4, _ic4, 0),
           _ic4);
       trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
           &md2(abias, _oc4, 0), _t2, Tz, _ic4);

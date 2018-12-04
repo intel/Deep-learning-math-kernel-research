@@ -128,6 +128,12 @@ template <> struct _mm<16> {
   static inline __m<V> min_ps(__m<V> op1, __m<V> op2) noexcept {
     return _mm512_min_ps(op1, op2);
   }
+  static inline float reduce_max_ps(__m<V> op1) noexcept {
+    return _mm512_reduce_max_ps(op1);
+  }
+  static inline float reduce_min_ps(__m<V> op1) noexcept {
+    return _mm512_reduce_min_ps(op1);
+  }
   static inline __m<V> xor_ps(__m<V> op1, __m<V> op2) noexcept {
     return _mm512_xor_ps(op1, op2);
   }
