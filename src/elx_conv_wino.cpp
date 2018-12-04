@@ -32,6 +32,8 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
 {
   // TODO: error when V!=16 && fmt=OIhw16i16o
   xopt_ = this->execution_mode;
+  if ((xopt_ & 0xf00) == 0x100 && this->f16c_opt)
+    el_error("invalid TarrayTypes(fp16) for int8-gemm");
 
   this->Vx = ((xopt_ & 0xf00) == 0x100) ? 4 : 1;
   this->IC = ALIGNUP(this->ic, V * this->Vx);

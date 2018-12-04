@@ -114,7 +114,7 @@ void Instance_elx_conv_wino_t::bind_execute_functions()
       ker_type **func1, i8_ker_type **func2) {
     if (this->Ir != V * this->Vx && has_Ir) {
       if (this->f16c_opt) {
-        gemm_kernel_binder::bind<conv_impl::FP16,
+        gemm_kernel_binder::bind<conv_impl::FP32_F16,
             V, 1, I, 1, GKF_CCC, true>(O, T, func1);
         gemm_kernel_binder::bind<conv_impl::INT8_F16,
             V, 4, I, 1, GKF_CCC, true>(O, T, func2);
@@ -126,7 +126,7 @@ void Instance_elx_conv_wino_t::bind_execute_functions()
       }
     } else {
       if (this->f16c_opt) {
-        gemm_kernel_binder::bind<conv_impl::FP16,
+        gemm_kernel_binder::bind<conv_impl::FP32_F16,
             V, 1, I, 1, GKF_CCC, false>(O, T, func1);
         gemm_kernel_binder::bind<conv_impl::INT8_F16,
             V, 4, I, 1, GKF_CCC, false>(O, T, func2);

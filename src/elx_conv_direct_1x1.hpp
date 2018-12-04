@@ -122,14 +122,6 @@ class elx_conv_direct_1x1_t : public elx_conv_t<UserTypes> {
   TarrayType *scratch_;
 };
 
-/*
-template<>
-class elx_conv_direct_1x1_t<conv::FP16, 16, ISA_SKX_AVX512> : public elx_conv_t<conv::FP16> {
-  public:
-  elx_conv_direct_1x1_t(eld_conv_t<conv::FP16> &dc) : elx_conv_t<short>(dc) {}
-  virtual void execute(short *output, short *input, short *weights, short *bias) {}
-};*/
-
 template class elx_conv_direct_1x1_t<conv::FP32, float, 16, ISA_SKX_AVX512>;
 template class elx_conv_direct_1x1_t<conv::FP32, float, 8, ISA_SKX_AVX512>;
 

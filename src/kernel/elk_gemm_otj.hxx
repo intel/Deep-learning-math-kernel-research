@@ -2049,7 +2049,7 @@ struct gemm_kernel_binder {
   static ker<conv_impl::FP32> *ker_s2_ccd[8][32][2];
   static ker<conv_impl::FP32> *ker_s2_dcd[8][32][2];
   static ker<conv_impl::FP32> *ker_s2_ddd[8][32][2];
-  static ker<conv_impl::FP16> *ker_f16_s1_ccc[8][32][2];
+  static ker<conv_impl::FP32_F16> *ker_f16_s1_ccc[8][32][2];
   static ker<conv_impl::INT8_F32> *ker_i8_s1_ccc[8][32][2];
 
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
@@ -2086,7 +2086,7 @@ struct gemm_kernel_binder {
   }
 
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<conv_impl::FP16> **func)
+  static inline void bind(int O, int T, ker<conv_impl::FP32_F16> **func)
   {
     switch (F) {
     case GKF_CCC:
