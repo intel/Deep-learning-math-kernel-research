@@ -84,7 +84,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
       if (std::is_same<InputType, float>::value)
         return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
       else {
-        auto f16 = _mm<V>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
+        auto f16 = _mm<V/2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
         return _mm<V>::cvtph_ps(f16);
       }
     } else {
@@ -96,7 +96,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
       else if (std::is_same<InputType, float>::value)
         return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
       else {
-        auto f16 = _mm<V>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
+        auto f16 = _mm<V/2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
         return _mm<V>::cvtph_ps(f16);
       }
     }
@@ -224,7 +224,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
       if (std::is_same<InputType, float>::value)
         return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
       else {
-        auto f16 = _mm<V>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
+        auto f16 = _mm<V/2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
         return _mm<V>::cvtph_ps(f16);
       }
     } else {
@@ -235,7 +235,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
       else if (std::is_same<InputType, float>::value)
         return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
       else {
-        auto f16 = _mm<V>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
+        auto f16 = _mm<V/2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
         return _mm<V>::cvtph_ps(f16);
       }
     }

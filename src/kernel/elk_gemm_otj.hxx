@@ -365,7 +365,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           if (std::is_same<BiasType, float>::value) {
             tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
           } else {
-            auto fp16v = _mm<V>::load_si256((__m256i *)&md2(abias2, _O, 0));
+            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(abias2, _O, 0));
             tmp = _mm<V>::cvtph_ps(fp16v);
           }
 #pragma unroll(T)
@@ -392,7 +392,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
                   _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
             } else {
-              auto fp16v = _mm<V>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+              auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
               mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
                   _mm<V>::cvtph_ps(fp16v));
             }
@@ -409,7 +409,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           if (std::is_same<OutputType, float>::value) {
             mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
           } else {
-            auto fp16v = _mm<V>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
             mmout[_O][_T] =  _mm<V>::cvtph_ps(fp16v);
           }
         }
@@ -426,7 +426,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
             if (std::is_same<WeightsType, float>::value) {
               mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 0, _O, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md5(aweights5, _I2, _V, 0, _O, 0));
               mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -436,7 +436,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmwei[_O][0]
                   = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md6(aweights6, _O, 0, _I2, _V, 0, 0));
               mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -478,7 +478,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           } else {
             auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
                 _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+            _mm<V/2>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
           }
         } else {
           if (std::is_same<OutputType, float>::value) {
@@ -486,7 +486,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           } else {
             auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
                 _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+            _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
           }
         }
       }
@@ -530,7 +530,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           if (std::is_same<BiasType, float>::value) {
             tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
           } else {
-            auto fp16v = _mm<V>::load_si256((__m256i *)&md2(abias2, _O, 0));
+            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(abias2, _O, 0));
             tmp = _mm<V>::cvtph_ps(fp16v);
           }
 #pragma unroll(T)
@@ -557,7 +557,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
                   _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
             } else {
-              auto fp16v = _mm<V>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+              auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
               mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
                   _mm<V>::cvtph_ps(fp16v));
             }
@@ -574,7 +574,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           if (std::is_same<OutputType, float>::value) {
             mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
           } else {
-            auto fp16v = _mm<V>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
             mmout[_O][_T] =  _mm<V>::cvtph_ps(fp16v);
           }
         }
@@ -591,7 +591,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
             if (std::is_same<WeightsType, float>::value) {
               mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 0, _O, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md5(aweights5, _I2, _V, 0, _O, 0));
               mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -601,7 +601,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmwei[_O][0]
                   = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md6(aweights6, _O, 0, _I2, _V, 0, 0));
               mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -638,7 +638,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmwei[_O][0]
                   = _mm<V>::load_ps(&md5(aweights5, xc.I2 - 1, _V, 0, _O, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md5(aweights5, xc.I2 - 1, _V, 0, _O, 0));
               mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -648,7 +648,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmwei[_O][0]
                   = _mm<V>::load_ps(&md6(aweights6, _O, 0, xc.I2 - 1, _V, 0, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md6(aweights6, _O, 0, xc.I2 - 1, _V, 0, 0));
               mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -691,7 +691,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           } else {
             auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
                 _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+            _mm<V/2>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
           }
         } else {
           if (std::is_same<OutputType, float>::value) {
@@ -699,7 +699,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           } else {
             auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
                 _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+            _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
           }
         }
       }
@@ -742,7 +742,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         if (std::is_same<WeightsType, float>::value) {
           mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
         } else {
-          auto fp16v = _mm<V>::load_si256(
+          auto fp16v = _mm<V/2>::load_si256(
               (__m256i *)&md5(aweights5, 0, 0, 0, _O, 0));
           mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
         }
@@ -751,7 +751,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         if (std::is_same<WeightsType, float>::value) {
           mmwei[_O][0] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 0, 0));
         } else {
-          auto fp16v = _mm<V>::load_si256(
+          auto fp16v = _mm<V/2>::load_si256(
               (__m256i *)&md6(aweights6, _O, 0, 0, 0, 0, 0));
           mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
         }
@@ -767,7 +767,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           if (std::is_same<BiasType, float>::value) {
             tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
           } else {
-            auto fp16v = _mm<V>::load_si256((__m256i *)&md2(abias2, _O, 0));
+            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(abias2, _O, 0));
             tmp = _mm<V>::cvtph_ps(fp16v);
           }
 #pragma unroll(T)
@@ -794,7 +794,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
                   _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
             } else {
-              auto fp16v = _mm<V>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+              auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
               mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
                   _mm<V>::cvtph_ps(fp16v));
             }
@@ -811,7 +811,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           if (std::is_same<OutputType, float>::value) {
             mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
           } else {
-            auto fp16v = _mm<V>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
             mmout[_O][_T] =  _mm<V>::cvtph_ps(fp16v);
           }
         }
@@ -829,7 +829,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
             if (std::is_same<WeightsType, float>::value) {
               mmwei[_O][1] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 1, _O, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md5(aweights5, _I2, _V, 1, _O, 0));
               mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -839,7 +839,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmwei[_O][1]
                   = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 1, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md6(aweights6, _O, 0, _I2, _V, 1, 0));
               mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -866,7 +866,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmwei[_O][0]
                   = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md5(aweights5, _I2, _V + 1, 0, _O, 0));
               mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -876,7 +876,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmwei[_O][0]
                   = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
               mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -913,7 +913,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           } else {
             auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
                 _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+            _mm<V/2>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
           }
         } else {
           if (std::is_same<OutputType, float>::value) {
@@ -921,7 +921,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           } else {
             auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
                 _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+            _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
           }
         }
       }
@@ -964,10 +964,10 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
           mmwei[_O][1] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 1, _O, 0));
         } else {
-          auto fp16v = _mm<V>::load_si256(
+          auto fp16v = _mm<V/2>::load_si256(
               (__m256i *)&md5(aweights5, 0, 0, 0, _O, 0));
           mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
-          fp16v = _mm<V>::load_si256(
+          fp16v = _mm<V/2>::load_si256(
               (__m256i *)&md5(aweights5, 0, 0, 1, _O, 0));
           mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
         }
@@ -977,10 +977,10 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           mmwei[_O][0] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 0, 0));
           mmwei[_O][1] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 1, 0));
         } else {
-          auto fp16v = _mm<V>::load_si256(
+          auto fp16v = _mm<V/2>::load_si256(
               (__m256i *)&md6(aweights6, _O, 0, 0, 0, 0, 0));
           mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
-          fp16v = _mm<V>::load_si256(
+          fp16v = _mm<V/2>::load_si256(
               (__m256i *)&md6(aweights6, _O, 0, 0, 0, 1, 0));
           mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
         }
@@ -995,7 +995,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           if (std::is_same<BiasType, float>::value) {
             tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
           } else {
-            auto fp16v = _mm<V>::load_si256((__m256i *)&md2(abias2, _O, 0));
+            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(abias2, _O, 0));
             tmp = _mm<V>::cvtph_ps(fp16v);
           }
 #pragma unroll(T)
@@ -1022,7 +1022,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
                   _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
             } else {
-              auto fp16v = _mm<V>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+              auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
               mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
                   _mm<V>::cvtph_ps(fp16v));
             }
@@ -1039,7 +1039,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           if (std::is_same<OutputType, float>::value) {
             mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
           } else {
-            auto fp16v = _mm<V>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
             mmout[_O][_T] =  _mm<V>::cvtph_ps(fp16v);
           }
         }
@@ -1057,7 +1057,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
             if (std::is_same<WeightsType, float>::value) {
               mmwei[_O][2] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 2, _O, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md5(aweights5, _I2, _V, 2, _O, 0));
               mmwei[_O][2] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -1067,7 +1067,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmwei[_O][2]
                   = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 2, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md6(aweights6, _O, 0, _I2, _V, 2, 0));
               mmwei[_O][2] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -1093,7 +1093,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
             if (std::is_same<WeightsType, float>::value) {
               mmwei[_O][3] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 3, _O, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md5(aweights5, _I2, _V, 3, _O, 0));
               mmwei[_O][3] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -1103,7 +1103,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmwei[_O][3]
                   = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 3, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md6(aweights6, _O, 0, _I2, _V, 3, 0));
               mmwei[_O][3] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -1130,7 +1130,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmwei[_O][0]
                   = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md5(aweights5, _I2, _V + 1, 0, _O, 0));
               mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -1140,7 +1140,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmwei[_O][0]
                   = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
               mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -1167,7 +1167,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmwei[_O][1]
                   = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 1, _O, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md5(aweights5, _I2, _V + 1, 1, _O, 0));
               mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -1177,7 +1177,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               mmwei[_O][1]
                   = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 1, 0));
             } else {
-              auto fp16v = _mm<V>::load_si256(
+              auto fp16v = _mm<V/2>::load_si256(
                   (__m256i *)&md6(aweights6, _O, 0, _I2, _V + 1, 1, 0));
               mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
             }
@@ -1213,7 +1213,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           } else {
             auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
                 _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+            _mm<V/2>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
           }
         } else {
           if (std::is_same<OutputType, float>::value) {
@@ -1221,7 +1221,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           } else {
             auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
                 _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+            _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
           }
         }
       }

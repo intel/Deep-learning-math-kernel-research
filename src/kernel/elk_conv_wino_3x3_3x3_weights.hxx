@@ -45,7 +45,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   if(std::is_same<WeightsType, float>::value)                     \
     f(m,n) = _mm<V>::load_ps(F(m, n));                            \
   else {                                                          \
-    auto f16 = _mm<V>::load_si256((__m256i *)F(m, n));            \
+    auto f16 = _mm<V/2>::load_si256((__m256i *)F(m, n));          \
     f(m,n) = _mm<V>::cvtph_ps(f16);                               \
   }
   for (int _V = 0; _V < V; ++_V) {

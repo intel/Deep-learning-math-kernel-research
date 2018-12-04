@@ -176,15 +176,6 @@ template <> struct _mm<16> {
   static inline __m<V> cvtph_ps(__m256i a) noexcept {
     return _mm512_cvtph_ps(a);
   }
-  static inline __m256i load_si256(__m256i const *a) noexcept {
-    return _mm256_load_si256(a);
-  }
-  static inline void store_si256(__m256i *a, __m256i b) noexcept {
-    return _mm256_store_si256(a, b);
-  }
-  static inline void stream_si256(__m256i *a, __m256i b) noexcept {
-    return _mm256_stream_si256(a, b);
-  }
   static inline __m<V> roundscale_ps(__m<V> m, int imm8) noexcept {
     return _mm512_roundscale_ps(m, imm8);
   }
@@ -327,6 +318,15 @@ template <> struct _mm<8> {
   }
   static inline __m<V> range_ps(__m<V> m0, __m<V> m1, int imm8) noexcept {
     return _mm256_range_ps(m0, m1, imm8);
+  }
+  static inline __m256i load_si256(__m256i const *a) noexcept {
+    return _mm256_load_si256(a);
+  }
+  static inline void store_si256(__m256i *a, __m256i b) noexcept {
+    return _mm256_store_si256(a, b);
+  }
+  static inline void stream_si256(__m256i *a, __m256i b) noexcept {
+    return _mm256_stream_si256(a, b);
   }
 };
 #else

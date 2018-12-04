@@ -54,10 +54,10 @@
   |int8-f16c     |TBD   |true |u8,fp32,u8/s8|fp32,fp32,fp16|u8,s8,fp16    |fp32    |u8,s8,int32|
   |bf16          |TBD   |false|bf16         |bf16          |bf16          |bf16    |bf16       |
   |fp16-int8     |A161… |true |fp16         |fp32,fp32,fp16|u8,s8,fp16    |fp32    |u8,s8,int32|
-  |fp16          |A061… |true |fp16         |fp16          |fp16          |fp32    |fp32       |
+  |fp16          |A061… |true |fp16         |fp32,fp16,fp16|fp32,fp16,fp16|fp32    |fp32       |
   |fp32-int8-f16c|A161… |true |fp32         |fp32,fp32,fp16|u8,s8,fp16    |fp32    |u8,s8,int32|
   |fp32-int8     |A161… |false|fp32         |fp32          |u8,s8,fp32    |fp32    |u8,s8,int32|
-  |fp32-f16c     |A061… |true |fp32         |f32,fp16,f16  |fp32,fp16,fp16|fp32    |fp32       |
+  |fp32-f16c     |A061… |true |fp32         |fp32,fp16,fp16|fp32,fp16,fp16|fp32    |fp32       |
   |fp32          |A061… |false|fp32         |fp32          |fp32          |fp32    |fp32       |
   +--------------+------+-----+-------------+--------------+--------------+--------+-----------+
 

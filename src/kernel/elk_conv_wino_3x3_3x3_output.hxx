@@ -101,12 +101,12 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
 #define p(m, n) p##m##n
 //#define OP(m,n) _mm<V>::store_ps(P(m, n), p(m, n))
 #define OP(m,n)                                         \
-  if (std::is_same<OutputType, float>::value)                 \
-    _mm<V>::store_ps(P(m, n), p(m, n));                \
+  if (std::is_same<OutputType, float>::value)           \
+    _mm<V>::store_ps(P(m, n), p(m, n));                 \
   else {                                                \
-    auto f16 = _mm<V>::cvtps_ph(p(m, n),               \
+    auto f16 = _mm<V>::cvtps_ph(p(m, n),                \
         _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC); \
-    _mm<V>::store_si256((__m256i *)P(m, n), f16);       \
+    _mm<V/2>::store_si256((__m256i *)P(m, n), f16);     \
   }
   MATRIX_DEF(3, 3);
 }

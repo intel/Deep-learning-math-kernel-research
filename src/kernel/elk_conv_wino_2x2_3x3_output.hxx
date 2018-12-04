@@ -86,7 +86,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   else {                                                \
     auto f16 = _mm<V>::cvtps_ph(p_(m, n),               \
         _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC); \
-    _mm<V>::store_si256((__m256i *)P(m, n), f16);       \
+    _mm<V/2>::store_si256((__m256i *)P(m, n), f16);     \
   }
   MATRIX_DEF(2, 2);
 }

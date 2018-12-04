@@ -524,7 +524,7 @@ void Instance_elx_conv_wino_t::__trans_weights_plain(
         iter_each (_iV, V) {
           auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&aout[_wA][_hA][_iV][0],
               _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V>::stream_si256((__m256i *)&md11(atweights, _oc4, _ic4, _oc3,
+          _mm<V/2>::stream_si256((__m256i *)&md11(atweights, _oc4, _ic4, _oc3,
                                _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
 
         }}}
@@ -534,7 +534,7 @@ void Instance_elx_conv_wino_t::__trans_weights_plain(
         iter_each (_iV, V) {
           auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&aout[_wA][_hA][_iV][0],
               _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V>::store_si256((__m256i *)&md11(atweights, _oc4, _ic4, _oc3,
+          _mm<V/2>::store_si256((__m256i *)&md11(atweights, _oc4, _ic4, _oc3,
                                _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
         }}}
       }
@@ -599,7 +599,7 @@ void Instance_elx_conv_wino_t::__trans_weights_blocked(
         iter_each (_iV, V) {
           auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&aout[_wA][_hA][_iV][0],
               _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V>::stream_si256((__m256i *)&md11(atweights, _oc4, _ic4, _oc3,
+          _mm<V/2>::stream_si256((__m256i *)&md11(atweights, _oc4, _ic4, _oc3,
                                _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
 
         }}}
@@ -609,7 +609,7 @@ void Instance_elx_conv_wino_t::__trans_weights_blocked(
         iter_each (_iV, V) {
           auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&aout[_wA][_hA][_iV][0],
               _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V>::store_si256((__m256i *)&md11(atweights, _oc4, _ic4, _oc3,
+          _mm<V/2>::store_si256((__m256i *)&md11(atweights, _oc4, _ic4, _oc3,
                                _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
         }}}
       }
@@ -1419,7 +1419,7 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
         iter_each (_hA, A) {
           auto fp16v = _mm<V>::cvtps_ph(*((__m<V> *)&aout[_wA][_hA][0]),
               _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V>::stream_si256(
+          _mm<V/2>::stream_si256(
               (__m256i *)&md6(atinput, _wA, _hA, _ic3, _I2, _T, 0), fp16v);
         }}
       } else {
@@ -1427,7 +1427,7 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
         iter_each (_hA, A) {
           auto fp16v = _mm<V>::cvtps_ph(*((__m<V> *)&aout[_wA][_hA][0]),
               _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V>::store_si256(
+          _mm<V/2>::store_si256(
               (__m256i *)&md6(atinput, _wA, _hA, _ic3, _I2, _T, 0), fp16v);
         }}
       }
@@ -1610,7 +1610,7 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
           iter_each (_hA, A) {
             auto fp16v = _mm<V>::cvtps_ph(*((__m<V> *)&aout[_wA][_hA][0]),
                 _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V>::stream_si256(
+            _mm<V/2>::stream_si256(
                 (__m256i *)&md6(atinput6, _wA, _hA, _ic3, _I2, _T, 0), fp16v);
           }}
         } else {
@@ -1618,7 +1618,7 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
           iter_each (_hA, A) {
             auto fp16v = _mm<V>::cvtps_ph(*((__m<V> *)&aout[_wA][_hA][0]),
                 _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V>::store_si256(
+            _mm<V/2>::store_si256(
                 (__m256i *)&md6(atinput6, _wA, _hA, _ic3, _I2, _T, 0), fp16v);
           }}
         }
@@ -2596,7 +2596,7 @@ void Instance_elx_conv_wino_t::__trans_output_plain(
       if (std::is_same<ToutputType, float>::value) {
         In[_wA][_hA].vin = _mm<V>::load_ps(&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
       } else {
-        auto fp16v = _mm<V>::load_si256(
+        auto fp16v = _mm<V/2>::load_si256(
             (__m256i *)&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
         In[_wA][_hA].vin = _mm<V>::cvtph_ps(fp16v);
       }
@@ -2645,7 +2645,7 @@ void Instance_elx_conv_wino_t::__trans_output_blocked(
       if (std::is_same<ToutputType, float>::value) {
         In[_wA][_hA].vin = _mm<V>::load_ps(&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
       } else {
-        auto fp16v = _mm<V>::load_si256(
+        auto fp16v = _mm<V/2>::load_si256(
             (__m256i *)&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
         In[_wA][_hA].vin = _mm<V>::cvtph_ps(fp16v);
       }
@@ -2880,7 +2880,7 @@ void Instance_elx_conv_wino_t::__trans_output_blocked(
         if (std::is_same<ToutputType, float>::value) {
           In[_wA][_hA].vin = _mm<V>::load_ps(&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
         } else {
-          auto fp16v = _mm<V>::load_si256(
+          auto fp16v = _mm<V/2>::load_si256(
               (__m256i *)&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
           In[_wA][_hA].vin = _mm<V>::cvtph_ps(fp16v);
         }
@@ -3009,7 +3009,7 @@ void Instance_elx_conv_wino_t::__trans_output_plain(
         if (std::is_same<ToutputType, float>::value) {
           In[_wA][_hA].vin = _mm<V>::load_ps(&md6(atoutput6, _wA, _hA, _oc3, _O2, _T, 0));
         } else {
-          auto fp16v = _mm<V>::load_si256(
+          auto fp16v = _mm<V/2>::load_si256(
               (__m256i *)&md6(atoutput6, _wA, _hA, _oc3, _O2, _T, 0));
           In[_wA][_hA].vin = _mm<V>::cvtph_ps(fp16v);
         }
