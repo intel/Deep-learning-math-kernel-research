@@ -571,6 +571,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   ISTORE(4, 5)
   t55 = FMADD(z4, ADD(c1, f51), FNMADD(z5, ADD(c3, f53), f55));
   ISTORE(5, 5);
+#endif
 }
 
 template <typename UserTypes, typename TrOpType, int V>
