@@ -337,14 +337,17 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       int attr, ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor,
       int _O1, int _O0)
   {
-    static_assert(std::is_same<InputType, float>::value ||
-        std::is_same<InputType, float16>::value, "only fp32/fp16 input type");
-    static_assert(std::is_same<WeightsType, float>::value ||
-        std::is_same<WeightsType, float16>::value, "only fp32/fp16 weights type");
-    static_assert(std::is_same<OutputType, float>::value ||
-         std::is_same<OutputType, float16>::value, "only fp32/fp16 output type");
-    static_assert(std::is_same<BiasType, float>::value ||
-         std::is_same<BiasType, float16>::value, "only fp32/fp16 bias type");
+    static_assert(std::is_same<InputType, float>::value,
+        "only fp32 input type");
+    static_assert(std::is_same<WeightsType, float>::value
+        || std::is_same<WeightsType, float16>::value,
+        "only fp32/fp16 weights type");
+    static_assert(std::is_same<OutputType, float>::value
+        || std::is_same<OutputType, float16>::value,
+        "only fp32/fp16 output type");
+    static_assert(std::is_same<BiasType, float>::value
+        || std::is_same<BiasType, float16>::value,
+        "only fp32/fp16 bias type");
 
     __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
@@ -502,14 +505,17 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       int attr, ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor,
       int _O1, int _O0)
   {
-    static_assert(std::is_same<InputType, float>::value ||
-        std::is_same<InputType, float16>::value, "only fp32/fp16 input type");
-    static_assert(std::is_same<WeightsType, float>::value ||
-        std::is_same<WeightsType, float16>::value, "only fp32/fp16 weights type");
-    static_assert(std::is_same<OutputType, float>::value ||
-         std::is_same<OutputType, float16>::value, "only fp32/fp16 output type");
-    static_assert(std::is_same<BiasType, float>::value ||
-         std::is_same<BiasType, float16>::value, "only fp32/fp16 bias type");
+    static_assert(std::is_same<InputType, float>::value,
+        "only fp32 input type");
+    static_assert(std::is_same<WeightsType, float>::value
+        || std::is_same<WeightsType, float16>::value,
+        "only fp32/fp16 weights type");
+    static_assert(std::is_same<OutputType, float>::value
+        || std::is_same<OutputType, float16>::value,
+        "only fp32/fp16 output type");
+    static_assert(std::is_same<BiasType, float>::value
+        || std::is_same<BiasType, float16>::value,
+        "only fp32/fp16 bias type");
 
     __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
@@ -715,14 +721,17 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       int attr, ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor,
       int _O1, int _O0)
   {
-    static_assert(std::is_same<InputType, float>::value ||
-        std::is_same<InputType, float16>::value, "only fp32/fp16 input type");
-    static_assert(std::is_same<WeightsType, float>::value ||
-        std::is_same<WeightsType, float16>::value, "only fp32/fp16 weights type");
-    static_assert(std::is_same<OutputType, float>::value ||
-         std::is_same<OutputType, float16>::value, "only fp32/fp16 output type");
-    static_assert(std::is_same<BiasType, float>::value ||
-         std::is_same<BiasType, float16>::value, "only fp32/fp16 bias type");
+    static_assert(std::is_same<InputType, float>::value,
+        "only fp32 input type");
+    static_assert(std::is_same<WeightsType, float>::value
+        || std::is_same<WeightsType, float16>::value,
+        "only fp32/fp16 weights type");
+    static_assert(std::is_same<OutputType, float>::value
+        || std::is_same<OutputType, float16>::value,
+        "only fp32/fp16 output type");
+    static_assert(std::is_same<BiasType, float>::value
+        || std::is_same<BiasType, float16>::value,
+        "only fp32/fp16 bias type");
 
     __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
@@ -848,10 +857,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          auto f32 = std::is_same<InputType, float>::value
-              ? md4(ainput4, _T, 0, _V, 0)
-              : half_2_float(md4(ainput4, _T, 0, _V, 0));
-          __m<V> mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&f32);
+          __m<V> mmbcst
+              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -885,10 +892,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          auto f32 = std::is_same<InputType, float>::value
-              ? md4(ainput4, _T, 0, _V, 1)
-              : half_2_float(md4(ainput4, _T, 0, _V, 1));
-          __m<V> mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&f32);
+          __m<V> mmbcst
+              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -936,14 +941,17 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       int attr, ScaleType *src_scale, ScaleType *weights_scale, ScaleType *factor,
       int _O1, int _O0)
   {
-    static_assert(std::is_same<InputType, float>::value ||
-        std::is_same<InputType, float16>::value, "only fp32/fp16 input type");
-    static_assert(std::is_same<WeightsType, float>::value ||
-        std::is_same<WeightsType, float16>::value, "only fp32/fp16 weights type");
-    static_assert(std::is_same<OutputType, float>::value ||
-         std::is_same<OutputType, float16>::value, "only fp32/fp16 output type");
-    static_assert(std::is_same<BiasType, float>::value ||
-         std::is_same<BiasType, float16>::value, "only fp32/fp16 bias type");
+    static_assert(std::is_same<InputType, float>::value,
+        "only fp32 input type");
+    static_assert(std::is_same<WeightsType, float>::value
+        || std::is_same<WeightsType, float16>::value,
+        "only fp32/fp16 weights type");
+    static_assert(std::is_same<OutputType, float>::value
+        || std::is_same<OutputType, float16>::value,
+        "only fp32/fp16 output type");
+    static_assert(std::is_same<BiasType, float>::value
+        || std::is_same<BiasType, float16>::value,
+        "only fp32/fp16 bias type");
 
     __m<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
@@ -1076,10 +1084,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          auto f32 = std::is_same<InputType, float>::value
-              ? md4(ainput4, _T, 0, _V, 0)
-              : half_2_float(md4(ainput4, _T, 0, _V, 0));
-          __m<V> mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&f32);
+          __m<V> mmbcst
+              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -1112,10 +1118,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          auto f32 = std::is_same<InputType, float>::value
-              ? md4(ainput4, _T, 0, _V, 1)
-              : half_2_float(md4(ainput4, _T, 0, _V, 1));
-          __m<V> mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&f32);
+          __m<V> mmbcst
+              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -1149,10 +1153,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          auto f32 = std::is_same<InputType, float>::value
-              ? md4(ainput4, _T, 0, _V, 2)
-              : half_2_float(md4(ainput4, _T, 0, _V, 2));
-          __m<V> mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&f32);
+          __m<V> mmbcst
+              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 2));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -1186,10 +1188,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
           MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          auto f32 = std::is_same<InputType, float>::value
-              ? md4(ainput4, _T, 0, _V, 3)
-              : half_2_float(md4(ainput4, _T, 0, _V, 3));
-          __m<V> mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&f32);
+          __m<V> mmbcst
+              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 3));
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
