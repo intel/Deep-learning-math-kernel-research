@@ -119,7 +119,10 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
       el_error("Algorithm CONV_DIRECT_1X1 not supported for this shape.");
       return ELD_GENERAL_ERROR;
     }
-    xc = new elx_conv_direct_1x1_t<UserTypes, float, 16, ISA_SKX_AVX512>(*this);
+    if (std::is_same<UserTypes, conv::FP32>::value)
+      xc = new elx_conv_direct_1x1_t<UserTypes, float, 16, ISA_SKX_AVX512>(*this);
+    else
+      el_error("TODO: FP16 UserTypes for DIRECT 1x1.");
   } else if (algorithm == CONV_WINOGRAD) {
     // Winograd
     if (dilations.h > 1 || dilations.w > 1 ||
