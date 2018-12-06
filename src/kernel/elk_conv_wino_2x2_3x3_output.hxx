@@ -45,12 +45,21 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
 #undef P
 #undef T
 #undef OP
+#undef FUSE_BIAS
 #define T(_h, _w) atoutput[_w][_h]
 #define P(_h, _w) p_cb(_h, _w)
 
   __m<V> c0, c1, c2, c3, zero;
 #define t(m, n) t##m##n
 #define OP(m,n) __m<V> t(m,n) = _mm<V>::load_ps(T(m, n))
+#define FUSE_BIAS(p)                                                           \
+  if (std::is_same<BiasType, float>::value) {                                  \
+    p = ADD(p, *(__m<V>*)bias);                                                \
+  } else {                                                                     \
+    auto f16v = _mm<V/2>::load_si256((__m256i *)bias);                         \
+    p = ADD(p, _mm<V>::cvtph_ps(f16v));                                        \
+  }
+
   MATRIX_DEF(4, 4);
 
   c0 = ADD(ADD(t10, t11), t12);
@@ -59,22 +68,22 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   c3 = SUB(ADD(t22, t23), t21);
 
   __m<V> p00 = ADD(ADD(ADD(ADD(t00, t01), t02), c0), c1);
-  if (fuse_bias) p00 = ADD(p00, *(__m<V>*)bias);
+  if (fuse_bias) {FUSE_BIAS(p00)}
   if (fuse_ip_sum) p00 = ADD(p00, *(__m<V>*)P(0, 0));
   if (fuse_relu) {
     zero = XOR(zero, zero);
     p00 = MAX(p00, zero);
   }
   __m<V> p10 = ADD(ADD(ADD(SUB(c1, c0), t30), t31), t32);
-  if (fuse_bias) p10 = ADD(p10, *(__m<V>*)bias);
+  if (fuse_bias) {FUSE_BIAS(p10)}
   if (fuse_ip_sum) p10 = ADD(p10, *(__m<V>*)P(1, 0));
   if (fuse_relu) p10 = MAX(p10, zero);
   __m<V> p01 = ADD(ADD(ADD(SUB(t02, t01), t03), c2), c3);
-  if (fuse_bias) p01 = ADD(p01, *(__m<V>*)bias);
+  if (fuse_bias) {FUSE_BIAS(p01)}
   if (fuse_ip_sum) p01 = ADD(p01, *(__m<V>*)P(0, 1));
   if (fuse_relu) p01 = MAX(p01, zero);
   __m<V> p11 = ADD(ADD(SUB(SUB(c3, c2), t31), t32), t33);
-  if (fuse_bias) p11 = ADD(p11, *(__m<V>*)bias);
+  if (fuse_bias) {FUSE_BIAS(p11)}
   if (fuse_ip_sum) p11 = ADD(p11, *(__m<V>*)P(1, 1));
   if (fuse_relu) p11 = MAX(p11, zero);
 

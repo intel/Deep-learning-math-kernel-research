@@ -9,6 +9,15 @@
 #include "elk_conv_wino_5x5_3x3_input.hxx"
 
 namespace euler {
+#undef FUSE_BIAS
+#define FUSE_BIAS(p)                                                           \
+  if (std::is_same<BiasType, float>::value) {                                  \
+    p = ADD(p, *(__m<V>*)bias);                                                \
+  } else {                                                                     \
+    auto f16v = _mm<V/2>::load_si256((__m256i *)bias);                         \
+    p = ADD(p, _mm<V>::cvtph_ps(f16v));                                        \
+  }
+
 #define AVX512_CALCULATE_O_0(z, n, nil)                                        \
   c##n = ADD(ADD(ADD(ADD(ADD(t##n##0, t##n##1), t##n##2), t##n##3), t##n##4),  \
          t##n##5);
@@ -36,8 +45,7 @@ namespace euler {
 
 #define AVX512_CALCULATE_O(n)                                                  \
   __m<V> p0##n = ADD(ADD(ADD(ADD(ADD(c0, c1), c2), c3), c4), c5);              \
-  if (fuse_bias)                                                               \
-    p0##n = ADD(p0##n, *(__m<V>*)bias);                                        \
+  if (fuse_bias) {FUSE_BIAS(p0##n)}                                            \
   if (fuse_ip_sum)                                                             \
     p0##n = ADD(p0##n, *(__m<V>*)P(0, n));                                     \
   if (fuse_relu) {                                                             \
@@ -46,24 +54,21 @@ namespace euler {
   }                                                                            \
   STORE(0, n)                                                                  \
   __m<V> p1##n = ADD(FMADD(z2, SUB(c2, c3), c0), FMSUB(z1_2, SUB(c4, c5), c1));\
-  if (fuse_bias)                                                               \
-    p1##n = ADD(p1##n, *(__m<V>*)bias);                                        \
+  if (fuse_bias) {FUSE_BIAS(p1##n)}                                            \
   if (fuse_ip_sum)                                                             \
     p1##n = ADD(p1##n, *(__m<V>*)P(1, n));                                     \
   if (fuse_relu)                                                               \
     p1##n = MAX(p1##n, zero);                                                  \
   STORE(1, n)                                                                  \
   __m<V> p2##n = ADD(FMADD(z4, ADD(c2, c3), c0), FMADD(z1_4, ADD(c4, c5), c1));\
-  if (fuse_bias)                                                               \
-    p2##n = ADD(p2##n, *(__m<V>*)bias);                                        \
+  if (fuse_bias) {FUSE_BIAS(p2##n)}                                            \
   if (fuse_ip_sum)                                                             \
     p2##n = ADD(p2##n, *(__m<V>*)P(2, n));                                     \
   if (fuse_relu)                                                               \
     p2##n = MAX(p2##n, zero);                                                  \
   STORE(2, n)                                                                  \
   __m<V> p3##n = ADD(FMADD(z8, SUB(c2, c3), c0), FMSUB(z1_8, SUB(c4, c5), c1));\
-  if (fuse_bias)                                                               \
-    p3##n = ADD(p3##n, *(__m<V>*)bias);                                        \
+  if (fuse_bias) {FUSE_BIAS(p3##n)}                                            \
   if (fuse_ip_sum)                                                             \
     p3##n = ADD(p3##n, *(__m<V>*)P(3, n));                                     \
   if (fuse_relu)                                                               \
@@ -72,8 +77,7 @@ namespace euler {
   __m<V> p4##n = ADD(FMADD(z16, ADD(c2, c3), c0), FMADD(z1_16, ADD(c4, c5), c1));
 
 #define AVX512_ADD_B(n);                                                       \
-  if (fuse_bias)                                                               \
-    p4##n = ADD(p4##n, *(__m<V>*)bias);                                        \
+  if (fuse_bias) {FUSE_BIAS(p4##n)}                                            \
   if (fuse_ip_sum)                                                             \
     p4##n = ADD(p4##n, *(__m<V>*)P(4, n));                                     \
   if (fuse_relu)                                                               \

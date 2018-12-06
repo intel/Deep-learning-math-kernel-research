@@ -89,7 +89,7 @@ template <typename UserTypes> struct elx_conv_t : elx_conv_params_t {
 };
 
 template struct elx_conv_t<conv::FP32>;
-//template struct elx_conv_t<conv::FP16>;
+template struct elx_conv_t<conv::FP16>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_HPP__

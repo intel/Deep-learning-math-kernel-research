@@ -94,6 +94,6 @@ int elx_conv(eld_conv_t<UserTypes> &desc,
 template int elx_conv<conv::FP32>(
     eld_conv_t<conv::FP32> &, float *, float *, float *, float *);
 
-//template int elx_conv<conv::FP16>(
-//    eld_conv_t<conv::FP16> &, short *, short *, short *, short *);
+template int elx_conv<conv::FP16>(
+    eld_conv_t<conv::FP16> &, short *, short *, short *, short *);
 }  // namespace euler

@@ -137,7 +137,7 @@ template<typename UserTypes> struct eld_conv_t {
 };
 
 template struct eld_conv_t<conv::FP32>;
-//template struct eld_conv_t<FP16>;
+template struct eld_conv_t<conv::FP16>;
 
 // Convolution execution
 template <typename UserTypes>

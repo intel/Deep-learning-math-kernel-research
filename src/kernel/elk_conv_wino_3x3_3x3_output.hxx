@@ -12,6 +12,15 @@
 // #error "Don't include this file directly"
 // #endif
 namespace euler {
+#undef FUSE_BIAS
+#define FUSE_BIAS(p)                                                           \
+  if (std::is_same<BiasType, float>::value) {                                  \
+    p = ADD(p, *(__m<V>*)bias);                                                \
+  } else {                                                                     \
+    auto f16v = _mm<V/2>::load_si256((__m256i *)bias);                         \
+    p = ADD(p, _mm<V>::cvtph_ps(f16v));                                        \
+  }
+
 #define AVX512_CALCULATE_C_0(z, n, nil)                                        \
   c##n = ADD(ADD(ADD(t##n##0, t##n##1), t##n##2), t##n##3);
 #define AVX512_CALCULATE_C_1(z, n, nil)                                        \
@@ -20,8 +29,7 @@ namespace euler {
   c##n = FMADD(z4, t##n##3, ADD(ADD(t##n##1, t##n##2), t##n##4));
 #define AVX512_CALCULATE_P(n)                                                  \
   __m<V> p0##n = ADD(ADD(ADD(c0, c1), c2), c3);                                \
-  if (fuse_bias)                                                               \
-    p0##n = ADD(p0##n, *(__m<V>*)bias);                                        \
+  if (fuse_bias) {FUSE_BIAS(p0##n)}                                            \
   if (fuse_ip_sum)                                                             \
     p0##n = ADD(p0##n, *(__m<V>*)P(0, n));                                     \
   if (fuse_relu) {                                                             \
@@ -29,15 +37,13 @@ namespace euler {
     p0##n = MAX(p0##n, zero);                                                  \
   }                                                                            \
   __m<V> p1##n = FMADD(z2, c3, SUB(c2, c1));                                   \
-  if (fuse_bias)                                                               \
-    p1##n = ADD(p1##n, *(__m<V>*)bias);                                        \
+  if (fuse_bias) {FUSE_BIAS(p1##n)}                                            \
   if (fuse_ip_sum)                                                             \
     p1##n = ADD(p1##n, *(__m<V>*)P(1, n));                                     \
   if (fuse_relu)                                                               \
     p1##n = MAX(p1##n, zero);                                                  \
   __m<V> p2##n = FMADD(z4, c3, ADD(ADD(c1, c2), c4));                          \
-  if (fuse_bias)                                                               \
-    p2##n = ADD(p2##n, *(__m<V>*)bias);                                        \
+  if (fuse_bias) {FUSE_BIAS(p2##n)}                                            \
   if (fuse_ip_sum)                                                             \
     p2##n = ADD(p2##n, *(__m<V>*)P(2, n));                                     \
   if (fuse_relu)                                                               \
