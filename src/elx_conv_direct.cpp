@@ -1263,10 +1263,8 @@ Template_elx_conv_direct_t
 void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
     WeightsType *weights, BiasType *bias, int _ic4, int _oc4, int _ht, int _wt)
 {
-  // weights: oc3*, O2, ic4*, ic3*, I2, V, V
   // input:   ic3*, I2, ht*, hs*, wt*, T, ws, V
-  // output:  oc3*, O2(O2r), ht*, wt*, T, V
-  //MD5(InputType, ainput, input, this->ic3, this->I2, this->ih, this->wt, this->T * this->ws * V);
+  // output:  oc3*, O2, ht*, wt*, T, V
   MD5(InputType, ainput, input, this->ic3, this->I2, this->ih, this->iw, V);
   MD6(OutputType, aoutput, output, this->oc3, this->O2, this->ht, this->wt, this->T, V);
   MD5(WeightsType, aweights, weights, this->kh, this->kw, this->oc3, this->ic3, this->O2 * this->I2 * V * V);
@@ -1279,9 +1277,9 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
   int khe = _ht == this->ht - 1 ? this->kh - 1 : this->kh;
   int kws = _wt == 0 ? 1 : 0;
   int kwe = _wt == this->wt - 1 ? this->kw - 1 : this->kw;
+  assert(this->T > this->lp);
 
-  int oc3 = _oc4 == this->oc4 - 1 ? this->oc3r : this->oc3;
-  iter_each(_oc3, oc3) {
+  iter_each(_oc3, this->oc3) {
     iter_each(_ic3, this->ic3) {
       int attr =
           (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
@@ -1301,54 +1299,27 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
         // left
         if (_wt == 0) {
           int _kw = 0;
-          if (_oc4 == this->oc4 - 1 && _oc3 == oc3 - 1) {
-            ker_gemm_border_I_OrT_(
-                *this, &md6(aoutput, _oc3, 0, 0, 0, 1, 0),
-                &md5(ainput, _ic3, 0, _kh - AKH, 1 + _kw - AKW, 0),
-                &md5(aweights, _kh, _kw, _oc3, _ic3, 0),
-                &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
-          } else {
-            ker_gemm_border_I_O_T_(
-                *this, &md6(aoutput, _oc3, 0, 0, 0, 1, 0),
-                &md5(ainput, _ic3, 0, _kh - AKH, 1 + _kw - AKW, 0),
-                &md5(aweights, _kh, _kw, _oc3, _ic3, 0),
-                &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
-          }
+          ker_gemm_border_I_O_T_(*this, &md6(aoutput, _oc3, 0, 0, 0, 1, 0),
+              &md5(ainput, _ic3, 0, _kh - AKH, 1 + _kw - AKW, 0),
+              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md2(abias, _oc3, 0),
+              attr, 0, nullptr, nullptr);
           attr &= ~r_output_idx;
         }
-
         // mid
         for (int _kw = kws; _kw < kwe; ++_kw) {
-          if (_oc4 == this->oc4 - 1 && _oc3 == oc3 - 1) {
-            ker_gemm_I_OrT_(*this, &md6(aoutput, _oc3, 0, 0, 0, 0, 0),
-                            &md5(ainput, _ic3, 0, _kh - AKH, _kw - AKW, 0),
-                            &md5(aweights, _kh, _kw, _oc3, _ic3, 0),
-                            &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
-          } else {
-            ker_gemm_I_O_T_(*this, &md6(aoutput, _oc3, 0, 0, 0, 0, 0),
-                            &md5(ainput, _ic3, 0, _kh - AKH, _kw - AKW, 0),
-                            &md5(aweights, _kh, _kw, _oc3, _ic3, 0),
-                            &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
-          }
+          ker_gemm_I_O_T_(*this, &md6(aoutput, _oc3, 0, 0, 0, 0, 0),
+              &md5(ainput, _ic3, 0, _kh - AKH, _kw - AKW, 0),
+              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md2(abias, _oc3, 0),
+              attr, 0, nullptr, nullptr);
           attr &= ~r_output_idx;
         }
-
         // right
         if (_wt == this->wt - 1) {
           int _kw = 2;
-          if (_oc4 == this->oc4 - 1 && _oc3 == oc3 - 1) {
-            ker_gemm_border_I_OrT_(
-                *this, &md6(aoutput, _oc3, 0, 0, 0, 0, 0),
-                &md5(ainput, _ic3, 0, _kh - AKH, _kw - AKW, 0),
-                &md5(aweights, _kh, _kw, _oc3, _ic3, 0),
-                &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
-          } else {
-            ker_gemm_border_I_O_T_(
-                *this, &md6(aoutput, _oc3, 0, 0, 0, 0, 0),
-                &md5(ainput, _ic3, 0, _kh - AKH, _kw - AKW, 0),
-                &md5(aweights, _kh, _kw, _oc3, _ic3, 0),
-                &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
-          }
+          ker_gemm_border_I_O_T_(*this, &md6(aoutput, _oc3, 0, 0, 0, 0, 0),
+              &md5(ainput, _ic3, 0, _kh - AKH, _kw - AKW, 0),
+              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md2(abias, _oc3, 0),
+              attr, 0, nullptr, nullptr);
         }
       }
       attr = attr_bk;

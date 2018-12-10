@@ -80,20 +80,21 @@ void Instance_elx_conv_direct_t::__execute_d060(
   // weights: oc4*, oc3, O2(O2r), ic4*, ic3, I2, V, V
   // input:   t3*, ic4*, ic3, I2, ht*, S, wt*, T, S, V
   // output:  t3*, oc4*, oc3, O2(O2r), ht*wt*, T, V
-  //MD2(WeightsType, aweights, weights, this->oc4, this->oc3 * this->O2 * this->IC * V);
   MD7(InputType, ainput, input, this->t3, this->ic4, this->ic3 * this->I2,
       this->ht, this->hs, this->wt, this->T * this->ws * V);
-  MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
+  MD6(OutputType, aoutput, output, this->t3, this->oc4, this->oc3 * this->O2, this->ht, this->wt, this->T * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   // trans-weights: compact fp16
-  MD10(WeightsType, aweights, weights, this->oc4, this->oc3, this->O2, this->ic4, this->ic3, this->I2, this->kh, this->kw, V, V);
-  MD10(TarrayType, atweights, tweights_, this->ic4, this->oc4, this->kh, this->kw, this->oc3, this->ic3, this->I2, V, this->O2, V);
+  MD10(WeightsType, aweights, weights, this->oc4, this->oc3, this->O2,
+      this->ic4, this->ic3, this->I2, this->kh, this->kw, V, V);
+  MD10(TarrayType, atweights, tweights_, this->ic4, this->oc4, this->kh,
+      this->kw, this->oc3, this->ic3, this->I2, V, this->O2, V);
   if (is_first_run_) {
-    // oc2, ic2, kh, kw, V, V
-    // ic4, oc4, kh, kw, ic3, (oc3, oc3r), I2, V, (O2, O2r), V
+    // weights: oc2, ic2, kh, kw, V, V
+    // tweights: ic4, oc4, kh, kw, oc3, _ic3, I2, V, O2, V
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
-#pragma omp for nowait collapse(3)
+#pragma omp for nowait collapse(6)
     iter_each (_oc4, this->oc4) {
     iter_each (_oc3, this->oc3) {
     iter_each (_O2, this->O2) {
@@ -105,11 +106,13 @@ void Instance_elx_conv_direct_t::__execute_d060(
     iter_each (_iV, V) {
 #pragma omp simd
     iter_each (_oV, V) {
-      md10(atweights, _ic4, _oc4, _kh, _kw, _oc3, _ic3, _I2, _iV, _O2, _oV) = md10(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _kh, _kw, _iV, _oV);
+      md10(atweights, _ic4, _oc4, _kh, _kw, _oc3, _ic3, _I2, _iV, _O2, _oV)
+        = md10(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _kh, _kw, _iV, _oV);
     }}}}}}}}}}
   }
 
-  MD10(TarrayType, atweights10, tweights_, this->ic4, this->oc4, this->kh, this->kw, this->ic3, this->oc3, this->I2, V, this->O2, V);
+  MD10(TarrayType, atweights10, tweights_, this->ic4, this->oc4, this->kh,
+      this->kw, this->ic3, this->oc3, this->I2, V, this->O2, V);
 
   iter_each (_ic4, this->ic4) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
@@ -118,13 +121,10 @@ void Instance_elx_conv_direct_t::__execute_d060(
     iter_each (_oc4, this->oc4) {
     iter_each (_ht, this->ht) {
     iter_each (_wt, this->wt) {
-
-      MD5(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
-          this->oc3 * this->O2, this->ht, this->wt, this->T * V);
-      gemm_d060(&md5(aoutput2, _oc4, 0, _ht, _wt, 0),
+      gemm_d060(&md6(aoutput, _t3, _oc4, 0, _ht, _wt, 0),
           &md7(ainput, _t3, _ic4, 0, _ht, 0, _wt, 0),
-          &md10(atweights10, _ic4, _oc4, 0, 0, 0, 0, 0, 0, 0, 0), &md2(abias, _oc4, 0), _ic4, _oc4,
-          _ht, _wt);
+          &md10(atweights10, _ic4, _oc4, 0, 0, 0, 0, 0, 0, 0, 0),
+          &md2(abias, _oc4, 0), _ic4, _oc4, _ht, _wt);
     }}}}
   }
   if (inference_acc_)
