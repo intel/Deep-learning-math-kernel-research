@@ -35,22 +35,22 @@ enum {
 #define PAGE_SIZE 4096
 
 template <typename... Types> struct ConvImplTypes {
-  static_assert(sizeof...(Types) == 4,
-      "Inner types input/weights/output/bias data type");
+  static_assert(sizeof...(Types) == 5,
+      "Inner types input/weights/output/bias scale data type");
   using InputType = typename std::tuple_element<0, std::tuple<Types...>>::type;
   using WeightsType = typename std::tuple_element<1, std::tuple<Types...>>::type;
   using OutputType = typename std::tuple_element<2, std::tuple<Types...>>::type;
   using BiasType = typename std::tuple_element<3, std::tuple<Types...>>::type;
-  using ScaleType = typename std::tuple_element<2, std::tuple<Types...>>::type;
+  using ScaleType = typename std::tuple_element<4, std::tuple<Types...>>::type;
 };
 
 namespace conv_impl {
   // TarrayTypes: FP32/FP16
   // GarrayTypes: FP32/FP16/INT8_F32/INT8_F16
-  using FP32 = ConvImplTypes<float, float, float, float>;
-  using FP32_F16 = ConvImplTypes<float, short, short, float>;
-  using INT8_F16 = ConvImplTypes<uint8_t, int8_t, short, float>;
-  using INT8_F32 = ConvImplTypes<uint8_t, int8_t, float, float>;
+  using FP32 = ConvImplTypes<float, float, float, float, float>;
+  using FP32_F16 = ConvImplTypes<float, short, short, float, float>;
+  using INT8_F16 = ConvImplTypes<uint8_t, int8_t, short, float, float>;
+  using INT8_F32 = ConvImplTypes<uint8_t, int8_t, float, float, float>;
 };
 
 } // namespace euler
