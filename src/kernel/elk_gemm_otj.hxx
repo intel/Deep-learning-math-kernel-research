@@ -450,16 +450,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-            if (std::is_same<InputType, float>::value) {
-              __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
-              mmout[_O][_T]
-                  = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            } else {
-              __m<V> mmbcst = _mm<V>::set1_ps(
-                  half_2_float(md4(ainput4, _T, 0, _V, 0)));
-              mmout[_O][_T]
-                  = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            }
+            __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
+            mmout[_O][_T]
+                = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
         }
       }
@@ -618,16 +611,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V, 1);
-            if (std::is_same<InputType, float>::value) {
-              __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
-              mmout[_O][_T]
-                  = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            } else {
-              __m<V> mmbcst = _mm<V>::set1_ps(
-                  half_2_float(md4(ainput4, _T, 0, _V, 0)));
-              mmout[_O][_T]
-                  = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            }
+            __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
+            mmout[_O][_T]
+                = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
         }
       }
@@ -665,16 +651,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             MD4(InputType, ainput4, &md2(ainput, xc.I2 - 1, 0), T, S, V, 1);
-            if (std::is_same<InputType, float>::value) {
-              __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
-              mmout[_O][_T]
-                  = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            } else {
-              __m<V> mmbcst = _mm<V>::set1_ps(
-                  half_2_float(md4(ainput4, _T, 0, _V, 0)));
-              mmout[_O][_T]
-                  = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            }
+            __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
+            mmout[_O][_T]
+                = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
         }
       }

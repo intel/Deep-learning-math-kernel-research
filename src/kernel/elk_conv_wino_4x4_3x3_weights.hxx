@@ -74,6 +74,11 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   }
 #define ISTORE(i, j) _mm<V>::store_ps(T(i, j), t##i##j);
 
+#define LOAD(m,n)                                                 \
+  std::is_same<WeightsType, float>::value                         \
+  ? _mm<V>::load_ps(F(m, n))                                      \
+  : _mm<V>::cvtph_ps(_mm<V/2>::load_si256((__m256i *)F(m, n)))
+
   float M[6][3][16];
 
   auto z0 = _mm<V>::set1_ps(0.26890756302521f);
@@ -86,9 +91,9 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   for (int _V = 0; _V < 16; _V++) {
 #pragma unroll
     for (int i = 0; i < 3; i++) {
-      auto f0 = _mm<V>::load_ps(F(0, i));
-      auto f1 = _mm<V>::load_ps(F(1, i));
-      auto f2 = _mm<V>::load_ps(F(2, i));
+      auto f0 = LOAD(0, i);
+      auto f1 = LOAD(1, i);
+      auto f2 = LOAD(2, i);
       auto t0 = z0 * f2;
       auto t1 = z1 * f0 - t0;
       auto t2 = t0 + z2 * f0;

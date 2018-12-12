@@ -34,6 +34,7 @@ namespace euler {
   c##n = ADD(FMADD(z16, ADD(t##n##2, t##n##3), ADD(t##n##0, t##n##1)),         \
          FMADD(z1_16, ADD(t##n##4, t##n##5), t##n##6));
 
+#undef STORE
 #define STORE(i, j)                                                            \
   if (std::is_same<OutputType, float>::value)                                  \
     _mm<V>::store_ps(P(i, j), p##i##j);                                        \

@@ -86,7 +86,8 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
 
   // 2. prepare data
   float *input, *weights, *output, *bias;
-  test::prepare_conv_data<float>(desc, &input, &weights, &output, &bias);
+  test::prepare_conv_data<float>(desc, &input, &weights, &output, &bias,
+      nullptr, nullptr, nullptr, nullptr);
 
   // 3. execute convolution
   int iterations = validate_results ? 1 : 6400 / mb;
@@ -96,7 +97,7 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
   for (int n = 0; n < iterations; ++n) {
     if (ELX_OK != elx_conv<conv::FP32>(desc, output, input, weights, bias)) {
       printf("Fail: Convolution execution error!\n");
-      test::teardown_conv_data(input, weights, output, bias);
+      test::teardown_conv_data(input, weights, output, bias, nullptr, nullptr, nullptr, nullptr);
       return -1;
     }
   }
@@ -112,7 +113,7 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
                                        bias)) {
       printf("Fail: Convolution ref execution error!\n");
       validation_pass = false;
-    } else if (test::compare_conv_results(desc, output, ref_output)) {
+    } else if (test::compare_conv_results(desc, output, ref_output, false)) {
       printf("Fail: Convolution results not correct!\n");
       validation_pass = false;
     } else {
@@ -123,7 +124,7 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
     free(ref_output);
   }
 
-  test::teardown_conv_data(input, weights, output, bias);
+  test::teardown_conv_data(input, weights, output, bias, nullptr, nullptr, nullptr, nullptr);
 
   return 0;
 }

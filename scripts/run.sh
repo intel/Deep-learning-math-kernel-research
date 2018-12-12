@@ -28,13 +28,13 @@ function build() {
 function conv_test() {
   # Default
   n=1; i=0; o=0; h=0; w=0; H=0; W=0; k=3; K=3; p=1; P=1; s=1; S=1
-  b=1; r=0; v=1; a=wino; f=0; l=16; B=0; A=0; T=0
+  b=1; r=0; v=1; a=wino; l=16; B=0; A=0; T=0
   flt_o=0; flt_t=0; blk_i=0; blk_o=0; pat_i=1; pat_o=1
   tile_size=5; nthreads=0; execution_mode=0
   streaming_weights=0; streaming_input=0; streaming_output=0
   input_format=nChw16c; weights_format=OIhw16i16o; output_format=nChw16c
   input_as_blocked=0; weights_as_blocked=0; output_as_blocked=0
-  with_ip_sum=0; f16c_opt=0
+  with_ip_sum=0; f16c_opt=0; fp16_mode=0
 
   OPTIND=1
   while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:f:l:B:A:T:a:-:" opt; do
@@ -56,7 +56,6 @@ function conv_test() {
       r) r=$OPTARG ;;
       v) v=$OPTARG ;;
       a) a=$OPTARG ;;
-      f) f=$OPTARG ;;
       l) l=$OPTARG ;;
       B) B=$OPTARG ;;
       A) A=$OPTARG ;;
@@ -147,6 +146,10 @@ function conv_test() {
             ;;
           f16c-opt=*) f16c_opt=${OPTARG#*=}
             ;;
+          fp16-mode) fp16_mode="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          fp16-mode=*) fp16_mode=${OPTARG#*=}
+            ;;
        esac
        ;;
     esac
@@ -169,7 +172,8 @@ function conv_test() {
     --weights-as-blocked=$weights_as_blocked \
     --output-as-blocked=$output_as_blocked   \
     --with-ip-sum=$with_ip_sum \
-    --f16c-opt=$f16c_opt
+    --f16c-opt=$f16c_opt \
+    --fp16-mode=$fp16_mode
   set +v
 }
 

@@ -16,6 +16,7 @@ int parse_cmd_options(int, char **);
 int mb = 0, ic = 0, ih = 0, iw = 0, oc = 0, oh = 0, ow = 0, kh = 3, kw = 3;
 int ph = 1, pw = 1, sh = 1, sw = 1, dh = 1, dw = 1;
 bool with_bias = true, with_relu = false, with_ip_sum = false, f16c_opt = false;
+bool fp16_mode = false;
 int prop_kind = forward_inference, alg = CONV_WINOGRAD;
 int input_format = nChw16c, weights_format = OIhw16i16o, output_format = nChw16c;
 int nthreads = 0;
@@ -33,14 +34,9 @@ bool double_buffering = false;
 bool output_as_input = false;
 bool tweights_preprocess = false;
 
-#define RL_MAX 128
-int main(int argc, char **argv)
-{
-  if (parse_cmd_options(argc, argv))
-    return 0;
-
-  // 1, create convolution desc
-  eld_conv_t<conv::FP32> desc;
+template <typename ConvType>
+static inline ConvType create_conv_desc(void) {
+  ConvType desc;
   desc.dims = {{ mb, ic, ih, iw },
                { oc, ic, kh, kw },
                { mb, oc, oh, ow },
@@ -66,20 +62,21 @@ int main(int argc, char **argv)
       = { streaming_weights, streaming_input, streaming_output };
   desc.format_as_blocked
       = { input_as_blocked, weights_as_blocked, output_as_blocked };
+  return desc;
+}
 
-  // 2. setup convolution
-  eld_conv_t<conv::FP32> convs[RL_MAX];
-  float *input[RL_MAX], *weights[RL_MAX], *output[RL_MAX], *bias[RL_MAX],
-      *ref_output;
-  const auto C = validate_results ?
-      1 : repeated_layer <= RL_MAX ? repeated_layer : RL_MAX;
+#define RL_MAX 128
+template <typename T>
+static inline int prepare_data(T *convs, T &desc, int C, float **input,
+    float **weights, float **output, float **bias, float *ref_output,
+    short **input1, short **weights1, short **output1, short **bias1) {
 
   bool reuse_inout = double_buffering || output_as_input;
   for (auto c = 0; c < C; ++c) {
     convs[c] = desc;
     if (convs[c].setup() != ELD_OK) {
       printf("Fail: Convolution setup error!\n");
-      return -1;
+      return 0;
     }
     input[c] = nullptr;
     output[c] = nullptr;
@@ -99,19 +96,15 @@ int main(int argc, char **argv)
     if (desc.with_ip_sum)
       memcpy(ref_output, output[0], convs[0].byte_sizes.output);
   }
+  return 1;
+}
 
-  // int8-gemm prepare for confident interval of tweights
-  if (tweights_preprocess) {
-    for (auto c = 0; c < C; ++c) {
-      if (convs[c].tile_size != 0 && (convs[c].execution_mode == 0xa161))
-        convs[c].preprocess(weights[c]);
-    }
-  }
-
-  // 3. execute convolution
+template <typename ConvType, typename T>
+static inline void conv_execute(eld_conv_t<ConvType> convs[],
+    T **input, T **weights, T **output, T **bias, int C) {
   for (auto c = 0; c < C; ++c) {
-    eld_conv_t<conv::FP32> &_convs = convs[c];
-    float *_weights = weights[c], *_bias = bias[c], *_input = input[c],
+    eld_conv_t<ConvType> &_convs = convs[c];
+    T *_weights = weights[c], *_bias = bias[c], *_input = input[c],
           *_output = output[c];
     if (double_buffering) {
       if (c % 2 == 0) {
@@ -124,61 +117,172 @@ int main(int argc, char **argv)
     } else if (output_as_input) {
       if (c > 0) _input = output[c - 1];
     }
-    if (ELX_OK != elx_conv<conv::FP32>(_convs, _output, _input, _weights, _bias)) {
+    if (ELX_OK != elx_conv<ConvType>(_convs, _output, _input, _weights, _bias)) {
       test::error("Fail: Convolution execution error!\n");
     }
   }
+}
 
-  // 4. validate results
+template <typename ConvType, typename T>
+static inline void conv_bench(eld_conv_t<ConvType> convs[],
+    eld_conv_t<conv::FP32> &desc0, T **input, T **weights,
+    T **output, T **bias, int C) {
+  auto num_ops = test::cal_ops(desc0);
+  auto N = validate_results ? 1 : test::cal_iterations(num_ops);
+
+  test::timer timer;
+  for (auto n = 0; n < N / C; ++n) {
+    for (auto c = 0; c < C; ++c) {
+      eld_conv_t<ConvType> &_convs = convs[c];
+      T *_weights = weights[c], *_bias = bias[c], *_input = input[c],
+            *_output = output[c];
+      if (double_buffering) {
+        if (c % 2 == 0) {
+          _input = input[0];
+          _output = output[0];
+        } else {
+          _input = output[0];
+          _output = input[0];
+        }
+      } else if (output_as_input) {
+        if (c > 0)
+          _input = output[c - 1];
+      }
+      timer.start();
+      if (ELX_OK
+          != elx_conv<ConvType>(_convs, _output, _input, _weights, _bias)) {
+        test::error("Fail: Convolution execution error!\n");
+      }
+      timer.stop();
+    }
+  }
+
+  timer.report_tflops("conv", C * (N / C), num_ops);
+}
+
+int main(int argc, char **argv)
+{
+  if (parse_cmd_options(argc, argv))
+    return 0;
+
+  // 1, create convolution desc
+  auto desc0 = create_conv_desc<eld_conv_t<conv::FP32>>();
+  auto desc1 = create_conv_desc<eld_conv_t<conv::FP16>>();
+
+  // 2. setup convolution
+  eld_conv_t<conv::FP32> convs0[RL_MAX];
+  eld_conv_t<conv::FP16> convs1[RL_MAX];
+
+  const auto C = validate_results ?
+      1 : repeated_layer <= RL_MAX ? repeated_layer : RL_MAX;
+
+  float *input[RL_MAX], *weights[RL_MAX], *output[RL_MAX], *bias[RL_MAX],
+      *ref_output;
+  short *input1[RL_MAX], *weights1[RL_MAX], *output1[RL_MAX], *bias1[RL_MAX];
+
+  bool reuse_inout = double_buffering || output_as_input;
+
+  if (!fp16_mode) {
+    for (auto c = 0; c < C; ++c) {
+      convs0[c] = desc0;
+      if (convs0[c].setup() != ELD_OK) {
+        printf("Fail: Convolution setup error!\n");
+        return 0;
+      }
+      input[c] = nullptr;
+      output[c] = nullptr;
+      float **in = &input[c], **out = &output[c];
+      if (double_buffering && (c > 0)) {
+        in = nullptr;
+        out = nullptr;
+      } else if (output_as_input && (c > 0)) {
+        in = nullptr;
+      }
+      test::prepare_conv_data<float, float, float, float>(
+          convs0[c], in, &weights[c], out, &bias[c],
+          &input1[c], &weights1[c], &output1[c], &bias1[c],
+          reuse_inout, fp16_mode, validate_results);
+    }
+
+    if (validate_results) {
+      ref_output = (float *)malloc(convs0[0].byte_sizes.output);
+      if (desc0.with_ip_sum)
+        memcpy(ref_output, output[0], convs0[0].byte_sizes.output);
+    }
+  } else {
+    for (auto c = 0; c < C; ++c) {
+      convs1[c] = desc1;
+      if (convs1[c].setup() != ELD_OK) {
+        printf("Fail: Convolution setup error!\n");
+        return 0;
+      }
+      input1[c] = nullptr;
+      output1[c] = nullptr;
+      short **in = &input1[c], **out = &output1[c];
+      if (double_buffering && (c > 0)) {
+        in = nullptr;
+        out = nullptr;
+      } else if (output_as_input && (c > 0)) {
+        in = nullptr;
+      }
+
+      if (c == 0) {
+        convs0[0] = desc0;
+        if (convs0[0].setup() != ELD_OK) {
+          printf("Fail: Convolution setup error!\n");
+          return 0;
+        }
+      }
+
+      test::prepare_conv_data<float, float, float, float>(
+          convs0[0], &input[c], &weights[c], &output[c], &bias[c],
+          in, &weights1[c], out, &bias1[c], reuse_inout, fp16_mode,
+          validate_results);
+    }
+
+    if (validate_results) {
+      ref_output = (float *)malloc(convs0[0].byte_sizes.output);
+      if (desc1.with_ip_sum)
+        memcpy(ref_output, output[0], convs0[0].byte_sizes.output);
+    }
+  }
+
+  // 3. execute convolution
+  if (!fp16_mode)
+    conv_execute(convs0, input, weights, output, bias, C);
+  else
+    conv_execute(convs1, input1, weights1, output1, bias1, C);
+
   if (validate_results) {
+    // 4. validate results
     printf("Validation: ");
     if (test::ref_convolution2d<float>(
-            convs[0], ref_output, input[0], weights[0], bias[0]))
+            convs0[0], ref_output, input[0], weights[0], bias[0]))
       printf("Fail: Convolution ref execution error!\n");
-    else if (test::compare_conv_results(convs[0], output[0], ref_output))
-      printf("Fail: Convolution results not correct!\n");
-    else
-      printf("Convolution Pass!\n");
-
+    if (!fp16_mode) {
+      if (test::compare_conv_results(convs0[0], output[0], ref_output, fp16_mode))
+        printf("Fail: Convolution results not correct!\n");
+      else
+        printf("Convolution Pass!\n");
+    } else {
+      if (test::compare_conv_results(convs0[0], output1[0], ref_output, fp16_mode))
+        printf("Fail: Convolution results not correct!\n");
+      else
+        printf("Convolution Pass!\n");
+    }
     free(ref_output);
   } else {
     // 5. bench
-    auto num_ops = test::cal_ops(desc);
-    auto N = validate_results ? 1 : test::cal_iterations(num_ops);
-
-    test::timer timer;
-    for (auto n = 0; n < N / C; ++n) {
-      for (auto c = 0; c < C; ++c) {
-        eld_conv_t<conv::FP32> &_convs = convs[c];
-        float *_weights = weights[c], *_bias = bias[c], *_input = input[c],
-              *_output = output[c];
-        if (double_buffering) {
-          if (c % 2 == 0) {
-            _input = input[0];
-            _output = output[0];
-          } else {
-            _input = output[0];
-            _output = input[0];
-          }
-        } else if (output_as_input) {
-          if (c > 0)
-            _input = output[c - 1];
-        }
-        timer.start();
-        if (ELX_OK
-            != elx_conv<conv::FP32>(_convs, _output, _input, _weights, _bias)) {
-          test::error("Fail: Convolution execution error!\n");
-        }
-        timer.stop();
-      }
-    }
-
-    timer.report_tflops("conv", C * (N / C), num_ops);
+    if (!fp16_mode)
+      conv_bench(convs0, desc0, input, weights, output, bias, C);
+    else
+      conv_bench(convs1, desc0, input1, weights1, output1, bias1, C);
   }
 
   // 6. setdown
   for (auto c = 0; c < C; ++c) {
-    test::teardown_conv_data(input[c], weights[c], output[c], bias[c]);
+    test::teardown_conv_data(input[c], weights[c], output[c], bias[c],
+        input1[c], weights1[c], output1[c], bias1[c], fp16_mode);
   }
 
   return 0;
@@ -230,6 +334,7 @@ int parse_cmd_options(int argc, char **argv) {
     ("weights-as-blocked", po::value<bool>(&weights_as_blocked), "on|off. Format weighs as blocked. Default: off")
     ("output-as-blocked", po::value<bool>(&output_as_blocked), "on|off. Format output as blocked. Default: off")
     ("f16c-opt", po::value<bool>(&f16c_opt), "on|off. With half-precision opt, Default: off")
+    ("fp16-mode", po::value<bool>(&fp16_mode), "on|off. fp16 UserTypes, Default: off")
     ("with-ip-sum", po::value<bool>(&with_ip_sum), "on|off. With inplace sum, Default: off");
 
   po::variables_map vm;
@@ -312,15 +417,15 @@ int parse_cmd_options(int argc, char **argv) {
          "mb:%d, ic:%d, ih:%d, iw:%d, oc:%d, oh:%d, ow:%d, kh:%d, kw:%d, "
          "ph:%d, pw:%d, sh:%d, sw:%d, dh:%d, dw:%d\n"
          "with_bias:%d, with_relu:%d, with_ip_sum:%d, f16c_opt=%d, "
-         "validate_results:%d\n"
+         "fp16_mode=%d, validate_results:%d\n"
          "flt_o:%d, flt_t:%d, blk_i:%d, blk_o:%d, pat_i:%d, pat_o:%d\n"
          "streaming-hint:%d, %d, %d\n"
          "nthreads:%d\n"
          "execution-mode:%x\n",
       mb, ic, ih, iw, oc, oh, ow, kh, kw, ph, pw, sh, sw, dh, dw, with_bias,
-      with_relu, with_ip_sum, f16c_opt, validate_results, flt_o, flt_t, blk_i,
-      blk_o, pat_i, pat_o, streaming_weights, streaming_input, streaming_output,
-      nthreads, execution_mode);
+      with_relu, with_ip_sum, f16c_opt, fp16_mode, validate_results, flt_o,
+      flt_t, blk_i, blk_o, pat_i, pat_o, streaming_weights, streaming_input,
+      streaming_output, nthreads, execution_mode);
 
   std::unordered_map<int, const char *>prop_kind_str {
     { forward_training, "forward_training"},

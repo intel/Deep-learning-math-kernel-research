@@ -15,22 +15,24 @@ namespace test {
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
   void prepare_conv_data(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &desc,
       InputType **input, WeightsType **weights, OutputType **output,
-      BiasType **bias, bool double_buffering = false);
+      BiasType **bias, short **input1, short **weights1, short **output1,
+      short **bias1, bool double_buffering = false, bool fp16_mode = false,
+      bool validate_results = false);
 
-  void teardown_conv_data(
-      void *input, void *weights, void *output, void *bias);
+  void teardown_conv_data(void *input, void *weights, void *output, void *bias,
+      void *input1, void *weights1, void *output1, void *bias1, bool fp16_mode = false);
 
-  template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  int __compare_conv_results_plain(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &,
-      OutputType *out, OutputType *ref);
+  template <typename OutputType>
+  int __compare_conv_results_plain(eld_conv_t<conv::FP32> &, OutputType *out,
+      float *ref, bool fp16_mode);
 
-  template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  int __compare_conv_results_blocked(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &,
-      OutputType *out, OutputType *ref);
+  template <typename OutputType>
+  int __compare_conv_results_blocked(eld_conv_t<conv::FP32> &, OutputType *out,
+      float *ref, bool fp16_mode);
 
-  template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  int compare_conv_results(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &,
-      OutputType *out, OutputType *ref);
+  template <typename OutputType>
+  int compare_conv_results(eld_conv_t<conv::FP32> &, OutputType *out, float *ref,
+      bool fp16_mode);
 
   size_t cal_ops(eld_conv_t<conv::FP32> &desc);
   int cal_iterations(size_t num_ops);
