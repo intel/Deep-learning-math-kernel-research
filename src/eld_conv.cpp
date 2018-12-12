@@ -6,6 +6,7 @@
 #include "elx_conv.hpp"
 #include "elx_conv_wino.hpp"
 #include "elx_conv_direct_1x1.hpp"
+#include "elx_conv_direct.hpp"
 
 namespace euler {
 
@@ -111,9 +112,11 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
 
   // Direct
   if (algorithm == CONV_DIRECT) {
-    el_error("Algorithm CONV_DIRECT not implemented");
-    // TODO: Direct
-    return ELD_UNIMPLEMENTED;
+    if (std::is_same<UserTypes, conv::FP32>::value)
+      xc = new elx_conv_direct_t<UserTypes, float, 16, ISA_SKX_AVX512>(*this);
+    else
+      el_error("TODO: FP16 UserTypes for DIRECT 1x1.");
+
   } else if (algorithm == CONV_DIRECT_1X1) {
     if (dims.weights.h != 1 || dims.weights.w != 1) {
       el_error("Algorithm CONV_DIRECT_1X1 not supported for this shape.");

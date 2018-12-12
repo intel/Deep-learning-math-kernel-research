@@ -56,7 +56,10 @@ file (GLOB __euler_source
   src/elx_conv_wino_xopt.cpp
   src/elx_conv_direct_1x1_bind.cpp
   src/elx_conv_direct_1x1.cpp
-  src/elx_conv_direct_1x1_xopt.cpp)
+  src/elx_conv_direct_1x1_xopt.cpp
+  src/elx_conv_direct_bind.cpp
+  src/elx_conv_direct.cpp
+  src/elx_conv_direct_xopt.cpp)
 
 if (NOT WITH_GKTII)
   file (GLOB __euler_gemm_kernel_source
