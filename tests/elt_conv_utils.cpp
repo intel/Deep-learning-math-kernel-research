@@ -254,8 +254,9 @@ namespace test {
                          "delta=%g, acc=%g\n",
                       _n, _C, _h, _w, _v, real, md5(aref, _n, _C, _h, _w, _v),
                       delta, acc);
-                  errors++;
                 }
+#pragma omp atomic 
+                  errors++;
               } else {
                 double rel_diff = delta / fabs(md5(aref, _n, _C, _h, _w, _v));
                 if (rel_diff > acc) {
@@ -265,6 +266,7 @@ namespace test {
                         _n, _C, _h, _w, _v, real, md5(aref, _n, _C, _h, _w, _v),
                         delta, rel_diff);
                   }
+#pragma omp atomic 
                   errors++;
                 }
               }
