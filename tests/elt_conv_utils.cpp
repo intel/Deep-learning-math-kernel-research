@@ -175,18 +175,29 @@ namespace test {
   }
 
   void teardown_conv_data(void *input, void *weights, void *output, void *bias,
-      void *input1, void *weights1, void *output1, void *bias1, bool fp16_mode)
+      void *input1, void *weights1, void *output1, void *bias1, bool fp16_mode,
+      bool validate_results)
   {
-    if (input)
-      free(input);
-    if (weights)
-      free(weights);
-    if (output)
-      free(output);
-    if (bias)
+    if (!fp16_mode) {
+      if (input)
+        free(input);
+      if (weights)
+        free(weights);
+      if (output)
+        free(output);
+      if (bias)
       free(bias);
-
-    if (fp16_mode) {
+    } else {
+      if (validate_results) {
+        if (input)
+          free(input);
+        if (weights)
+          free(weights);
+        if (output)
+          free(output);
+        if (bias)
+        free(bias);
+      }
       if (input1)
         free(input1);
       if (weights1)

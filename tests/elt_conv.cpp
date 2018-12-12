@@ -282,7 +282,7 @@ int main(int argc, char **argv)
   // 6. setdown
   for (auto c = 0; c < C; ++c) {
     test::teardown_conv_data(input[c], weights[c], output[c], bias[c],
-        input1[c], weights1[c], output1[c], bias1[c], fp16_mode);
+        input1[c], weights1[c], output1[c], bias1[c], fp16_mode, validate_results);
   }
 
   return 0;

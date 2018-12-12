@@ -20,7 +20,8 @@ namespace test {
       bool validate_results = false);
 
   void teardown_conv_data(void *input, void *weights, void *output, void *bias,
-      void *input1, void *weights1, void *output1, void *bias1, bool fp16_mode = false);
+      void *input1, void *weights1, void *output1, void *bias1, bool fp16_mode = false,
+      bool validate_results = false);
 
   template <typename OutputType>
   int __compare_conv_results_plain(eld_conv_t<conv::FP32> &, OutputType *out,
