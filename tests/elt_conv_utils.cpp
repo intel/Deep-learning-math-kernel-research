@@ -74,7 +74,7 @@ namespace test {
       if (fp16_mode  && !validate_results) {
 #pragma omp parallel for
         for (size_t i = 0; i < desc.sizes.input; i++) {
-          (*input1)[i] = RAND() % 5 - 2;
+          (*input1)[i] = float_2_half(RAND() % 5 - 2);
         }
       } else {
         if (input != nullptr) {
@@ -96,7 +96,7 @@ namespace test {
         if (desc.with_relu) {
 #pragma omp parallel for
           for (size_t i = 0; i < desc.sizes.weights; i++) {
-            (*weights1)[i] = -RAND() % 4;
+            (*weights1)[i] = float_2_half(-RAND() % 4);
             if (i % 3 == 1)
               (*weights1)[i] = -(*weights1)[i];
           }
@@ -133,7 +133,7 @@ namespace test {
       if (fp16_mode  && !validate_results) {
 #pragma omp parallel for
         for (size_t i = 0; i < desc.sizes.bias; i++) {
-          (*bias1)[i] = RAND() % 100;
+          (*bias1)[i] = float_2_half(RAND() % 100);
         }
       } else {
         if (bias != nullptr) {
@@ -154,7 +154,7 @@ namespace test {
         if (output1 != nullptr && desc.with_ip_sum) {
 #pragma omp parallel for
           for (size_t i = 0; i < desc.sizes.output; i++) {
-            (*output1)[i] = RAND() % 10;
+            (*output1)[i] = float_2_half(RAND() % 10);
           }
         }
       } else {
