@@ -616,6 +616,8 @@ void Instance_elx_conv_wino_t::execute(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
+  set_trans_buffers();
+
   if (is_bfmt_)
     return (this->*execute_opt_)(output, input, weights, bias);
   else {

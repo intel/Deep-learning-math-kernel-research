@@ -336,6 +336,8 @@ Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::execute(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
+  set_trans_buffers();
+
   if (is_bfmt_)
     (this->*execute_opt_)(output, input, weights, bias);
   else {

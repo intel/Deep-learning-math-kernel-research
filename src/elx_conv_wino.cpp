@@ -329,8 +329,6 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   if (workspace_size != 0)
     MEMALIGN64(&workspace_, workspace_size);
 
-  set_trans_buffers();
-
   // dbg
   printf("nthreads=%d, mthr_=%d\n", this->nthreads, mthr_);
   printf("gemmker_input_footprint = %ld\n", gemmker_input_footprint());

@@ -226,8 +226,6 @@ int  Instance_elx_conv_direct_1x1_t::prepare_execute_opt()
   if (scratch_size != 0)
     scratch_ = (TarrayType *)galloc::acquire(scratch_size * sizeof(TarrayType));
 
-  set_trans_buffers();
-
   // dbg
   printf("nthreads=%d, mthr_=%d\n", this->nthreads, mthr_);
   return 0;
