@@ -57,9 +57,9 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
   const int fmt_blocked_weights = OIhw16i16o;
 
   bool format_okay
-      = estl::any_of(formats.input, nchw, fmt_blocked_data)
+      = estl::any_of(formats.input, nchw, nhwc, fmt_blocked_data)
       && estl::any_of(formats.weights, oihw, fmt_blocked_weights)
-      && estl::any_of(formats.output, nchw, fmt_blocked_data);
+      && estl::any_of(formats.output, nchw, nhwc, fmt_blocked_data);
 
   if (!format_okay) {
     el_error("Data format error");

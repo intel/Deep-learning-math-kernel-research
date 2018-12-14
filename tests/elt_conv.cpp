@@ -327,9 +327,9 @@ int parse_cmd_options(int argc, char **argv) {
     ("streaming-weights", po::value<int>(&streaming_weights), "Streaming hint for winograd transformed weights")
     ("streaming-input", po::value<int>(&streaming_input), "Streaming hint for winograd transformed input")
     ("streaming-output", po::value<int>(&streaming_output), "Streaming hint for winograd transformed output")
-    ("input-format", po::value<std::string>(), "nchw|nChw16c. Input data format. Default: nChw16c")
+    ("input-format", po::value<std::string>(), "nchw|nhwc|nChw16c. Input data format. Default: nChw16c")
     ("weights-format", po::value<std::string>(), "oihw|OIhw16i16o. Weights data format. Default: OIhw16i16o")
-    ("output-format", po::value<std::string>(), "nchw|nChw16c. Output data format. Default: nChw16c")
+    ("output-format", po::value<std::string>(), "nchw|nhwc|nChw16c. Output data format. Default: nChw16c")
     ("input-as-blocked", po::value<bool>(&input_as_blocked), "on|off. Format input as blocked. Default: off")
     ("weights-as-blocked", po::value<bool>(&weights_as_blocked), "on|off. Format weighs as blocked. Default: off")
     ("output-as-blocked", po::value<bool>(&output_as_blocked), "on|off. Format output as blocked. Default: off")
@@ -371,11 +371,13 @@ int parse_cmd_options(int argc, char **argv) {
     std::string fmt_str = vm["input-format"].as<std::string>();
     if (fmt_str == "nchw")
       input_format = nchw;
+    else if (fmt_str == "nhwc")
+      input_format = nhwc;
     else if (fmt_str == "nChw16c")
       input_format = nChw16c;
     else {
       printf("Error: convolution options: input-format should be "
-             "nchw|nChw16c\n");
+             "nchw|nhwc|nChw16c\n");
       return -1;
     }
   }
@@ -395,11 +397,13 @@ int parse_cmd_options(int argc, char **argv) {
     std::string fmt_str = vm["output-format"].as<std::string>();
     if (fmt_str == "nchw")
       output_format = nchw;
+    else if (fmt_str == "nhwc")
+      output_format = nhwc;
     else if (fmt_str == "nChw16c")
       output_format = nChw16c;
     else {
       printf("Error: convolution options: output-format should be "
-             "nchw|nChw16c\n");
+             "nchw|nhwc|nChw16c\n");
       return -1;
     }
   }
@@ -446,7 +450,7 @@ int parse_cmd_options(int argc, char **argv) {
     printf(", tile-size=%d", tile_size);
   printf("\n");
 
-  std::unordered_map<int, const char *> fmt_str { {nchw, "nchw"},
+  std::unordered_map<int, const char *> fmt_str { {nchw, "nchw"}, {nhwc, "nhwc"},
     {oihw, "oihw"}, {nChw16c, "nChw16c"}, {OIhw16i16o, "OIhw16i16o"}
   };
   printf("input-fmt:%s, weights-fmt:%s, output-fmt:%s\n", fmt_str[input_format],

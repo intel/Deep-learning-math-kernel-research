@@ -24,7 +24,11 @@ namespace test {
       bool validate_results = false);
 
   template <typename OutputType>
-  int __compare_conv_results_plain(eld_conv_t<conv::FP32> &, OutputType *out,
+  int __compare_conv_results_nchw(eld_conv_t<conv::FP32> &, OutputType *out,
+      float *ref, bool fp16_mode);
+
+  template <typename OutputType>
+  int __compare_conv_results_nhwc(eld_conv_t<conv::FP32> &, OutputType *out,
       float *ref, bool fp16_mode);
 
   template <typename OutputType>
@@ -45,6 +49,14 @@ namespace test {
     {
       assert(dst != nullptr && src != nullptr);
     }
+  };
+
+  template <typename Type> struct reorder<Type, nchw, nhwc> {
+    reorder(Type *dst, Type *src, int n, int c, int h, int w);
+  };
+
+  template <typename Type> struct reorder<Type, nhwc, nchw> {
+    reorder(Type *dst, Type *src, int n, int c, int h, int w);
   };
 
   template <typename Type> struct reorder<Type, nchw, nChw16c> {

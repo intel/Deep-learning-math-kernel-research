@@ -214,9 +214,25 @@ namespace test {
       float *ref, bool fp16_mode)
   {
     if (desc.formats.output == nchw)
-      return __compare_conv_results_plain(desc, out, ref, fp16_mode);
+      return __compare_conv_results_nchw(desc, out, ref, fp16_mode);
+    else if (desc.formats.output == nhwc)
+      return __compare_conv_results_nhwc(desc, out, ref, fp16_mode);
     else
       return __compare_conv_results_blocked(desc, out, ref, fp16_mode);
+  }
+
+  template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
+  int __compare_conv_results_nchw(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &,
+      OutputType *, OutputType *, bool fp16_mode)
+  {
+    return -1;
+  }
+
+  template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
+  int __compare_conv_results_nhwc(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &,
+      OutputType *, OutputType *, bool fp16_mode)
+  {
+    return -1;
   }
 
   template <typename OutputType>
@@ -285,7 +301,7 @@ namespace test {
   }
 
   template <typename OutputType>
-  int __compare_conv_results_plain(
+  int __compare_conv_results_nchw(
       eld_conv_t<conv::FP32> &desc, OutputType *out, float *ref, bool fp16_mode)
   {
     auto dims = desc.dims.output;
@@ -312,6 +328,7 @@ namespace test {
                 printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
                        "delta=%g, acc=%g\n",
                     _n, _c, _h, _w, real, md4(aref, _n, _c, _h, _w), delta, acc);
+#pragma omp atomic
                 errors++;
               }
             } else {
@@ -323,8 +340,9 @@ namespace test {
                       _n, _c, _h, _w, real, md4(aref, _n, _c, _h, _w), delta,
                       rel_diff);
                 }
+#pragma omp atomic
                 errors++;
-	          }
+              }
             }
           }
         }
@@ -339,6 +357,62 @@ namespace test {
     return 0;
   }
 
+  template <typename OutputType>
+  int __compare_conv_results_nhwc(
+      eld_conv_t<conv::FP32> &desc, OutputType *out, float *ref, bool fp16_mode)
+  {
+    auto dims = desc.dims.output;
+    MD4(OutputType, aout, out, dims.n, dims.h, dims.w, dims.c);
+    MD4(float, aref, ref, dims.n, dims.h, dims.w, dims.c);
+
+#define MAX_PRINT_ERRORS (20)
+    size_t errors = 0;
+    double acc = desc.with_relu ? 1.0 : 1e-5;
+
+#pragma omp parallel for collapse(3)
+    iter_each (_n, dims.n) {
+      iter_each (_c, dims.c) {
+        iter_each (_h, dims.h) {
+          iter_each (_w, dims.w) {
+            auto real = fp16_mode
+                ? half_2_float(md4(aout, _n, _h, _w, _c))
+                : md4(aout, _n, _h, _w, _c);
+            double delta = fabs(real - md4(aref, _n, _h, _w, _c));
+            if (real == 0 || md4(aref, _n, _h, _w, _c) == 0) {
+              if (delta < acc)
+                continue;
+              else if (errors < MAX_PRINT_ERRORS) {
+                printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
+                       "delta=%g, acc=%g\n",
+                    _n, _c, _h, _w, real, md4(aref, _n, _h, _w, _c), delta, acc);
+#pragma omp atomic
+                errors++;
+              }
+            } else {
+              double rel_diff = delta / fabs(md4(aref, _n, _h, _w, _c));
+              if (rel_diff > acc) {
+                if (errors < MAX_PRINT_ERRORS) {
+                  printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
+                         "delta=%g, rel_diff=%g\n",
+                      _n, _c, _h, _w, real, md4(aref, _n, _h, _w, _c), delta,
+                      rel_diff);
+                }
+#pragma omp atomic
+                errors++;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (errors > 0) {
+      printf("Error: number of errors: %ld/%ld, percentage: %f%%\n", errors,
+          desc.sizes.output, ((errors * 1.0) / desc.sizes.output) * 100.0);
+      return -1;
+    }
+    return 0;
+  }
 
   size_t cal_ops(eld_conv_t<conv::FP32> &desc)
   {
@@ -369,6 +443,46 @@ namespace test {
   {
     float iter = 5e12 / num_ops;
     return std::max((int)iter, 64);
+  }
+
+  template <typename Type>
+  reorder<Type, nchw, nhwc>::reorder(
+      Type *dst, Type *src, int n, int c, int h, int w)
+  {
+    MD4(Type, asrc, src, n, h, w, c);
+    MD4(Type, adst, dst, n, c, h, w);
+
+#pragma omp parallel for collapse(3)
+    iter_each (_n, n) {
+      iter_each (_c, c) {
+        iter_each (_h, h) {
+          iter_each (_w, w) {
+            md4(adst, _n, _c, _h, _w)
+              = md4(asrc, _n, _h, _w, _c);
+          }
+        }
+      }
+    }
+  }
+
+  template <typename Type>
+  reorder<Type, nhwc, nchw>::reorder(
+      Type *dst, Type *src, int n, int c, int h, int w)
+  {
+    MD4(Type, asrc, src, n, c, h, w);
+    MD4(Type, adst, dst, n, h, w, c);
+
+#pragma omp parallel for collapse(3)
+    iter_each (_n, n) {
+      iter_each (_c, c) {
+        iter_each (_h, h) {
+          iter_each (_w, w) {
+            md4(adst, _n, _h, _w, _c)
+              = md4(asrc, _n, _c, _h, _w);
+          }
+        }
+      }
+    }
   }
 
   template <typename Type>
@@ -524,15 +638,20 @@ namespace test {
     if (desc.formats.input == nChw16c) {
       tinput = (InputType *)malloc(desc.byte_sizes.input);
       reorder<InputType, nchw, nChw16c>(tinput, input, n, ic, ih, iw);
+    } else if (desc.formats.input == nhwc) {
+      tinput = (InputType *)malloc(desc.byte_sizes.input);
+      reorder<InputType, nchw, nhwc>(tinput, input, n, ic, ih, iw);
     }
     if (desc.formats.weights == OIhw16i16o) {
       tweights = (WeightsType *)malloc(desc.byte_sizes.weights);
       reorder<WeightsType, oihw, OIhw16i16o>(tweights, weights, oc, ic, kh, kw);
     }
-
     if (desc.formats.output == nChw16c) {
       toutput = (OutputType *)malloc(desc.byte_sizes.output);
       reorder<OutputType, nchw, nChw16c>(toutput, output, n, oc, oh, ow);
+    } else if (desc.formats.output == nhwc) {
+      toutput = (OutputType *)malloc(desc.byte_sizes.output);
+      reorder<OutputType, nchw, nhwc>(toutput, output, n, oc, oh, ow);
     }
 
     MD4(InputType, ainput, desc.formats.input == nchw ? input : tinput, n, ic, ih, iw);
@@ -574,6 +693,8 @@ namespace test {
 
     if (desc.formats.output == nChw16c) {
       reorder<OutputType, nChw16c, nchw>(output, toutput, n, oc, oh, ow);
+    } else if (desc.formats.output == nhwc) {
+      reorder<OutputType, nhwc, nchw>(output, toutput, n, oc, oh, ow);
     }
 
     if (tinput != nullptr)
