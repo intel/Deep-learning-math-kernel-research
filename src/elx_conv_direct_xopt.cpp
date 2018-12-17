@@ -70,7 +70,7 @@ void Instance_elx_conv_direct_t::__execute_c060(
   }
 }
 
-// nChw16c|nchw + OIhw16i16o -> nChw16c, Ir
+// nChw16c (padded) | nchw (compact) + OIhw16i16o -> nChw16c, Ir
 // kh|kw are odd
 // ih = oh, lp = rp = (kh-1)/2, hs=1
 // iw = iw, tp = bp = (kw-1)/2
@@ -78,14 +78,10 @@ Template_elx_conv_direct_t
 void Instance_elx_conv_direct_t::__execute_d060(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
-  // weights: oc4*, oc3, O2(O2r), ic4*, ic3, I2, V, V
   // input (blocked): t3*, ic4*, ic3, I2, ht*, S, wt*, T, S, V
   // input (nchw): t3*, ic4*, ic3, I2, V, ht*, S, wt*, T, S
+  // weights: oc4*, oc3, O2(O2r), ic4*, ic3, I2, V, V
   // output:  t3*, oc4*, oc3, O2(O2r), ht*wt*, T, V
-  MD8(InputType, ainput_blocked, input, this->t3, this->ic4, this->ic3 * this->I2,
-      this->ht, this->hs, this->wt, this->T * this->ws, V);
-  MD8(InputType, ainput_nchw, input, this->t3, this->ic4, this->ic3 * this->I2, V,
-      this->ht, this->hs, this->wt, this->T * this->ws);
   MD6(OutputType, aoutput, output, this->t3, this->oc4, this->oc3 * this->O2, this->ht, this->wt, this->T * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
   MD3(TarrayType, atweights3, tweights_, this->ic4, this->oc4,
@@ -97,6 +93,8 @@ void Instance_elx_conv_direct_t::__execute_d060(
   }
 
   if (this->input_fmt == nchw) {
+    MD2(InputType, ainput2, input, this->t3, this->ic * this->ih * this->iw);
+
     iter_each (_ic4, this->ic4) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(4)
@@ -104,12 +102,17 @@ void Instance_elx_conv_direct_t::__execute_d060(
     iter_each (_oc4, this->oc4) {
     iter_each (_ht, this->ht) {
     iter_each (_wt, this->wt) {
+      MD7(InputType, ainput7, &md2(ainput2, _t3, 0), this->ic4,
+          this->ic3 * this->I2, V, this->ht, this->hs, this->wt, this->T * this->ws);
       gemm_d060_nchw_input(&md6(aoutput, _t3, _oc4, 0, _ht, _wt, 0),
-          &md8(ainput_nchw, _t3, _ic4, 0, 0, _ht, 0, _wt, 0),
+          &md7(ainput7, _ic4, 0, 0, _ht, 0, _wt, 0),
           &md3(atweights3, _ic4, _oc4, 0),
           &md2(abias, _oc4, 0), _ic4, _oc4, _ht, _wt);
     }}}}}
   } else {
+    MD8(InputType, ainput, input, this->t3, this->ic4, this->ic3 * this->I2,
+        this->ht, this->hs, this->wt, this->T * this->ws, V);
+
     iter_each (_ic4, this->ic4) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(4)
@@ -118,7 +121,7 @@ void Instance_elx_conv_direct_t::__execute_d060(
     iter_each (_ht, this->ht) {
     iter_each (_wt, this->wt) {
       gemm_d060_blocked_input(&md6(aoutput, _t3, _oc4, 0, _ht, _wt, 0),
-          &md8(ainput_blocked, _t3, _ic4, 0, _ht, 0, _wt, 0, 0),
+          &md8(ainput, _t3, _ic4, 0, _ht, 0, _wt, 0, 0),
           &md3(atweights3, _ic4, _oc4, 0),
           &md2(abias, _oc4, 0), _ic4, _oc4, _ht, _wt);
     }}}}}
