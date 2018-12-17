@@ -1268,7 +1268,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
   MD5(InputType, ainput, input, this->ic3, this->I2, this->ih, this->iw, V);
   MD6(OutputType, aoutput, output, this->oc3, this->O2, this->ht, this->wt, this->T, V);
   MD5(WeightsType, aweights, weights, this->kh, this->kw, this->oc3, this->ic3, this->O2 * this->I2 * V * V);
-  MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
+  MD3(BiasType, abias, bias, this->oc3, this->O2, V);
 
   const int AKH = this->kh / 2;
   const int AKW = this->kw / 2;
@@ -1291,7 +1291,9 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
       if (_ic4 == 0 && _ic3 == 0) {
         iter_each(_O2, this->O2) {
 #pragma omp simd
-          iter_each(v, V) { md6(aoutput, _oc3, _O2, 0, 0, 0, v) = 0.0f; }
+          iter_each(v, V) {
+            md6(aoutput, _oc3, _O2, 0, 0, 0, v) = md3(abias, _oc3, _O2, v);
+          }
         }
       }
 
@@ -1301,7 +1303,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           int _kw = 0;
           ker_gemm_border_I_O_T_(*this, &md6(aoutput, _oc3, 0, 0, 0, 1, 0),
               &md5(ainput, _ic3, 0, _kh - AKH, 1 + _kw - AKW, 0),
-              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md2(abias, _oc3, 0),
+              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
               attr, 0, nullptr, nullptr);
           attr &= ~r_output_idx;
         }
@@ -1309,7 +1311,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
         for (int _kw = kws; _kw < kwe; ++_kw) {
           ker_gemm_I_O_T_(*this, &md6(aoutput, _oc3, 0, 0, 0, 0, 0),
               &md5(ainput, _ic3, 0, _kh - AKH, _kw - AKW, 0),
-              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md2(abias, _oc3, 0),
+              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
               attr, 0, nullptr, nullptr);
           attr &= ~r_output_idx;
         }
@@ -1318,7 +1320,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           int _kw = 2;
           ker_gemm_border_I_O_T_(*this, &md6(aoutput, _oc3, 0, 0, 0, 0, 0),
               &md5(ainput, _ic3, 0, _kh - AKH, _kw - AKW, 0),
-              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md2(abias, _oc3, 0),
+              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
               attr, 0, nullptr, nullptr);
         }
       }
