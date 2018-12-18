@@ -77,14 +77,21 @@ class elx_conv_direct_t : public elx_conv_t<UserTypes> {
   void bind_execute_functions();
 
   gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_I_O_T_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_border_I_O_T_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_border_IrO_T_;
   gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_I_O_Tr_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_IrO_T_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_IrO_Tr_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_left_I_O_T_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_left_I_O_Tr_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_left_IrO_T_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_left_IrO_Tr_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_right_I_O_T_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_right_I_O_Tr_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_right_IrO_T_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_right_IrO_Tr_;
+
   gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_I_OrT_;
   gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_border_I_OrT_;
   gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_I_OrTr_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_IrO_T_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_IrO_Tr_;
   gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_IrOrT_;
   gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_IrOrTr_;
 

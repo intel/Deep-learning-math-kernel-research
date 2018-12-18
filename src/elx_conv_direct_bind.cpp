@@ -57,13 +57,21 @@ Instance_elx_conv_direct_t::bind_execute_functions()
     }
   };
 
-  bind_kernel(this->O, this->T, &ker_gemm_I_O_T_, false);
-  bind_kernel(this->O, this->Tr, &ker_gemm_I_O_Tr_, false);
-
   if (xopt_ == 0xd060) {
+    bind_kernel(this->O, this->T, &ker_gemm_I_O_T_, false);
+    bind_kernel(this->O, this->Tr, &ker_gemm_I_O_Tr_, false);
     bind_kernel(this->O, this->T, &ker_gemm_IrO_T_, this->Ir != V);
-    bind_kernel(this->O, this->T - 1, &ker_gemm_border_I_O_T_, false);
-    bind_kernel(this->O, this->T - 1, &ker_gemm_border_IrO_T_, this->Ir != V);
+    bind_kernel(this->O, this->Tr, &ker_gemm_IrO_Tr_, this->Ir != V);
+
+    bind_kernel(this->O, this->T - 1, &ker_gemm_left_I_O_T_, false);
+    bind_kernel(this->O, this->Tr - 1, &ker_gemm_left_I_O_Tr_, false);
+    bind_kernel(this->O, this->T - 1, &ker_gemm_left_IrO_T_, this->Ir != V);
+    bind_kernel(this->O, this->Tr - 1, &ker_gemm_left_IrO_Tr_, this->Ir != V);
+
+    bind_kernel(this->O, this->T - 1, &ker_gemm_right_I_O_T_, false);
+    bind_kernel(this->O, this->Tr - 1, &ker_gemm_right_I_O_Tr_, false);
+    bind_kernel(this->O, this->T - 1, &ker_gemm_right_IrO_T_, this->Ir != V);
+    bind_kernel(this->O, this->Tr - 1, &ker_gemm_right_IrO_Tr_, this->Ir != V);
   }
 
   if (xopt_ == 0xc060) {
