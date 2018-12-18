@@ -1292,7 +1292,8 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
         iter_each(_O2, this->O2) {
 #pragma omp simd
           iter_each(v, V) {
-            md6(aoutput, _oc3, _O2, 0, 0, 0, v) = md3(abias, _oc3, _O2, v);
+            md6(aoutput, _oc3, _O2, 0, 0, 0, v) =
+                this->with_bias ? md3(abias, _oc3, _O2, v) : 0.0f;
           }
         }
       }
