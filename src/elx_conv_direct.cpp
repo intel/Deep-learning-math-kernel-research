@@ -1288,30 +1288,20 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
                  : attr;
       int attr_bk = attr;
 
-      if (_ic4 == 0 && _ic3 == 0) {
-        iter_each(_O2, this->O2) {
-#pragma omp simd
-          iter_each(v, V) {
-            md6(aoutput, _oc3, _O2, 0, 0, 0, v) =
-                this->with_bias ? md3(abias, _oc3, _O2, v) : 0.0f;
-          }
-        }
-      }
-
       for (int _kh = khs; _kh < khe; ++_kh) {
+        // mid
+        for (int _kw = kws; _kw < kwe; ++_kw) {
+          ker_gemm_I_O_T_(*this, &md6(aoutput, _oc3, 0, 0, 0, 0, 0),
+              &md5(ainput, _ic3, 0, _kh - AKH, _kw - AKW, 0),
+              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
+              attr, 0, nullptr, nullptr);
+          attr &= ~r_output_idx;
+        }
         // left
         if (_wt == 0) {
           int _kw = 0;
           ker_gemm_border_I_O_T_(*this, &md6(aoutput, _oc3, 0, 0, 0, 1, 0),
               &md5(ainput, _ic3, 0, _kh - AKH, 1 + _kw - AKW, 0),
-              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
-              attr, 0, nullptr, nullptr);
-          attr &= ~r_output_idx;
-        }
-        // mid
-        for (int _kw = kws; _kw < kwe; ++_kw) {
-          ker_gemm_I_O_T_(*this, &md6(aoutput, _oc3, 0, 0, 0, 0, 0),
-              &md5(ainput, _ic3, 0, _kh - AKH, _kw - AKW, 0),
               &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
               attr, 0, nullptr, nullptr);
           attr &= ~r_output_idx;
