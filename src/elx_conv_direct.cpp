@@ -1139,7 +1139,7 @@ void Instance_elx_conv_direct_t::gemm_a061(OutputType *output,
     iter_each (_oc3, this->oc3) {
       ker_gemm_I_O_T_(*(elx_conv_params_t *)this, &md2(aoutput, _oc3, 0),
           &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
+          &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr, nullptr);
     }
   }
   int attr = _ic4 == 0 && this->ic3 == 1 ?
@@ -1149,7 +1149,7 @@ void Instance_elx_conv_direct_t::gemm_a061(OutputType *output,
   iter_each (_oc3, this->oc3) {
     ker_gemm_IrO_T_(*(elx_conv_params_t *)this, &md2(aoutput, _oc3, 0),
         &md2(ainput, this->ic3 - 1, 0), &md3(aweights, _oc3, this->ic3 - 1, 0),
-        &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
+        &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr, nullptr);
   }
 }
 
@@ -1174,7 +1174,7 @@ void Instance_elx_conv_direct_t::gemm_b061(OutputType *output,
     iter_each (_oc3, this->oc3) {
       ker_gemm_I_O_T_(*(elx_conv_params_t *)this, &md5(aoutput, _oc3, 0, 0, 0, 0),
           &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
+          &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr, nullptr);
     }
   }
 }
@@ -1198,7 +1198,7 @@ void Instance_elx_conv_direct_t::gemm_f061(OutputType *output,
     iter_each (_oc3, this->oc3) {
       ker_gemm(*(elx_conv_params_t *)this, &md2(aoutput, _oc3, 0),
           &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
+          &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr, nullptr);
     }
   }
   int attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
@@ -1206,7 +1206,7 @@ void Instance_elx_conv_direct_t::gemm_f061(OutputType *output,
   iter_each(_oc3, this->oc3) {
     ker_gemm_tail(*(elx_conv_params_t *)this, &md2(aoutput, _oc3, 0),
         &md2(ainput, this->ic3 - 1, 0), &md3(aweights, _oc3, this->ic3 - 1, 0),
-        &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
+        &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr, nullptr);
   }
 }
 
@@ -1237,23 +1237,23 @@ void Instance_elx_conv_direct_t::gemm_c060(OutputType *output,
           ker_gemm_I_OrTr_(*(elx_conv_params_t *)this,
               &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
               &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-              attr, 0, nullptr, nullptr);
+              attr, 0, nullptr, nullptr, nullptr);
         else
           ker_gemm_I_OrT_(*(elx_conv_params_t *)this,
               &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
               &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-              attr, 0, nullptr, nullptr);
+              attr, 0, nullptr, nullptr, nullptr);
       } else {
         if (_t2 == this->t2 - 1)
           ker_gemm_I_O_Tr_(*(elx_conv_params_t *)this,
               &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
               &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-              attr, 0, nullptr, nullptr);
+              attr, 0, nullptr, nullptr, nullptr);
         else
           ker_gemm_I_O_T_(*(elx_conv_params_t *)this,
               &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
               &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-              attr, 0, nullptr, nullptr);
+              attr, 0, nullptr, nullptr, nullptr);
       }
     }
   }
@@ -1294,7 +1294,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           ker_gemm_I_O_T_(*this, &md6(aoutput, _oc3, 0, 0, 0, 0, 0),
               &md5(ainput, _ic3, 0, _kh - AKH, _kw - AKW, 0),
               &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
-              attr, 0, nullptr, nullptr);
+              attr, 0, nullptr, nullptr, nullptr);
           attr &= ~r_output_idx;
         }
         // left
@@ -1303,7 +1303,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           ker_gemm_border_I_O_T_(*this, &md6(aoutput, _oc3, 0, 0, 0, 1, 0),
               &md5(ainput, _ic3, 0, _kh - AKH, 1 + _kw - AKW, 0),
               &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
-              attr, 0, nullptr, nullptr);
+              attr, 0, nullptr, nullptr, nullptr);
           attr &= ~r_output_idx;
         }
         // right
@@ -1312,7 +1312,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           ker_gemm_border_I_O_T_(*this, &md6(aoutput, _oc3, 0, 0, 0, 0, 0),
               &md5(ainput, _ic3, 0, _kh - AKH, _kw - AKW, 0),
               &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
-              attr, 0, nullptr, nullptr);
+              attr, 0, nullptr, nullptr, nullptr);
         }
       }
       attr = attr_bk;
@@ -1343,7 +1343,7 @@ void Instance_elx_conv_direct_t::gemm_e060(OutputType *output, InputType *input,
     iter_each (_oc3, this->oc3) {
       ker_gemm_I_O_T_(*(elx_conv_params_t *)this, &md5(aoutput, _oc3, 0, 0, 0, 0),
           &md5(ainput, _ic3, 0, 0, 0, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr);
+          &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr, nullptr);
     }
   }
 }
