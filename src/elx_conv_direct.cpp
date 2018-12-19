@@ -76,6 +76,9 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t<UserTypes> &dc)
     this->t2 = this->nt / this->T;
     this->t = this->nt * this->n;
 
+    if (this->T <= this->lp || this->Tr <= this->rp) {
+      el_error("Unimplemented T: (T,Tr) must greater than (lp,rp)");
+    }
     if (no_pad_ && (this->ht * this->hs != this->ih
         || this->wt * this->ws * this->T != this->iw)) {
       el_error("Unimplemented non-unitride shape or blocking");
@@ -1375,7 +1378,7 @@ void Instance_elx_conv_direct_t::gemm_d060_nchw_input(OutputType *output, InputT
   // input:   ic3*, I2, V, ht*, hs*, wt*, T, ws
   // output:  oc3*, O2, ht*, wt*, T, V
   MD5(InputType, ainput, input, this->ic3, this->I2, V, this->ih, this->iw);
-  MD6(OutputType, aoutput, output, this->oc3, this->O2, this->ht, this->wt, this->T, V);
+  MD5(OutputType, aoutput, output, this->oc3, this->O2, this->ht, this->ow, V);
   MD5(WeightsType, aweights, weights, this->kh, this->kw, this->oc3, this->ic3, this->O2 * this->I2 * V * V);
   MD3(BiasType, abias, bias, this->oc3, this->O2, V);
 
@@ -1387,6 +1390,14 @@ void Instance_elx_conv_direct_t::gemm_d060_nchw_input(OutputType *output, InputT
   int kws = _wt == 0 ? 1 : 0;
   int kwe = _wt == this->wt - 1 ? this->kw - 1 : this->kw;
   assert(this->T > this->lp);
+  assert(this->Tr > this->rp);
+
+  auto ker_gemm_I = _wt == this->wt - 1 ? ker_gemm_I_O_Tr_ : ker_gemm_I_O_T_;
+  auto ker_gemm_Ir = _wt == this->wt - 1 ? ker_gemm_IrO_Tr_ : ker_gemm_IrO_T_;
+  auto ker_gemm_left_I = _wt == this->wt - 1 ? ker_gemm_left_I_O_Tr_ : ker_gemm_left_I_O_T_;
+  auto ker_gemm_left_Ir = _wt == this->wt - 1 ? ker_gemm_left_IrO_Tr_ : ker_gemm_left_IrO_T_;
+  auto ker_gemm_right_I = _wt == this->wt - 1 ? ker_gemm_right_I_O_Tr_ : ker_gemm_right_I_O_T_;
+  auto ker_gemm_right_Ir = _wt == this->wt - 1 ? ker_gemm_right_IrO_Tr_ : ker_gemm_right_IrO_T_;
 
   iter_each(_oc3, this->oc3) {
     iter_each(_ic3, this->ic3) {
@@ -1398,14 +1409,16 @@ void Instance_elx_conv_direct_t::gemm_d060_nchw_input(OutputType *output, InputT
       int attr_bk = attr;
 
       auto ker_gemm = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
-        ? ker_gemm_IrO_T_ : ker_gemm_I_O_T_;
-      auto ker_gemm_border = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
-        ? ker_gemm_left_IrO_T_ : ker_gemm_left_I_O_T_;
+        ? ker_gemm_Ir : ker_gemm_I;
+      auto ker_gemm_left = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
+        ? ker_gemm_left_Ir : ker_gemm_left_I;
+      auto ker_gemm_right = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
+        ? ker_gemm_right_Ir : ker_gemm_right_I;
 
       for (int _kh = khs; _kh < khe; ++_kh) {
         // mid
         for (int _kw = kws; _kw < kwe; ++_kw) {
-          ker_gemm(*this, &md6(aoutput, _oc3, 0, 0, 0, 0, 0),
+          ker_gemm(*this, &md5(aoutput, _oc3, 0, 0, 0, 0),
               &md5(ainput, _ic3, 0, 0, _kh - AKH, _kw - AKW),
               &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
               attr, 0, nullptr, nullptr, nullptr);
@@ -1414,7 +1427,7 @@ void Instance_elx_conv_direct_t::gemm_d060_nchw_input(OutputType *output, InputT
         // left
         if (_wt == 0) {
           int _kw = 0;
-          ker_gemm_border(*this, &md6(aoutput, _oc3, 0, 0, 0, 1, 0),
+          ker_gemm_left(*this, &md5(aoutput, _oc3, 0, 0, 1, 0),
               &md5(ainput, _ic3, 0, 0, _kh - AKH, 1 + _kw - AKW),
               &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
               attr, 0, nullptr, nullptr, nullptr);
@@ -1423,7 +1436,7 @@ void Instance_elx_conv_direct_t::gemm_d060_nchw_input(OutputType *output, InputT
         // right
         if (_wt == this->wt - 1) {
           int _kw = 2;
-          ker_gemm_border(*this, &md6(aoutput, _oc3, 0, 0, 0, 0, 0),
+          ker_gemm_right(*this, &md5(aoutput, _oc3, 0, 0, 0, 0),
               &md5(ainput, _ic3, 0, 0, _kh - AKH, _kw - AKW),
               &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
               attr, 0, nullptr, nullptr, nullptr);

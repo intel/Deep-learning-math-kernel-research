@@ -458,8 +458,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           // T is not real T in border of direct-conv. It works okay only as
           // leading dim.
           if (F_traits<F>::is_nchw_input) {
-            MD5(InputType, ainput5, &md2(ainput, _I2, 0), V / P, P, xc.ih * xc.wt, xc.T, S);
-            mmbcst = _mm<V>::set1_ps(md5(ainput5, _V, 0, 0, _T, 0));
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), V / P, P, xc.ih, xc.iw);
+            MD3(InputType, ainput3, &md4(ainput4, _V, 0, 0, 0), xc.wt, xc.T, S);
+            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
           } else {
             MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
             mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
@@ -625,8 +626,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         for (int _T = 0; _T < T; ++_T) {
           __m<V> mmbcst;
           if (F_traits<F>::is_nchw_input) {
-            MD5(InputType, ainput5, &md2(ainput, _I2, 0), V, 1, xc.ih * xc.wt, xc.T, S);
-            mmbcst = _mm<V>::set1_ps(md5(ainput5, _V, 0, 0, _T, 0));
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), V, 1, xc.ih, xc.iw);
+            MD3(InputType, ainput3, &md4(ainput4, _V, 0, 0, 0), xc.wt, xc.T, S);
+            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
           } else {
             MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V, 1);
             mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
@@ -671,8 +673,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         for (int _T = 0; _T < T; ++_T) {
           __m<V> mmbcst;
           if (F_traits<F>::is_nchw_input) {
-            MD5(InputType, ainput5, &md2(ainput, xc.I2 - 1, 0), V, 1, xc.ih * xc.wt, xc.T, S);
-            mmbcst = _mm<V>::set1_ps(md5(ainput5, _V, 0, 0, _T, 0));
+            MD4(InputType, ainput4, &md2(ainput, xc.I2 - 1, 0), V, 1, xc.ih, xc.iw);
+            MD3(InputType, ainput3, &md4(ainput4, _V, 0, 0, 0), xc.wt, xc.T, S);
+            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
           } else {
             MD4(InputType, ainput4, &md2(ainput, xc.I2 - 1, 0), T, S, V, 1);
             mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
@@ -864,8 +867,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         for (int _T = 0; _T < T; ++_T) {
           __m<V> mmbcst;
           if (F_traits<F>::is_nchw_input) {
-            MD5(InputType, ainput5, &md2(ainput, _I2, 0), V / P, P, xc.ih * xc.wt, xc.T, S);
-            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md5(ainput5, _V, 0, 0, _T, 0));
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), V / P, P, xc.ih, xc.iw);
+            MD3(InputType, ainput3, &md4(ainput4, _V, 0, 0, 0), xc.wt, xc.T, S);
+            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
           } else {
             MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
             mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
@@ -904,8 +908,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         for (int _T = 0; _T < T; ++_T) {
           __m<V> mmbcst;
           if (F_traits<F>::is_nchw_input) {
-            MD5(InputType, ainput5, &md2(ainput, _I2, 0), V / P, P, xc.ih * xc.wt, xc.T, S);
-            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md5(ainput5, _V, 1, 0, _T, 0));
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), V / P, P, xc.ih, xc.iw);
+            MD3(InputType, ainput3, &md4(ainput4, _V, 1, 0, 0), xc.wt, xc.T, S);
+            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
           } else {
             MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
             mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
@@ -1101,8 +1106,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         for (int _T = 0; _T < T; ++_T) {
           __m<V> mmbcst;
           if (F_traits<F>::is_nchw_input) {
-            MD5(InputType, ainput5, &md2(ainput, _I2, 0), V / P, P, xc.ih * xc.wt, xc.T, S);
-            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md5(ainput5, _V, 0, 0, _T, 0));
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), V / P, P, xc.ih, xc.iw);
+            MD3(InputType, ainput3, &md4(ainput4, _V, 0, 0, 0), xc.wt, xc.T, S);
+            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
           } else {
             MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
             mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
@@ -1140,8 +1146,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         for (int _T = 0; _T < T; ++_T) {
           __m<V> mmbcst;
           if (F_traits<F>::is_nchw_input) {
-            MD5(InputType, ainput5, &md2(ainput, _I2, 0), V / P, P, xc.ih * xc.wt, xc.T, S);
-            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md5(ainput5, _V, 1, 0, _T, 0));
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), V / P, P, xc.ih, xc.iw);
+            MD3(InputType, ainput3, &md4(ainput4, _V, 1, 0, 0), xc.wt, xc.T, S);
+            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
           } else {
             MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
             mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
@@ -1180,8 +1187,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         for (int _T = 0; _T < T; ++_T) {
           __m<V> mmbcst;
           if (F_traits<F>::is_nchw_input) {
-            MD5(InputType, ainput5, &md2(ainput, _I2, 0), V / P, P, xc.ih * xc.wt, xc.T, S);
-            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md5(ainput5, _V, 2, 0, _T, 0));
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), V / P, P, xc.ih, xc.iw);
+            MD3(InputType, ainput3, &md4(ainput4, _V, 2, 0, 0), xc.wt, xc.T, S);
+            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
           } else {
             MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
             mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 2));
@@ -1220,8 +1228,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         for (int _T = 0; _T < T; ++_T) {
           __m<V> mmbcst;
           if (F_traits<F>::is_nchw_input) {
-            MD5(InputType, ainput5, &md2(ainput, _I2, 0), V / P, P, xc.ih * xc.wt, xc.T, S);
-            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md5(ainput5, _V, 3, 0, _T, 0));
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), V / P, P, xc.ih, xc.iw);
+            MD3(InputType, ainput3, &md4(ainput4, _V, 3, 0, 0), xc.wt, xc.T, S);
+            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
           } else {
             MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
             mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 3));
