@@ -320,6 +320,529 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   constexpr static int JO2 = J_traits<O, T, has_Ir, WeightsType>::O2;
   constexpr static int JP2 = J_traits<O, T, has_Ir, WeightsType>::P2;
 
+
+  template <int JO>
+  static inline __m<V> __op_load_bias(BiasType *bias, const int _O)
+  {
+    __m<V> res;
+    MD2(BiasType, abias2, bias, JO, V);
+    if (std::is_same<BiasType, float>::value) {
+      res = _mm<V>::load_ps(&md2(abias2, _O, 0));
+    } else {
+      auto fp16v = _mm<V / 2>::load_si256((__m256i *)&md2(abias2, _O, 0));
+      res = _mm<V>::cvtph_ps(fp16v);
+    }
+    return res;
+  }
+
+  template <int JO>
+  static inline __m<V> __op_load_output(OutputType *output, const int _T)
+  {
+    __m<V> res;
+    MD2(OutputType, aoutput2, output, T, V);
+    if (std::is_same<OutputType, float>::value) {
+      res = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
+    } else {
+      auto fp16v = _mm<V / 2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+      res = _mm<V>::cvtph_ps(fp16v);
+    }
+    return res;
+  }
+
+  template <int JO, int P>
+  static inline __m<V> __op_load_weights(elx_conv_params_t &xc,
+      WeightsType *weights, const int _I2, const int _V, const int _P, const int _O)
+  {
+    __m<V> res;
+    if (F_traits<F>::is_compact_weights) {
+      MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
+      if (std::is_same<WeightsType, float>::value) {
+        res = _mm<V>::load_ps(&md5(aweights5, _I2, _V, _P, _O, 0));
+      } else {
+        auto fp16v = _mm<V / 2>::load_si256(
+            (__m256i *)&md5(aweights5, _I2, _V, _P, _O, 0));
+        res = _mm<V>::cvtph_ps(fp16v);
+      }
+    } else {
+      MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
+      if (std::is_same<WeightsType, float>::value) {
+        res = _mm<V>::load_ps(&md6(aweights6, _O, _P, _I2, _V, 0, 0));
+      } else {
+        auto fp16v = _mm<V / 2>::load_si256(
+            (__m256i *)&md6(aweights6, _O, _P, _I2, _V, 0, 0));
+        res = _mm<V>::cvtph_ps(fp16v);
+      }
+    }
+    return res;
+  }
+
+  template <int P>
+  static inline __m<V> __op_load_input(elx_conv_params_t &xc, InputType *input,
+      const int _V, const int _P, const int _T)
+  {
+    __m<V> mmbcst;
+    // *Note*: xc.T vs. T:
+    // T is not real T in border of direct-conv. It works okay only as
+    // leading dim.
+    if (F_traits<F>::is_nchw_input) {
+      MD4(InputType, ainput4, input, V / P, P, xc.ih, xc.iw);
+      MD3(InputType, ainput3, &md4(ainput4, _V, _P, 0, 0), xc.wt, xc.T, S);
+      mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
+    } else {
+      MD4(InputType, ainput4, input, T, S, V / P, P);
+      mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, _P));
+    }
+    return mmbcst;
+  }
+
+  static inline void __op_store_output(
+      OutputType *output, __m<V> res, const int _T, const int attr)
+  {
+    MD2(OutputType, aoutput2, output, T, V);
+
+    if (get_attr(attr, relu_idx)) {
+      __m<V> zero = _mm<V>::setzero_ps();
+      res = _mm<V>::max_ps(res, zero);
+    }
+    if (get_attr(attr, s_output_idx)) {
+      if (std::is_same<OutputType, float>::value) {
+        _mm<V>::stream_ps(&md2(aoutput2, _T, 0), res);
+      } else {
+        auto fp16v = _mm<V>::cvtps_ph(
+            res, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        _mm<V / 2>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+      }
+    } else {
+      if (std::is_same<OutputType, float>::value) {
+        _mm<V>::store_ps(&md2(aoutput2, _T, 0), res);
+      } else {
+        auto fp16v = _mm<V>::cvtps_ph(
+            res, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        _mm<V / 2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+      }
+    }
+  }
+
+  static inline void __type_check_fp32_fp16(
+      OutputType *, InputType *, WeightsType *, BiasType *)
+  {
+    static_assert(
+        std::is_same<InputType, float>::value, "only fp32 input type");
+    static_assert(std::is_same<WeightsType, float>::value
+            || std::is_same<WeightsType, float16>::value,
+        "only fp32/fp16 weights type");
+    static_assert(std::is_same<OutputType, float>::value
+            || std::is_same<OutputType, float16>::value,
+        "only fp32/fp16 output type");
+    static_assert(std::is_same<BiasType, float>::value
+            || std::is_same<BiasType, float16>::value,
+        "only fp32/fp16 bias type");
+  }
+
+  // f32f32f32 fma
+  template <int JO, int P>
+  static inline typename std::enable_if<
+      !std::is_same<InputType, uint8_t>::value
+      && (P == 1 && has_Ir == false), void>::type
+  op_fma(elx_conv_params_t &xc,
+      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
+      int attr, ScaleType *src_scale, ScaleType *src_factor,
+      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
+  {
+    __type_check_fp32_fp16(output, input, weights, bias);
+
+    __m<V> mmout[JO][T], mmwei[JO][P];
+    const int I2_stride
+        = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
+
+    MD2(OutputType, aoutput, output, JO, O_stride);
+    MD2(InputType, ainput, input, xc.I2, I2_stride);
+    MD2(BiasType, abias2, bias, JO, V);
+
+    if (get_attr(attr, r_output_idx)) {
+      if (get_attr(attr, bias_idx)) {
+        // load bias
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+          for (int _T = 0; _T < T; ++_T)
+            mmout[_O][_T] = __op_load_bias<JO>(bias, _O);
+        }
+      } else {
+        // clear output
+        __m<V> tmp = _mm<V>::setzero_ps();
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O)
+#pragma unroll(T)
+          for (int _T = 0; _T < T; ++_T)
+            mmout[_O][_T] = tmp;
+      }
+      // load output
+      if (get_attr(attr, ip_sum_idx)) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+          for (int _T = 0; _T < T; ++_T)
+            mmout[_O][_T] += __op_load_output<JO>(&md2(aoutput, _O, 0), _T);
+        }
+      }
+    } else {
+      // load output
+#pragma unroll(JO)
+      for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+        for (int _T = 0; _T < T; ++_T)
+          mmout[_O][_T] = __op_load_output<JO>(&md2(aoutput, _O, 0), _T);
+      }
+    }
+
+    for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V / P; ++_V) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][0] = __op_load_weights<JO, P>(xc, weights, _I2, _V, 0, _O);
+#pragma unroll(T)
+        for (int _T = 0; _T < T; ++_T) {
+          __m<V> mmbcst = __op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 0, _T);
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O)
+            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+        }
+      }
+    }
+
+    // store output
+#pragma unroll(JO)
+    for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+      for (int _T = 0; _T < T; ++_T)
+        __op_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T, attr);
+    }
+  }
+
+  template <int JO, int P>
+  static inline typename std::enable_if<
+      !std::is_same<InputType, uint8_t>::value
+      && (P == 1 && has_Ir == true), void>::type
+  op_fma(elx_conv_params_t &xc,
+      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
+      int attr, ScaleType *src_scale, ScaleType *src_factor,
+      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
+  {
+    __type_check_fp32_fp16(output, input, weights, bias);
+
+    __m<V> mmout[JO][T], mmwei[JO][P];
+    const int I2_stride
+        = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
+
+    MD2(OutputType, aoutput, output, JO, O_stride);
+    MD2(InputType, ainput, input, xc.I2, I2_stride);
+    MD2(BiasType, abias2, bias, JO, V);
+
+    if (get_attr(attr, r_output_idx)) {
+      if (get_attr(attr, bias_idx)) {
+        // load bias
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+          for (int _T = 0; _T < T; ++_T)
+            mmout[_O][_T] = __op_load_bias<JO>(bias, _O);
+        }
+      } else {
+        // clear output
+        __m<V> tmp = _mm<V>::setzero_ps();
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O)
+#pragma unroll(T)
+          for (int _T = 0; _T < T; ++_T)
+            mmout[_O][_T] = tmp;
+      }
+      // load output
+      if (get_attr(attr, ip_sum_idx)) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+          for (int _T = 0; _T < T; ++_T)
+            mmout[_O][_T] += __op_load_output<JO>(&md2(aoutput, _O, 0), _T);
+        }
+      }
+    } else {
+      // load output
+#pragma unroll(JO)
+      for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+        for (int _T = 0; _T < T; ++_T)
+          mmout[_O][_T] = __op_load_output<JO>(&md2(aoutput, _O, 0), _T);
+      }
+    }
+
+    for (int _I2 = 0; _I2 < xc.I2 - 1; ++_I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V; ++_V) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][0] = __op_load_weights<JO, P>(xc, weights, _I2, _V, 0, _O);
+#pragma unroll(T)
+        for (int _T = 0; _T < T; ++_T) {
+          __m<V> mmbcst = __op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 0, _T);
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O)
+            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+        }
+      }
+    }
+    // Ir
+    {
+#pragma nounroll
+      for (int _V = 0; _V < xc.Ir; ++_V) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][0] = __op_load_weights<JO, P>(xc, weights, xc.I2 - 1, _V, 0, _O);
+#pragma unroll(T)
+        for (int _T = 0; _T < T; ++_T) {
+          __m<V> mmbcst = __op_load_input<P>(xc, &md2(ainput, xc.I2 - 1, 0), _V, 0, _T);
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O)
+            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+        }
+      }
+    }
+
+    // store output
+#pragma unroll(JO)
+    for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+      for (int _T = 0; _T < T; ++_T)
+        __op_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T, attr);
+    }
+  }
+
+
+  template <int JO, int P>
+  static inline typename std::enable_if<
+      !std::is_same<InputType, uint8_t>::value && P == 2, void>::type
+  op_fma(elx_conv_params_t &xc,
+      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
+      int attr, ScaleType *src_scale, ScaleType *src_factor,
+      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
+  {
+    __type_check_fp32_fp16(output, input, weights, bias);
+
+    __m<V> mmout[JO][T], mmwei[JO][P];
+    const int I2_stride
+        = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
+
+    MD2(OutputType, aoutput, output, JO, O_stride);
+    MD2(InputType, ainput, input, xc.I2, I2_stride);
+    MD2(BiasType, abias2, bias, JO, V);
+
+    // preload weights
+#pragma unroll(JO)
+    for (int _O = 0; _O < JO; ++_O)
+      mmwei[_O][0] = __op_load_weights<JO, P>(xc, weights, 0, 0, 0, _O);
+
+    if (get_attr(attr, r_output_idx)) {
+      if (get_attr(attr, bias_idx)) {
+        // load bias
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+          for (int _T = 0; _T < T; ++_T)
+            mmout[_O][_T] = __op_load_bias<JO>(bias, _O);
+        }
+      } else {
+        // clear output
+        __m<V> tmp = _mm<V>::setzero_ps();
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O)
+#pragma unroll(T)
+          for (int _T = 0; _T < T; ++_T)
+            mmout[_O][_T] = tmp;
+      }
+      // load output
+      if (get_attr(attr, ip_sum_idx)) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+          for (int _T = 0; _T < T; ++_T)
+            mmout[_O][_T] += __op_load_output<JO>(&md2(aoutput, _O, 0), _T);
+        }
+      }
+    } else {
+      // load output
+#pragma unroll(JO)
+      for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+        for (int _T = 0; _T < T; ++_T)
+          mmout[_O][_T] = __op_load_output<JO>(&md2(aoutput, _O, 0), _T);
+      }
+    }
+
+    for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V / P; ++_V) {
+        // _P = 0
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][1] = __op_load_weights<JO, P>(xc, weights, _I2, _V, 1, _O);
+#pragma unroll(T)
+        for (int _T = 0; _T < T; ++_T) {
+          __m<V> mmbcst = __op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 0, _T);
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O)
+            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+        }
+        // _P = 1
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][0] = __op_load_weights<JO, P>(xc, weights, _I2, _V + 1, 0, _O);
+#pragma unroll(T)
+        for (int _T = 0; _T < T; ++_T) {
+          __m<V> mmbcst = __op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 1, _T);
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O)
+            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
+        }
+      }
+    }
+
+    // store output
+#pragma unroll(JO)
+    for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+      for (int _T = 0; _T < T; ++_T)
+        __op_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T, attr);
+    }
+  }
+
+  template <int JO, int P>
+  static inline typename std::enable_if<
+      !std::is_same<InputType, uint8_t>::value && P == 4, void>::type
+  op_fma(elx_conv_params_t &xc,
+      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
+      int attr, ScaleType *src_scale, ScaleType *src_factor,
+      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
+  {
+    __type_check_fp32_fp16(output, input, weights, bias);
+
+    __m<V> mmout[JO][T], mmwei[JO][P];
+    const int I2_stride
+        = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
+
+    MD2(OutputType, aoutput, output, JO, O_stride);
+    MD2(InputType, ainput, input, xc.I2, I2_stride);
+    MD2(BiasType, abias2, bias, JO, V);
+
+    // preload weights
+#pragma unroll(JO)
+    for (int _O = 0; _O < JO; ++_O) {
+      mmwei[_O][0] = __op_load_weights<JO, P>(xc, weights, 0, 0, 0, _O);
+      mmwei[_O][1] = __op_load_weights<JO, P>(xc, weights, 0, 0, 1, _O);
+    }
+    if (get_attr(attr, r_output_idx)) {
+      if (get_attr(attr, bias_idx)) {
+        // load bias
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+          for (int _T = 0; _T < T; ++_T)
+            mmout[_O][_T] = __op_load_bias<JO>(bias, _O);
+        }
+      } else {
+        // clear output
+        __m<V> tmp = _mm<V>::setzero_ps();
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O)
+#pragma unroll(T)
+          for (int _T = 0; _T < T; ++_T)
+            mmout[_O][_T] = tmp;
+      }
+      // load output
+      if (get_attr(attr, ip_sum_idx)) {
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+          for (int _T = 0; _T < T; ++_T)
+            mmout[_O][_T] += __op_load_output<JO>(&md2(aoutput, _O, 0), _T);
+        }
+      }
+    } else {
+      // load output
+#pragma unroll(JO)
+      for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+        for (int _T = 0; _T < T; ++_T)
+          mmout[_O][_T] = __op_load_output<JO>(&md2(aoutput, _O, 0), _T);
+      }
+    }
+
+    for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V / P; ++_V) {
+        // _P = 0
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][2] = __op_load_weights<JO, P>(xc, weights, _I2, _V, 2, _O);
+#pragma unroll(T)
+        for (int _T = 0; _T < T; ++_T) {
+          __m<V> mmbcst = __op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 0, _T);
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O)
+            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+        }
+#pragma unroll(JO)
+        // _P = 1
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][3] = __op_load_weights<JO, P>(xc, weights, _I2, _V, 3, _O);
+#pragma unroll(T)
+        for (int _T = 0; _T < T; ++_T) {
+          __m<V> mmbcst = __op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 1, _T);
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O)
+            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
+        }
+        // _P = 2
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][0] = __op_load_weights<JO, P>(xc, weights, _I2, _V + 1, 0, _O);
+#pragma unroll(T)
+        for (int _T = 0; _T < T; ++_T) {
+          __m<V> mmbcst = __op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 2, _T);
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O)
+            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
+        }
+        // _P = 3
+#pragma unroll(JO)
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][1] = __op_load_weights<JO, P>(xc, weights, _I2, _V + 1, 1, _O);
+#pragma unroll(T)
+        for (int _T = 0; _T < T; ++_T) {
+          __m<V> mmbcst = __op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 3, _T);
+#pragma unroll(JO)
+          for (int _O = 0; _O < JO; ++_O)
+            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
+        }
+      }
+    }
+    // store output
+#pragma unroll(JO)
+    for (int _O = 0; _O < JO; ++_O) {
+#pragma unroll(T)
+      for (int _T = 0; _T < T; ++_T)
+        __op_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T, attr);
+    }
+  }
+
   static inline __i<V> __op_int8_fma(__i<V>& out, __i<V>& a, __i<V>& b) {
     // TODO: check ISA
 #if defined(WITH_VNNI)
@@ -333,958 +856,112 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     return out;
   }
 
-  // f32f32f32 fma
-  template <int JO, int P>
-  static inline typename std::enable_if<
-      !std::is_same<InputType, uint8_t>::value
-      && (P == 1 && has_Ir == false), void>::type
-  op_fma(elx_conv_params_t &xc,
-      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
-      int attr, ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
+  static inline __i<V> __op_int8_load_output(OutputType *output, const int _T)
   {
-    static_assert(std::is_same<InputType, float>::value,
-        "only fp32 input type");
-    static_assert(std::is_same<WeightsType, float>::value
-        || std::is_same<WeightsType, float16>::value,
-        "only fp32/fp16 weights type");
-    static_assert(std::is_same<OutputType, float>::value
-        || std::is_same<OutputType, float16>::value,
-        "only fp32/fp16 output type");
-    static_assert(std::is_same<BiasType, float>::value
-        || std::is_same<BiasType, float16>::value,
-        "only fp32/fp16 bias type");
-
-    __m<V> mmout[JO][T], mmwei[JO][P];
-    const int I2_stride
-        = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
-    const int O_stride
-        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
-
-    MD2(OutputType, aoutput, output, JO, O_stride);
-    MD2(InputType, ainput, input, xc.I2, I2_stride);
-    MD2(BiasType, abias2, bias, JO, V);
-
-    if (get_attr(attr, r_output_idx)) {
-      if (get_attr(attr, bias_idx)) {
-        // load bias
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          __m<V> tmp;
-          if (std::is_same<BiasType, float>::value) {
-            tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
-          } else {
-            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(abias2, _O, 0));
-            tmp = _mm<V>::cvtph_ps(fp16v);
-          }
-#pragma unroll(T)
-          for (int _T = 0; _T < T; ++_T)
-            mmout[_O][_T] = tmp;
-        }
-      } else {
-        // clear output
-        __m<V> tmp = _mm<V>::setzero_ps();
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O)
-#pragma unroll(T)
-          for (int _T = 0; _T < T; ++_T)
-            mmout[_O][_T] = tmp;
-      }
-      // load output
-      if (get_attr(attr, ip_sum_idx)) {
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-#pragma unroll(T)
-          for (int _T = 0; _T < T; ++_T) {
-            MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-            if (std::is_same<OutputType, float>::value) {
-              mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
-                  _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-              mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
-                  _mm<V>::cvtph_ps(fp16v));
-            }
-          }
-        }
-      }
+    MD2(OutputType, aoutput2, output, T, V);
+    if (std::is_same<OutputType, float>::value) {
+      return _mm<V>::load_epi32((__i<V> *)&md2(aoutput2, _T, 0));
     } else {
-      // load output
-#pragma unroll(JO)
-      for (int _O = 0; _O < JO; ++_O) {
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-          if (std::is_same<OutputType, float>::value) {
-            mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
-          } else {
-            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-            mmout[_O][_T] =  _mm<V>::cvtph_ps(fp16v);
-          }
-        }
-      }
-    }
-
-    for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#pragma nounroll
-      for (int _V = 0; _V < V / P; ++_V) {
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 0, _O, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md5(aweights5, _I2, _V, 0, _O, 0));
-              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
-            }
-          } else {
-            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][0]
-                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md6(aweights6, _O, 0, _I2, _V, 0, 0));
-              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
-            }
-          }
-        }
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          __m<V> mmbcst;
-          // *Note*: xc.T vs. T:
-          // T is not real T in border of direct-conv. It works okay only as
-          // leading dim.
-          if (F_traits<F>::is_nchw_input) {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), V / P, P, xc.ih, xc.iw);
-            MD3(InputType, ainput3, &md4(ainput4, _V, 0, 0, 0), xc.wt, xc.T, S);
-            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
-          } else {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-            mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
-          }
-#pragma unroll(JO)
-          for (int _O = 0; _O < JO; ++_O) {
-            mmout[_O][_T]
-                = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-          }
-        }
-      }
-    }
-
-    // store output
-#pragma unroll(JO)
-    for (int _O = 0; _O < JO; ++_O) {
-#pragma unroll(T)
-      for (int _T = 0; _T < T; ++_T) {
-        MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-        if (get_attr(attr, relu_idx)) {
-          __m<V> zero = _mm<V>::setzero_ps();
-          mmout[_O][_T] = _mm<V>::max_ps(mmout[_O][_T], zero);
-        }
-        if (get_attr(attr, s_output_idx)) {
-          if (std::is_same<OutputType, float>::value) {
-            _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
-          } else {
-            auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
-                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V/2>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
-          }
-        } else {
-          if (std::is_same<OutputType, float>::value) {
-            _mm<V>::store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
-          } else {
-            auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
-                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
-          }
-        }
-      }
+      auto fp16v = _mm<V / 2>::load_si256((__i<V/2> *)&md2(aoutput2, _T, 0));
+      return _mm<V>::cvtepi16_epi32(fp16v);
     }
   }
 
-  template <int JO, int P>
-  static inline typename std::enable_if<
-      !std::is_same<InputType, uint8_t>::value
-      && (P == 1 && has_Ir == true), void>::type
-  op_fma(elx_conv_params_t &xc,
-      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
-      int attr, ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
+  template <const int P>
+  static inline __i<V> __op_int8_load_input(
+      uint8_t *input, const int _V, const int _P, const int _T)
   {
-    static_assert(std::is_same<InputType, float>::value,
-        "only fp32 input type");
-    static_assert(std::is_same<WeightsType, float>::value
-        || std::is_same<WeightsType, float16>::value,
-        "only fp32/fp16 weights type");
-    static_assert(std::is_same<OutputType, float>::value
-        || std::is_same<OutputType, float16>::value,
-        "only fp32/fp16 output type");
-    static_assert(std::is_same<BiasType, float>::value
-        || std::is_same<BiasType, float16>::value,
-        "only fp32/fp16 bias type");
+    MD5(uint8_t, ainput5, input, T, S, V / P, P, Vx);
+    return _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, _P, 0));
+  }
 
-    __m<V> mmout[JO][T], mmwei[JO][P];
-    const int I2_stride
-        = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
-    const int O_stride
-        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
-
-    MD2(OutputType, aoutput, output, JO, O_stride);
-    MD2(InputType, ainput, input, xc.I2, I2_stride);
-    MD2(BiasType, abias2, bias, JO, V);
-
-    if (get_attr(attr, r_output_idx)) {
-      if (get_attr(attr, bias_idx)) {
-        // load bias
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          __m<V> tmp;
-          if (std::is_same<BiasType, float>::value) {
-            tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
-          } else {
-            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(abias2, _O, 0));
-            tmp = _mm<V>::cvtph_ps(fp16v);
-          }
-#pragma unroll(T)
-          for (int _T = 0; _T < T; ++_T)
-            mmout[_O][_T] = tmp;
-        }
-      } else {
-        // clear output
-        __m<V> tmp = _mm<V>::setzero_ps();
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O)
-#pragma unroll(T)
-          for (int _T = 0; _T < T; ++_T)
-            mmout[_O][_T] = tmp;
-      }
-      // load output
-      if (get_attr(attr, ip_sum_idx)) {
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-#pragma unroll(T)
-          for (int _T = 0; _T < T; ++_T) {
-            MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-            if (std::is_same<OutputType, float>::value) {
-              mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
-                  _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-              mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
-                  _mm<V>::cvtph_ps(fp16v));
-            }
-          }
-        }
-      }
+  template <const int JO, const int P>
+  static inline __i<V> __op_int8_load_weights(elx_conv_params_t &xc,
+      int8_t *weights, const int _I2, const int _V, const int _P, const int _O)
+  {
+    __i<V> res;
+    if (F_traits<F>::is_compact_weights) {
+      MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
+      res = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, _P, _O, 0));
     } else {
-      // load output
-#pragma unroll(JO)
-      for (int _O = 0; _O < JO; ++_O) {
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-          if (std::is_same<OutputType, float>::value) {
-            mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
-          } else {
-            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-            mmout[_O][_T] =  _mm<V>::cvtph_ps(fp16v);
-          }
-        }
-      }
+      MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V * Vx);
+      res = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V, _P, 0));
     }
+    return res;
+  }
 
-    for (int _I2 = 0; _I2 < xc.I2 - 1; ++_I2) {
-#pragma nounroll
-      for (int _V = 0; _V < V; ++_V) {
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(WeightsType, aweights5, weights, xc.I2, V, 1, O, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 0, _O, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md5(aweights5, _I2, _V, 0, _O, 0));
-              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
-            }
-          } else {
-            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V, 1, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][0]
-                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md6(aweights6, _O, 0, _I2, _V, 0, 0));
-              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
-            }
-          }
-        }
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          __m<V> mmbcst;
-          if (F_traits<F>::is_nchw_input) {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), V, 1, xc.ih, xc.iw);
-            MD3(InputType, ainput3, &md4(ainput4, _V, 0, 0, 0), xc.wt, xc.T, S);
-            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
-          } else {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V, 1);
-            mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
-          }
-#pragma unroll(JO)
-          for (int _O = 0; _O < JO; ++_O) {
-            mmout[_O][_T]
-                = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-          }
-        }
-      }
-    }
-    // Ir
-    {
-#pragma nounroll
-      for (int _V = 0; _V < xc.Ir; ++_V) {
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(WeightsType, aweights5, weights, xc.I2, V, 1, O, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][0]
-                  = _mm<V>::load_ps(&md5(aweights5, xc.I2 - 1, _V, 0, _O, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md5(aweights5, xc.I2 - 1, _V, 0, _O, 0));
-              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
-            }
-          } else {
-            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V, 1, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][0]
-                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, xc.I2 - 1, _V, 0, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md6(aweights6, _O, 0, xc.I2 - 1, _V, 0, 0));
-              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
-            }
-          }
-        }
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          __m<V> mmbcst;
-          if (F_traits<F>::is_nchw_input) {
-            MD4(InputType, ainput4, &md2(ainput, xc.I2 - 1, 0), V, 1, xc.ih, xc.iw);
-            MD3(InputType, ainput3, &md4(ainput4, _V, 0, 0, 0), xc.wt, xc.T, S);
-            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
-          } else {
-            MD4(InputType, ainput4, &md2(ainput, xc.I2 - 1, 0), T, S, V, 1);
-            mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
-          }
-#pragma unroll(JO)
-          for (int _O = 0; _O < JO; ++_O) {
-            mmout[_O][_T]
-                = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-          }
-        }
-      }
-
-    }
-
-    // store output
-#pragma unroll(JO)
-    for (int _O = 0; _O < JO; ++_O) {
-#pragma unroll(T)
-      for (int _T = 0; _T < T; ++_T) {
-        MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-        if (get_attr(attr, relu_idx)) {
-          __m<V> zero = _mm<V>::setzero_ps();
-          mmout[_O][_T] = _mm<V>::max_ps(mmout[_O][_T], zero);
-        }
-        if (get_attr(attr, s_output_idx)) {
-          if (std::is_same<OutputType, float>::value) {
-            _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
-          } else {
-            auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
-                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V/2>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
-          }
-        } else {
-          if (std::is_same<OutputType, float>::value) {
-            _mm<V>::store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
-          } else {
-            auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
-                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
-          }
-        }
-      }
+  static inline void __op_int8_store_output(
+      OutputType *output, __i<V> res, const int _T)
+  {
+    if (std::is_same<OutputType, float>::value) {
+      MD2(int, aoutput2, output, T, V);
+      _mm<V>::store_epi32(&md2(aoutput2, _T, 0), res);
+    } else {
+      MD2(OutputType, aoutput2, output, T, V);
+      _mm<V / 2>::store_si256(
+          (__i<V / 2> *)&md2(aoutput2, _T, 0), _mm<V>::cvtepi32_epi16(res));
     }
   }
 
-
-  template <int JO, int P>
-  static inline typename std::enable_if<
-      !std::is_same<InputType, uint8_t>::value && P == 2, void>::type
-  op_fma(elx_conv_params_t &xc,
-      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
-      int attr, ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
+  template <const int JO>
+  static inline void __op_int8_restore_output(elx_conv_params_t &xc,
+      OutputType *output, BiasType *bias, __i<V> res, ScaleType *src_scale,
+      ScaleType *src_factor, ScaleType *weights_scale,
+      ScaleType *weights_factor, const int _O1, const int _O0, const int _O,
+      const int _T, const int attr)
   {
-    static_assert(std::is_same<InputType, float>::value,
-        "only fp32 input type");
-    static_assert(std::is_same<WeightsType, float>::value
-        || std::is_same<WeightsType, float16>::value,
-        "only fp32/fp16 weights type");
-    static_assert(std::is_same<OutputType, float>::value
-        || std::is_same<OutputType, float16>::value,
-        "only fp32/fp16 output type");
-    static_assert(std::is_same<BiasType, float>::value
-        || std::is_same<BiasType, float16>::value,
-        "only fp32/fp16 bias type");
+    MD2(OutputType, aoutput2, output, T, V);
+    MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
+    MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
+    MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
+    MD2(float, aweights_factor, &md3(aweights_factor3, _O1, _O0, 0), JO, V);
 
-    __m<V> mmout[JO][T], mmwei[JO][P];
-    const int I2_stride
-        = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
-    const int O_stride
-        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
+    __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
+    coeffi = _mm<V>::mul_ps(*(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
+    __m<V> ffactor = _mm<V>::broadcastss_ps(*(__m128 *)&src_factor[_T]);
+    ffactor = _mm<V>::mul_ps(ffactor, *(__m<V> *)&md2(aweights_factor, _O, 0));
+    __m<V> fout = _mm<V>::cvtepi32_ps(res);
+    fout = _mm<V>::fmadd_ps(fout, coeffi, ffactor);
 
-    MD2(OutputType, aoutput, output, JO, O_stride);
-    MD2(InputType, ainput, input, xc.I2, I2_stride);
-    MD2(BiasType, abias2, bias, JO, V);
-
-    // preload weights
-#pragma unroll(JO)
-    for (int _O = 0; _O < JO; ++_O) {
-      if (F_traits<F>::is_compact_weights) {
-        MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
-        if (std::is_same<WeightsType, float>::value) {
-          mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
-        } else {
-          auto fp16v = _mm<V/2>::load_si256(
-              (__m256i *)&md5(aweights5, 0, 0, 0, _O, 0));
-          mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
-        }
-      } else {
-        MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-        if (std::is_same<WeightsType, float>::value) {
-          mmwei[_O][0] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 0, 0));
-        } else {
-          auto fp16v = _mm<V/2>::load_si256(
-              (__m256i *)&md6(aweights6, _O, 0, 0, 0, 0, 0));
-          mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
-        }
+    // toutput lazy accumulation
+    if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
+      if (std::is_same<OutputType, float>::value)
+        fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+      else {
+        auto fp16v = _mm<V / 2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+        fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
       }
     }
-
-    if (get_attr(attr, r_output_idx)) {
-      if (get_attr(attr, bias_idx)) {
-        // load bias
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          __m<V> tmp;
-          if (std::is_same<BiasType, float>::value) {
-            tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
-          } else {
-            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(abias2, _O, 0));
-            tmp = _mm<V>::cvtph_ps(fp16v);
-          }
-#pragma unroll(T)
-          for (int _T = 0; _T < T; ++_T)
-            mmout[_O][_T] = tmp;
-        }
-      } else {
-        // clear output
-        __m<V> tmp = _mm<V>::setzero_ps();
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O)
-#pragma unroll(T)
-          for (int _T = 0; _T < T; ++_T)
-            mmout[_O][_T] = tmp;
-      }
-      // load output
-      if (get_attr(attr, ip_sum_idx)) {
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-#pragma unroll(T)
-          for (int _T = 0; _T < T; ++_T) {
-            MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-            if (std::is_same<OutputType, float>::value) {
-              mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
-                  _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-              mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
-                  _mm<V>::cvtph_ps(fp16v));
-            }
-          }
-        }
-      }
-    } else {
-      // load output
-#pragma unroll(JO)
-      for (int _O = 0; _O < JO; ++_O) {
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-          if (std::is_same<OutputType, float>::value) {
-            mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
-          } else {
-            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-            mmout[_O][_T] =  _mm<V>::cvtph_ps(fp16v);
-          }
-        }
-      }
+    // 1. add bias (direct conv 1x1)
+    if (get_attr(attr, bias_idx)) {
+      MD2(float, abias2, bias, JO, V);
+      fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(abias2, _O, 0)));
     }
-
-    for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#pragma nounroll
-      for (int _V = 0; _V < V / P; ++_V) {
-        // _P = 0
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][1] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 1, _O, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md5(aweights5, _I2, _V, 1, _O, 0));
-              mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
-            }
-          } else {
-            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][1]
-                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 1, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md6(aweights6, _O, 0, _I2, _V, 1, 0));
-              mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
-            }
-          }
-        }
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          __m<V> mmbcst;
-          if (F_traits<F>::is_nchw_input) {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), V / P, P, xc.ih, xc.iw);
-            MD3(InputType, ainput3, &md4(ainput4, _V, 0, 0, 0), xc.wt, xc.T, S);
-            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
-          } else {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
-          }
-#pragma unroll(JO)
-          for (int _O = 0; _O < JO; ++_O)
-            mmout[_O][_T]
-                = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-        }
-        // _P = 1
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][0]
-                  = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md5(aweights5, _I2, _V + 1, 0, _O, 0));
-              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
-            }
-          } else {
-            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][0]
-                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
-              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
-            }
-          }
-        }
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          __m<V> mmbcst;
-          if (F_traits<F>::is_nchw_input) {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), V / P, P, xc.ih, xc.iw);
-            MD3(InputType, ainput3, &md4(ainput4, _V, 1, 0, 0), xc.wt, xc.T, S);
-            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
-          } else {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
-          }
-#pragma unroll(JO)
-          for (int _O = 0; _O < JO; ++_O)
-            mmout[_O][_T]
-                = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
-        }
-      }
+    // 2. fuse relu (direct conv 1x1)
+    if (get_attr(attr, relu_idx)) {
+      fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
     }
-
-    // store output
-#pragma unroll(JO)
-    for (int _O = 0; _O < JO; ++_O) {
-#pragma unroll(T)
-      for (int _T = 0; _T < T; ++_T) {
-        MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-        if (get_attr(attr, relu_idx)) {
-          __m<V> zero = _mm<V>::setzero_ps();
-          mmout[_O][_T] = _mm<V>::max_ps(mmout[_O][_T], zero);
-        }
-        if (get_attr(attr, s_output_idx)) {
-          if (std::is_same<OutputType, float>::value) {
-            _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
-          } else {
-            auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
-                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V/2>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
-          }
-        } else {
-          if (std::is_same<OutputType, float>::value) {
-            _mm<V>::store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
-          } else {
-            auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
-                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
-          }
-        }
-      }
+    // 3. store output
+    if (std::is_same<OutputType, float>::value)
+      _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
+    else {
+      auto fp16v = _mm<V>::cvtps_ph(
+          fout, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+      _mm<V / 2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
     }
   }
-
-  template <int JO, int P>
-  static inline typename std::enable_if<
-      !std::is_same<InputType, uint8_t>::value && P == 4, void>::type
-  op_fma(elx_conv_params_t &xc,
-      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
-      int attr, ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
-  {
-    static_assert(std::is_same<InputType, float>::value,
-        "only fp32 input type");
-    static_assert(std::is_same<WeightsType, float>::value
-        || std::is_same<WeightsType, float16>::value,
-        "only fp32/fp16 weights type");
-    static_assert(std::is_same<OutputType, float>::value
-        || std::is_same<OutputType, float16>::value,
-        "only fp32/fp16 output type");
-    static_assert(std::is_same<BiasType, float>::value
-        || std::is_same<BiasType, float16>::value,
-        "only fp32/fp16 bias type");
-
-    __m<V> mmout[JO][T], mmwei[JO][P];
-    const int I2_stride
-        = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
-    const int O_stride
-        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
-
-    MD2(OutputType, aoutput, output, JO, O_stride);
-    MD2(InputType, ainput, input, xc.I2, I2_stride);
-    MD2(BiasType, abias2, bias, JO, V);
-
-    // preload weights
-#pragma unroll(JO)
-    for (int _O = 0; _O < JO; ++_O) {
-      if (F_traits<F>::is_compact_weights) {
-        MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
-        if (std::is_same<WeightsType, float>::value) {
-          mmwei[_O][0] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 0, _O, 0));
-          mmwei[_O][1] = _mm<V>::load_ps(&md5(aweights5, 0, 0, 1, _O, 0));
-        } else {
-          auto fp16v = _mm<V/2>::load_si256(
-              (__m256i *)&md5(aweights5, 0, 0, 0, _O, 0));
-          mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
-          fp16v = _mm<V/2>::load_si256(
-              (__m256i *)&md5(aweights5, 0, 0, 1, _O, 0));
-          mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
-        }
-      } else {
-        MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-        if (std::is_same<WeightsType, float>::value) {
-          mmwei[_O][0] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 0, 0));
-          mmwei[_O][1] = _mm<V>::load_ps(&md6(aweights6, _O, 0, 0, 0, 1, 0));
-        } else {
-          auto fp16v = _mm<V/2>::load_si256(
-              (__m256i *)&md6(aweights6, _O, 0, 0, 0, 0, 0));
-          mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
-          fp16v = _mm<V/2>::load_si256(
-              (__m256i *)&md6(aweights6, _O, 0, 0, 0, 1, 0));
-          mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
-        }
-      }
-    }
-    if (get_attr(attr, r_output_idx)) {
-      if (get_attr(attr, bias_idx)) {
-        // load bias
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          __m<V> tmp;
-          if (std::is_same<BiasType, float>::value) {
-            tmp = _mm<V>::load_ps(&md2(abias2, _O, 0));
-          } else {
-            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(abias2, _O, 0));
-            tmp = _mm<V>::cvtph_ps(fp16v);
-          }
-#pragma unroll(T)
-          for (int _T = 0; _T < T; ++_T)
-            mmout[_O][_T] = tmp;
-        }
-      } else {
-        // clear output
-        __m<V> tmp = _mm<V>::setzero_ps();
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O)
-#pragma unroll(T)
-          for (int _T = 0; _T < T; ++_T)
-            mmout[_O][_T] = tmp;
-      }
-      // load output
-      if (get_attr(attr, ip_sum_idx)) {
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-#pragma unroll(T)
-          for (int _T = 0; _T < T; ++_T) {
-            MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-            if (std::is_same<OutputType, float>::value) {
-              mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
-                  _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-              mmout[_O][_T] = _mm<V>::add_ps(mmout[_O][_T],
-                  _mm<V>::cvtph_ps(fp16v));
-            }
-          }
-        }
-      }
-    } else {
-      // load output
-#pragma unroll(JO)
-      for (int _O = 0; _O < JO; ++_O) {
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-          if (std::is_same<OutputType, float>::value) {
-            mmout[_O][_T] = _mm<V>::load_ps(&md2(aoutput2, _T, 0));
-          } else {
-            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-            mmout[_O][_T] =  _mm<V>::cvtph_ps(fp16v);
-          }
-        }
-      }
-    }
-
-    for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#pragma nounroll
-      for (int _V = 0; _V < V / P; ++_V) {
-        // _P = 0
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][2] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 2, _O, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md5(aweights5, _I2, _V, 2, _O, 0));
-              mmwei[_O][2] = _mm<V>::cvtph_ps(fp16v);
-            }
-          } else {
-            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][2]
-                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 2, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md6(aweights6, _O, 0, _I2, _V, 2, 0));
-              mmwei[_O][2] = _mm<V>::cvtph_ps(fp16v);
-            }
-          }
-        }
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          __m<V> mmbcst;
-          if (F_traits<F>::is_nchw_input) {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), V / P, P, xc.ih, xc.iw);
-            MD3(InputType, ainput3, &md4(ainput4, _V, 0, 0, 0), xc.wt, xc.T, S);
-            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
-          } else {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
-          }
-#pragma unroll(JO)
-          for (int _O = 0; _O < JO; ++_O)
-            mmout[_O][_T]
-                = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-        }
-#pragma unroll(JO)
-        // _P = 1
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][3] = _mm<V>::load_ps(&md5(aweights5, _I2, _V, 3, _O, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md5(aweights5, _I2, _V, 3, _O, 0));
-              mmwei[_O][3] = _mm<V>::cvtph_ps(fp16v);
-            }
-          } else {
-            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][3]
-                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, 3, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md6(aweights6, _O, 0, _I2, _V, 3, 0));
-              mmwei[_O][3] = _mm<V>::cvtph_ps(fp16v);
-            }
-          }
-        }
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          __m<V> mmbcst;
-          if (F_traits<F>::is_nchw_input) {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), V / P, P, xc.ih, xc.iw);
-            MD3(InputType, ainput3, &md4(ainput4, _V, 1, 0, 0), xc.wt, xc.T, S);
-            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
-          } else {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
-          }
-#pragma unroll(JO)
-          for (int _O = 0; _O < JO; ++_O)
-            mmout[_O][_T]
-                = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
-        }
-        // _P = 2
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][0]
-                  = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md5(aweights5, _I2, _V + 1, 0, _O, 0));
-              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
-            }
-          } else {
-            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][0]
-                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
-              mmwei[_O][0] = _mm<V>::cvtph_ps(fp16v);
-            }
-          }
-        }
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          __m<V> mmbcst;
-          if (F_traits<F>::is_nchw_input) {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), V / P, P, xc.ih, xc.iw);
-            MD3(InputType, ainput3, &md4(ainput4, _V, 2, 0, 0), xc.wt, xc.T, S);
-            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
-          } else {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 2));
-          }
-#pragma unroll(JO)
-          for (int _O = 0; _O < JO; ++_O)
-            mmout[_O][_T]
-                = _mm<V>::fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
-        }
-        // _P = 3
-#pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][1]
-                  = _mm<V>::load_ps(&md5(aweights5, _I2, _V + 1, 1, _O, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md5(aweights5, _I2, _V + 1, 1, _O, 0));
-              mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
-            }
-          } else {
-            MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            if (std::is_same<WeightsType, float>::value) {
-              mmwei[_O][1]
-                  = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V + 1, 1, 0));
-            } else {
-              auto fp16v = _mm<V/2>::load_si256(
-                  (__m256i *)&md6(aweights6, _O, 0, _I2, _V + 1, 1, 0));
-              mmwei[_O][1] = _mm<V>::cvtph_ps(fp16v);
-            }
-          }
-        }
-#pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          __m<V> mmbcst;
-          if (F_traits<F>::is_nchw_input) {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), V / P, P, xc.ih, xc.iw);
-            MD3(InputType, ainput3, &md4(ainput4, _V, 3, 0, 0), xc.wt, xc.T, S);
-            mmbcst = _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
-          } else {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 3));
-          }
-#pragma unroll(JO)
-          for (int _O = 0; _O < JO; ++_O)
-            mmout[_O][_T]
-                = _mm<V>::fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
-        }
-      }
-    }
-    // store output
-#pragma unroll(JO)
-    for (int _O = 0; _O < JO; ++_O) {
-#pragma unroll(T)
-      for (int _T = 0; _T < T; ++_T) {
-        MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-        if (get_attr(attr, relu_idx)) {
-          __m<V> zero = _mm<V>::setzero_ps();
-          mmout[_O][_T] = _mm<V>::max_ps(mmout[_O][_T], zero);
-        }
-        if (get_attr(attr, s_output_idx)) {
-          if (std::is_same<OutputType, float>::value) {
-            _mm<V>::stream_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
-          } else {
-            auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
-                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V/2>::stream_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
-          }
-        } else {
-          if (std::is_same<OutputType, float>::value) {
-            _mm<V>::store_ps(&md2(aoutput2, _T, 0), mmout[_O][_T]);
-          } else {
-            auto fp16v = _mm<V>::cvtps_ph(mmout[_O][_T],
-                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
-          }
-        }
-      }
-    }
-  }
-
 
   // u8s8f32 fma
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
-  op_fma(elx_conv_params_t &xc,
-      OutputType *output, uint8_t *input, int8_t *weights, float *bias, int attr,
-      ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
+  op_fma(elx_conv_params_t &xc, OutputType *output, uint8_t *input,
+      int8_t *weights, float *bias, int attr, ScaleType *src_scale,
+      ScaleType *src_factor, ScaleType *weights_scale,
+      ScaleType *weights_factor, int _O1, int _O0)
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
-        = F_traits<F>::is_compact_input ? T * V * Vx: xc.ih * xc.iw * V * Vx;
+        = F_traits<F>::is_compact_input ? T * V * Vx : xc.ih * xc.iw * V * Vx;
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
@@ -1297,22 +974,15 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O)
 #pragma unroll(T)
-      for (int _T = 0; _T < T; ++_T)
-        mmout[_O][_T] = tmp;
+        for (int _T = 0; _T < T; ++_T)
+          mmout[_O][_T] = tmp;
     } else {
       // load output
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-          if (std::is_same<OutputType, float>::value) {
-            mmout[_O][_T] = _mm<V>::load_epi32((__m512i *)&md2(aoutput2, _T, 0));
-          } else {
-            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-            mmout[_O][_T] = _mm<V>::cvtepi16_epi32(fp16v);
-          }
-        }
+        for (int _T = 0; _T < T; ++_T)
+          mmout[_O][_T] = __op_int8_load_output(&md2(aoutput, _O, 0), _T);
       }
     }
 
@@ -1320,90 +990,35 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma nounroll
       for (int _V = 0; _V < V / P; ++_V) {
 #pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-            mmwei[_O][0]
-                = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, 0, _O, 0));
-          } else {
-            MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V * Vx);
-            mmwei[_O][0]
-                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
-          }
-        }
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][0] = __op_int8_load_weights<JO, P>(xc, weights, _I2, _V, 0, _O);
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD5(uint8_t, ainput5, &md2(ainput, _I2, 0), T, S, V / P, P, Vx);
-          __i<V> bcast
-              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
+          __i<V> bcast = __op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, 0, _T);
 #pragma unroll(JO)
-          for (int _O = 0; _O < JO; ++_O) {
+          for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][0]);
-          }
         }
       }
     }
 
     // store output
     if (get_attr(attr, c_output_idx)) {
-      MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
-      MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
-      MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
-      MD2(float, aweights_factor, &md3(aweights_factor3, _O1, _O0, 0), JO, V);
-
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
-      for (int _T = 0; _T < T; ++_T) {
-        MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-        __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
-        coeffi = _mm<V>::mul_ps(*(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
-        __m<V> ffactor = _mm<V>::broadcastss_ps(*(__m128 *)&src_factor[_T]);
-        ffactor = _mm<V>::mul_ps(ffactor, *(__m<V> *)&md2(aweights_factor, _O, 0));
-        __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
-        fout = _mm<V>::fmadd_ps(fout, coeffi, ffactor);
-        // toutput lazy accumulation
-        if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
-          if (std::is_same<OutputType, float>::value) {
-            fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-          } else {
-            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-            fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
-          }
-        }
-        // 1. add bias (direct conv 1x1)
-        if (get_attr(attr, bias_idx)) {
-          MD2(float, abias2, bias, JO, V);
-          fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(abias2, _O, 0)));
-        }
-        // 2. fuse relu (direct conv 1x1)
-        if (get_attr(attr, relu_idx)) {
-          fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
-        }
-        // 3. store output
-        if (std::is_same<OutputType, float>::value) {
-          _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
-        } else {
-          auto fp16v = _mm<V>::cvtps_ph(fout,
-              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
-        }
-      }}
+        for (int _T = 0; _T < T; ++_T)
+          __op_int8_restore_output<JO>(xc, &md2(aoutput, _O, 0), bias,
+              mmout[_O][_T], src_scale, src_factor, weights_scale,
+              weights_factor, _O1, _O0, _O, _T, attr);
+      }
     } else {
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
-      for (int _T = 0; _T < T; ++_T) {
-        if (std::is_same<OutputType, float>::value) {
-          MD2(int, aoutput2, &md2(aoutput, _O, 0), T, V);
-          _mm<V>::store_epi32(&md2(aoutput2, _T, 0), mmout[_O][_T]);
-        } else {
-          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-          _mm<V/2>::store_si256(
-              (__m256i *)&md2(aoutput2, _T, 0),
-              _mm<V>::cvtepi32_epi16(mmout[_O][_T]));
-        }
-      }}
+        for (int _T = 0; _T < T; ++_T)
+          __op_int8_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T);
+      }
     }
   }
 
@@ -1437,15 +1052,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-          if (std::is_same<OutputType, float>::value) {
-            mmout[_O][_T] = _mm<V>::load_epi32((__m512i *)&md2(aoutput2, _T, 0));
-          } else {
-            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-            mmout[_O][_T] = _mm<V>::cvtepi16_epi32(fp16v);
-          }
-        }
+        for (int _T = 0; _T < T; ++_T)
+          mmout[_O][_T] = __op_int8_load_output(&md2(aoutput, _O, 0), _T);
       }
     }
 
@@ -1453,27 +1061,14 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma nounroll
       for (int _V = 0; _V < V; ++_V) {
 #pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-            mmwei[_O][0]
-                = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, 0, _O, 0));
-          } else {
-            MD6(int8_t, aweights6, weights, JO, xc.ic34,
-                xc.I2, V / P, P, V * Vx);
-            mmwei[_O][0]
-                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V, 0, 0));
-          }
-        }
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][0] = __op_int8_load_weights<JO, P>(xc, weights, _I2, _V, 0, _O);
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD5(uint8_t, ainput5, &md2(ainput, _I2, 0), T, S, V / P, P, Vx);
-          __i<V> bcast
-              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
+          __i<V> bcast = __op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, 0, _T);
 #pragma unroll(JO)
-          for (int _O = 0; _O < JO; ++_O) {
+          for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][0]);
-          }
         }
       }
     }
@@ -1482,93 +1077,37 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma nounroll
       for (int _V = 0; _V < xc.Ir; ++_V) {
 #pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(uint8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-            mmwei[_O][0]
-                = _mm<V>::load_epi32(&md5(aweights5, xc.I2 - 1, _V, 0, _O, 0));
-          } else {
-            MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V * Vx);
-            mmwei[_O][0]
-                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, xc.I2 - 1, _V, 0, 0));
-          }
-        }
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][0] = __op_int8_load_weights<JO, P>(xc, weights, xc.I2 - 1, _V, 0, _O);
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD5(uint8_t, ainput5, &md2(ainput, xc.I2 - 1, 0), T, S, V / P, P, Vx);
-          __i<V> bcast
-              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
+          __i<V> bcast = __op_int8_load_input<P>(&md2(ainput, xc.I2 - 1, 0), _V, 0, _T);
 #pragma unroll(JO)
-          for (int _O = 0; _O < JO; ++_O) {
+          for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][0]);
-          }
         }
       }
     }
 
     // store output
     if (get_attr(attr, c_output_idx)) {
-      MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
-      MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
-      MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
-      MD2(float, aweights_factor, &md3(aweights_factor3, _O1, _O0, 0), JO, V);
-
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
-      for (int _T = 0; _T < T; ++_T) {
-        MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-        __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
-        coeffi = _mm<V>::mul_ps(*(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
-        __m<V> ffactor = _mm<V>::broadcastss_ps(*(__m128 *)&src_factor[_T]);
-        ffactor = _mm<V>::mul_ps(ffactor, *(__m<V> *)&md2(aweights_factor, _O, 0));
-        __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
-        fout = _mm<V>::fmadd_ps(fout, coeffi, ffactor);
-        // toutput lazy accumulation
-        if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
-          if (std::is_same<OutputType, float>::value) {
-            fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-          } else {
-            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-            fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
-          }
-        }
-        // 1. add bias (direct conv 1x1)
-        if (get_attr(attr, bias_idx)) {
-          MD2(float, abias2, bias, JO, V);
-          fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(abias2, _O, 0)));
-        }
-        // 2. fuse relu (direct conv 1x1)
-        if (get_attr(attr, relu_idx)) {
-          fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
-        }
-        // 3. store output
-        if (std::is_same<OutputType, float>::value) {
-          _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
-        } else {
-          auto fp16v = _mm<V>::cvtps_ph(fout,
-              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
-        }
-      }}
+        for (int _T = 0; _T < T; ++_T)
+          __op_int8_restore_output<JO>(xc, &md2(aoutput, _O, 0), bias,
+              mmout[_O][_T], src_scale, src_factor, weights_scale,
+              weights_factor, _O1, _O0, _O, _T, attr);
+      }
     } else {
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
-      for (int _T = 0; _T < T; ++_T) {
-        if (std::is_same<OutputType, float>::value) {
-          MD2(int, aoutput2, &md2(aoutput, _O, 0), T, V);
-          _mm<V>::store_epi32(&md2(aoutput2, _T, 0), mmout[_O][_T]);
-        } else {
-          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-          _mm<V/2>::store_si256(
-              (__m256i *)&md2(aoutput2, _T, 0),
-              _mm<V>::cvtepi32_epi16(mmout[_O][_T]));
-        }
-      }}
+        for (int _T = 0; _T < T; ++_T)
+          __op_int8_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T);
+      }
     }
   }
-
 
   template <int JO, int P>
   static inline typename std::enable_if<P == 2, void>::type
@@ -1588,15 +1127,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     // preload weights
 #pragma unroll(JO)
-    for (int _O = 0; _O < JO; ++_O) {
-      if (F_traits<F>::is_compact_weights) {
-        MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-        mmwei[_O][0] = _mm<V>::load_epi32(&md5(aweights5, 0, 0, 0, _O, 0));
-      } else {
-        MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-        mmwei[_O][0] = _mm<V>::load_epi32(&md6(aweights6, _O, 0, 0, 0, 0, 0));
-      }
-    }
+    for (int _O = 0; _O < JO; ++_O)
+      mmwei[_O][0] = __op_int8_load_weights<JO, P>(xc, weights, 0, 0, 0, _O);
 
     if (get_attr(attr, r_output_idx) || get_attr(attr, l_output_idx)) {
       // clear output
@@ -1611,15 +1143,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-          if (std::is_same<OutputType, float>::value) {
-            mmout[_O][_T] = _mm<V>::load_epi32((__m512i *)&md2(aoutput2, _T, 0));
-          } else {
-            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-            mmout[_O][_T] = _mm<V>::cvtepi16_epi32(fp16v);
-          }
-        }
+        for (int _T = 0; _T < T; ++_T)
+          mmout[_O][_T] = __op_int8_load_output(&md2(aoutput, _O, 0), _T);
       }
     }
 
@@ -1628,113 +1153,46 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       for (int _V = 0; _V < V / P; ++_V) {
         // _P = 0
 #pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-            mmwei[_O][1]
-                = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, 1, _O, 0));
-          } else {
-            MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V * Vx);
-            mmwei[_O][1]
-                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V, 1, 0));
-          }
-        }
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][1] = __op_int8_load_weights<JO, P>(xc, weights, _I2, _V, 1, _O);
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD5(uint8_t, ainput5, &md2(ainput, _I2, 0), T, S, V / P, P, Vx);
-          __i<V> bcast
-              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
+          __i<V> bcast = __op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, 0, _T);
 #pragma unroll(JO)
-          for (int _O = 0; _O < JO; ++_O) {
+          for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][0]);
-          }
         }
         // _P = 1
 #pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-            mmwei[_O][0]
-                = _mm<V>::load_epi32(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
-          } else {
-            MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            mmwei[_O][0]
-                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
-          }
-        }
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][0] = __op_int8_load_weights<JO, P>(xc, weights, _I2, _V + 1, 0, _O);
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD5(uint8_t, ainput5, &md2(ainput, _I2, 0), T, S, V / P, P, Vx);
-          __i<V> bcast
-              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 1, 0));
+          __i<V> bcast = __op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, 1, _T);
 #pragma unroll(JO)
-          for (int _O = 0; _O < JO; ++_O) {
+          for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][1]);
-          }
         }
       }
     }
 
     // store output
     if (get_attr(attr, c_output_idx)) {
-      MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
-      MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
-      MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
-      MD2(float, aweights_factor, &md3(aweights_factor3, _O1, _O0, 0), JO, V);
-
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
-      for (int _T = 0; _T < T; ++_T) {
-        MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-        __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
-        coeffi = _mm<V>::mul_ps(*(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
-        __m<V> ffactor = _mm<V>::broadcastss_ps(*(__m128 *)&src_factor[_T]);
-        ffactor = _mm<V>::mul_ps(ffactor, *(__m<V> *)&md2(aweights_factor, _O, 0));
-        __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
-        fout = _mm<V>::fmadd_ps(fout, coeffi, ffactor);
-        // toutput lazy accumulation
-        if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
-          if (std::is_same<OutputType, float>::value) {
-            fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-          } else {
-            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-            fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
-          }
-        }
-        // 1. add bias (direct conv 1x1)
-        if (get_attr(attr, bias_idx)) {
-          MD2(float, abias2, bias, JO, V);
-          fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(abias2, _O, 0)));
-        }
-        // 2. fuse relu (direct conv 1x1)
-        if (get_attr(attr, relu_idx)) {
-          fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
-        }
-        // 3. store output
-        if (std::is_same<OutputType, float>::value) {
-          _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
-        } else {
-          auto fp16v = _mm<V>::cvtps_ph(fout,
-              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
-        }
-      }}
+        for (int _T = 0; _T < T; ++_T)
+          __op_int8_restore_output<JO>(xc, &md2(aoutput, _O, 0), bias,
+              mmout[_O][_T], src_scale, src_factor, weights_scale,
+              weights_factor, _O1, _O0, _O, _T, attr);
+      }
     } else {
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
-      for (int _T = 0; _T < T; ++_T) {
-        if (std::is_same<OutputType, float>::value) {
-          MD2(int, aoutput2, &md2(aoutput, _O, 0), T, V);
-          _mm<V>::store_epi32(&md2(aoutput2, _T, 0), mmout[_O][_T]);
-        } else {
-          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-          _mm<V/2>::store_si256(
-              (__m256i *)&md2(aoutput2, _T, 0),
-              _mm<V>::cvtepi32_epi16(mmout[_O][_T]));
-        }
-      }}
+        for (int _T = 0; _T < T; ++_T)
+          __op_int8_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T);
+      }
     }
   }
 
@@ -1757,15 +1215,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     // preload weights
 #pragma unroll(JO)
     for (int _O = 0; _O < JO; ++_O) {
-      if (F_traits<F>::is_compact_weights) {
-        MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-        mmwei[_O][0] = _mm<V>::load_epi32(&md5(aweights5, 0, 0, 0, _O, 0));
-        mmwei[_O][1] = _mm<V>::load_epi32(&md5(aweights5, 0, 0, 1, _O, 0));
-      } else {
-        MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-        mmwei[_O][0] = _mm<V>::load_epi32(&md6(aweights6, _O, 0, 0, 0, 0, 0));
-        mmwei[_O][1] = _mm<V>::load_epi32(&md6(aweights6, _O, 0, 0, 0, 1, 0));
-      }
+      mmwei[_O][0] = __op_int8_load_weights<JO, P>(xc, weights, 0, 0, 0, _O);
+      mmwei[_O][1] = __op_int8_load_weights<JO, P>(xc, weights, 0, 0, 1, _O);
     }
 
     if (get_attr(attr, r_output_idx) || get_attr(attr, l_output_idx)) {
@@ -1781,15 +1232,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T) {
-          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-          if (std::is_same<OutputType, float>::value) {
-            mmout[_O][_T] = _mm<V>::load_epi32((__m512i *)&md2(aoutput2, _T, 0));
-          } else {
-            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-            mmout[_O][_T] = _mm<V>::cvtepi16_epi32(fp16v);
-          }
-        }
+        for (int _T = 0; _T < T; ++_T)
+          mmout[_O][_T] = __op_int8_load_output(&md2(aoutput, _O, 0), _T);
       }
     }
 
@@ -1798,45 +1242,22 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       for (int _V = 0; _V < V / P; ++_V) {
         // _P = 0
 #pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-            mmwei[_O][2]
-                = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, 2, _O, 0));
-          } else {
-            MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            mmwei[_O][2]
-                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V, 2, 0));
-          }
-        }
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][2] = __op_int8_load_weights<JO, P>(xc, weights, _I2, _V, 2, _O);
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD5(uint8_t, ainput5, &md2(ainput, _I2, 0), T, S, V / P, P, Vx);
-          __i<V> bcast
-              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 0, 0));
+          __i<V> bcast = __op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, 0, _T);
 #pragma unroll(JO)
-          for (int _O = 0; _O < JO; ++_O) {
+          for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][0]);
-          }
         }
         // _P = 1
 #pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-            mmwei[_O][3]
-                = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, 3, _O, 0));
-          } else {
-            MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            mmwei[_O][3]
-                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V, 3, 0));
-          }
-        }
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][3] = __op_int8_load_weights<JO, P>(xc, weights, _I2, _V, 3, _O);
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD5(uint8_t, ainput5, &md2(ainput, _I2, 0), T, S, V / P, P, Vx);
-          __i<V> bcast
-              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 1, 0));
+          __i<V> bcast = __op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, 1, _T);
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][1]);
@@ -1844,45 +1265,22 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         }
         // _P = 2
 #pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-            mmwei[_O][0]
-                = _mm<V>::load_epi32(&md5(aweights5, _I2, _V + 1, 0, _O, 0));
-          } else {
-            MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            mmwei[_O][0]
-                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V + 1, 0, 0));
-          }
-        }
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][0] = __op_int8_load_weights<JO, P>(xc, weights, _I2, _V + 1, 0, _O);
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD5(uint8_t, ainput5, &md2(ainput, _I2, 0), T, S, V / P, P, Vx);
-          __i<V> bcast
-              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 2, 0));
+          __i<V> bcast = __op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, 2, _T);
 #pragma unroll(JO)
-          for (int _O = 0; _O < JO; ++_O) {
+          for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][2]);
-          }
         }
         // _P = 3
 #pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O) {
-          if (F_traits<F>::is_compact_weights) {
-            MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-            mmwei[_O][1]
-                = _mm<V>::load_epi32(&md5(aweights5, _I2, _V + 1, 1, _O, 0));
-          } else {
-            MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
-            mmwei[_O][1]
-                = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V + 1, 1, 0));
-          }
-        }
+        for (int _O = 0; _O < JO; ++_O)
+          mmwei[_O][1] = __op_int8_load_weights<JO, P>(xc, weights, _I2, _V + 1, 1, _O);
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD5(uint8_t, ainput5, &md2(ainput, _I2, 0), T, S, V / P, P, Vx);
-          __i<V> bcast
-              = _mm<V>::set1_epi32(*(int32_t *)&md5(ainput5, _T, 0, _V, 3, 0));
+          __i<V> bcast = __op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, 3, _T);
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
             mmout[_O][_T] = __op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][3]);
@@ -1893,64 +1291,22 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     // store output
     if (get_attr(attr, c_output_idx)) {
-      MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
-      MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
-      MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
-      MD2(float, aweights_factor, &md3(aweights_factor3, _O1, _O0, 0), JO, V);
-
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
-      for (int _T = 0; _T < T; ++_T) {
-        MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-        __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
-        coeffi = _mm<V>::mul_ps(*(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
-        __m<V> ffactor = _mm<V>::broadcastss_ps(*(__m128 *)&src_factor[_T]);
-        ffactor = _mm<V>::mul_ps(ffactor, *(__m<V> *)&md2(aweights_factor, _O, 0));
-        __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
-        fout = _mm<V>::fmadd_ps(fout, coeffi, ffactor);
-        // toutput lazy accumulation
-        if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
-          if (std::is_same<OutputType, float>::value) {
-            fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-          } else {
-            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-            fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
-          }
+        for (int _T = 0; _T < T; ++_T) {
+          __op_int8_restore_output<JO>(xc, &md2(aoutput, _O, 0), bias,
+              mmout[_O][_T], src_scale, src_factor, weights_scale,
+              weights_factor, _O1, _O0, _O, _T, attr);
         }
-        // 1. add bias (direct conv 1x1)
-        if (get_attr(attr, bias_idx)) {
-          MD2(float, abias2, bias, JO, V);
-          fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(abias2, _O, 0)));
-        }
-        // 2. fuse relu (direct conv 1x1)
-        if (get_attr(attr, relu_idx)) {
-          fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
-        }
-        // 3. store output
-        if (std::is_same<OutputType, float>::value) {
-          _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
-        } else {
-          auto fp16v = _mm<V>::cvtps_ph(fout,
-              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
-        }
-      }}
+      }
     } else {
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
-      for (int _T = 0; _T < T; ++_T) {
-        if (std::is_same<OutputType, float>::value) {
-          MD2(int, aoutput2, &md2(aoutput, _O, 0), T, V);
-          _mm<V>::store_epi32(&md2(aoutput2, _T, 0), mmout[_O][_T]);
-        } else {
-          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
-          _mm<V/2>::store_si256(
-              (__m256i *)&md2(aoutput2, _T, 0),
-              _mm<V>::cvtepi32_epi16(mmout[_O][_T]));
-        }
-      }}
+        for (int _T = 0; _T < T; ++_T)
+          __op_int8_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T);
+      }
     }
   }
 
