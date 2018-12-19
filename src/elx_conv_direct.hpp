@@ -76,6 +76,7 @@ class elx_conv_direct_t : public elx_conv_t<UserTypes> {
 
   gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_I_O_T_;
   gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_border_I_O_T_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_border_IrO_T_;
   gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_I_O_Tr_;
   gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_I_OrT_;
   gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_border_I_OrT_;

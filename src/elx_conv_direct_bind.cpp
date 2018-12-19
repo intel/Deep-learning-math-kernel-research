@@ -45,7 +45,7 @@ Instance_elx_conv_direct_t::bind_execute_functions()
       BIND_KERNEL_2(1, GKF_DDD)
       break;
     case (0xd060):
-      BIND_KERNEL_1(1, GKF_DCD)
+      BIND_KERNEL_2(1, GKF_DCD)
       break;
     default:
       el_error("Unknown xopt");
@@ -54,13 +54,16 @@ Instance_elx_conv_direct_t::bind_execute_functions()
   };
 
   bind_kernel(this->O, this->T, &ker_gemm_I_O_T_, false);
-  bind_kernel(this->O, this->T - 1, &ker_gemm_border_I_O_T_, false);
   bind_kernel(this->O, this->Tr, &ker_gemm_I_O_Tr_, false);
 
+  if (xopt_ == 0xd060) {
+    bind_kernel(this->O, this->T, &ker_gemm_IrO_T_, this->Ir != V);
+    bind_kernel(this->O, this->T - 1, &ker_gemm_border_I_O_T_, false);
+    bind_kernel(this->O, this->T - 1, &ker_gemm_border_IrO_T_, this->Ir != V);
+  }
 
-  if (xopt_ == 0xc060 || xopt_ == 0xd060) {
+  if (xopt_ == 0xc060) {
     bind_kernel(this->O2r, this->T, &ker_gemm_I_OrT_, false);
-    bind_kernel(this->O2r, this->T - 1, &ker_gemm_border_I_OrT_, false);
     bind_kernel(this->O2r, this->Tr, &ker_gemm_I_OrTr_, false);
   }
   // Ir != V
