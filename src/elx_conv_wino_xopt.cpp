@@ -455,10 +455,10 @@ void Instance_elx_conv_wino_t::__execute_a133(
   MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
       A * A * this->ic3 * this->I2 * this->Vx * V * this->oc3 * this->O2 * V);
 
-  MD3(TscaleType, atweights_qt_scale, tweights_qt_scale_, this->ic4,
-      this->oc4, this->oc3 * this->O2 * V * A * A);
+  MD3(TscaleType, atweights_qt_scale, tweights_qt_scale_,
+      this->oc4, this->ic4, this->oc3 * this->ic3 * this->O2 * V * A * A);
   MD3(TscaleType, aweights_qt_factor, tweights_qt_factor_,
-      this->ic4, this->oc4, this->oc3 * this->O2 * V * A * A);
+      this->oc4, this->ic4, this->oc3 * this->ic3 * this->O2 * V * A * A);
 
   if (is_first_run_) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
