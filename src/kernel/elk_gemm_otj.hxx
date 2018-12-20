@@ -31,10 +31,13 @@ namespace euler {
 //    Output: O1, O, oh, ow, V
 //    factor: O1, O, V
 //    weights_scale: O1, O, V
+// E: discrete (for nchw input)
+//    Input: I2, V, ih, iw
 const int GKF_CCC = 0xccc;
 const int GKF_CCD = 0xccd;
 const int GKF_DCD = 0xdcd;
 const int GKF_DDD = 0xddd;
+const int GKF_ECD = 0xecd;
 
 // (weights) pipeline length
 template <int O, int T, bool has_Ir, typename Wtype, typename C = void>
@@ -270,6 +273,8 @@ struct J_traits<O, T, has_Ir, int8_t,
 template <int F>
 struct F_traits {
   static constexpr bool is_compact_input = (F & 0xF00) == 0xC00;
+  static constexpr bool is_blocked_input = (F & 0xF00) == 0xD00;
+  static constexpr bool is_nchw_input = (F & 0xF00) == 0xE00;
   static constexpr bool is_compact_weights = (F & 0xF0) == 0xC0;
   static constexpr bool is_compact_output = (F & 0xF) == 0xC;
 };
@@ -448,10 +453,19 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
+          __m<V> mmbcst;
+          // *Note*: xc.T vs. T:
+          // T is not real T in border of direct-conv. It works okay only as
+          // leading dim.
+          if (F_traits<F>::is_nchw_input) {
+            MD5(InputType, ainput5, &md2(ainput, _I2, 0), V / P, P, xc.ih * xc.wt, xc.T, S);
+            mmbcst = _mm<V>::set1_ps(md5(ainput5, _V, 0, 0, _T, 0));
+          } else {
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
+            mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
+          }
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-            __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
@@ -609,10 +623,16 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
+          __m<V> mmbcst;
+          if (F_traits<F>::is_nchw_input) {
+            MD5(InputType, ainput5, &md2(ainput, _I2, 0), V, 1, xc.ih * xc.wt, xc.T, S);
+            mmbcst = _mm<V>::set1_ps(md5(ainput5, _V, 0, 0, _T, 0));
+          } else {
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V, 1);
+            mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
+          }
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
-            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V, 1);
-            __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
@@ -649,10 +669,16 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
+          __m<V> mmbcst;
+          if (F_traits<F>::is_nchw_input) {
+            MD5(InputType, ainput5, &md2(ainput, xc.I2 - 1, 0), V, 1, xc.ih * xc.wt, xc.T, S);
+            mmbcst = _mm<V>::set1_ps(md5(ainput5, _V, 0, 0, _T, 0));
+          } else {
+            MD4(InputType, ainput4, &md2(ainput, xc.I2 - 1, 0), T, S, V, 1);
+            mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
+          }
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O) {
-            MD4(InputType, ainput4, &md2(ainput, xc.I2 - 1, 0), T, S, V, 1);
-            __m<V> mmbcst = _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, 0));
             mmout[_O][_T]
                 = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
@@ -836,9 +862,14 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m<V> mmbcst
-              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
+          __m<V> mmbcst;
+          if (F_traits<F>::is_nchw_input) {
+            MD5(InputType, ainput5, &md2(ainput, _I2, 0), V / P, P, xc.ih * xc.wt, xc.T, S);
+            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md5(ainput5, _V, 0, 0, _T, 0));
+          } else {
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
+            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
+          }
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -871,9 +902,14 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m<V> mmbcst
-              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
+          __m<V> mmbcst;
+          if (F_traits<F>::is_nchw_input) {
+            MD5(InputType, ainput5, &md2(ainput, _I2, 0), V / P, P, xc.ih * xc.wt, xc.T, S);
+            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md5(ainput5, _V, 1, 0, _T, 0));
+          } else {
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
+            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
+          }
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -1063,9 +1099,14 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m<V> mmbcst
-              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
+          __m<V> mmbcst;
+          if (F_traits<F>::is_nchw_input) {
+            MD5(InputType, ainput5, &md2(ainput, _I2, 0), V / P, P, xc.ih * xc.wt, xc.T, S);
+            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md5(ainput5, _V, 0, 0, _T, 0));
+          } else {
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
+            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 0));
+          }
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -1097,9 +1138,14 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m<V> mmbcst
-              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
+          __m<V> mmbcst;
+          if (F_traits<F>::is_nchw_input) {
+            MD5(InputType, ainput5, &md2(ainput, _I2, 0), V / P, P, xc.ih * xc.wt, xc.T, S);
+            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md5(ainput5, _V, 1, 0, _T, 0));
+          } else {
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
+            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 1));
+          }
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -1132,9 +1178,14 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m<V> mmbcst
-              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 2));
+          __m<V> mmbcst;
+          if (F_traits<F>::is_nchw_input) {
+            MD5(InputType, ainput5, &md2(ainput, _I2, 0), V / P, P, xc.ih * xc.wt, xc.T, S);
+            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md5(ainput5, _V, 2, 0, _T, 0));
+          } else {
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
+            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 2));
+          }
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -1167,9 +1218,14 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         }
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
-          __m<V> mmbcst
-              = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 3));
+          __m<V> mmbcst;
+          if (F_traits<F>::is_nchw_input) {
+            MD5(InputType, ainput5, &md2(ainput, _I2, 0), V / P, P, xc.ih * xc.wt, xc.T, S);
+            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md5(ainput5, _V, 3, 0, _T, 0));
+          } else {
+            MD4(InputType, ainput4, &md2(ainput, _I2, 0), T, S, V / P, P);
+            mmbcst = _mm<V>::broadcastss_ps(*(__m128 *)&md4(ainput4, _T, 0, _V, 3));
+          }
 #pragma unroll(JO)
           for (int _O = 0; _O < JO; ++_O)
             mmout[_O][_T]
@@ -2137,6 +2193,7 @@ struct gemm_kernel_binder {
   static ker<conv_impl::FP32> *ker_s1_ccd[8][32][2];
   static ker<conv_impl::FP32> *ker_s1_dcd[8][32][2];
   static ker<conv_impl::FP32> *ker_s1_ddd[8][32][2];
+  static ker<conv_impl::FP32> *ker_s1_ecd[8][32][2];
   static ker<conv_impl::FP32> *ker_s2_ccc[8][32][2];
   static ker<conv_impl::FP32> *ker_s2_ccd[8][32][2];
   static ker<conv_impl::FP32> *ker_s2_dcd[8][32][2];
@@ -2166,6 +2223,10 @@ struct gemm_kernel_binder {
         *func = ker_s1_dcd[O - 1][T - 1][has_Ir];
       else if (S == 2)
         *func = ker_s2_dcd[O - 1][T - 1][has_Ir];
+      break;
+    case GKF_ECD:
+      if (S == 1)
+        *func = ker_s1_ecd[O - 1][T - 1][has_Ir];
       break;
     case GKF_DDD:
       if (S == 1)

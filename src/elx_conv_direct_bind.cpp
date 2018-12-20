@@ -45,7 +45,11 @@ Instance_elx_conv_direct_t::bind_execute_functions()
       BIND_KERNEL_2(1, GKF_DDD)
       break;
     case (0xd060):
-      BIND_KERNEL_2(1, GKF_DCD)
+      if (this->input_fmt == nchw) {
+        BIND_KERNEL_2(1, GKF_ECD)
+      } else {
+        BIND_KERNEL_2(1, GKF_DCD)
+      }
       break;
     default:
       el_error("Unknown xopt");

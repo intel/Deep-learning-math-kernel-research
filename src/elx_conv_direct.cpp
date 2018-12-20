@@ -165,7 +165,12 @@ int  Instance_elx_conv_direct_t::prepare_execute_opt()
     el_error("Unimplemented: oc4 > 1 for OC % V != 0");
   }
 
-  if (!is_bfmt_ && (xopt_ != 0xa061 && xopt_ != 0xf061)) {
+  if (xopt_ == 0xd060) {
+    if ((this->input_fmt == nchw || input_is_bfmt_) && weights_is_bfmt_ && output_is_bfmt_)
+      ;
+    else
+      el_error("Unimplemented: 0xd060 support only nchw|blocked + blocked => blocked\n");
+  } else if (!is_bfmt_ && (xopt_ != 0xa061 && xopt_ != 0xf061)) {
     el_error("Unimplemented: only a061, f061 mode support plain format\n");
   }
 
@@ -566,6 +571,37 @@ void Instance_elx_conv_direct_t::trans_weights(
     __trans_weights_blocked(tweights, weights);
   else
     __trans_weights_plain(tweights, weights);
+}
+
+Template_elx_conv_direct_t
+void Instance_elx_conv_direct_t::trans_weights_blocked_to_compact(
+    TarrayType *tweights, WeightsType *weights)
+{
+  MD11(WeightsType, aweights, weights, this->oc4, this->oc3, this->O1, this->O,
+      this->ic4, this->ic3, this->I2, this->kh, this->kw, V, V);
+  MD11(TarrayType, atweights, tweights, this->ic4, this->oc4, this->kh,
+      this->kw, this->oc3, this->ic3, this->O1, this->I2, V, this->O, V);
+
+  // weights: oc2, ic2, kh, kw, V, V
+  // tweights: ic4, oc4, kh, kw, oc3, _ic3, O1, I2, V, O, V
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+#pragma omp for nowait collapse(6)
+  iter_each (_oc4, this->oc4) {
+  iter_each (_oc3, this->oc3) {
+  iter_each (_O1, this->O1) {
+  iter_each (_O, this->O) {
+  iter_each (_ic4, this->ic4) {
+  iter_each (_ic3, this->ic3) {
+  iter_each (_I2, this->I2) {
+  iter_each (_kh, this->kh) {
+  iter_each (_kw, this->kw) {
+  iter_each (_iV, V) {
+#pragma omp simd
+    iter_each (_oV, V) {
+      md11(atweights, _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV, _O, _oV)
+        = md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, _oV);
+    }
+  }}}}}}}}}}
 }
 
 Template_elx_conv_direct_t
@@ -1260,7 +1296,7 @@ void Instance_elx_conv_direct_t::gemm_c060(OutputType *output,
 }
 
 Template_elx_conv_direct_t
-void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
+void Instance_elx_conv_direct_t::gemm_d060_blocked_input(OutputType *output, InputType *input,
     WeightsType *weights, BiasType *bias, int _ic4, int _oc4, int _ht, int _wt)
 {
   // input:   ic3*, I2, ht*, hs*, wt*, T, ws, V
@@ -1324,6 +1360,74 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
     }
   }
 }
+
+Template_elx_conv_direct_t
+void Instance_elx_conv_direct_t::gemm_d060_nchw_input(OutputType *output, InputType *input,
+    WeightsType *weights, BiasType *bias, int _ic4, int _oc4, int _ht, int _wt)
+{
+  // input:   ic3*, I2, V, ht*, hs*, wt*, T, ws
+  // output:  oc3*, O2, ht*, wt*, T, V
+  MD5(InputType, ainput, input, this->ic3, this->I2, V, this->ih, this->iw);
+  MD6(OutputType, aoutput, output, this->oc3, this->O2, this->ht, this->wt, this->T, V);
+  MD5(WeightsType, aweights, weights, this->kh, this->kw, this->oc3, this->ic3, this->O2 * this->I2 * V * V);
+  MD3(BiasType, abias, bias, this->oc3, this->O2, V);
+
+  const int AKH = this->kh / 2;
+  const int AKW = this->kw / 2;
+
+  int khs = _ht == 0 ? 1 : 0;
+  int khe = _ht == this->ht - 1 ? this->kh - 1 : this->kh;
+  int kws = _wt == 0 ? 1 : 0;
+  int kwe = _wt == this->wt - 1 ? this->kw - 1 : this->kw;
+  assert(this->T > this->lp);
+
+  iter_each(_oc3, this->oc3) {
+    iter_each(_ic3, this->ic3) {
+      int attr =
+          (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
+      attr = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
+                 ? set_attr(attr, relu_idx)
+                 : attr;
+      int attr_bk = attr;
+
+      auto ker_gemm = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
+        ? ker_gemm_IrO_T_ : ker_gemm_I_O_T_;
+      auto ker_gemm_border = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
+        ? ker_gemm_border_IrO_T_ : ker_gemm_border_I_O_T_;
+
+      for (int _kh = khs; _kh < khe; ++_kh) {
+        // mid
+        for (int _kw = kws; _kw < kwe; ++_kw) {
+          ker_gemm(*this, &md6(aoutput, _oc3, 0, 0, 0, 0, 0),
+              &md5(ainput, _ic3, 0, 0, _kh - AKH, _kw - AKW),
+              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
+              attr, 0, nullptr, nullptr, nullptr);
+          attr &= ~r_output_idx;
+        }
+        // left
+        if (_wt == 0) {
+          int _kw = 0;
+          ker_gemm_border(*this, &md6(aoutput, _oc3, 0, 0, 0, 1, 0),
+              &md5(ainput, _ic3, 0, 0, _kh - AKH, 1 + _kw - AKW),
+              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
+              attr, 0, nullptr, nullptr, nullptr);
+          attr &= ~r_output_idx;
+        }
+        // right
+        if (_wt == this->wt - 1) {
+          int _kw = 2;
+          ker_gemm_border(*this, &md6(aoutput, _oc3, 0, 0, 0, 0, 0),
+              &md5(ainput, _ic3, 0, 0, _kh - AKH, _kw - AKW),
+              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
+              attr, 0, nullptr, nullptr, nullptr);
+        }
+      }
+      attr = attr_bk;
+    }
+  }
+}
+
+
 
 Template_elx_conv_direct_t
 void Instance_elx_conv_direct_t::gemm_e060(OutputType *output, InputType *input,

@@ -36,9 +36,6 @@
 //
 namespace euler {
 
-// kh|kw are odd
-// ih = oh, lp = rp = (kh-1)/2, hs=1
-// iw = iw, tp = bp = (kw-1)/2
 Template_elx_conv_direct_t
 void Instance_elx_conv_direct_t::__execute_c060(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
@@ -73,61 +70,60 @@ void Instance_elx_conv_direct_t::__execute_c060(
   }
 }
 
+// nChw16c|nchw + OIhw16i16o -> nChw16c, Ir
+// kh|kw are odd
+// ih = oh, lp = rp = (kh-1)/2, hs=1
+// iw = iw, tp = bp = (kw-1)/2
 Template_elx_conv_direct_t
 void Instance_elx_conv_direct_t::__execute_d060(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   // weights: oc4*, oc3, O2(O2r), ic4*, ic3, I2, V, V
-  // input:   t3*, ic4*, ic3, I2, ht*, S, wt*, T, S, V
+  // input (blocked): t3*, ic4*, ic3, I2, ht*, S, wt*, T, S, V
+  // input (nchw): t3*, ic4*, ic3, I2, V, ht*, S, wt*, T, S
   // output:  t3*, oc4*, oc3, O2(O2r), ht*wt*, T, V
-  MD7(InputType, ainput, input, this->t3, this->ic4, this->ic3 * this->I2,
-      this->ht, this->hs, this->wt, this->T * this->ws * V);
+  MD8(InputType, ainput_blocked, input, this->t3, this->ic4, this->ic3 * this->I2,
+      this->ht, this->hs, this->wt, this->T * this->ws, V);
+  MD8(InputType, ainput_nchw, input, this->t3, this->ic4, this->ic3 * this->I2, V,
+      this->ht, this->hs, this->wt, this->T * this->ws);
   MD6(OutputType, aoutput, output, this->t3, this->oc4, this->oc3 * this->O2, this->ht, this->wt, this->T * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-
-  // trans-weights: compact fp16
-  MD11(WeightsType, aweights, weights, this->oc4, this->oc3, this->O1, this->O,
-      this->ic4, this->ic3, this->I2, this->kh, this->kw, V, V);
-  MD11(TarrayType, atweights, tweights_, this->ic4, this->oc4, this->kh,
-      this->kw, this->oc3, this->ic3, this->O1, this->I2, V, this->O, V);
-  if (is_first_run_) {
-    // weights: oc2, ic2, kh, kw, V, V
-    // tweights: ic4, oc4, kh, kw, oc3, _ic3, O1, I2, V, O, V
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-#pragma omp for nowait collapse(6)
-    iter_each (_oc4, this->oc4) {
-    iter_each (_oc3, this->oc3) {
-    iter_each (_O1, this->O1) {
-    iter_each (_O, this->O) {
-    iter_each (_ic4, this->ic4) {
-    iter_each (_ic3, this->ic3) {
-    iter_each (_I2, this->I2) {
-    iter_each (_kh, this->kh) {
-    iter_each (_kw, this->kw) {
-    iter_each (_iV, V) {
-#pragma omp simd
-    iter_each (_oV, V) {
-      md11(atweights, _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV, _O, _oV)
-        = md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, _oV);
-    }}}}}}}}}}}
-  }
-
   MD3(TarrayType, atweights3, tweights_, this->ic4, this->oc4,
        this->kh * this->kw * this->ic3 * this->oc3 * this->I2 * this->O2 * V * V);
 
-  iter_each (_ic4, this->ic4) {
+  // trans-weights:
+  if (is_first_run_) {
+    trans_weights_blocked_to_compact(tweights_, weights);
+  }
+
+  if (this->input_fmt == nchw) {
+    iter_each (_ic4, this->ic4) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(4)
     iter_each (_t3, this->t3) {
     iter_each (_oc4, this->oc4) {
     iter_each (_ht, this->ht) {
     iter_each (_wt, this->wt) {
-      gemm_d060(&md6(aoutput, _t3, _oc4, 0, _ht, _wt, 0),
-          &md7(ainput, _t3, _ic4, 0, _ht, 0, _wt, 0),
+      gemm_d060_nchw_input(&md6(aoutput, _t3, _oc4, 0, _ht, _wt, 0),
+          &md8(ainput_nchw, _t3, _ic4, 0, 0, _ht, 0, _wt, 0),
           &md3(atweights3, _ic4, _oc4, 0),
           &md2(abias, _oc4, 0), _ic4, _oc4, _ht, _wt);
-    }}}}
+    }}}}}
+  } else {
+    iter_each (_ic4, this->ic4) {
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+#pragma omp for nowait collapse(4)
+    iter_each (_t3, this->t3) {
+    iter_each (_oc4, this->oc4) {
+    iter_each (_ht, this->ht) {
+    iter_each (_wt, this->wt) {
+      gemm_d060_blocked_input(&md6(aoutput, _t3, _oc4, 0, _ht, _wt, 0),
+          &md8(ainput_blocked, _t3, _ic4, 0, _ht, 0, _wt, 0, 0),
+          &md3(atweights3, _ic4, _oc4, 0),
+          &md2(abias, _oc4, 0), _ic4, _oc4, _ht, _wt);
+    }}}}}
   }
+
   if (inference_acc_)
     is_first_run_ = false;
 }

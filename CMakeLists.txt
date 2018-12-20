@@ -67,6 +67,7 @@ if (NOT WITH_GKTII)
     src/kernel/elk_gemm_otj_s1_ccd.cpp
     src/kernel/elk_gemm_otj_s1_dcd.cpp
     src/kernel/elk_gemm_otj_s1_ddd.cpp
+    src/kernel/elk_gemm_otj_s1_ecd.cpp
     src/kernel/elk_gemm_otj_s2_ccc.cpp
     src/kernel/elk_gemm_otj_s2_ccd.cpp
     src/kernel/elk_gemm_otj_s2_dcd.cpp

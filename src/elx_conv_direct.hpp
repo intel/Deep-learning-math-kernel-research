@@ -59,12 +59,14 @@ class elx_conv_direct_t : public elx_conv_t<UserTypes> {
   inline void __trans_weights_blocked(WeightsType *tweights, WeightsType *weights);
   void trans_weights(WeightsType *tweights, WeightsType *weights);
 
+  void trans_weights_blocked_to_compact(TarrayType *tweights, WeightsType *weights);
   void gemm_a061(OutputType *toutput, InputType *tinput, WeightsType *tweights, BiasType *bias, int _ic4);
   void gemm_f061(OutputType *toutput, InputType *tinput, WeightsType *tweights, BiasType *bias, int _t2, int Tz);
   void gemm_b061(OutputType *toutput, InputType *tinput, WeightsType *tweights, BiasType *bias, int _ic4);
   void gemm_e060(OutputType *toutput, InputType *tinput, WeightsType *tweights, BiasType *bias, int _ic4);
   void gemm_c060(OutputType *toutput, InputType *tinput, WeightsType *tweights, BiasType *bias, int _ic4, int _oc4, int _t2);
-  void gemm_d060(OutputType *toutput, InputType *tinput, WeightsType *tweights, BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
+  void gemm_d060_blocked_input(OutputType *toutput, InputType *tinput, WeightsType *tweights, BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
+  void gemm_d060_nchw_input(OutputType *toutput, InputType *tinput, WeightsType *tweights, BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
 
   void trans_input_2_blocked(InputType *tinput, InputType *input);
   void trans_weights_2_blocked(WeightsType *tweghts, WeightsType *weights);
