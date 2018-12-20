@@ -19,8 +19,12 @@ typedef short float16;
   _T(printf("time: %s, th=%d, %.2f ms\n", #n, omp_get_thread_num(),            \
       Duration(__e##n - __s##n).count()));
 
+#define STRINGIFY(x) #x
+
 #define iter_each(indx, lim) for (int indx = 0; indx < (lim); ++indx)
 #define revs_each(indx, lim) for (int indx = lim -1; indx >=0; -- indx)
+#define unroll_for(indx, lim)                                                  \
+  _Pragma(STRINGIFY(unroll(lim))) for (int indx = 0; indx < (lim); ++indx)
 
 #define MEMALIGN64(ptr, size) posix_memalign((void **)(ptr), 64, size)
 
