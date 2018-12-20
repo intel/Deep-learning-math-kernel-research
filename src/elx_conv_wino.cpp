@@ -2164,8 +2164,8 @@ void Instance_elx_conv_wino_t::gemm(
   MD6(ToutputType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
   MD5(int8_t, atweights, tweights, this->oc3, this->ic3, A, A,
       this->O2 * this->I2 * V * V * this->Vx);
-  MD5(TscaleType, aweights_scale, weights_scale, this->oc3, A, A, this->O2, V);
-  MD5(TscaleType, aweights_factor, weights_factor, this->oc3, A, A, this->O2, V);
+  MD6(TscaleType, aweights_scale, weights_scale, this->oc3, this->ic3, A, A, this->O2, V);
+  MD6(TscaleType, aweights_factor, weights_factor, this->oc3, this->ic3, A, A, this->O2, V);
   MD5(TscaleType, asrc_scale, src_scale, this->ic3,  A, A, 2, Tz);
 
   iter_each (_wA, A) {
@@ -2183,8 +2183,8 @@ void Instance_elx_conv_wino_t::gemm(
           nullptr, attr,
           &md5(asrc_scale, _ic3, _wA, _hA, 0, 0),
           &md5(asrc_scale, _ic3, _wA, _hA, 1, 0),
-          &md5(aweights_scale, _oc3, _wA, _hA, 0, 0),
-          &md5(aweights_factor, _oc3, _wA, _hA, 0, 0));
+          &md6(aweights_scale, _oc3, _ic3, _wA, _hA, 0, 0),
+          &md6(aweights_factor, _oc3, _ic3, _wA, _hA, 0, 0));
     }
     if (last_ic4) {
       auto attr = this->ic3 == 1 && this->ic4 == 1 ?
@@ -2198,8 +2198,8 @@ void Instance_elx_conv_wino_t::gemm(
           nullptr, attr,
           &md5(asrc_scale, this->ic3 - 1, _wA, _hA, 0, 0),
           &md5(asrc_scale, this->ic3 - 1, _wA, _hA, 1, 0),
-          &md5(aweights_scale, _oc3, _wA, _hA, 0, 0),
-          &md5(aweights_factor, _oc3, _wA, _hA, 0, 0));
+          &md6(aweights_scale, _oc3, this->ic3 - 1, _wA, _hA, 0, 0),
+          &md6(aweights_factor, _oc3, this->ic3 - 1, _wA, _hA, 0, 0));
     }
   }}}
 }
