@@ -80,7 +80,7 @@ namespace test {
       OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
 
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  int ref_convolution2d_blocked(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &desc,
+  int ref_convolution2d_block16(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &desc,
       OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
 
 }
