@@ -29,5 +29,6 @@ sleep 1
 NSOCKETS=1 ./scripts/run.sh -c -i512 -h28 -o512 -H28 -n1 --blk-i=8 --blk-o=8 --flt-t=25 --tile-size=4 --execution-mode=0xa000 --streaming-input=1 $COMMON
 sleep 1
 # vgg19_conv5_1, 5.2T tflops=4.81118
-NSOCKETS=1 ./scripts/run.sh -c -i512 -h14 -o512 -H14 -n1 --blk-i=8 --blk-o=8 --flt-t=25 --tile-size=4 --execution-mode=0xa000 $COMMON
+#NSOCKETS=1 ./scripts/run.sh -c -i512 -h14 -o512 -H14 -n1 --blk-i=8 --blk-o=8 --flt-t=25 --tile-size=4 --execution-mode=0xa000 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -i512 -h14 -o512 -H14 -n1 --blk-i=8 --blk-o=4 --flt-o=1 --flt-t=26 --tile-size=4 --execution-mode=0xa033 --pat-o=1 $COMMON
 
