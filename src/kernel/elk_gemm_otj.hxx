@@ -2175,9 +2175,7 @@ struct gemm_kernel_binder {
 
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
   static inline void bind(int O, int T, ker<conv_impl::FP32_F16O> **func)
-  {
-    el_error("fp32 gemm with fp16 output not implemented, pls use FP32_F16 mode");
-  }
+  {}
 #endif
 };
 
