@@ -441,76 +441,6 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int JO, int P>
   static inline typename std::enable_if<
       !std::is_same<InputType, uint8_t>::value
-      && (P == 1 && has_Ir == false), void>::type
-  op_fma(elx_conv_params_t &xc,
-      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
-      int attr, ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
-  {
-    __type_check_fp32_fp16(output, input, weights, bias);
-
-    __m<V> mmout[JO][T], mmwei[JO][P];
-    const int I2_stride
-        = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
-    const int O_stride
-        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
-
-    MD2(OutputType, aoutput, output, JO, O_stride);
-    MD2(InputType, ainput, input, xc.I2, I2_stride);
-    MD2(BiasType, abias2, bias, JO, V);
-
-    if (get_attr(attr, r_output_idx)) {
-      if (get_attr(attr, bias_idx)) {
-        // load bias
-        unroll_for (_O, JO) {
-          unroll_for (_T, T)
-            mmout[_O][_T] = op_load_bias<JO>(bias, _O);
-        }
-      } else {
-        // clear output
-        __m<V> tmp = _mm<V>::setzero_ps();
-        unroll_for (_O, JO)
-          unroll_for (_T, T)
-            mmout[_O][_T] = tmp;
-      }
-      // load output
-      if (get_attr(attr, ip_sum_idx)) {
-        unroll_for (_O, JO) {
-          unroll_for (_T, T)
-            mmout[_O][_T] += op_load_output<JO>(&md2(aoutput, _O, 0), _T);
-        }
-      }
-    } else {
-      // load output
-      unroll_for (_O, JO) {
-        unroll_for (_T, T)
-          mmout[_O][_T] = op_load_output<JO>(&md2(aoutput, _O, 0), _T);
-      }
-    }
-
-    for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#pragma nounroll
-      for (int _V = 0; _V < V / P; ++_V) {
-        unroll_for (_O, JO)
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights, _I2, _V, 0, _O);
-        unroll_for (_T, T) {
-          __m<V> mmbcst = op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 0, _T);
-          unroll_for (_O, JO)
-            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-        }
-      }
-    }
-
-    // store output
-    unroll_for (_O, JO) {
-      unroll_for (_T, T)
-        op_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T, attr);
-    }
-  }
-
-  template <int JO, int P>
-  static inline typename std::enable_if<
-      !std::is_same<InputType, uint8_t>::value
       && (P == 1 && has_Ir == true), void>::type
   op_fma(elx_conv_params_t &xc,
       OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
@@ -591,96 +521,13 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     }
   }
 
-
   template <int JO, int P>
-  static inline typename std::enable_if<
-      !std::is_same<InputType, uint8_t>::value && P == 2, void>::type
-  op_fma(elx_conv_params_t &xc,
-      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
-      int attr, ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
-  {
-    __type_check_fp32_fp16(output, input, weights, bias);
-
-    __m<V> mmout[JO][T], mmwei[JO][P];
-    const int I2_stride
-        = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
-    const int O_stride
-        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
-
-    MD2(OutputType, aoutput, output, JO, O_stride);
-    MD2(InputType, ainput, input, xc.I2, I2_stride);
-    MD2(BiasType, abias2, bias, JO, V);
-
-    // preload weights
-    unroll_for (_O, JO)
-      mmwei[_O][0] = op_load_weights<JO, P>(xc, weights, 0, 0, 0, _O);
-
-    if (get_attr(attr, r_output_idx)) {
-      if (get_attr(attr, bias_idx)) {
-        // load bias
-        unroll_for (_O, JO) {
-          unroll_for (_T, T)
-            mmout[_O][_T] = op_load_bias<JO>(bias, _O);
-        }
-      } else {
-        // clear output
-        __m<V> tmp = _mm<V>::setzero_ps();
-        unroll_for (_O, JO)
-          unroll_for (_T, T)
-            mmout[_O][_T] = tmp;
-      }
-      // load output
-      if (get_attr(attr, ip_sum_idx)) {
-        unroll_for (_O, JO) {
-          unroll_for (_T, T)
-            mmout[_O][_T] += op_load_output<JO>(&md2(aoutput, _O, 0), _T);
-        }
-      }
-    } else {
-      // load output
-      unroll_for (_O, JO) {
-        unroll_for (_T, T)
-          mmout[_O][_T] = op_load_output<JO>(&md2(aoutput, _O, 0), _T);
-      }
-    }
-
-    for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#pragma nounroll
-      for (int _V = 0; _V < V / P; ++_V) {
-        // _P = 0
-        unroll_for (_O, JO)
-          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights, _I2, _V, 1, _O);
-        unroll_for (_T, T) {
-          __m<V> mmbcst = op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 0, _T);
-          unroll_for (_O, JO)
-            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-        }
-        // _P = 1
-        unroll_for (_O, JO)
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights, _I2, _V + 1, 0, _O);
-        unroll_for (_T, T) {
-          __m<V> mmbcst = op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 1, _T);
-          unroll_for (_O, JO)
-            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
-        }
-      }
-    }
-
-    // store output
-    unroll_for (_O, JO) {
-      unroll_for (_T, T)
-        op_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T, attr);
-    }
-  }
-
-  template <int JO, int P>
-  static inline typename std::enable_if<
-      !std::is_same<InputType, uint8_t>::value && P == 4, void>::type
-  op_fma(elx_conv_params_t &xc,
-      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
-      int attr, ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
+  static inline typename std::enable_if<!std::is_same<InputType, uint8_t>::value
+          && (P == 1 || P == 2 || P == 4) && (has_Ir == false), void>::type
+  op_fma(elx_conv_params_t &xc, OutputType *output, InputType *input,
+      WeightsType *weights, BiasType *bias, int attr, ScaleType *src_scale,
+      ScaleType *src_factor, ScaleType *weights_scale,
+      ScaleType *weights_factor, int _O1, int _O0)
   {
     __type_check_fp32_fp16(output, input, weights, bias);
 
@@ -696,8 +543,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     // preload weights
     unroll_for (_O, JO) {
-      mmwei[_O][0] = op_load_weights<JO, P>(xc, weights, 0, 0, 0, _O);
-      mmwei[_O][1] = op_load_weights<JO, P>(xc, weights, 0, 0, 1, _O);
+      unroll_for (_P, P / 2)
+        mmwei[_O][_P] = op_load_weights<JO, P>(xc, weights, 0, 0, _P, _O);
     }
     if (get_attr(attr, r_output_idx)) {
       if (get_attr(attr, bias_idx)) {
@@ -731,37 +578,16 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
 #pragma nounroll
       for (int _V = 0; _V < V / P; ++_V) {
-        // _P = 0
-        unroll_for (_O, JO)
-          mmwei[_O][2] = op_load_weights<JO, P>(xc, weights, _I2, _V, 2, _O);
-        unroll_for (_T, T) {
-          __m<V> mmbcst = op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 0, _T);
+        unroll_for (_P, P) {
+          int P_ = (_P + P / 2) % P; // P==1: {0}; P==2: {1,0}; P==4:{2,3,0,1}
+          int V_ = (_P + P / 2) / P; // V_ = _P < P / 2 ? 0 : 1
           unroll_for (_O, JO)
-            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-        }
-        // _P = 1
-        unroll_for (_O, JO)
-          mmwei[_O][3] = op_load_weights<JO, P>(xc, weights, _I2, _V, 3, _O);
-        unroll_for (_T, T) {
-          __m<V> mmbcst = op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 1, _T);
-          unroll_for (_O, JO)
-            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
-        }
-        // _P = 2
-        unroll_for (_O, JO)
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights, _I2, _V + 1, 0, _O);
-        unroll_for (_T, T) {
-          __m<V> mmbcst = op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 2, _T);
-          unroll_for (_O, JO)
-            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
-        }
-        // _P = 3
-        unroll_for (_O, JO)
-          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights, _I2, _V + 1, 1, _O);
-        unroll_for (_T, T) {
-          __m<V> mmbcst = op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 3, _T);
-          unroll_for (_O, JO)
-            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
+            mmwei[_O][P_] = op_load_weights<JO, P>(xc, weights, _I2, _V + V_, P_, _O);
+          unroll_for (_T, T) {
+            __m<V> mmbcst = op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, _P, _T);
+            unroll_for (_O, JO)
+              mmout[_O][_T] += mmwei[_O][_P] * mmbcst;
+          }
         }
       }
     }
@@ -881,65 +707,6 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   // u8s8f32 fma
-  template <int JO, int P>
-  static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
-  op_fma(elx_conv_params_t &xc, OutputType *output, uint8_t *input,
-      int8_t *weights, float *bias, int attr, ScaleType *src_scale,
-      ScaleType *src_factor, ScaleType *weights_scale,
-      ScaleType *weights_factor, int _O1, int _O0)
-  {
-    __i<V> mmout[JO][T], mmwei[JO][P];
-    const int I2_stride
-        = F_traits<F>::is_compact_input ? T * V * Vx : xc.ih * xc.iw * V * Vx;
-    const int O_stride
-        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
-
-    MD2(OutputType, aoutput, output, JO, O_stride);
-    MD2(uint8_t, ainput, input, xc.I2, I2_stride);
-
-    if (get_attr(attr, r_output_idx) || get_attr(attr, l_output_idx)) {
-      // clear output
-      __i<V> tmp = _mm<V>::setzero_epi32();
-      unroll_for (_O, JO)
-        unroll_for (_T, T)
-          mmout[_O][_T] = tmp;
-    } else {
-      // load output
-      unroll_for (_O, JO) {
-        unroll_for (_T, T)
-          mmout[_O][_T] = op_int8_load_output(&md2(aoutput, _O, 0), _T);
-      }
-    }
-
-    for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#pragma nounroll
-      for (int _V = 0; _V < V / P; ++_V) {
-        unroll_for (_O, JO)
-          mmwei[_O][0] = op_int8_load_weights<JO, P>(xc, weights, _I2, _V, 0, _O);
-        unroll_for (_T, T) {
-          __i<V> bcast = op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, 0, _T);
-          unroll_for (_O, JO)
-            mmout[_O][_T] = op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][0]);
-        }
-      }
-    }
-
-    // store output
-    if (get_attr(attr, c_output_idx)) {
-      unroll_for (_O, JO) {
-        unroll_for (_T, T)
-          op_int8_restore_output<JO>(xc, &md2(aoutput, _O, 0), bias,
-              mmout[_O][_T], src_scale, src_factor, weights_scale,
-              weights_factor, _O1, _O0, _O, _T, attr);
-      }
-    } else {
-      unroll_for (_O, JO) {
-        unroll_for (_T, T)
-          op_int8_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T);
-      }
-    }
-  }
-
   // TODO: handling V and Vx tail
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == true), void>::type
@@ -1014,87 +781,16 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int JO, int P>
-  static inline typename std::enable_if<P == 2, void>::type
-  op_fma(elx_conv_params_t &xc,
-      OutputType *output, uint8_t *input, int8_t *weights, float *bias, int attr,
-      ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
+  static inline typename std::enable_if<
+          (P == 1 || P == 2 || P == 4) && (has_Ir == false), void>::type
+      op_fma(elx_conv_params_t &xc, OutputType *output, uint8_t *input,
+          int8_t *weights, float *bias, int attr, ScaleType *src_scale,
+          ScaleType *src_factor, ScaleType *weights_scale,
+          ScaleType *weights_factor, int _O1, int _O0)
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
-        = F_traits<F>::is_compact_input ? T * V * Vx: xc.ih * xc.iw * V * Vx;
-    const int O_stride
-        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
-
-    MD2(OutputType, aoutput, output, JO, O_stride);
-    MD2(uint8_t, ainput, input, xc.I2, I2_stride);
-
-    // preload weights
-    unroll_for (_O, JO)
-      mmwei[_O][0] = op_int8_load_weights<JO, P>(xc, weights, 0, 0, 0, _O);
-
-    if (get_attr(attr, r_output_idx) || get_attr(attr, l_output_idx)) {
-      // clear output
-      __i<V> tmp = _mm<V>::setzero_epi32();
-      unroll_for (_O, JO)
-      unroll_for (_T, T)
-        mmout[_O][_T] = tmp;
-    } else {
-      // load output
-      unroll_for (_O, JO) {
-        unroll_for (_T, T)
-          mmout[_O][_T] = op_int8_load_output(&md2(aoutput, _O, 0), _T);
-      }
-    }
-
-    for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#pragma nounroll
-      for (int _V = 0; _V < V / P; ++_V) {
-        // _P = 0
-        unroll_for (_O, JO)
-          mmwei[_O][1] = op_int8_load_weights<JO, P>(xc, weights, _I2, _V, 1, _O);
-        unroll_for (_T, T) {
-          __i<V> bcast = op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, 0, _T);
-          unroll_for (_O, JO)
-            mmout[_O][_T] = op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][0]);
-        }
-        // _P = 1
-        unroll_for (_O, JO)
-          mmwei[_O][0] = op_int8_load_weights<JO, P>(xc, weights, _I2, _V + 1, 0, _O);
-        unroll_for (_T, T) {
-          __i<V> bcast = op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, 1, _T);
-          unroll_for (_O, JO)
-            mmout[_O][_T] = op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][1]);
-        }
-      }
-    }
-
-    // store output
-    if (get_attr(attr, c_output_idx)) {
-      unroll_for (_O, JO) {
-        unroll_for (_T, T)
-          op_int8_restore_output<JO>(xc, &md2(aoutput, _O, 0), bias,
-              mmout[_O][_T], src_scale, src_factor, weights_scale,
-              weights_factor, _O1, _O0, _O, _T, attr);
-      }
-    } else {
-      unroll_for (_O, JO) {
-        unroll_for (_T, T)
-          op_int8_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T);
-      }
-    }
-  }
-
-  template <int JO, int P>
-  static inline typename std::enable_if<P == 4, void>::type
-  op_fma(elx_conv_params_t &xc,
-      OutputType *output, uint8_t *input, int8_t *weights, float *bias, int attr,
-      ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
-  {
-    __i<V> mmout[JO][T], mmwei[JO][P];
-    const int I2_stride
-        = F_traits<F>::is_compact_input ? T * V * Vx: xc.ih * xc.iw * V * Vx;
+        = F_traits<F>::is_compact_input ? T * V * Vx : xc.ih * xc.iw * V * Vx;
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
@@ -1103,8 +799,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     // preload weights
     unroll_for (_O, JO) {
-      mmwei[_O][0] = op_int8_load_weights<JO, P>(xc, weights, 0, 0, 0, _O);
-      mmwei[_O][1] = op_int8_load_weights<JO, P>(xc, weights, 0, 0, 1, _O);
+      unroll_for (_P, P / 2)
+        mmwei[_O][_P] = op_int8_load_weights<JO, P>(xc, weights, 0, 0, _P, _O);
     }
 
     if (get_attr(attr, r_output_idx) || get_attr(attr, l_output_idx)) {
@@ -1124,38 +820,15 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
 #pragma nounroll
       for (int _V = 0; _V < V / P; ++_V) {
-        // _P = 0
-        unroll_for (_O, JO)
-          mmwei[_O][2] = op_int8_load_weights<JO, P>(xc, weights, _I2, _V, 2, _O);
-        unroll_for (_T, T) {
-          __i<V> bcast = op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, 0, _T);
+        unroll_for (_P, P) {
+          int P_ = (_P + P / 2) % P; // P==1: {0}; P==2: {1,0}; P==4:{2,3,0,1}
+          int V_ = (_P + P / 2) / P; // V_ = _P < P / 2 ? 0 : 1
           unroll_for (_O, JO)
-            mmout[_O][_T] = op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][0]);
-        }
-        // _P = 1
-        unroll_for (_O, JO)
-          mmwei[_O][3] = op_int8_load_weights<JO, P>(xc, weights, _I2, _V, 3, _O);
-        unroll_for (_T, T) {
-          __i<V> bcast = op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, 1, _T);
-          unroll_for (_O, JO) {
-            mmout[_O][_T] = op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][1]);
-          }
-        }
-        // _P = 2
-        unroll_for (_O, JO)
-          mmwei[_O][0] = op_int8_load_weights<JO, P>(xc, weights, _I2, _V + 1, 0, _O);
-        unroll_for (_T, T) {
-          __i<V> bcast = op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, 2, _T);
-          unroll_for (_O, JO)
-            mmout[_O][_T] = op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][2]);
-        }
-        // _P = 3
-        unroll_for (_O, JO)
-          mmwei[_O][1] = op_int8_load_weights<JO, P>(xc, weights, _I2, _V + 1, 1, _O);
-        unroll_for (_T, T) {
-          __i<V> bcast = op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, 3, _T);
-          unroll_for (_O, JO) {
-            mmout[_O][_T] = op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][3]);
+            mmwei[_O][P_] = op_int8_load_weights<JO, P>(xc, weights, _I2, _V + V_, P_, _O);
+          unroll_for (_T, T) {
+            __i<V> mmbcst = op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, _P, _T);
+            unroll_for (_O, JO)
+              mmout[_O][_T] = op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][_P]);
           }
         }
       }
