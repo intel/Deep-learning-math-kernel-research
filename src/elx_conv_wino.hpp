@@ -399,7 +399,7 @@ private:
   using ker_type = typename std::conditional<
       std::is_same<TarrayTypes, conv_impl::FP32>::value,
       gemm_kernel_binder::ker<conv_impl::FP32>,
-      gemm_kernel_binder::ker<conv_impl::FP32_F16>>::type;
+      gemm_kernel_binder::ker<TarrayTypes>>::type;
 
   ker_type *ker_gemm_;
   ker_type *ker_gemm0_;
@@ -628,25 +628,31 @@ template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 6, 3, 16, ISA
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 7, 3, 16, ISA_GENERIC>;
 //template class elx_conv_wino_t<float, float, 7, 3, 16, ISA_COSIM_AVX512>;
 #endif
-// fp32/fp32-int8
+// fp32-f32f32f32 / fp32-u8s8f32
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 4, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 5, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 6, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 7, 3, 16, ISA_SKX_AVX512>;
 
-// fp32-16c
+// fp32-u8s8f16
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16O, float, 4, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16O, float, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16O, float, 6, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16O, float, 7, 3, 16, ISA_SKX_AVX512>;
+
+// fp32-f32f16f16
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16, float, 4, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16, float, 5, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16, float, 6, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16, float, 7, 3, 16, ISA_SKX_AVX512>;
 
-// fp16-int8
+// fp16-u8s8f32
 template class elx_conv_wino_t<conv::FP16, conv_impl::FP32, float, 4, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP16, conv_impl::FP32, float, 5, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP16, conv_impl::FP32, float, 6, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP16, conv_impl::FP32, float, 7, 3, 16, ISA_SKX_AVX512>;
 
-// fp16-16c
+// fp16-f32f16f16
 template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16, float, 4, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16, float, 5, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16, float, 6, 3, 16, ISA_SKX_AVX512>;

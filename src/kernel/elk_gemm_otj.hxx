@@ -1213,7 +1213,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
   op_fma(elx_conv_params_t &xc,
-      float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
+      OutputType *output, uint8_t *input, int8_t *weights, float *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
   {
@@ -1276,6 +1276,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     // store output
     if (get_attr(attr, c_output_idx)) {
+      MD2(OutputType, aoutput, output, JO, O_stride);
       MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
       MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
       MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
@@ -1285,13 +1286,22 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
-        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
         __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
         coeffi = _mm<V>::mul_ps(*(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
         __m<V> ffactor = _mm<V>::broadcastss_ps(*(__m128 *)&src_factor[_T]);
         ffactor = _mm<V>::mul_ps(ffactor, *(__m<V> *)&md2(aweights_factor, _O, 0));
         __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
         fout = _mm<V>::fmadd_ps(fout, coeffi, ffactor);
+        // toutput lazy accumulation
+        if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
+          if (std::is_same<OutputType, float>::value)
+            fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+          else {
+            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+            fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
+          }
+        }
         // 1. add bias (direct conv 1x1)
         if (get_attr(attr, bias_idx)) {
           MD2(float, abias2, bias, JO, V);
@@ -1301,12 +1311,14 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         if (get_attr(attr, relu_idx)) {
           fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
         }
-        // toutput lazy accumulation
-        if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
-          fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-        }
         // 3. store output
-        _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
+        if (std::is_same<OutputType, float>::value)
+          _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
+        else {
+          auto fp16v = _mm<V>::cvtps_ph(fout,
+              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+          _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+        }
       }}
     } else {
 #pragma unroll(JO)
@@ -1323,7 +1335,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == true), void>::type
   op_fma(elx_conv_params_t &xc,
-      float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
+      OutputType *output, uint8_t *input, int8_t *weights, float *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
   {
@@ -1415,6 +1427,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     // store output
     if (get_attr(attr, c_output_idx)) {
+      MD2(OutputType, aoutput, output, JO, O_stride);
       MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
       MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
       MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
@@ -1424,13 +1437,22 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
-        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
         __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
         coeffi = _mm<V>::mul_ps(*(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
         __m<V> ffactor = _mm<V>::broadcastss_ps(*(__m128 *)&src_factor[_T]);
         ffactor = _mm<V>::mul_ps(ffactor, *(__m<V> *)&md2(aweights_factor, _O, 0));
         __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
         fout = _mm<V>::fmadd_ps(fout, coeffi, ffactor);
+        // toutput lazy accumulation
+        if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
+          if (std::is_same<OutputType, float>::value)
+            fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+          else {
+            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+            fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
+          }
+        }
         // 1. add bias (direct conv 1x1)
         if (get_attr(attr, bias_idx)) {
           MD2(float, abias2, bias, JO, V);
@@ -1440,12 +1462,14 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         if (get_attr(attr, relu_idx)) {
           fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
         }
-        // toutput lazy accumulation
-        if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
-          fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-        }
         // 3. store output
-        _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
+        if (std::is_same<OutputType, float>::value)
+          _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
+        else {
+          auto fp16v = _mm<V>::cvtps_ph(fout,
+              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+          _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+        }
       }}
     } else {
 #pragma unroll(JO)
@@ -1462,7 +1486,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int JO, int P>
   static inline typename std::enable_if<P == 2, void>::type
   op_fma(elx_conv_params_t &xc,
-      float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
+      OutputType *output, uint8_t *input, int8_t *weights, float *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
   {
@@ -1561,6 +1585,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     // store output
     if (get_attr(attr, c_output_idx)) {
+      MD2(OutputType, aoutput, output, JO, O_stride);
       MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
       MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
       MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
@@ -1570,13 +1595,22 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
-        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
         __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
         coeffi = _mm<V>::mul_ps(*(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
         __m<V> ffactor = _mm<V>::broadcastss_ps(*(__m128 *)&src_factor[_T]);
         ffactor = _mm<V>::mul_ps(ffactor, *(__m<V> *)&md2(aweights_factor, _O, 0));
         __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
         fout = _mm<V>::fmadd_ps(fout, coeffi, ffactor);
+        // toutput lazy accumulation
+        if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
+          if (std::is_same<OutputType, float>::value)
+            fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+          else {
+            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+            fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
+          }
+        }
         // 1. add bias (direct conv 1x1)
         if (get_attr(attr, bias_idx)) {
           MD2(float, abias2, bias, JO, V);
@@ -1586,12 +1620,14 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         if (get_attr(attr, relu_idx)) {
           fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
         }
-        // toutput lazy accumulation
-        if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
-          fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-        }
         // 3. store output
-        _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
+        if (std::is_same<OutputType, float>::value)
+          _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
+        else {
+          auto fp16v = _mm<V>::cvtps_ph(fout,
+              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+          _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+        }
       }}
     } else {
 #pragma unroll(JO)
@@ -1607,7 +1643,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int JO, int P>
   static inline typename std::enable_if<P == 4, void>::type
   op_fma(elx_conv_params_t &xc,
-      float *output, uint8_t *input, int8_t *weights, float *bias, int attr,
+      OutputType *output, uint8_t *input, int8_t *weights, float *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
   {
@@ -1754,6 +1790,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     // store output
     if (get_attr(attr, c_output_idx)) {
+      MD2(OutputType, aoutput, output, JO, O_stride);
       MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
       MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
       MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
@@ -1763,13 +1800,22 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
-        MD2(float, aoutput2, &md2(aoutput, _O, 0), T, V);
+        MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
         __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
         coeffi = _mm<V>::mul_ps(*(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
         __m<V> ffactor = _mm<V>::broadcastss_ps(*(__m128 *)&src_factor[_T]);
         ffactor = _mm<V>::mul_ps(ffactor, *(__m<V> *)&md2(aweights_factor, _O, 0));
         __m<V> fout = _mm<V>::cvtepi32_ps(mmout[_O][_T]);
         fout = _mm<V>::fmadd_ps(fout, coeffi, ffactor);
+        // toutput lazy accumulation
+        if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
+          if (std::is_same<OutputType, float>::value)
+            fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
+          else {
+            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+            fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
+          }
+        }
         // 1. add bias (direct conv 1x1)
         if (get_attr(attr, bias_idx)) {
           MD2(float, abias2, bias, JO, V);
@@ -1779,12 +1825,14 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         if (get_attr(attr, relu_idx)) {
           fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
         }
-        // toutput lazy accumulation
-        if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
-          fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-        }
         // 3. store output
-        _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
+        if (std::is_same<OutputType, float>::value)
+          _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
+        else {
+          auto fp16v = _mm<V>::cvtps_ph(fout,
+              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+          _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+        }
       }}
     } else {
 #pragma unroll(JO)
@@ -2051,6 +2099,7 @@ struct gemm_kernel_binder {
   static ker<conv_impl::FP32> *ker_s2_ddd[8][32][2];
   static ker<conv_impl::FP32_F16> *ker_f16_s1_ccc[8][32][2];
   static ker<conv_impl::INT8_F32> *ker_i8_s1_ccc[8][32][2];
+  static ker<conv_impl::INT8_F16> *ker_i8_f16_s1_ccc[8][32][2];
 
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
   static inline void bind(int O, int T, ker<conv_impl::FP32> **func)
@@ -2113,7 +2162,22 @@ struct gemm_kernel_binder {
 
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
   static inline void bind(int O, int T, ker<conv_impl::INT8_F16> **func)
-  {}
+  {
+    switch (F) {
+    case GKF_CCC:
+      if (S == 1)
+        *func = ker_i8_f16_s1_ccc[O - 1][T - 1][has_Ir];
+      break;
+    default:
+      break;
+    }
+  }
+
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  static inline void bind(int O, int T, ker<conv_impl::FP32_F16O> **func)
+  {
+    el_error("fp32 gemm with fp16 output not implemented, pls use FP32_F16 mode");
+  }
 #endif
 };
 

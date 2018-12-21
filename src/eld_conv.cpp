@@ -162,6 +162,30 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
           el_error("Unimplemented tile size");
           break;
         }
+      } else if ((execution_mode & 0xF00) == 0x100 && f16c_opt
+          && std::is_same<UserTypes, conv::FP32>::value) {
+        using TarrayTypes = conv_impl::FP32_F16O;
+        switch (tile_size) {
+        case 4:
+          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,
+              ISA_SKX_AVX512>(*this);
+          break;
+        case 5:
+          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 5, 3, 16,
+              ISA_SKX_AVX512>(*this);
+          break;
+        case 6:
+          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 6, 3, 16,
+              ISA_SKX_AVX512>(*this);
+          break;
+        case 7:
+          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 7, 3, 16,
+              ISA_SKX_AVX512>(*this);
+          break;
+        default:
+          el_error("Unimplemented tile size");
+          break;
+        }
       } else {
         using TarrayTypes = conv_impl::FP32;
         switch (tile_size) {

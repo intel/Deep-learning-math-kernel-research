@@ -69,7 +69,8 @@ if (NOT WITH_GKTII)
     src/kernel/elk_gemm_otj_s2_dcd.cpp
     src/kernel/elk_gemm_otj_s2_ddd.cpp
     src/kernel/elk_int8_gemm_otj_s1_ccc.cpp
-    src/kernel/elk_fp16_gemm_otj_s1_ccc.cpp)
+    src/kernel/elk_fp16_gemm_otj_s1_ccc.cpp
+    src/kernel/elk_int8_fp16_gemm_otj_s1_ccc.cpp)
 endif()
 
 include_directories(AFTER . include src tests xsimd/include)
