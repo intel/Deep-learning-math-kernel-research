@@ -2,6 +2,7 @@
 #include <math.h>
 #include <omp.h>
 #include <memory.h>
+#include <random>
 #include "elt_conv_utils.hpp"
 #include "el_intrin.hpp"
 
@@ -20,7 +21,7 @@ namespace test {
   void prepare_conv_data<float>(eld_conv_t<conv::FP32> &desc,
       float **input, float **weights, float **output, float **bias, short **input1,
       short **weights1, short **output1, short **bias1, bool reuse_inout, bool fp16_mode,
-      bool validate_results)
+      bool f16c_opt, bool validate_results)
   {
     seed = time(nullptr);
     size_t input_size = desc.byte_sizes.input;
@@ -69,18 +70,28 @@ namespace test {
     }
 
 #define RAND() rand_r(&seed)
+
+  std::default_random_engine gen;
+  std::normal_distribution<float> dInput(-4.0, 20.0);
+  std::normal_distribution<float> dWeights(-1.0, 1.0);
+
 #pragma omp parallel
     {
       if (fp16_mode  && !validate_results) {
+        if (input1 != nullptr) {
 #pragma omp parallel for
-        for (size_t i = 0; i < desc.sizes.input; i++) {
-          (*input1)[i] = float_2_half(RAND() % 5 - 2);
+          for (size_t i = 0; i < desc.sizes.input; i++) {
+            (*input1)[i] = float_2_half(dInput(gen));
+          }
         }
       } else {
         if (input != nullptr) {
 #pragma omp parallel for
           for (size_t i = 0; i < desc.sizes.input; i++) {
-            (*input)[i] = fp16_mode ? RAND() % 5 - 2 : RAND() % 20 - 4;
+            (*input)[i]
+                = (fp16_mode || f16c_opt)
+                ? dInput(gen)
+                : RAND() % 20 - 4;
           }
 
           if (fp16_mode && (input1 != nullptr)) {
@@ -93,17 +104,19 @@ namespace test {
       }
 
       if (fp16_mode  && !validate_results) {
-        if (desc.with_relu) {
+        if (weights1 != nullptr) {
+          if (desc.with_relu) {
 #pragma omp parallel for
-          for (size_t i = 0; i < desc.sizes.weights; i++) {
-            (*weights1)[i] = float_2_half(-RAND() % 4);
-            if (i % 3 == 1)
-              (*weights1)[i] = -(*weights1)[i];
-          }
-        } else {
+            for (size_t i = 0; i < desc.sizes.weights; i++) {
+              (*weights1)[i] = float_2_half(dWeights(gen));
+              if (i % 3 == 1)
+                (*weights1)[i] = -(*weights1)[i];
+            }
+          } else {
 #pragma omp parallel for
-          for (size_t i = 0; i < desc.sizes.weights; i++) {
-            (*weights1)[i] = RAND() % 4;
+            for (size_t i = 0; i < desc.sizes.weights; i++) {
+              (*weights1)[i] = float_2_half(dWeights(gen));
+            }
           }
         }
       } else {
@@ -111,14 +124,20 @@ namespace test {
           if (desc.with_relu) {
 #pragma omp parallel for
             for (size_t i = 0; i < desc.sizes.weights; i++) {
-              (*weights)[i] = fp16_mode ? -RAND() % 4 : -RAND() % 32;
+              (*weights)[i]
+                  = (fp16_mode || f16c_opt)
+                  ? dWeights(gen)
+                  : -RAND() % 32;
               if (i % 3 == 1)
                 (*weights)[i] = -(*weights)[i];
             }
           } else {
 #pragma omp parallel for
             for (size_t i = 0; i < desc.sizes.weights; i++) {
-              (*weights)[i] = fp16_mode ? RAND() % 4 : RAND() % 32;
+              (*weights)[i]
+                  = (fp16_mode || f16c_opt)
+                  ? dWeights(gen)
+                  : RAND() % 32;
             }
           }
           if (fp16_mode && (weights1 != nullptr)) {
@@ -131,9 +150,11 @@ namespace test {
       }
 
       if (fp16_mode  && !validate_results) {
+        if (bias1 != nullptr) {
 #pragma omp parallel for
-        for (size_t i = 0; i < desc.sizes.bias; i++) {
-          (*bias1)[i] = float_2_half(RAND() % 100);
+          for (size_t i = 0; i < desc.sizes.bias; i++) {
+            (*bias1)[i] = float_2_half(RAND() % 100);
+          }
         }
       } else {
         if (bias != nullptr) {

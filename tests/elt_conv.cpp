@@ -65,40 +65,6 @@ static inline ConvType create_conv_desc(void) {
   return desc;
 }
 
-#define RL_MAX 128
-template <typename T>
-static inline int prepare_data(T *convs, T &desc, int C, float **input,
-    float **weights, float **output, float **bias, float *ref_output,
-    short **input1, short **weights1, short **output1, short **bias1) {
-
-  bool reuse_inout = double_buffering || output_as_input;
-  for (auto c = 0; c < C; ++c) {
-    convs[c] = desc;
-    if (convs[c].setup() != ELD_OK) {
-      printf("Fail: Convolution setup error!\n");
-      return 0;
-    }
-    input[c] = nullptr;
-    output[c] = nullptr;
-    float **in = &input[c], **out = &output[c];
-    if (double_buffering && (c > 0)) {
-      in = nullptr;
-      out = nullptr;
-    } else if (output_as_input && (c > 0)) {
-      in = nullptr;
-    }
-    test::prepare_conv_data<float, float, float, float>(
-        convs[c], in, &weights[c], out, &bias[c], reuse_inout);
-  }
-
-  if (validate_results) {
-    ref_output = (float *)malloc(convs[0].byte_sizes.output);
-    if (desc.with_ip_sum)
-      memcpy(ref_output, output[0], convs[0].byte_sizes.output);
-  }
-  return 1;
-}
-
 template <typename ConvType, typename T>
 static inline void conv_execute(eld_conv_t<ConvType> convs[],
     T **input, T **weights, T **output, T **bias, int C) {
@@ -160,6 +126,7 @@ static inline void conv_bench(eld_conv_t<ConvType> convs[],
   timer.report_tflops("conv", C * (N / C), num_ops);
 }
 
+#define RL_MAX 128
 int main(int argc, char **argv)
 {
   if (parse_cmd_options(argc, argv))
@@ -201,7 +168,7 @@ int main(int argc, char **argv)
       test::prepare_conv_data<float, float, float, float>(
           convs0[c], in, &weights[c], out, &bias[c],
           &input1[c], &weights1[c], &output1[c], &bias1[c],
-          reuse_inout, fp16_mode, validate_results);
+          reuse_inout, fp16_mode, f16c_opt, validate_results);
     }
 
     if (validate_results) {
@@ -237,7 +204,7 @@ int main(int argc, char **argv)
       test::prepare_conv_data<float, float, float, float>(
           convs0[0], &input[c], &weights[c], &output[c], &bias[c],
           in, &weights1[c], out, &bias1[c], reuse_inout, fp16_mode,
-          validate_results);
+          f16c_opt, validate_results);
     }
 
     if (validate_results) {
