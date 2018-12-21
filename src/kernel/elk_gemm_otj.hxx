@@ -366,10 +366,10 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     } else {
       MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
       if (std::is_same<WeightsType, float>::value) {
-        res = _mm<V>::load_ps(&md6(aweights6, _O, _P, _I2, _V, 0, 0));
+        res = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, _P, 0));
       } else {
         auto fp16v = _mm<V / 2>::load_si256(
-            (__m256i *)&md6(aweights6, _O, _P, _I2, _V, 0, 0));
+            (__m256i *)&md6(aweights6, _O, 0, _I2, _V, _P, 0));
         res = _mm<V>::cvtph_ps(fp16v);
       }
     }
