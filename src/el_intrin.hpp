@@ -191,6 +191,12 @@ template <> struct _mm<16> {
   static inline __m<V> range_ps(__m<V> m0, __m<V> m1, int imm8) noexcept {
     return _mm512_range_ps(m0, m1, imm8);
   }
+  static inline __m512i cvtepi16_epi32(__m256i a) noexcept {
+    return _mm512_cvtepi16_epi32(a);
+  }
+  static inline __m256i cvtepi32_epi16(__m512i a) noexcept {
+    return _mm512_cvtepi32_epi16(a);
+  }
 };
 #else
 /* ICC Bug! */

@@ -75,6 +75,7 @@ namespace test {
     std::normal_distribution<float> dInput(-4.0, 20.0);
     std::normal_distribution<float> dWeights(-1.0, 1.0);
 
+// #pragma omp parallel
     {
       if (fp16_mode  && !validate_results) {
         if (input1 != nullptr) {

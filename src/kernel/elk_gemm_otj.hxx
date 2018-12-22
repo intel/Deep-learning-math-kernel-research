@@ -1223,25 +1223,30 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(int, aoutput, output, JO, O_stride);
+    MD2(OutputType, aoutput, output, JO, O_stride);
     MD2(uint8_t, ainput, input, xc.I2, I2_stride);
 
     if (get_attr(attr, r_output_idx) || get_attr(attr, l_output_idx)) {
-        // clear output
-        __i<V> tmp = _mm<V>::setzero_epi32();
+      // clear output
+      __i<V> tmp = _mm<V>::setzero_epi32();
 #pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O)
+      for (int _O = 0; _O < JO; ++_O)
 #pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T)
-          mmout[_O][_T] = tmp;
+      for (int _T = 0; _T < T; ++_T)
+        mmout[_O][_T] = tmp;
     } else {
       // load output
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD2(int, aoutput2, &md2(aoutput, _O, 0), T, V);
-          mmout[_O][_T] = _mm<V>::load_epi32(&md2(aoutput2, _T, 0));
+          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
+          if (std::is_same<OutputType, float>::value) {
+            mmout[_O][_T] = _mm<V>::load_epi32((__m512i *)&md2(aoutput2, _T, 0));
+          } else {
+            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+            mmout[_O][_T] = _mm<V>::cvtepi16_epi32(fp16v);
+          }
         }
       }
     }
@@ -1276,7 +1281,6 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     // store output
     if (get_attr(attr, c_output_idx)) {
-      MD2(OutputType, aoutput, output, JO, O_stride);
       MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
       MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
       MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
@@ -1295,9 +1299,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         fout = _mm<V>::fmadd_ps(fout, coeffi, ffactor);
         // toutput lazy accumulation
         if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
-          if (std::is_same<OutputType, float>::value)
+          if (std::is_same<OutputType, float>::value) {
             fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-          else {
+          } else {
             auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
             fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
           }
@@ -1312,9 +1316,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
         }
         // 3. store output
-        if (std::is_same<OutputType, float>::value)
+        if (std::is_same<OutputType, float>::value) {
           _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
-        else {
+        } else {
           auto fp16v = _mm<V>::cvtps_ph(fout,
               _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
           _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
@@ -1325,8 +1329,15 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
-        MD2(int, aoutput2, &md2(aoutput, _O, 0), T, V);
-        _mm<V>::store_epi32(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+        if (std::is_same<OutputType, float>::value) {
+          MD2(int, aoutput2, &md2(aoutput, _O, 0), T, V);
+          _mm<V>::store_epi32(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+        } else {
+          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
+          _mm<V/2>::store_si256(
+              (__m256i *)&md2(aoutput2, _T, 0),
+              _mm<V>::cvtepi32_epi16(mmout[_O][_T]));
+        }
       }}
     }
   }
@@ -1345,25 +1356,30 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(int, aoutput, output, JO, O_stride);
+    MD2(OutputType, aoutput, output, JO, O_stride);
     MD2(uint8_t, ainput, input, xc.I2, I2_stride);
 
     if (get_attr(attr, r_output_idx) || get_attr(attr, l_output_idx)) {
-        // clear output
-        __i<V> tmp = _mm<V>::setzero_epi32();
+      // clear output
+      __i<V> tmp = _mm<V>::setzero_epi32();
 #pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O)
+      for (int _O = 0; _O < JO; ++_O)
 #pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T)
-          mmout[_O][_T] = tmp;
+      for (int _T = 0; _T < T; ++_T)
+        mmout[_O][_T] = tmp;
     } else {
       // load output
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD2(int, aoutput2, &md2(aoutput, _O, 0), T, V);
-          mmout[_O][_T] = _mm<V>::load_epi32(&md2(aoutput2, _T, 0));
+          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
+          if (std::is_same<OutputType, float>::value) {
+            mmout[_O][_T] = _mm<V>::load_epi32((__m512i *)&md2(aoutput2, _T, 0));
+          } else {
+            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+            mmout[_O][_T] = _mm<V>::cvtepi16_epi32(fp16v);
+          }
         }
       }
     }
@@ -1427,7 +1443,6 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     // store output
     if (get_attr(attr, c_output_idx)) {
-      MD2(OutputType, aoutput, output, JO, O_stride);
       MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
       MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
       MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
@@ -1446,9 +1461,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         fout = _mm<V>::fmadd_ps(fout, coeffi, ffactor);
         // toutput lazy accumulation
         if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
-          if (std::is_same<OutputType, float>::value)
+          if (std::is_same<OutputType, float>::value) {
             fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-          else {
+          } else {
             auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
             fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
           }
@@ -1463,9 +1478,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
         }
         // 3. store output
-        if (std::is_same<OutputType, float>::value)
+        if (std::is_same<OutputType, float>::value) {
           _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
-        else {
+        } else {
           auto fp16v = _mm<V>::cvtps_ph(fout,
               _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
           _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
@@ -1476,8 +1491,15 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
-        MD2(int, aoutput2, &md2(aoutput, _O, 0), T, V);
-        _mm<V>::store_epi32(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+        if (std::is_same<OutputType, float>::value) {
+          MD2(int, aoutput2, &md2(aoutput, _O, 0), T, V);
+          _mm<V>::store_epi32(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+        } else {
+          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
+          _mm<V/2>::store_si256(
+              (__m256i *)&md2(aoutput2, _T, 0),
+              _mm<V>::cvtepi32_epi16(mmout[_O][_T]));
+        }
       }}
     }
   }
@@ -1496,7 +1518,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(int, aoutput, output, JO, O_stride);
+    MD2(OutputType, aoutput, output, JO, O_stride);
     MD2(uint8_t, ainput, input, xc.I2, I2_stride);
 
     // preload weights
@@ -1525,8 +1547,13 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD2(int, aoutput2, &md2(aoutput, _O, 0), T, V);
-          mmout[_O][_T] = _mm<V>::load_epi32(&md2(aoutput2, _T, 0));
+          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
+          if (std::is_same<OutputType, float>::value) {
+            mmout[_O][_T] = _mm<V>::load_epi32((__m512i *)&md2(aoutput2, _T, 0));
+          } else {
+            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+            mmout[_O][_T] = _mm<V>::cvtepi16_epi32(fp16v);
+          }
         }
       }
     }
@@ -1585,7 +1612,6 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     // store output
     if (get_attr(attr, c_output_idx)) {
-      MD2(OutputType, aoutput, output, JO, O_stride);
       MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
       MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
       MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
@@ -1604,9 +1630,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         fout = _mm<V>::fmadd_ps(fout, coeffi, ffactor);
         // toutput lazy accumulation
         if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
-          if (std::is_same<OutputType, float>::value)
+          if (std::is_same<OutputType, float>::value) {
             fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-          else {
+          } else {
             auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
             fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
           }
@@ -1621,9 +1647,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
         }
         // 3. store output
-        if (std::is_same<OutputType, float>::value)
+        if (std::is_same<OutputType, float>::value) {
           _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
-        else {
+        } else {
           auto fp16v = _mm<V>::cvtps_ph(fout,
               _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
           _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
@@ -1634,8 +1660,15 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
-        MD2(int, aoutput2, &md2(aoutput, _O, 0), T, V);
-        _mm<V>::store_epi32(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+        if (std::is_same<OutputType, float>::value) {
+          MD2(int, aoutput2, &md2(aoutput, _O, 0), T, V);
+          _mm<V>::store_epi32(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+        } else {
+          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
+          _mm<V/2>::store_si256(
+              (__m256i *)&md2(aoutput2, _T, 0),
+              _mm<V>::cvtepi32_epi16(mmout[_O][_T]));
+        }
       }}
     }
   }
@@ -1653,7 +1686,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD2(int, aoutput, output, JO, O_stride);
+    MD2(OutputType, aoutput, output, JO, O_stride);
     MD2(uint8_t, ainput, input, xc.I2, I2_stride);
 
     // preload weights
@@ -1674,18 +1707,23 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       // clear output
       __i<V> tmp = _mm<V>::setzero_epi32();
 #pragma unroll(JO)
-        for (int _O = 0; _O < JO; ++_O)
+      for (int _O = 0; _O < JO; ++_O)
 #pragma unroll(T)
-        for (int _T = 0; _T < T; ++_T)
-          mmout[_O][_T] = tmp;
+      for (int _T = 0; _T < T; ++_T)
+        mmout[_O][_T] = tmp;
     } else {
       // load output
 #pragma unroll(JO)
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
         for (int _T = 0; _T < T; ++_T) {
-          MD2(int, aoutput2, &md2(aoutput, _O, 0), T, V);
-          mmout[_O][_T] = _mm<V>::load_epi32(&md2(aoutput2, _T, 0));
+          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
+          if (std::is_same<OutputType, float>::value) {
+            mmout[_O][_T] = _mm<V>::load_epi32((__m512i *)&md2(aoutput2, _T, 0));
+          } else {
+            auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
+            mmout[_O][_T] = _mm<V>::cvtepi16_epi32(fp16v);
+          }
         }
       }
     }
@@ -1790,7 +1828,6 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     // store output
     if (get_attr(attr, c_output_idx)) {
-      MD2(OutputType, aoutput, output, JO, O_stride);
       MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
       MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
       MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
@@ -1809,9 +1846,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         fout = _mm<V>::fmadd_ps(fout, coeffi, ffactor);
         // toutput lazy accumulation
         if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
-          if (std::is_same<OutputType, float>::value)
+          if (std::is_same<OutputType, float>::value) {
             fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-          else {
+          } else {
             auto fp16v = _mm<V/2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
             fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
           }
@@ -1826,9 +1863,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
         }
         // 3. store output
-        if (std::is_same<OutputType, float>::value)
+        if (std::is_same<OutputType, float>::value) {
           _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
-        else {
+        } else {
           auto fp16v = _mm<V>::cvtps_ph(fout,
               _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
           _mm<V/2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
@@ -1839,8 +1876,15 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       for (int _O = 0; _O < JO; ++_O) {
 #pragma unroll(T)
       for (int _T = 0; _T < T; ++_T) {
-        MD2(int, aoutput2, &md2(aoutput, _O, 0), T, V);
-        _mm<V>::store_epi32(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+        if (std::is_same<OutputType, float>::value) {
+          MD2(int, aoutput2, &md2(aoutput, _O, 0), T, V);
+          _mm<V>::store_epi32(&md2(aoutput2, _T, 0), mmout[_O][_T]);
+        } else {
+          MD2(OutputType, aoutput2, &md2(aoutput, _O, 0), T, V);
+          _mm<V/2>::store_si256(
+              (__m256i *)&md2(aoutput2, _T, 0),
+              _mm<V>::cvtepi32_epi16(mmout[_O][_T]));
+        }
       }}
     }
   }
