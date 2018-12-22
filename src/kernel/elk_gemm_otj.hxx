@@ -39,130 +39,46 @@ const int GKF_DCD = 0xdcd;
 const int GKF_DDD = 0xddd;
 const int GKF_ECD = 0xecd;
 
-// (weights) pipeline length
-template <int O, int T, bool has_Ir, typename Wtype, typename C = void>
-struct P_traits {};
+#define IF
+#define THEN ?
+#define ELSE :
 
-// if Wtype = fp32 || fp16
+// (weights) pipeline length
+//
+// Wtype = fp32 || fp16:
 //   O == 1: T + P <= 32
 //   O > 1: O (T + P) + 1 <= 32
-// if Wtype = int8_t
+template <int O, int T, bool has_Ir, typename Wtype>
+struct P_traits {
+  static constexpr int P = IF (has_Ir) THEN (1) ELSE (
+    IF (O == 1) THEN (
+      IF (T <= 28) THEN (4) ELSE (
+        IF (T == 29 || T == 30) THEN (2) ELSE (1)
+      )
+    ) ELSE (
+      IF (O > 1 && (31 / O - T) >= 4) THEN (4) ELSE (
+        IF (O > 1 && (31 / O - T == 2 || 31 / O - T == 3)) THEN (2) ELSE (1)
+      )
+    )
+  );
+};
+
+// Wtype = int8_t:
 //   O == 1: T + P + 1(one) + 1(t0) <= 32
 //   O > 1: O (T + P) + 1(bcast) + 1(one) + 1(t0) <= 32
-template <int T>
-struct P_traits<1, T, false, float,
-    typename std::enable_if<(T <= 28)>::type> {
-  static constexpr int P = 4;
-};
-
-template <int T>
-struct P_traits<1, T, false, float16,
-    typename std::enable_if<(T <= 28)>::type> {
-  static constexpr int P = 4;
-};
-
-template <int T>
-struct P_traits<1, T, false, int8_t,
-    typename std::enable_if<(T <= 26)>::type> {
-  static constexpr int P = 4;
-};
-
-template <int T>
-struct P_traits<1, T, false, float,
-    typename std::enable_if<(T == 29 || T == 30)>::type> {
-  static constexpr int P = 2;
-};
-
-template <int T>
-struct P_traits<1, T, false, float16,
-    typename std::enable_if<(T == 29 || T == 30)>::type> {
-  static constexpr int P = 2;
-};
-
-template <int T>
-struct P_traits<1, T, false, int8_t,
-    typename std::enable_if<(T == 27 || T == 28)>::type> {
-  static constexpr int P = 2;
-};
-
-template <int T>
-struct P_traits<1, T, false, float,
-    typename std::enable_if<(T >= 31)>::type> {
-  static constexpr int P = 1;
-};
-
-template <int T>
-struct P_traits<1, T, false, float16,
-    typename std::enable_if<(T >= 31)>::type> {
-  static constexpr int P = 1;
-};
-
-template <int T>
-struct P_traits<1, T, false, int8_t,
-    typename std::enable_if<(T >= 29)>::type> {
-  static constexpr int P = 1;
-};
-
-template <int O, int T>
-struct P_traits<O, T, false, float,
-    typename std::enable_if<(O > 1 && (31 / O - T) >= 4)>::type> {
-  static constexpr int P = 4;
-};
-
-template <int O, int T>
-struct P_traits<O, T, false, float16,
-    typename std::enable_if<(O > 1 && (31 / O - T) >= 4)>::type> {
-  static constexpr int P = 4;
-};
-
-template <int O, int T>
-struct P_traits<O, T, false, int8_t,
-    typename std::enable_if<(O > 1 && (29 / O - T) >= 4)>::type> {
-  static constexpr int P = 4;
-};
-
-template <int O, int T>
-struct P_traits<O, T, false, float,
-    typename std::enable_if<(
-        O > 1 && (31 / O - T == 2 || 31 / O - T == 3))>::type> {
-  static constexpr int P = 2;
-};
-
-template <int O, int T>
-struct P_traits<O, T, false, float16,
-    typename std::enable_if<(
-        O > 1 && (31 / O - T == 2 || 31 / O - T == 3))>::type> {
-  static constexpr int P = 2;
-};
-
-template <int O, int T>
-struct P_traits<O, T, false, int8_t,
-    typename std::enable_if<(
-        O > 1 && (29 / O - T == 2 || 29 / O - T == 3))>::type> {
-  static constexpr int P = 2;
-};
-
-template <int O, int T>
-struct P_traits<O, T, false, float,
-    typename std::enable_if<(O > 1 && (31 / O - T) == 1)>::type> {
-  static constexpr int P = 1;
-};
-
-template <int O, int T>
-struct P_traits<O, T, false, float16,
-    typename std::enable_if<(O > 1 && (31 / O - T) == 1)>::type> {
-  static constexpr int P = 1;
-};
-
-template <int O, int T>
-struct P_traits<O, T, false, int8_t,
-    typename std::enable_if<(O > 1 && (29 / O - T) <= 1)>::type> {
-  static constexpr int P = 1;
-};
-
-template <int O, int T, typename Wtype>
-struct P_traits<O, T, true, Wtype> {
-  static constexpr int P = 1;
+template <int O, int T, bool has_Ir>
+struct P_traits<O, T, has_Ir, int8_t> {
+  static constexpr int P = IF (has_Ir) THEN (1) ELSE (
+    IF (O == 1) THEN (
+      IF (T <= 26) THEN (4) ELSE (
+        IF (T == 27 || T == 28) THEN (2) ELSE (1)
+      )
+    ) ELSE (
+      IF (O > 1 && (29 / O - T) >= 4) THEN (4) ELSE (
+        IF (O > 1 && (29 / O - T == 2 || 29 / O - T == 3)) THEN (2) ELSE (1)
+      )
+    )
+  );
 };
 
 // Jamming
