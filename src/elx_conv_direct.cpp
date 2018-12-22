@@ -100,7 +100,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t<UserTypes> &dc)
 }
 
 Template_elx_conv_direct_t
-int  Instance_elx_conv_direct_t::prepare_execute_opt()
+int Instance_elx_conv_direct_t::prepare_execute_opt()
 {
   size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
   size_t binput_size = 0, bweights_size = 0, boutput_size = 0;

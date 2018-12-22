@@ -91,11 +91,7 @@ Template_elx_conv_direct_t
 void Instance_elx_conv_direct_t::execute(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
-  if (is_bfmt_)
-    (this->*execute_opt_)(output, input, weights, bias);
-  else {
-    // TODO
-  }
+  (this->*execute_opt_)(output, input, weights, bias);
 }
 
 } // namespace euler
