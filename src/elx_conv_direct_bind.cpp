@@ -15,35 +15,20 @@ Instance_elx_conv_direct_t::bind_execute_functions()
 {
 #define BIND_KERNEL_2(S, F)                                                    \
   if (has_Ir) {                                                                \
-    gemm_kernel_binder::bind<conv_impl::FP32, V, 1, I, S,                       \
+    gemm_kernel_binder::bind<conv_impl::FP32, V, 1, I, S,                      \
         F, true>(O, T, func);                                                  \
   } else {                                                                     \
-    gemm_kernel_binder::bind<conv_impl::FP32, V, 1, I, S,                       \
+    gemm_kernel_binder::bind<conv_impl::FP32, V, 1, I, S,                      \
         F, false>(O, T, func);                                                 \
   }
 
 #define BIND_KERNEL_1(S, F)                                                    \
-  gemm_kernel_binder::bind<conv_impl::FP32, V, 1, I, S, F,                      \
+  gemm_kernel_binder::bind<conv_impl::FP32, V, 1, I, S, F,                     \
       false>(O, T, func);
 
   auto bind_kernel = [&](int O, int T,
       gemm_kernel_binder::ker<conv_impl::FP32> **func, bool has_Ir) {
     switch (xopt_) {
-    case (0xa061):
-      BIND_KERNEL_2(1, GKF_CCC)
-      break;
-    case (0xf061):
-      BIND_KERNEL_2(1, GKF_CCC)
-      break;
-    case (0xb061):
-      BIND_KERNEL_1(1, GKF_CCD)
-      break;
-    case (0xe060):
-      BIND_KERNEL_1(2, GKF_DCD)
-      break;
-    case (0xc060):
-      BIND_KERNEL_2(1, GKF_DDD)
-      break;
     case (0xd060):
       if (this->input_fmt == nchw) {
         BIND_KERNEL_2(1, GKF_ECD)
@@ -74,28 +59,13 @@ Instance_elx_conv_direct_t::bind_execute_functions()
     bind_kernel(this->O, this->Tr - 1, &ker_gemm_right_IrO_Tr_, this->Ir != V);
   }
 
-  if (xopt_ == 0xc060) {
-    bind_kernel(this->O2r, this->T, &ker_gemm_I_OrT_, false);
-    bind_kernel(this->O2r, this->Tr, &ker_gemm_I_OrTr_, false);
-  }
-  // Ir != V
-  if (xopt_ == 0xa061 || xopt_ == 0xf061 || xopt_ == 0xc060) {
-    bind_kernel(this->O, this->T, &ker_gemm_IrO_T_, true);
-    bind_kernel(this->O, this->Tr, &ker_gemm_IrO_Tr_, true);
-  }
-
-#define EXECUTE_CASE(n)                                                     \
-  case 0x##n:                                                               \
-    printf("execute_opt=" #n "\n");                                         \
-    execute_opt_ = &Instance_elx_conv_direct_t::__execute_##n;          \
+#define EXECUTE_CASE(n)                                                        \
+  case 0x##n:                                                                  \
+    printf("execute_opt=" #n "\n");                                            \
+    execute_opt_ = &Instance_elx_conv_direct_t::__execute_##n;                 \
     break
 
   switch (xopt_) {
-    EXECUTE_CASE(a061);
-    EXECUTE_CASE(f061);
-    EXECUTE_CASE(b061);
-    EXECUTE_CASE(e060);
-    EXECUTE_CASE(c060);
     EXECUTE_CASE(d060);
   default:
     el_error("Unimplemented xopt");
