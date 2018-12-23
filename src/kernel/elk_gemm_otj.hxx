@@ -801,7 +801,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       uint8_t *input, const int _V, const int _P, const int _T)
   {
     MD5(uint8_t, ainput5, input, T, S, V / P, P, Vx);
-    return _mm<V>::set1_epi32(md5(ainput5, _T, 0, _V, _P, 0));
+    return _mm<V>::set1_epi32(*(int32_t*)&md5(ainput5, _T, 0, _V, _P, 0));
   }
 
   template <const int JO, const int P>
