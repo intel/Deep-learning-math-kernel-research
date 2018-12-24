@@ -1,19 +1,38 @@
+#!/bin/bash
+
+# Build gemm kernel instantiation
+#
+
+src_file=$1; dst_dir=$2; cc=$3
+
+if [ ! -f $src_file ] || [ ! -d $dst_dir ]; then
+  "Invalid src_file=$src_file or dst_dir=$dst_dir"
+  exit -1
+fi
+
+__generate_kgemm_inst__() {
+  dtype=$1; V=$2; Vx=$3; I=$4; S=$5; F=$6
+
+  cat <<@ > $dst_dir/elk_gemm_otj_${dtype}_${V}_${Vx}_${I}_${S}_${F}.cpp
+// _generated_kgemm_file_
+//
 #include "el_intrin.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "el_stl.hpp"
 #include "elx_conv.hpp"
-#include "elk_gemm_otj.hxx"
+#include "$src_file"
 
 using namespace euler;
 
 namespace euler {
 
 #undef E
-#define E(O, T, r)                                                             \
-  gemm_kernel_binder::gemm_ker_cls<conv_impl::FP32,                            \
-      16, 1, ISA_SKX_AVX512, 2, GKF_DDD, O, T, r>::execute
-  gemm_kernel_binder::ker<conv_impl::FP32> *gemm_kernel_binder::ker_s2_ddd[8][32][2] =
+#define E(O, T, r) \\
+  gemm_kernel_binder::gemm_ker_cls<conv_impl::$dtype, \\
+      $V, $Vx, $I, $S, $F, O, T, r>::gemm
+  gemm_kernel_binder::kgemm<conv_impl::$dtype>
+      *gemm_kernel_binder::kgemm_${dtype}_${V}_${Vx}_${I}_${S}_${F}[8][32][2] =
   { // 8
     { // 32
       { E(1, 1,  0), E(1, 1, 1), },
@@ -127,3 +146,12 @@ namespace euler {
   };
 
 } // namespace
+@
+}
+
+for f in $dst_dir/*.cpp; do
+  if grep _generated_kgemm_file_ >&/dev/null $f; then
+    rm $f
+  fi
+done
+eval $($cc -DBUILD_KGEMM_TBL -E $src_file 2>&1 | grep __generate_kgemm_inst__)

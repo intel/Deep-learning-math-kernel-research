@@ -47,6 +47,7 @@ endif()
 include("cmake/flags.cmake")
 include("cmake/required.cmake")
 
+
 # find src files
 file (GLOB __euler_source
   src/eld_conv.cpp
@@ -62,25 +63,13 @@ file (GLOB __euler_source
   src/elx_conv_direct_xopt.cpp)
 
 if (NOT WITH_GKTII)
-  file (GLOB __euler_gemm_kernel_source
-    src/kernel/elk_f32_f32_gemm_otj_s1_ccc.cpp
-    src/kernel/elk_f32_f32_gemm_otj_s1_ccd.cpp
-    src/kernel/elk_f32_f32_gemm_otj_s1_dcd.cpp
-    src/kernel/elk_f32_f32_gemm_otj_s1_ddd.cpp
-    src/kernel/elk_f32_f32_gemm_otj_s1_ecd.cpp
-    src/kernel/elk_f32_f32_gemm_otj_s2_ccc.cpp
-    src/kernel/elk_f32_f32_gemm_otj_s2_ccd.cpp
-    src/kernel/elk_f32_f32_gemm_otj_s2_dcd.cpp
-    src/kernel/elk_f32_f32_gemm_otj_s2_ddd.cpp
-    src/kernel/elk_f16b_f32_gemm_otj_s1_ccc.cpp
-    src/kernel/elk_f16w_f32_gemm_otj_s1_ccc.cpp
-    src/kernel/elk_f16w_f32_gemm_otj_s1_ccd.cpp
-    src/kernel/elk_f16wo_f32_gemm_otj_s1_ccc.cpp
-    src/kernel/elk_f16wob_f32_gemm_otj_s1_ccc.cpp
-    src/kernel/elk_f32_i8_gemm_otj_s1_ccc.cpp
-    src/kernel/elk_f16b_i8_gemm_otj_s1_ccc.cpp
-    src/kernel/elk_f16o_i8_gemm_otj_s1_ccc.cpp
-    src/kernel/elk_f16ob_i8_gemm_otj_s1_ccc.cpp)
+  set(KGEMM_GEN_DIR ${CMAKE_BINARY_DIR}/kgen)
+  set(KGEMM_GEN_CMD ${CMAKE_HOME_DIRECTORY}/src/kernel/kgemm_gen.sh)
+  set(KGEMM_GEN_SRC ${CMAKE_HOME_DIRECTORY}/src/kernel/elk_gemm_otj.hxx)
+  execute_process(
+    COMMAND mkdir -p ${KGEMM_GEN_DIR}
+    COMMAND ${KGEMM_GEN_CMD} ${KGEMM_GEN_SRC} ${KGEMM_GEN_DIR} ${CMAKE_CXX_COMPILER})
+  file (GLOB __euler_gemm_kernel_source ${KGEMM_GEN_DIR}/*.cpp)
 endif()
 
 include_directories(AFTER . include src tests xsimd/include)

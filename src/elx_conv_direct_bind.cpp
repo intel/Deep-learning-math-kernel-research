@@ -27,7 +27,7 @@ Instance_elx_conv_direct_t::bind_execute_functions()
       false>(O, T, func);
 
   auto bind_kernel = [&](int O, int T,
-      gemm_kernel_binder::ker<conv_impl::FP32> **func, bool has_Ir) {
+      gemm_kernel_binder::kgemm<conv_impl::FP32> **func, bool has_Ir) {
     switch (xopt_) {
     case (0xd060):
       if (this->input_fmt == nchw) {

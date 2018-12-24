@@ -80,23 +80,23 @@ class elx_conv_direct_1x1_t : public elx_conv_t<UserTypes> {
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_fp32_gemm_I_O_T_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_fp32_gemm_I_O_Tr_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_fp32_gemm_I_OrT_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_fp32_gemm_I_OrTr_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_fp32_gemm_IrO_T_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_fp32_gemm_IrO_Tr_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_fp32_gemm_IrOrT_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_fp32_gemm_IrOrTr_;
+  gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_fp32_gemm_I_O_T_;
+  gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_fp32_gemm_I_O_Tr_;
+  gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_fp32_gemm_I_OrT_;
+  gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_fp32_gemm_I_OrTr_;
+  gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_fp32_gemm_IrO_T_;
+  gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_fp32_gemm_IrO_Tr_;
+  gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_fp32_gemm_IrOrT_;
+  gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_fp32_gemm_IrOrTr_;
 
-  gemm_kernel_binder::ker<TarrayTypes> *ker_gemm_I_O_T_;
-  gemm_kernel_binder::ker<TarrayTypes> *ker_gemm_I_O_Tr_;
-  gemm_kernel_binder::ker<TarrayTypes> *ker_gemm_I_OrT_;
-  gemm_kernel_binder::ker<TarrayTypes> *ker_gemm_I_OrTr_;
-  gemm_kernel_binder::ker<TarrayTypes> *ker_gemm_IrO_T_;
-  gemm_kernel_binder::ker<TarrayTypes> *ker_gemm_IrO_Tr_;
-  gemm_kernel_binder::ker<TarrayTypes> *ker_gemm_IrOrT_;
-  gemm_kernel_binder::ker<TarrayTypes> *ker_gemm_IrOrTr_;
+  gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_I_O_T_;
+  gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_I_O_Tr_;
+  gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_I_OrT_;
+  gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_I_OrTr_;
+  gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_IrO_T_;
+  gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_IrO_Tr_;
+  gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_IrOrT_;
+  gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_IrOrTr_;
 
   void (elx_conv_direct_1x1_t::*execute_opt_)(OutputType *, InputType *, WeightsType *, BiasType *);
 

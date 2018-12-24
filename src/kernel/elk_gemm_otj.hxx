@@ -197,7 +197,7 @@ struct F_traits {
 
 template <typename GarrayTypes, int V, int Vx, int I, typename KP>
 struct gemm_kernel_otj {
-  static inline void execute(
+  static inline void gemm(
       elx_conv_params_t &, typename GarrayTypes::OutputType *,
       typename GarrayTypes::InputType *,
       typename GarrayTypes::WeightsType *,
@@ -358,7 +358,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<
       !std::is_same<InputType, uint8_t>::value
       && (P == 1 && has_Ir == false), void>::type
-  op_fma(elx_conv_params_t &xc,
+  op_gemm(elx_conv_params_t &xc,
       OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
       int attr, ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
@@ -428,7 +428,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   static inline typename std::enable_if<
       !std::is_same<InputType, uint8_t>::value
       && (P == 1 && has_Ir == true), void>::type
-  op_fma(elx_conv_params_t &xc,
+  op_gemm(elx_conv_params_t &xc,
       OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
       int attr, ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
@@ -511,7 +511,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int JO, int P>
   static inline typename std::enable_if<
       !std::is_same<InputType, uint8_t>::value && P == 2, void>::type
-  op_fma(elx_conv_params_t &xc,
+  op_gemm(elx_conv_params_t &xc,
       OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
       int attr, ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
@@ -593,7 +593,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int JO, int P>
   static inline typename std::enable_if<
       !std::is_same<InputType, uint8_t>::value && P == 4, void>::type
-  op_fma(elx_conv_params_t &xc,
+  op_gemm(elx_conv_params_t &xc,
       OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
       int attr, ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
@@ -804,7 +804,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   // u8s8f32 fma
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
-  op_fma(elx_conv_params_t &xc, OutputType *output, uint8_t *input,
+  op_gemm(elx_conv_params_t &xc, OutputType *output, uint8_t *input,
       int8_t *weights, BiasType *bias, int attr, ScaleType *src_scale,
       ScaleType *src_factor, ScaleType *weights_scale,
       ScaleType *weights_factor, int _O1, int _O0)
@@ -864,7 +864,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   // TODO: handling V and Vx tail
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == true), void>::type
-  op_fma(elx_conv_params_t &xc,
+  op_gemm(elx_conv_params_t &xc,
       OutputType *output, uint8_t *input, int8_t *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
@@ -936,7 +936,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
   template <int JO, int P>
   static inline typename std::enable_if<P == 2, void>::type
-  op_fma(elx_conv_params_t &xc,
+  op_gemm(elx_conv_params_t &xc,
       OutputType *output, uint8_t *input, int8_t *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
@@ -1008,7 +1008,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
   template <int JO, int P>
   static inline typename std::enable_if<P == 4, void>::type
-  op_fma(elx_conv_params_t &xc,
+  op_gemm(elx_conv_params_t &xc,
       OutputType *output, uint8_t *input, int8_t *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
@@ -1102,7 +1102,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int O = O, int T = T>
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 1)
       && (F_traits<F>::is_compact_weights)>::type
-  execute(elx_conv_params_t &xc, OutputType *output, InputType *input,
+  gemm(elx_conv_params_t &xc, OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor)
@@ -1115,7 +1115,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(BiasType, abias, bias, xc.O1, O * V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
-      op_fma<JO0, JP0>(xc, &md2(aoutput, _O1, 0), input, &md2(aweights, _O1, 0),
+      op_gemm<JO0, JP0>(xc, &md2(aoutput, _O1, 0), input, &md2(aweights, _O1, 0),
           &md2(abias, _O1, 0), attr, src_scale, src_factor,
           weights_scale, weights_factor, _O1, 0);
     }
@@ -1124,7 +1124,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int O = O, int T = T>
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 1)
       && !(F_traits<F>::is_compact_weights)>::type
-  execute(elx_conv_params_t &xc, OutputType *output, InputType *input,
+  gemm(elx_conv_params_t &xc, OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor)
@@ -1137,7 +1137,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(BiasType, abias, bias, xc.O1, O * V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
-      op_fma<JO0, JP0>(xc, &md2(aoutput, _O1, 0), input, &md2(aweights, _O1, 0),
+      op_gemm<JO0, JP0>(xc, &md2(aoutput, _O1, 0), input, &md2(aweights, _O1, 0),
           &md2(abias, _O1, 0), attr, src_scale, src_factor,
           weights_scale, weights_factor, _O1, 0);
     }
@@ -1146,7 +1146,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int O = O, int T = T>
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 2)
       && (F_traits<F>::is_compact_weights)>::type
-  execute(elx_conv_params_t &xc, OutputType *output, InputType *input,
+  gemm(elx_conv_params_t &xc, OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor)
@@ -1159,10 +1159,10 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD3(BiasType, abias, bias, xc.O1, O, V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
-      op_fma<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
+      op_gemm<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
           &md4(aweights, _O1, 0, 0, 0), &md3(abias, _O1, 0, 0),
           attr, src_scale, src_factor, weights_scale, weights_factor, _O1, 0);
-      op_fma<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
+      op_gemm<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
           &md4(aweights, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
           attr, src_scale, src_factor, weights_scale, weights_factor, _O1, JO0);
     }
@@ -1171,7 +1171,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int O = O, int T = T>
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 2)
       && !(F_traits<F>::is_compact_weights)>::type
-  execute(elx_conv_params_t &xc, OutputType *output, InputType *input,
+  gemm(elx_conv_params_t &xc, OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor)
@@ -1184,10 +1184,10 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD3(BiasType, abias, bias, xc.O1, O, V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
-      op_fma<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
+      op_gemm<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
           &md3(aweights, _O1, 0, 0), &md3(abias, _O1, 0, 0),
           attr, src_scale, src_factor, weights_scale, weights_factor, _O1, 0);
-      op_fma<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
+      op_gemm<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
           &md3(aweights, _O1, JO0, 0), &md3(abias, _O1, JO0, 0),
           attr, src_scale, src_factor, weights_scale, weights_factor, _O1, JO0);
     }
@@ -1196,7 +1196,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int O = O, int T = T>
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 3)
       && (F_traits<F>::is_compact_weights)>::type
-  execute(elx_conv_params_t &xc, OutputType *output, InputType *input,
+  gemm(elx_conv_params_t &xc, OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor)
@@ -1209,13 +1209,13 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD3(BiasType, abias, bias, xc.O1, O, V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
-      op_fma<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
+      op_gemm<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
           &md4(aweights, _O1, 0, 0, 0), &md3(abias, _O1, 0, 0),
           attr, src_scale, src_factor, weights_scale, weights_factor, _O1, 0);
-      op_fma<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
+      op_gemm<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
           &md4(aweights, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
           attr, src_scale, src_factor, weights_scale, weights_factor, _O1, JO0);
-      op_fma<JO2, JP2>(xc, &md3(aoutput, _O1, JO0 + JO1, 0), input,
+      op_gemm<JO2, JP2>(xc, &md3(aoutput, _O1, JO0 + JO1, 0), input,
           &md4(aweights, _O1, 0, JO0 + JO1, 0),
           &md3(abias, _O1, JO0 + JO1, 0),
           attr, src_scale, src_factor, weights_scale, weights_factor, _O1, JO0 + JO1);
@@ -1225,7 +1225,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int O = O, int T = T>
   static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 3)
       && !(F_traits<F>::is_compact_weights)>::type
-  execute(elx_conv_params_t &xc, OutputType *output, InputType *input,
+  gemm(elx_conv_params_t &xc, OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor)
@@ -1238,13 +1238,13 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD3(BiasType, abias, bias, xc.O1, O, V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
-      op_fma<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
+      op_gemm<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
           &md3(aweights, _O1, 0, 0), &md3(abias, _O1, 0, 0),
           attr, src_scale, src_factor, weights_scale, weights_factor, _O1, 0);
-      op_fma<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
+      op_gemm<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
           &md3(aweights, _O1, JO0, 0), &md3(abias, _O1, JO0, 0),
           attr, src_scale, src_factor, weights_scale, weights_factor, _O1, JO0);
-      op_fma<JO2, JP2>(xc, &md3(aoutput, _O1, JO0 + JO1, 0), input,
+      op_gemm<JO2, JP2>(xc, &md3(aoutput, _O1, JO0 + JO1, 0), input,
           &md3(aweights, _O1, JO0 + JO1, 0), &md3(abias, _O1, JO0 + JO1, 0),
           attr, src_scale, src_factor, weights_scale, weights_factor, _O1, JO0 + JO1);
     }
@@ -1257,18 +1257,18 @@ struct gemm_kernel_binder {
       V, Vx, I, estl::integer_sequence<Kp...>>;
 
   template <typename GarrayTypes>
-  using ker = decltype(gemm_ker_cls<GarrayTypes, 1, 1, 1, 1, 1, 1, 1, false>::execute);
+  using kgemm = decltype(gemm_ker_cls<GarrayTypes, 1, 1, 1, 1, 1, 1, 1, false>::gemm);
 
 #if defined(WITH_GKTII) // gemm kernel template implicit instantiation
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<GarrayTypes> **func)
+  static inline void bind(int O, int T, kgemm<GarrayTypes> **func)
   {
     switch (O) {
     case 1:
       LOOP_FROM_TO(_T, 1, 32, {
         if (T == _T)
           (*func = gemm_ker_cls< GarrayTypes, V, Vx, I,
-               S, F, 1, _T, has_Ir>::execute);
+               S, F, 1, _T, has_Ir>::gemm);
       });
       if (T >= 32)
         el_error("gemm_kernel: O = 1, T >= 32 not supported");
@@ -1277,7 +1277,7 @@ struct gemm_kernel_binder {
       LOOP_FROM_TO(_T, 1, 15, {
         if (T == _T)
           (*func = gemm_ker_cls<GarrayTypes, V, Vx, I,
-               S, F, 2, _T, has_Ir>::execute);
+               S, F, 2, _T, has_Ir>::gemm);
       });
       if (T >= 15)
         el_error("gemm_kernel: O = 2, T >= 15 not supported");
@@ -1286,7 +1286,7 @@ struct gemm_kernel_binder {
       LOOP_FROM_TO(_T, 1, 15, {
         if (T == _T)
           (*func = gemm_ker_cls<GarrayTypes, V, Vx, I,
-               S, F, 3, _T, has_Ir>::execute);
+               S, F, 3, _T, has_Ir>::gemm);
       });
       if (T >= 15)
         el_error("gemm_kernel: O = 3, T >= 15 not supported");
@@ -1295,7 +1295,7 @@ struct gemm_kernel_binder {
       LOOP_FROM_TO(_T, 1, 15, {
         if (T == _T)
           (*func = gemm_ker_cls<GarrayTypes, V, Vx, I,
-               S, F, 4, _T, has_Ir>::execute);
+               S, F, 4, _T, has_Ir>::gemm);
       });
       if (T >= 15)
         el_error("gemm_kernel: O = 4, T >= 15 not supported");
@@ -1304,7 +1304,7 @@ struct gemm_kernel_binder {
       LOOP_FROM_TO(_T, 1, 6, {
         if (T == _T)
           (*func = gemm_ker_cls<GarrayTypes, V, Vx, I,
-               S, F, 5, _T, has_Ir>::execute);
+               S, F, 5, _T, has_Ir>::gemm);
       });
       if (T >= 6)
         el_error("gemm_kernel: O = 5, T >= 6 not supported");
@@ -1313,7 +1313,7 @@ struct gemm_kernel_binder {
       LOOP_FROM_TO(_T, 1, 5, {
         if (T == _T)
           (*func = gemm_ker_cls<GarrayTypes, V, Vx, I,
-               S, F, 6, _T, has_Ir>::execute);
+               S, F, 6, _T, has_Ir>::gemm);
       });
       if (T >= 5)
         el_error("gemm_kernel: O = 6, T >= 5 not supported");
@@ -1322,7 +1322,7 @@ struct gemm_kernel_binder {
       LOOP_FROM_TO(_T, 1, 4, {
         if (T == _T)
           (*func = gemm_ker_cls<GarrayTypes, V, Vx, I,
-               S, F, 7, _T, has_Ir>::execute);
+               S, F, 7, _T, has_Ir>::gemm);
       });
       if (T >= 4)
         el_error("gemm_kernel: O = 7, T >= 4 not supported");
@@ -1331,7 +1331,7 @@ struct gemm_kernel_binder {
       LOOP_FROM_TO(_T, 1, 9, {
         if (T == _T)
           (*func = gemm_ker_cls<GarrayTypes, V, Vx, I,
-               S, F, 8, _T, has_Ir>::execute);
+               S, F, 8, _T, has_Ir>::gemm);
       });
       if (T >= 9)
         el_error("gemm_kernel: O = 8, T >= 9 not supported");
@@ -1341,59 +1341,71 @@ struct gemm_kernel_binder {
     }
   }
 #else
-
   // Save compile time
-  static ker<conv_impl::FP32> *ker_s1_ccc[8][32][2];
-  static ker<conv_impl::FP32> *ker_s1_ccd[8][32][2];
-  static ker<conv_impl::FP32> *ker_s1_dcd[8][32][2];
-  static ker<conv_impl::FP32> *ker_s1_ddd[8][32][2];
-  static ker<conv_impl::FP32> *ker_s1_ecd[8][32][2];
-  static ker<conv_impl::FP32> *ker_s2_ccc[8][32][2];
-  static ker<conv_impl::FP32> *ker_s2_ccd[8][32][2];
-  static ker<conv_impl::FP32> *ker_s2_dcd[8][32][2];
-  static ker<conv_impl::FP32> *ker_s2_ddd[8][32][2];
-  static ker<conv_impl::FP32_F16b> *ker_f16b_s1_ccc[8][32][2];
-  static ker<conv_impl::FP32_F16w> *ker_f16w_s1_ccc[8][32][2];
-  static ker<conv_impl::FP32_F16w> *ker_f16w_s1_ccd[8][32][2];
-  static ker<conv_impl::FP32_F16wo> *ker_f16wo_s1_ccc[8][32][2];
-  static ker<conv_impl::FP32_F16wob> *ker_f16wob_s1_ccc[8][32][2];
-  static ker<conv_impl::INT8_F32> *ker_i8_s1_ccc[8][32][2];
-  static ker<conv_impl::INT8_F16b> *ker_i8_f16b_s1_ccc[8][32][2];
-  static ker<conv_impl::INT8_F16o> *ker_i8_f16o_s1_ccc[8][32][2];
-  static ker<conv_impl::INT8_F16ob> *ker_i8_f16ob_s1_ccc[8][32][2];
+#if !defined(BUILD_KGEMM_TBL)
+#define DECL_KGEMM_TBL(type, V, Vx, I, S, F)                                   \
+  static kgemm<conv_impl::type> *kgemm_##type##_##V##_##Vx##_##I##_##S##_##F[8][32][2]
+#else
+#define DECL_KGEMM_TBL(type, V, Vx, I, S, F)                                   \
+  __generate_kgemm_inst__ type V Vx I S F
+#endif
+
+#define LOOKUP_KGEMM_TBL(type, V, Vx, I, S, F, O, T, has_Ir)                   \
+  kgemm_##type##_##V##_##Vx##_##I##_##S##_##F[O - 1][T - 1][has_Ir]
+
+  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC);
+  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_CCD);
+  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD);
+  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DDD);
+  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD);
+  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_CCC);
+  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_CCD);
+  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_DCD);
+  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_DDD);
+
+  DECL_KGEMM_TBL(FP32_F16b, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC);
+  DECL_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC);
+  DECL_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_CCD);
+  DECL_KGEMM_TBL(FP32_F16wo, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC);
+  DECL_KGEMM_TBL(FP32_F16wob, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC);
+
+  DECL_KGEMM_TBL(INT8_F32, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC);
+  DECL_KGEMM_TBL(INT8_F16b, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC);
+  DECL_KGEMM_TBL(INT8_F16o, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC);
+  DECL_KGEMM_TBL(INT8_F16ob, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC);
 
   // GarrayTypes->f32f32f32f32, used by WINO with f32 UserTypes
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<conv_impl::FP32> **func)
+  static inline void bind(int O, int T, kgemm<conv_impl::FP32> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = ker_s1_ccc[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
       else if (S == 2)
-        *func = ker_s2_ccc[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_CCC, O, T, has_Ir);
       break;
     case GKF_CCD:
       if (S == 1)
-        *func = ker_s1_ccd[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_CCD, O, T, has_Ir);
       else if (S == 2)
-        *func = ker_s2_ccd[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_CCD, O, T, has_Ir);
       break;
     case GKF_DCD:
       if (S == 1)
-        *func = ker_s1_dcd[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, has_Ir);
       else if (S == 2)
-        *func = ker_s2_dcd[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_DCD, O, T, has_Ir);
       break;
     case GKF_ECD:
       if (S == 1)
-        *func = ker_s1_ecd[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T, has_Ir);
       break;
     case GKF_DDD:
       if (S == 1)
-        *func = ker_s1_ddd[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DDD, O, T, has_Ir);
       else if (S == 2)
-        *func = ker_s2_ddd[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_DDD, O, T, has_Ir);
       break;
     default:
       break;
@@ -1402,12 +1414,12 @@ struct gemm_kernel_binder {
 
   // GarrayTypes->f32f32f32f16, used by WINO with f16 UserTypes
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<conv_impl::FP32_F16b> **func)
+  static inline void bind(int O, int T, kgemm<conv_impl::FP32_F16b> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = ker_f16b_s1_ccc[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(FP32_F16b, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
       break;
     default:
       break;
@@ -1416,12 +1428,12 @@ struct gemm_kernel_binder {
 
   // GarrayTypes->f32f16f16f32, used by WINO with f32 UserTypes
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<conv_impl::FP32_F16wo> **func)
+  static inline void bind(int O, int T, kgemm<conv_impl::FP32_F16wo> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = ker_f16wo_s1_ccc[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(FP32_F16wo, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
       break;
     default:
       break;
@@ -1430,12 +1442,12 @@ struct gemm_kernel_binder {
 
   // GarrayTypes->f32f16f16f16, used by WINO with f16 UserTypes
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<conv_impl::FP32_F16wob> **func)
+  static inline void bind(int O, int T, kgemm<conv_impl::FP32_F16wob> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = ker_f16wob_s1_ccc[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(FP32_F16wob, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
       break;
     default:
       break;
@@ -1444,12 +1456,12 @@ struct gemm_kernel_binder {
 
   // GarrayTypes->u8s8f32f32, used by WINO with f32 UserTypes
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<conv_impl::INT8_F32> **func)
+  static inline void bind(int O, int T, kgemm<conv_impl::INT8_F32> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = ker_i8_s1_ccc[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(INT8_F32, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
       break;
     default:
       break;
@@ -1458,12 +1470,12 @@ struct gemm_kernel_binder {
 
   // GarrayTypes->u8s8f32f16, used by WINO with f16 UserTypes
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<conv_impl::INT8_F16b> **func)
+  static inline void bind(int O, int T, kgemm<conv_impl::INT8_F16b> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = ker_i8_f16b_s1_ccc[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(INT8_F16b, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
       break;
     default:
       break;
@@ -1472,12 +1484,12 @@ struct gemm_kernel_binder {
 
   // GarrayTypes->u8s8f16f32, used by WINO with f32 UserTypes
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<conv_impl::INT8_F16o> **func)
+  static inline void bind(int O, int T, kgemm<conv_impl::INT8_F16o> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = ker_i8_f16o_s1_ccc[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(INT8_F16o, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
       break;
     default:
       break;
@@ -1486,12 +1498,12 @@ struct gemm_kernel_binder {
 
   // GarrayTypes->u8s8f16f16, used by WINO with f16 UserTypes
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<conv_impl::INT8_F16ob> **func)
+  static inline void bind(int O, int T, kgemm<conv_impl::INT8_F16ob> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = ker_i8_f16ob_s1_ccc[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(INT8_F16ob, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
       break;
     default:
       break;
@@ -1500,16 +1512,16 @@ struct gemm_kernel_binder {
 
   // GarrayTypes->f32f16f32f32, used by CONV 1x1 with f32 UserTypes
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<conv_impl::FP32_F16w> **func)
+  static inline void bind(int O, int T, kgemm<conv_impl::FP32_F16w> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = ker_f16w_s1_ccc[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
       break;
     case GKF_CCD:
       if (S == 1)
-        *func = ker_f16w_s1_ccd[O - 1][T - 1][has_Ir];
+        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_CCD, O, T, has_Ir);
       break;
     default:
       break;
@@ -1517,7 +1529,7 @@ struct gemm_kernel_binder {
   }
 
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<conv_impl::FP32_F16o> **func)
+  static inline void bind(int O, int T, kgemm<conv_impl::FP32_F16o> **func)
   {}
 #endif
 };

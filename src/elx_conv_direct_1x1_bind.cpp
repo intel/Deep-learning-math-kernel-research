@@ -40,7 +40,7 @@ Instance_elx_conv_direct_1x1_t::bind_execute_functions()
   }
 
   auto bind_kernel = [&](int O, int T,
-      gemm_kernel_binder::ker<TarrayTypes> **func, bool has_Ir) {
+      gemm_kernel_binder::kgemm<TarrayTypes> **func, bool has_Ir) {
     switch (xopt_) {
     case (0xa061):
       BIND_KERNEL_2(1, GKF_CCC)
@@ -58,7 +58,7 @@ Instance_elx_conv_direct_1x1_t::bind_execute_functions()
   };
 
   auto bind_fp32_kernel = [&](int O, int T,
-      gemm_kernel_binder::ker<conv_impl::FP32> **func, bool has_Ir) {
+      gemm_kernel_binder::kgemm<conv_impl::FP32> **func, bool has_Ir) {
     switch (xopt_) {
     case (0xe060):
       BIND_FP32_KERNEL_1(2, GKF_DCD)
