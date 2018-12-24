@@ -106,7 +106,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_e060(
       this->ht, this->wt, this->T * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-  MD3(WeightsType, atweights, tweights_, this->oc4, this->ic4,
+  MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
       this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
 
   if (is_first_run_) {
@@ -142,7 +142,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_b061(
   MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-  MD3(WeightsType, atweights, tweights_, this->oc4, this->ic4,
+  MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
       this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
 
   if (is_first_run_) {
@@ -150,7 +150,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_b061(
   }
 
   if (this->oc4 == 1) {
-    MD2(InputType, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
+    MD2(TinputType, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
     iter_each (_ic4, this->ic4) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(4)
@@ -169,7 +169,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_b061(
       }}}}
     }
   } else {
-    MD4(InputType, atinput, tinput_, mthr_, this->ht, this->wt,
+    MD4(TinputType, atinput, tinput_, mthr_, this->ht, this->wt,
         this->ic3 * this->I2 * this->T * V);
     MD3(unsigned char, atinput_msk, tinput_msk_, mthr_, this->ht, this->wt);
     iter_each (_ic4, this->ic4) {
@@ -212,8 +212,8 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
   MD2(OutputType, aoutput, output, this->t3, this->oc * this->oh * this->ow);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-  MD2(OutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
-  MD3(WeightsType, atweights, tweights_, this->oc4, this->ic4,
+  MD2(ToutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
+  MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
       this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
 
   if (is_first_run_) {
@@ -221,7 +221,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
   }
 
   if (this->oc4 == 1) {
-    MD2(InputType, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
+    MD2(TinputType, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(4)
     iter_each (_t3, this->t3) {
@@ -237,7 +237,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
           _oc4, _ht, _wt);
     }}}}
   } else {
-    MD4(InputType, atinput, tinput_, mthr_, this->ht, this->wt,
+    MD4(TinputType, atinput, tinput_, mthr_, this->ht, this->wt,
         this->ic3 * this->I2 * this->T * V);
     MD3(unsigned char, atinput_msk, tinput_msk_, mthr_, this->ht, this->wt);
     int t3_history = -1;
@@ -277,8 +277,8 @@ void Instance_elx_conv_direct_1x1_t::__execute_f061(
   MD2(OutputType, aoutput, output, this->t3, this->oc * this->oh * this->ow);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-  MD2(OutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
-  MD3(WeightsType, atweights, tweights_, this->oc4, this->ic4,
+  MD2(ToutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
+  MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
       this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
 
   if (is_first_run_) {
@@ -286,7 +286,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_f061(
   }
 
   if (this->oc4 == 1) {
-    MD2(InputType, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
+    MD2(TinputType, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(3)
     iter_each (_t3, this->t3) {
@@ -301,7 +301,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_f061(
           _oc4, _t2, Tz);
     }}}
   } else {
-    MD3(InputType, atinput, tinput_, mthr_, this->t2,
+    MD3(TinputType, atinput, tinput_, mthr_, this->t2,
         this->ic3 * this->I2 * this->T * V);
     MD2(unsigned char, atinput_msk, tinput_msk_, mthr_, this->t2);
     int t3_history = -1;

@@ -123,7 +123,7 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
       return ELD_GENERAL_ERROR;
     }
     if (std::is_same<UserTypes, conv::FP32>::value)
-      xc = new elx_conv_direct_1x1_t<UserTypes, float, 16, ISA_SKX_AVX512>(*this);
+      xc = new elx_conv_direct_1x1_t<UserTypes, conv_impl::FP32, 16, ISA_SKX_AVX512>(*this);
     else
       el_error("TODO: FP16 UserTypes for DIRECT 1x1.");
   } else if (algorithm == CONV_WINOGRAD) {
