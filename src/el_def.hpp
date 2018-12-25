@@ -45,12 +45,12 @@ template <typename... Types> struct ConvImplTypes {
 };
 
 namespace conv_impl {
-  // TarrayTypes: FP32/FP32_F16/FP32_F16O
-  // GarrayTypes: FP32/FP32_F16/FP32_F16O/INT8_F32/INT8_F16
+  using FP16 = ConvImplTypes<short, short, short, short, float>;
   using FP32 = ConvImplTypes<float, float, float, float, float>;
-  using FP32_F16 = ConvImplTypes<float, short, short, float, float>;
-  using FP32_F16O = ConvImplTypes<float, float, short, float, float>;
-  using INT8_F16 = ConvImplTypes<uint8_t, int8_t, short, float, float>;
+  using FP32_F16w = ConvImplTypes<float, short, float, float, float>;
+  using FP32_F16o = ConvImplTypes<float, float, short, float, float>;
+  using FP32_F16wo = ConvImplTypes<float, short, short, float, float>;
+  using INT8_F16o = ConvImplTypes<uint8_t, int8_t, short, float, float>;
   using INT8_F32 = ConvImplTypes<uint8_t, int8_t, float, float, float>;
 };
 

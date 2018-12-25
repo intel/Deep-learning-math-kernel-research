@@ -432,12 +432,28 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_blocked(
     iter_each (_iV, V) {
     iter_each (_O2, this->O2) {
       if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
-        if (stream_wei_)
-          _mm<V>::stream_ps(&md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2, 0),
-              *(__m<V> *)&md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV, 0));
-        else
-          _mm<V>::store_ps(&md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2, 0),
-              *(__m<V> *)&md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV, 0));
+        if (std::is_same<TweightsType, float>::value) {
+          if (stream_wei_)
+            _mm<V>::stream_ps(&md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2, 0),
+                *(__m<V> *)&md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV, 0));
+          else
+            _mm<V>::store_ps(&md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2, 0),
+                *(__m<V> *)&md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV, 0));
+        } else {// fp32 -> fp16
+          if (stream_wei_) {
+            auto fp16v = _mm<V>::cvtps_ph(
+                *(__m<V> *)&md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV, 0),
+                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            _mm<V/2>::stream_si256(
+                (__i<V/2> *)&md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2, 0), fp16v);
+          } else {
+            auto fp16v = _mm<V>::cvtps_ph(
+                *(__m<V> *)&md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV, 0),
+                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            _mm<V/2>::store_si256(
+                (__i<V/2> *)&md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2, 0), fp16v);
+          }
+        }
       } else {
 #pragma omp simd
         iter_each (_oV, V) {
@@ -472,11 +488,20 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_plain(
       iter_each (_iV, V) {
       iter_each (_O2, this->O2) {
         if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
-          constexpr int scale = sizeof(WeightsType);
-         __m<V> t = _mm<V>::i32gather_ps(vindex,
-             &md8(aweights, _oc4, _oc3, _O2, 0, _ic4, _ic3, _I2, _iV), scale);
-         _mm<V>::store_ps(&md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2,
-             0), t);
+          if (std::is_same<TweightsType, float>::value) {
+            constexpr int scale = sizeof(WeightsType);
+            __m<V> t = _mm<V>::i32gather_ps(vindex,
+                &md8(aweights, _oc4, _oc3, _O2, 0, _ic4, _ic3, _I2, _iV), scale);
+            _mm<V>::store_ps(&md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2,
+                0), t);
+          } else { // fp32 -> fp16
+            constexpr int scale = sizeof(WeightsType);
+            __m<V> t = _mm<V>::i32gather_ps(vindex,
+                &md8(aweights, _oc4, _oc3, _O2, 0, _ic4, _ic3, _I2, _iV), scale);
+            auto fp16v = _mm<V>::cvtps_ph(t, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            _mm<V/2>::store_si256(
+                (__i<V/2> *)&md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2, 0), fp16v);
+          }
         } else {
 #pragma omp simd
           iter_each (_oV, V) {
@@ -490,9 +515,16 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_plain(
     auto readin_v = [&](TweightsType *atwei, WeightsType *wei) {
       MD3(WeightsType, awei, wei, V, this->ic2, V);
       if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
-        constexpr auto scale = sizeof(WeightsType);
-        auto t = _mm<V>::i32gather_ps(vindex, &md3(awei, 0, 0, 0), scale);
-        _mm<V>::store_ps(atwei, t);
+        if (std::is_same<TweightsType, float>::value) {
+          constexpr auto scale = sizeof(WeightsType);
+          auto t = _mm<V>::i32gather_ps(vindex, &md3(awei, 0, 0, 0), scale);
+          _mm<V>::store_ps(atwei, t);
+        } else { // fp32 -> fp16
+          constexpr auto scale = sizeof(WeightsType);
+          auto t = _mm<V>::i32gather_ps(vindex, &md3(awei, 0, 0, 0), scale);
+          auto fp16v = _mm<V>::cvtps_ph(t, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+          _mm<V/2>::store_si256((__i<V/2> *)atwei, fp16v);
+        }
       } else {
         iter_each(_oV, V)
           atwei[_oV] = md3(awei, _oV, 0, 0);
@@ -501,6 +533,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_plain(
 
     auto readin_r = [&](TweightsType *atwei, int _oc4, int _oc3, int _O2,
             int _ic4, int _ic3, int _I2, int _iV, bool is_Ir, bool is_Or) {
+      assert(fp16_mode || !f16c_opt);
       MD2(WeightsType, aweights2, weights, this->oc, this->ic);
       int _oc2 = _oc4 * this->oc3 * this->O2 + _oc3 * this->O2 + _O2;
       int _ic2 = _ic4 * this->ic3 * this->I2 + _ic3 * this->I2 + _I2;
@@ -512,10 +545,18 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_plain(
         }
       } else {
         if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
-          constexpr auto scale = sizeof(WeightsType);
-          auto t = _mm<V>::i32gather_ps(vindex,
-              &md2(aweights2, _oc2 *V, _ic2 * V + _iV), scale);
-          _mm<V>::store_ps(atwei, t);
+          if (std::is_same<TweightsType, float>::value) {
+            constexpr auto scale = sizeof(WeightsType);
+            auto t = _mm<V>::i32gather_ps(vindex,
+                &md2(aweights2, _oc2 *V, _ic2 * V + _iV), scale);
+            _mm<V>::store_ps(atwei, t);
+          } else { // fp32 -> fp16
+            constexpr auto scale = sizeof(WeightsType);
+            auto t = _mm<V>::i32gather_ps(vindex,
+                &md2(aweights2, _oc2 *V, _ic2 * V + _iV), scale);
+            auto fp16v = _mm<V>::cvtps_ph(t, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            _mm<V/2>::store_si256((__i<V/2> *)atwei, fp16v);
+          }
         } else {
 #pragma omp simd
           iter_each (_oV, this->Or) {
@@ -1164,7 +1205,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_b061(OutputType *output,
     attr = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 ?
         set_attr(attr, relu_idx) : attr;
     iter_each (_oc3, this->oc3) {
-      ker_gemm_I_O_T_(*(elx_conv_params_t *)this, &md5(aoutput, _oc3, 0, 0, 0, 0),
+      ker_gemm_I_O_T_(*this, &md5(aoutput, _oc3, 0, 0, 0, 0),
           &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
           &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr, nullptr);
     }
@@ -1216,6 +1257,11 @@ void Instance_elx_conv_direct_1x1_t::gemm_c060(OutputType *output,
       this->I2 * V * V);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
 
+  auto  ker_I_O_T = ker_fp32_gemm_I_O_T_;
+  auto  ker_I_OrT = ker_fp32_gemm_I_OrT_;
+  auto  ker_I_O_Tr = ker_fp32_gemm_I_O_Tr_;
+  auto  ker_I_OrTr = ker_fp32_gemm_I_OrTr_;
+
   int oc3 = _oc4 == this->oc4 - 1 ? this->oc3r : this->oc3;
   iter_each (_ic3, this->ic3) {
     int attr = _ic4 == 0 && _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
@@ -1226,23 +1272,23 @@ void Instance_elx_conv_direct_1x1_t::gemm_c060(OutputType *output,
       MD2(OutputType, aoutput2, &md2(aoutput, _oc3, 0), this->t2, this->T * V);
       if (_oc4 == this->oc4 - 1 && _oc3 == oc3 - 1) {
         if (_t2 == this->t2 - 1)
-          ker_gemm_I_OrTr_(*(elx_conv_params_t *)this,
+          ker_I_OrTr(*(elx_conv_params_t *)this,
               &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
               &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
               attr, 0, nullptr, nullptr, nullptr);
         else
-          ker_gemm_I_OrT_(*(elx_conv_params_t *)this,
+          ker_I_OrT(*(elx_conv_params_t *)this,
               &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
               &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
               attr, 0, nullptr, nullptr, nullptr);
       } else {
         if (_t2 == this->t2 - 1)
-          ker_gemm_I_O_Tr_(*(elx_conv_params_t *)this,
+          ker_I_O_Tr(*(elx_conv_params_t *)this,
               &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
               &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
               attr, 0, nullptr, nullptr, nullptr);
         else
-          ker_gemm_I_O_T_(*(elx_conv_params_t *)this,
+          ker_I_O_T(*(elx_conv_params_t *)this,
               &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
               &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
               attr, 0, nullptr, nullptr, nullptr);
@@ -1266,6 +1312,9 @@ void Instance_elx_conv_direct_1x1_t::gemm_d060(OutputType *output, InputType *in
       this->I2 * V * V);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
 
+  auto ker_I_O_T = ker_fp32_gemm_I_O_T_;
+  auto ker_I_OrT = ker_fp32_gemm_I_OrT_;
+
   iter_each (_ic3, this->ic3) {
     int attr = _ic4 == 0 && _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
     attr = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 ?
@@ -1274,12 +1323,12 @@ void Instance_elx_conv_direct_1x1_t::gemm_d060(OutputType *output, InputType *in
 
     iter_each (_oc3, oc3) {
       if (_oc4 == this->oc4 - 1 && _oc3 == oc3 - 1) {
-        ker_gemm_I_OrT_(*(elx_conv_params_t *)this,
+        ker_I_OrT(*(elx_conv_params_t *)this,
             &md5(aoutput, _oc3, 0, 0, 0, 0), &md5(ainput, _ic3, 0, 0, 0, 0),
             &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
             attr, 0, nullptr, nullptr, nullptr);
       } else {
-        ker_gemm_I_O_T_(*(elx_conv_params_t *)this,
+        ker_I_O_T(*(elx_conv_params_t *)this,
             &md5(aoutput, _oc3, 0, 0, 0, 0), &md5(ainput, _ic3, 0, 0, 0, 0),
             &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
             attr, 0, nullptr, nullptr, nullptr);
@@ -1299,17 +1348,18 @@ void Instance_elx_conv_direct_1x1_t::gemm_e060(OutputType *output, InputType *in
       this->T * this->ws * V);
   MD5(OutputType, aoutput, output, this->oc3, this->O2, this->ht, this->wt,
       this->T * V);
-  MD3(TweightsType, aweights, weights, this->oc3, this->ic3,
+  MD3(WeightsType, aweights, weights, this->oc3, this->ic3,
       this->O2 * this->I2 * V * V);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
 
+  auto ker_I_O_T = ker_fp32_gemm_I_O_T_;
 
   iter_each (_ic3, this->ic3) {
     int attr = _ic4 == 0 && _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
     attr = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 ?
         set_attr(attr, relu_idx) : attr;
     iter_each (_oc3, this->oc3) {
-      ker_gemm_I_O_T_(*(elx_conv_params_t *)this, &md5(aoutput, _oc3, 0, 0, 0, 0),
+      ker_I_O_T(*(elx_conv_params_t *)this, &md5(aoutput, _oc3, 0, 0, 0, 0),
           &md5(ainput, _ic3, 0, 0, 0, 0), &md3(aweights, _oc3, _ic3, 0),
           &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr, nullptr);
     }

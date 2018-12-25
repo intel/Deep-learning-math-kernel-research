@@ -122,9 +122,12 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
       el_error("Algorithm CONV_DIRECT_1X1 not supported for this shape.");
       return ELD_GENERAL_ERROR;
     }
-    if (std::is_same<UserTypes, conv::FP32>::value)
-      xc = new elx_conv_direct_1x1_t<UserTypes, conv_impl::FP32, 16, ISA_SKX_AVX512>(*this);
-    else
+    if (std::is_same<UserTypes, conv::FP32>::value) {
+      if (f16c_opt)
+        xc = new elx_conv_direct_1x1_t<UserTypes, conv_impl::FP32_F16w, 16, ISA_SKX_AVX512>(*this);
+      else
+        xc = new elx_conv_direct_1x1_t<UserTypes, conv_impl::FP32, 16, ISA_SKX_AVX512>(*this);
+    } else
       el_error("TODO: FP16 UserTypes for DIRECT 1x1.");
   } else if (algorithm == CONV_WINOGRAD) {
     // Winograd
@@ -143,7 +146,7 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
       if (((execution_mode & 0xF00) != 0x100) &&
           (f16c_opt || (std::is_same<UserTypes, conv::FP16>::value))) {
 
-        using TarrayTypes = conv_impl::FP32_F16;
+        using TarrayTypes = conv_impl::FP32_F16wo;
         switch (tile_size) {
         case 4:
           xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,
@@ -167,7 +170,7 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
         }
       } else if ((execution_mode & 0xF00) == 0x100 && f16c_opt
           && std::is_same<UserTypes, conv::FP32>::value) {
-        using TarrayTypes = conv_impl::FP32_F16O;
+        using TarrayTypes = conv_impl::FP32_F16o;
         switch (tile_size) {
         case 4:
           xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,

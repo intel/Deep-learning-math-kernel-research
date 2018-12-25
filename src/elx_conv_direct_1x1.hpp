@@ -80,14 +80,23 @@ class elx_conv_direct_1x1_t : public elx_conv_t<UserTypes> {
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_I_O_T_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_I_O_Tr_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_I_OrT_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_I_OrTr_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_IrO_T_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_IrO_Tr_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_IrOrT_;
-  gemm_kernel_binder::ker<conv_impl::FP32> *ker_gemm_IrOrTr_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_fp32_gemm_I_O_T_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_fp32_gemm_I_O_Tr_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_fp32_gemm_I_OrT_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_fp32_gemm_I_OrTr_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_fp32_gemm_IrO_T_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_fp32_gemm_IrO_Tr_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_fp32_gemm_IrOrT_;
+  gemm_kernel_binder::ker<conv_impl::FP32> *ker_fp32_gemm_IrOrTr_;
+
+  gemm_kernel_binder::ker<TarrayTypes> *ker_gemm_I_O_T_;
+  gemm_kernel_binder::ker<TarrayTypes> *ker_gemm_I_O_Tr_;
+  gemm_kernel_binder::ker<TarrayTypes> *ker_gemm_I_OrT_;
+  gemm_kernel_binder::ker<TarrayTypes> *ker_gemm_I_OrTr_;
+  gemm_kernel_binder::ker<TarrayTypes> *ker_gemm_IrO_T_;
+  gemm_kernel_binder::ker<TarrayTypes> *ker_gemm_IrO_Tr_;
+  gemm_kernel_binder::ker<TarrayTypes> *ker_gemm_IrOrT_;
+  gemm_kernel_binder::ker<TarrayTypes> *ker_gemm_IrOrTr_;
 
   void (elx_conv_direct_1x1_t::*execute_opt_)(OutputType *, InputType *, WeightsType *, BiasType *);
 
@@ -127,8 +136,11 @@ class elx_conv_direct_1x1_t : public elx_conv_t<UserTypes> {
   void *scratch_;
 };
 
+//fp32-f32f32f32
 template class elx_conv_direct_1x1_t<conv::FP32, conv_impl::FP32, 16, ISA_SKX_AVX512>;
-template class elx_conv_direct_1x1_t<conv::FP32, conv_impl::FP32, 8, ISA_SKX_AVX512>;
+
+//fp32-f32f16f16
+template class elx_conv_direct_1x1_t<conv::FP32, conv_impl::FP32_F16w, 16, ISA_SKX_AVX512>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_DIRECT_1X1_HPP__
