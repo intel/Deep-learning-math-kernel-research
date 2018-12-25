@@ -8,7 +8,6 @@ option(WITH_TEST "Build with test cases" ON)
 cmake_dependent_option(WITH_GTEST
   "Build with gtest/unit tests if WITH_TEST is ON" ON "WITH_TEST" OFF)
 option(WITH_GK "Build with generic kernel and unit tests" ON)
-option(WITH_GKTII "With gemm kernel template implicit instantiation" OFF)
 option(WITH_VNNI "With CLX VNNI support" OFF)
 
 set(EULER_VERSION_MAJOR 0)
@@ -62,19 +61,17 @@ file (GLOB __euler_source
   src/elx_conv_direct.cpp
   src/elx_conv_direct_xopt.cpp)
 
-if (NOT WITH_GKTII)
-  set(KGEMM_GEN_DIR ${CMAKE_BINARY_DIR}/kgen)
-  set(BUILD_KGEMM_GEN_CMD ${KGEMM_GEN_DIR}/kgemm_gen.sh)
-  set(BUILD_KGEMM_GEN_SRC ${KGEMM_GEN_DIR}/elk_gemm_otj.hxx)
-  set(KGEMM_GEN_CMD ${CMAKE_HOME_DIRECTORY}/src/kernel/kgemm_gen.sh)
-  set(KGEMM_GEN_SRC ${CMAKE_HOME_DIRECTORY}/src/kernel/elk_gemm_otj.hxx)
-  execute_process(COMMAND mkdir -p ${KGEMM_GEN_DIR})
-  configure_file(${KGEMM_GEN_CMD} ${BUILD_KGEMM_GEN_CMD} COPYONLY)
-  configure_file(${KGEMM_GEN_SRC} ${BUILD_KGEMM_GEN_SRC} COPYONLY)
-  execute_process(
-    COMMAND ${BUILD_KGEMM_GEN_CMD} ${BUILD_KGEMM_GEN_SRC} ${KGEMM_GEN_DIR} ${CMAKE_CXX_COMPILER})
-  file (GLOB __euler_gemm_kernel_source ${KGEMM_GEN_DIR}/*.cpp)
-endif()
+set(KGEMM_GEN_DIR ${CMAKE_BINARY_DIR}/kgen)
+set(BUILD_KGEMM_GEN_CMD ${KGEMM_GEN_DIR}/kgemm_gen.sh)
+set(BUILD_KGEMM_GEN_SRC ${KGEMM_GEN_DIR}/elk_gemm_otj_binder.hxx)
+set(KGEMM_GEN_CMD ${CMAKE_HOME_DIRECTORY}/src/kernel/kgemm_gen.sh)
+set(KGEMM_GEN_SRC ${CMAKE_HOME_DIRECTORY}/src/kernel/elk_gemm_otj_binder.hxx)
+execute_process(COMMAND mkdir -p ${KGEMM_GEN_DIR})
+configure_file(${KGEMM_GEN_CMD} ${BUILD_KGEMM_GEN_CMD} COPYONLY)
+configure_file(${KGEMM_GEN_SRC} ${BUILD_KGEMM_GEN_SRC} COPYONLY)
+execute_process(COMMAND ${BUILD_KGEMM_GEN_CMD} ${BUILD_KGEMM_GEN_SRC}
+  ${KGEMM_GEN_DIR} ${CMAKE_CXX_COMPILER})
+file (GLOB __euler_gemm_kernel_source ${KGEMM_GEN_DIR}/*.cpp)
 
 include_directories(AFTER . include src tests xsimd/include)
 link_directories(lib)

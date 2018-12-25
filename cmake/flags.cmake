@@ -23,10 +23,6 @@ if (WITH_GK)
   list(APPEND __opt_flags "-DWITH_GK")
 endif()
 
-if (WITH_GKTII)
-  list(APPEND __opt_flags "-DWITH_GKTII")
-endif()
-
 if (WITH_VNNI)
   list(APPEND __opt_flags "-DWITH_VNNI")
 endif()

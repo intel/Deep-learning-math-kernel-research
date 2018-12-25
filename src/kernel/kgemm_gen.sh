@@ -11,9 +11,9 @@ if [ ! -f $src_file ] || [ ! -d $dst_dir ]; then
 fi
 
 __generate_kgemm_inst__() {
-  dtype=$1; V=$2; Vx=$3; I=$4; S=$5; F=$6
+  ktype=$1; dtype=$2; V=$3; Vx=$4; I=$5; S=$6; F=$7;
 
-  cat <<@ > $dst_dir/elk_gemm_otj_${dtype}_${V}_${Vx}_${I}_${S}_${F}.cpp
+  cat <<@ > $dst_dir/elk_${ktype}_otj_${dtype}_${V}_${Vx}_${I}_${S}_${F}.cpp
 // _generated_kgemm_file_
 //
 #include "el_intrin.hpp"
@@ -149,9 +149,4 @@ namespace euler {
 @
 }
 
-for f in $dst_dir/*.cpp; do
-  if grep _generated_kgemm_file_ >&/dev/null $f; then
-    rm $f
-  fi
-done
 eval $($cc -DBUILD_KGEMM_TBL -E $src_file 2>&1 | grep __generate_kgemm_inst__)

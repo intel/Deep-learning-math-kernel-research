@@ -9,7 +9,7 @@
 #include "elx_conv.hpp"
 #include "euler.hpp"
 #include "elk_conv_wino.hpp"
-#include "kernel/elk_gemm_otj.hxx"
+#include "kernel/elk_gemm_otj_binder.hxx"
 
 #include "kernel/elk_conv_wino_2x2_3x3_input.hxx"
 #include "kernel/elk_conv_wino_2x2_3x3_output.hxx"
