@@ -15,6 +15,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 5, 3>::__trans_weights(TrOpType atweights[A][A][V][V],
     WeightsType aweights[K][K][V][V])
 {
+#if 0
   // Constants
   __m<V> r12 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 12.0f));
   __m<V> r6 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 6.0f));
@@ -33,6 +34,8 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   __m<V> t00, t10, t20, t30, t40, t01, t11, t21, t31 /*, t41 */, t02, t12, t22,
       t32 /*, t42 */, t03, t13, t23, t33 /*, t43 */, t04, t14, t24,
       t34 /*, t44 */;
+#endif
+
 #undef F
 #undef T
 #define F(h, w) aweights[h][w][_V]
@@ -48,6 +51,52 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     auto f16 = _mm<V/2>::load_si256((__m256i *)F(m, n));          \
     f(m,n) = _mm<V>::cvtph_ps(f16);                               \
   }
+
+#define LOAD(m,n)                                                 \
+  std::is_same<WeightsType, float>::value                         \
+  ? _mm<V>::load_ps(F(m, n))                                      \
+  : _mm<V>::cvtph_ps(_mm<V/2>::load_si256((__m256i *)F(m, n)))
+
+  __m<V> M[5][3];
+
+  auto z0 = _mm<V>::set1_ps(2.0f);
+  auto z1 = _mm<V>::set1_ps(0.5f);
+
+  for (int _V = 0; _V < 16; ++_V) {
+#pragma unroll
+    for (int i = 0; i < 3; i++) {
+      auto f0 = LOAD(0, i);
+      auto f1 = LOAD(1, i);
+      auto f2 = LOAD(2, i);
+
+      auto t0 = f0 * z0;
+      auto t1 = f0 + f2;
+
+      M[0][i] = t0;
+      M[1][i] = f1 - t1;
+      M[2][i] = f1 + t1;
+      M[3][i] = f2 * z1 + t0 - f1;
+      M[4][i] = f2;
+    }
+
+#pragma unroll
+    for (int i = 0; i < 5; i++) {
+      auto f0 = M[i][0];
+      auto f1 = M[i][1];
+      auto f2 = M[i][2];
+
+      auto t0 = f0 * z0;
+      auto t1 = f0 + f2;
+
+      *(__m<V>*)T(i, 0) = t0;
+      *(__m<V>*)T(i, 1) = f1 - t1;
+      *(__m<V>*)T(i, 2) = f1 + t1;
+      *(__m<V>*)T(i, 3) = f2 * z1 + t0 - f1;
+      *(__m<V>*)T(i, 4) = f2;
+    }
+  }
+
+#if 0
   for (int _V = 0; _V < V; ++_V) {
     MATRIX_DEF(3, 3);
 
@@ -113,5 +162,6 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     _mm<V>::store_ps(T(3, 4), t34);
     _mm<V>::store_ps(T(4, 4), f22);
   }
+#endif
 }
 } // namespace euler

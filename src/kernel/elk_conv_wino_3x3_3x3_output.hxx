@@ -81,6 +81,109 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
 
 #undef P
 #undef T
+#undef t
+#undef OP
+#undef STORE
+#undef ISTORE
+#undef FUSE_BIAS
+
+#define T(_h, _w) atoutput[_w][_h]
+#define P(_h, _w) p_cb(_h, _w)
+#define t(m, n) t##m##n
+#define OP(m,n) t(m,n) = _mm<V>::load_ps(T(m, n))
+
+#define ISTORE(i, j)                                              \
+  if (std::is_same<OutputType, float>::value)                     \
+    _mm<V>::store_ps(P(i, j), p##i##j);                           \
+  else {                                                          \
+    auto f16 = _mm<V>::cvtps_ph(p##i##j,                          \
+        _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);           \
+    _mm<V/2>::store_si256((__m256i *)P(i, j), f16);               \
+  }
+
+#define FUSE_BIAS(p)                                              \
+  if (std::is_same<BiasType, float>::value) {                     \
+    p = ADD(p, *(__m<V>*)bias);                                   \
+  } else {                                                        \
+    auto f16v = _mm<V/2>::load_si256((__m256i *)bias);            \
+    p = ADD(p, _mm<V>::cvtph_ps(f16v));                           \
+  }
+
+#define BIAS                                                      \
+  std::is_same<BiasType, float>::value                            \
+  ? *(__m<V>*)bias                                                \
+  : _mm<V>::cvtph_ps(_mm<V/2>::load_si256((__m256i *)bias))
+
+#define STORE(i, j)                                               \
+  if (std::is_same<OutputType, float>::value)                     \
+    _mm<V>::store_ps(P(i, j), p##j);                              \
+  else {                                                          \
+    auto f16 = _mm<V>::cvtps_ph(p##j,                             \
+        _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);           \
+    _mm<V/2>::store_si256((__m256i *)P(i, j), f16);               \
+  }
+
+  __m<V> M[3][5];
+
+  auto z0 = _mm<V>::set1_ps(0.3333333333333333f);
+  auto z1 = _mm<V>::set1_ps(0.6666666666666666f);
+  auto z2 = _mm<V>::set1_ps(1.3333333333333333f);
+  __m<V> z = XOR(z, z);
+
+#pragma unroll
+  for (int i = 0; i < 5; i++) {
+    auto f0 = _mm<V>::load_ps(T(0, i));
+    auto f1 = _mm<V>::load_ps(T(1, i));
+    auto f2 = _mm<V>::load_ps(T(2, i));
+    auto f3 = _mm<V>::load_ps(T(3, i));
+    auto f4 = _mm<V>::load_ps(T(4, i));
+
+    auto t0 = f2 * z0;
+    auto t1 = t0 + f1;
+
+    M[0][i] = f3 * z2 + f0 + t1;
+    M[1][i] = t0 - f1 - f3 * z1;
+    M[2][i] = f3 * z0 + f4 + t1;
+  }
+
+#pragma unroll
+  for (int i = 0; i < 3; i++) {
+    auto f0 = M[i][0];
+    auto f1 = M[i][1];
+    auto f2 = M[i][2];
+    auto f3 = M[i][3];
+    auto f4 = M[i][4];
+
+    auto t0 = f2 * z0;
+    auto t1 = t0 + f1;
+
+    auto p0 = f3 * z2 + f0 + t1;
+    auto p1 = t0 - f1 - f3 * z1;
+    auto p2 = f3 * z0 + f4 + t1;
+
+    if (fuse_bias) {
+      p0 += BIAS;
+      p1 += BIAS;
+      p2 += BIAS;
+    }
+    if (fuse_ip_sum) {
+      p0 += *(__m<V> *)P(i, 0);
+      p1 += *(__m<V> *)P(i, 1);
+      p2 += *(__m<V> *)P(i, 2);
+    }
+    if (fuse_relu) {
+      p0 = MAX(p0, z);
+      p1 = MAX(p1, z);
+      p2 = MAX(p2, z);
+    }
+    STORE(i, 0)
+    STORE(i, 1)
+    STORE(i, 2)
+  }
+
+#if 0
+#undef P
+#undef T
 #define T(_h, _w) atoutput[_w][_h]
 #define P(_h, _w) p_cb(_h, _w)
 
@@ -115,6 +218,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     _mm<V/2>::store_si256((__m256i *)P(m, n), f16);     \
   }
   MATRIX_DEF(3, 3);
+#endif
 }
 
 template <typename UserTypes, typename TrOpType, int V>

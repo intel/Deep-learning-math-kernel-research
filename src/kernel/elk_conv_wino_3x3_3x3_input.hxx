@@ -61,6 +61,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
       elx_conv_t<UserTypes> &xc, TrOpType atinput[A][A][V], InputType *input,
       int hT_start, int hT_end, int wT_start, int wT_end)
 {
+#if 0
   ENABLE_AVX512F();
 
   // Inputs
@@ -77,6 +78,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   __m<V> z3 = _mm<V>::set_ps(IMM_BCAST16(3.0f));
   __m<V> z4 = _mm<V>::set_ps(IMM_BCAST16(4.0f));
   __m<V> z6 = _mm<V>::set_ps(IMM_BCAST16(6.0f));
+#endif
 
   auto f_cb = [&](int _h, int _w) {
     if (wT_end == -1) {
@@ -92,7 +94,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
       if (is_border
           && (_h < hT_start || _w < wT_start || _h > hT_end
                  || _w > wT_end))
-        return z0;
+        return _mm<V>::setzero_ps();
       else if (std::is_same<InputType, float>::value)
         return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
       else {
@@ -112,6 +114,51 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
 #undef OP
 #define f(m, n) f##m##n
 #define OP(m,n) f(m, n) = F(m, n)
+
+  __m<V> M[5][5];
+
+  auto z0 = _mm<V>::set1_ps(0.5f);
+  auto z1 = _mm<V>::set1_ps(1.5f);
+
+#pragma unroll
+  for (int i = 0; i < 5; i++) {
+    auto f0 = F(0, i);
+    auto f1 = F(1, i);
+    auto f2 = F(2, i);
+    auto f3 = F(3, i);
+    auto f4 = F(4, i);
+
+    auto t0 = f1 * z0;
+    auto t1 = f2 * z0;
+    auto t2 = f3 - f1;
+
+    M[0][i] = f0 * z0 - t1 - t2;
+    M[1][i] = f3 - t0 - t1;
+    M[2][i] = f2 * z1 + f3 + t0;
+    M[3][i] = t2;
+    M[4][i] = f3 * z0 + f4 - f2 - t0;
+  }
+
+#pragma unroll
+  for (int i = 0; i < 5; i++) {
+    auto f0 = M[i][0];
+    auto f1 = M[i][1];
+    auto f2 = M[i][2];
+    auto f3 = M[i][3];
+    auto f4 = M[i][4];
+
+    auto t0 = f1 * z0;
+    auto t1 = f2 * z0;
+    auto t2 = f3 - f1;
+
+    *(__m<V>*)T(i, 0) = f0 * z0 - t1 - t2;
+    *(__m<V>*)T(i, 1) = f3 - t0 - t1;
+    *(__m<V>*)T(i, 2) = f2 * z1 + f3 + t0;
+    *(__m<V>*)T(i, 3) = t2;
+    *(__m<V>*)T(i, 4) = f3 * z0 + f4 - f2 - t0;
+  }
+
+#if 0
   MATRIX_DEF(5, 4);
 
   c1 = FMADD(z2, SUB(f12, f10), SUB(f11, f13));
@@ -192,6 +239,8 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   _mm<V>::store_ps(T(3, 4), t34);
   t44 = ADD(FMADD(z2, ADD(SUB(f41, f43), SUB(c3, c1)), SUB(f44, f42)), c2);
   _mm<V>::store_ps(T(4, 4), t44);
+#endif
+
 }
 
 template <typename UserTypes, typename TrOpType, int V>
