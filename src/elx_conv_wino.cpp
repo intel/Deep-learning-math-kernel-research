@@ -272,11 +272,6 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
     tweights_qt_scale_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType);
     tweights_qt_factor_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType); // * this->ic4
     tweights_ci_size = this->OC * sizeof(TscaleType);
-    // TODO: implement tinput sampling along all IC
-    if (this->ic4 != 1 || this->ic3 != 1) {
-      el_error("Break ic limitation for a161. ic4 == 1 && ic3 == 1");
-      return -1;
-    }
     break;
   case 0xa173:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
@@ -2154,6 +2149,8 @@ void Instance_elx_conv_wino_t::gemm(
     iter_each (_ic3, ic3) {
       auto attr = _ic3 == 0 && _ic4 == 0 ?
           set_attr(attr_, r_output_idx) : attr_;
+      attr = set_attr(attr, l_output_idx);
+      attr = set_attr(attr, c_output_idx);
       ker_gemm(*(elx_conv_params_t *)this,
           &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
           &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
@@ -2167,7 +2164,7 @@ void Instance_elx_conv_wino_t::gemm(
     if (last_ic4) {
       auto attr = this->ic3 == 1 && this->ic4 == 1 ?
           set_attr(attr_, r_output_idx) : attr_;
-      // last_ic4 && last_ic3
+      attr = set_attr(attr, l_output_idx);
       attr = set_attr(attr, c_output_idx);
       ker_gemm_tail(*(elx_conv_params_t *)this,
           &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
