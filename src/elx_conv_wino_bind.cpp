@@ -113,26 +113,30 @@ void Instance_elx_conv_wino_t::bind_execute_functions()
       [&](int O, int T, bool has_Ir,
       ker_type **func1, i8_ker_type **func2) {
     if (this->Ir != V * this->Vx && has_Ir) {
-      if (this->f16c_opt) {
-        gemm_kernel_binder::bind<TarrayTypes,
-            V, 1, I, 1, GKF_CCC, true>(O, T, func1);
+      gemm_kernel_binder::bind<TarrayTypes,
+          V, 1, I, 1, GKF_CCC, true>(O, T, func1);
+
+      if (this->fp16_mode) {
+        gemm_kernel_binder::bind<conv_impl::INT8_F16b,
+            V, 4, I, 1, GKF_CCC, true>(O, T, func2);
+      } else if (this->f16c_opt) {
         gemm_kernel_binder::bind<conv_impl::INT8_F16o,
             V, 4, I, 1, GKF_CCC, true>(O, T, func2);
       } else {
-        gemm_kernel_binder::bind<conv_impl::FP32,
-            V, 1, I, 1, GKF_CCC, true>(O, T, func1);
         gemm_kernel_binder::bind<conv_impl::INT8_F32,
             V, 4, I, 1, GKF_CCC, true>(O, T, func2);
       }
     } else {
-      if (this->f16c_opt) {
-        gemm_kernel_binder::bind<TarrayTypes,
-            V, 1, I, 1, GKF_CCC, false>(O, T, func1);
+      gemm_kernel_binder::bind<TarrayTypes,
+          V, 1, I, 1, GKF_CCC, false>(O, T, func1);
+
+      if (this->fp16_mode) {
+        gemm_kernel_binder::bind<conv_impl::INT8_F16b,
+            V, 4, I, 1, GKF_CCC, false>(O, T, func2);
+      } if (this->f16c_opt) {
         gemm_kernel_binder::bind<conv_impl::INT8_F16o,
             V, 4, I, 1, GKF_CCC, false>(O, T, func2);
       } else {
-        gemm_kernel_binder::bind<conv_impl::FP32,
-            V, 1, I, 1, GKF_CCC, false>(O, T, func1);
         gemm_kernel_binder::bind<conv_impl::INT8_F32,
             V, 4, I, 1, GKF_CCC, false>(O, T, func2);
       }

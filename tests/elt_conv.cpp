@@ -50,6 +50,7 @@ static inline ConvType create_conv_desc(void) {
   desc.with_relu = with_relu;
   desc.with_ip_sum = with_ip_sum;
   desc.f16c_opt = f16c_opt;
+  desc.fp16_mode = fp16_mode;
   desc.algorithm = alg;
   desc.tile_size = tile_size;
   desc.prop_kind = prop_kind;

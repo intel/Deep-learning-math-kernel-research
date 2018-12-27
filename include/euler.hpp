@@ -105,6 +105,7 @@ template<typename UserTypes> struct eld_conv_t {
     bool with_ip_sum;
     bool with_op_sum;
     bool f16c_opt;
+    bool fp16_mode;
     bool is_inference;
 
     // Performance:

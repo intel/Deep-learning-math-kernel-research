@@ -45,13 +45,16 @@ template <typename... Types> struct ConvImplTypes {
 };
 
 namespace conv_impl {
-  using FP16 = ConvImplTypes<short, short, short, short, float>;
   using FP32 = ConvImplTypes<float, float, float, float, float>;
+  using FP32_F16b = ConvImplTypes<float, float, float, short, float>;
   using FP32_F16w = ConvImplTypes<float, short, float, float, float>;
   using FP32_F16o = ConvImplTypes<float, float, short, float, float>;
   using FP32_F16wo = ConvImplTypes<float, short, short, float, float>;
-  using INT8_F16o = ConvImplTypes<uint8_t, int8_t, short, float, float>;
+  using FP32_F16wob = ConvImplTypes<float, short, short, short, float>;
   using INT8_F32 = ConvImplTypes<uint8_t, int8_t, float, float, float>;
+  using INT8_F16b = ConvImplTypes<uint8_t, int8_t, float, short, float>;
+  using INT8_F16o = ConvImplTypes<uint8_t, int8_t, short, float, float>;
+  using INT8_F16ob = ConvImplTypes<uint8_t, int8_t, short, short, float>;
 };
 
 } // namespace euler

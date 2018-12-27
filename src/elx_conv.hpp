@@ -55,7 +55,7 @@ struct elx_conv_params_t {
   int prop_kind;
 
   // relu, bias, sum
-  bool with_relu, with_bias, with_ip_sum, with_op_sum, f16c_opt;
+  bool with_relu, with_bias, with_ip_sum, with_op_sum, f16c_opt, fp16_mode;
 
   // streaming hint
   int streaming_weights;

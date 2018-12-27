@@ -14,7 +14,7 @@ namespace euler {
   gemm_kernel_binder::gemm_ker_cls<conv_impl::INT8_F16o, 16, 4,               \
       ISA_SKX_AVX512, 1, GKF_CCC, O, T, r>::execute
   gemm_kernel_binder::ker<conv_impl::INT8_F16o>
-    *gemm_kernel_binder::ker_i8_f16_s1_ccc[8][32][2] =
+    *gemm_kernel_binder::ker_i8_f16o_s1_ccc[8][32][2] =
   { // 8
     { // 32
       { E(1, 1,  0), E(1, 1, 1), },

@@ -779,8 +779,13 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     }
     // 1. add bias (direct conv 1x1)
     if (get_attr(attr, bias_idx)) {
-      MD2(float, abias2, bias, JO, V);
-      fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(abias2, _O, 0)));
+      MD2(BiasType, abias2, bias, JO, V);
+      if (std::is_same<BiasType, float>::value) {
+        fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(abias2, _O, 0)));
+      } else {
+        auto fp16v = _mm<V / 2>::load_si256((__m256i *)&md2(abias2, _O, 0));
+        fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
+      }
     }
     // 2. fuse relu (direct conv 1x1)
     if (get_attr(attr, relu_idx)) {
@@ -800,7 +805,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
   op_fma(elx_conv_params_t &xc, OutputType *output, uint8_t *input,
-      int8_t *weights, float *bias, int attr, ScaleType *src_scale,
+      int8_t *weights, BiasType *bias, int attr, ScaleType *src_scale,
       ScaleType *src_factor, ScaleType *weights_scale,
       ScaleType *weights_factor, int _O1, int _O0)
   {
@@ -860,7 +865,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int JO, int P>
   static inline typename std::enable_if<(P == 1 && has_Ir == true), void>::type
   op_fma(elx_conv_params_t &xc,
-      OutputType *output, uint8_t *input, int8_t *weights, float *bias, int attr,
+      OutputType *output, uint8_t *input, int8_t *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
   {
@@ -932,7 +937,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int JO, int P>
   static inline typename std::enable_if<P == 2, void>::type
   op_fma(elx_conv_params_t &xc,
-      OutputType *output, uint8_t *input, int8_t *weights, float *bias, int attr,
+      OutputType *output, uint8_t *input, int8_t *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
   {
@@ -1004,7 +1009,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int JO, int P>
   static inline typename std::enable_if<P == 4, void>::type
   op_fma(elx_conv_params_t &xc,
-      OutputType *output, uint8_t *input, int8_t *weights, float *bias, int attr,
+      OutputType *output, uint8_t *input, int8_t *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
   {
@@ -1347,12 +1352,17 @@ struct gemm_kernel_binder {
   static ker<conv_impl::FP32> *ker_s2_ccd[8][32][2];
   static ker<conv_impl::FP32> *ker_s2_dcd[8][32][2];
   static ker<conv_impl::FP32> *ker_s2_ddd[8][32][2];
+  static ker<conv_impl::FP32_F16b> *ker_f16b_s1_ccc[8][32][2];
   static ker<conv_impl::FP32_F16w> *ker_f16w_s1_ccc[8][32][2];
   static ker<conv_impl::FP32_F16w> *ker_f16w_s1_ccd[8][32][2];
   static ker<conv_impl::FP32_F16wo> *ker_f16wo_s1_ccc[8][32][2];
+  static ker<conv_impl::FP32_F16wob> *ker_f16wob_s1_ccc[8][32][2];
   static ker<conv_impl::INT8_F32> *ker_i8_s1_ccc[8][32][2];
-  static ker<conv_impl::INT8_F16o> *ker_i8_f16_s1_ccc[8][32][2];
+  static ker<conv_impl::INT8_F16b> *ker_i8_f16b_s1_ccc[8][32][2];
+  static ker<conv_impl::INT8_F16o> *ker_i8_f16o_s1_ccc[8][32][2];
+  static ker<conv_impl::INT8_F16ob> *ker_i8_f16ob_s1_ccc[8][32][2];
 
+  // GarrayTypes->f32f32f32f32, used by WINO with f32 UserTypes
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
   static inline void bind(int O, int T, ker<conv_impl::FP32> **func)
   {
@@ -1390,6 +1400,21 @@ struct gemm_kernel_binder {
     }
   }
 
+  // GarrayTypes->f32f32f32f16, used by WINO with f16 UserTypes
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  static inline void bind(int O, int T, ker<conv_impl::FP32_F16b> **func)
+  {
+    switch (F) {
+    case GKF_CCC:
+      if (S == 1)
+        //*func = ker_f16b_s1_ccc[O - 1][T - 1][has_Ir];
+      break;
+    default:
+      break;
+    }
+  }
+
+  // GarrayTypes->f32f16f16f32, used by WINO with f32 UserTypes
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
   static inline void bind(int O, int T, ker<conv_impl::FP32_F16wo> **func)
   {
@@ -1403,23 +1428,21 @@ struct gemm_kernel_binder {
     }
   }
 
+  // GarrayTypes->f32f16f16f16, used by WINO with f16 UserTypes
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int O, int T, ker<conv_impl::FP32_F16w> **func)
+  static inline void bind(int O, int T, ker<conv_impl::FP32_F16wob> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = ker_f16w_s1_ccc[O - 1][T - 1][has_Ir];
-      break;
-    case GKF_CCD:
-      if (S == 1)
-        *func = ker_f16w_s1_ccd[O - 1][T - 1][has_Ir];
+        //*func = ker_f16wob_s1_ccc[O - 1][T - 1][has_Ir];
       break;
     default:
       break;
     }
   }
 
+  // GarrayTypes->u8s8f32f32, used by WINO with f32 UserTypes
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
   static inline void bind(int O, int T, ker<conv_impl::INT8_F32> **func)
   {
@@ -1433,13 +1456,60 @@ struct gemm_kernel_binder {
     }
   }
 
+  // GarrayTypes->u8s8f32f16, used by WINO with f16 UserTypes
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  static inline void bind(int O, int T, ker<conv_impl::INT8_F16b> **func)
+  {
+    switch (F) {
+    case GKF_CCC:
+      if (S == 1)
+        //*func = ker_i8_f16b_s1_ccc[O - 1][T - 1][has_Ir];
+      break;
+    default:
+      break;
+    }
+  }
+
+  // GarrayTypes->u8s8f16f32, used by WINO with f32 UserTypes
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
   static inline void bind(int O, int T, ker<conv_impl::INT8_F16o> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = ker_i8_f16_s1_ccc[O - 1][T - 1][has_Ir];
+        *func = ker_i8_f16o_s1_ccc[O - 1][T - 1][has_Ir];
+      break;
+    default:
+      break;
+    }
+  }
+
+  // GarrayTypes->u8s8f16f16, used by WINO with f16 UserTypes
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  static inline void bind(int O, int T, ker<conv_impl::INT8_F16ob> **func)
+  {
+    switch (F) {
+    case GKF_CCC:
+      if (S == 1)
+        //*func = ker_i8_f16ob_s1_ccc[O - 1][T - 1][has_Ir];
+      break;
+    default:
+      break;
+    }
+  }
+
+  // GarrayTypes->f32f16f32f32, used by CONV 1x1 with f32 UserTypes
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  static inline void bind(int O, int T, ker<conv_impl::FP32_F16w> **func)
+  {
+    switch (F) {
+    case GKF_CCC:
+      if (S == 1)
+        *func = ker_f16w_s1_ccc[O - 1][T - 1][has_Ir];
+      break;
+    case GKF_CCD:
+      if (S == 1)
+        *func = ker_f16w_s1_ccd[O - 1][T - 1][has_Ir];
       break;
     default:
       break;

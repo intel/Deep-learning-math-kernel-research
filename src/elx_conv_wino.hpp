@@ -394,12 +394,13 @@ private:
   using i8_ker_type = typename std::conditional<
       std::is_same<TarrayTypes, conv_impl::FP32>::value,
       gemm_kernel_binder::ker<conv_impl::INT8_F32>,
-      gemm_kernel_binder::ker<conv_impl::INT8_F16o>>::type;
+      //gemm_kernel_binder::ker<conv_impl::INT8_F16o>>::type;
+      typename std::conditional<
+      std::is_same<TarrayTypes, conv_impl::FP32_F16b>::value,
+      gemm_kernel_binder::ker<conv_impl::INT8_F16b>,
+      gemm_kernel_binder::ker<conv_impl::INT8_F16o>>::type>::type;
 
-  using ker_type = typename std::conditional<
-      std::is_same<TarrayTypes, conv_impl::FP32>::value,
-      gemm_kernel_binder::ker<conv_impl::FP32>,
-      gemm_kernel_binder::ker<TarrayTypes>>::type;
+  using ker_type = typename gemm_kernel_binder::ker<TarrayTypes>;
 
   ker_type *ker_gemm_;
   ker_type *ker_gemm0_;
@@ -647,16 +648,16 @@ template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16wo, float, 6, 3, 1
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16wo, float, 7, 3, 16, ISA_SKX_AVX512>;
 
 // fp16-u8s8f32
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32, float, 4, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32, float, 5, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32, float, 6, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32, float, 7, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16b, float, 4, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16b, float, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16b, float, 6, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16b, float, 7, 3, 16, ISA_SKX_AVX512>;
 
 // fp16-f32f16f16
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wo, float, 4, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wo, float, 5, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wo, float, 6, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wo, float, 7, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, float, 4, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, float, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, float, 6, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, float, 7, 3, 16, ISA_SKX_AVX512>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_WINO_HPP__
