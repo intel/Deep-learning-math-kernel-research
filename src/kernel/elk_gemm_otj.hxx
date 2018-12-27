@@ -1407,7 +1407,7 @@ struct gemm_kernel_binder {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        //*func = ker_f16b_s1_ccc[O - 1][T - 1][has_Ir];
+        *func = ker_f16b_s1_ccc[O - 1][T - 1][has_Ir];
       break;
     default:
       break;
@@ -1435,7 +1435,7 @@ struct gemm_kernel_binder {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        //*func = ker_f16wob_s1_ccc[O - 1][T - 1][has_Ir];
+        *func = ker_f16wob_s1_ccc[O - 1][T - 1][has_Ir];
       break;
     default:
       break;
@@ -1463,7 +1463,7 @@ struct gemm_kernel_binder {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        //*func = ker_i8_f16b_s1_ccc[O - 1][T - 1][has_Ir];
+        *func = ker_i8_f16b_s1_ccc[O - 1][T - 1][has_Ir];
       break;
     default:
       break;
@@ -1491,7 +1491,7 @@ struct gemm_kernel_binder {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        //*func = ker_i8_f16ob_s1_ccc[O - 1][T - 1][has_Ir];
+        *func = ker_i8_f16ob_s1_ccc[O - 1][T - 1][has_Ir];
       break;
     default:
       break;

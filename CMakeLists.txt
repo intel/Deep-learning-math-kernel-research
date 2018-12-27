@@ -72,11 +72,15 @@ if (NOT WITH_GKTII)
     src/kernel/elk_f32_f32_gemm_otj_s2_ccd.cpp
     src/kernel/elk_f32_f32_gemm_otj_s2_dcd.cpp
     src/kernel/elk_f32_f32_gemm_otj_s2_ddd.cpp
+    src/kernel/elk_f16b_f32_gemm_otj_s1_ccc.cpp
     src/kernel/elk_f16w_f32_gemm_otj_s1_ccc.cpp
     src/kernel/elk_f16w_f32_gemm_otj_s1_ccd.cpp
     src/kernel/elk_f16wo_f32_gemm_otj_s1_ccc.cpp
+    src/kernel/elk_f16wob_f32_gemm_otj_s1_ccc.cpp
     src/kernel/elk_f32_i8_gemm_otj_s1_ccc.cpp
-    src/kernel/elk_f16o_i8_gemm_otj_s1_ccc.cpp)
+    src/kernel/elk_f16b_i8_gemm_otj_s1_ccc.cpp
+    src/kernel/elk_f16o_i8_gemm_otj_s1_ccc.cpp
+    src/kernel/elk_f16ob_i8_gemm_otj_s1_ccc.cpp)
 endif()
 
 include_directories(AFTER . include src tests xsimd/include)

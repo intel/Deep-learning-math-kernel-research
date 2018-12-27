@@ -394,7 +394,6 @@ private:
   using i8_ker_type = typename std::conditional<
       std::is_same<TarrayTypes, conv_impl::FP32>::value,
       gemm_kernel_binder::ker<conv_impl::INT8_F32>,
-      //gemm_kernel_binder::ker<conv_impl::INT8_F16o>>::type;
       typename std::conditional<
       std::is_same<TarrayTypes, conv_impl::FP32_F16b>::value,
       gemm_kernel_binder::ker<conv_impl::INT8_F16b>,
