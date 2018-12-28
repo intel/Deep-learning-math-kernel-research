@@ -64,11 +64,15 @@ file (GLOB __euler_source
 
 if (NOT WITH_GKTII)
   set(KGEMM_GEN_DIR ${CMAKE_BINARY_DIR}/kgen)
+  set(BUILD_KGEMM_GEN_CMD ${KGEMM_GEN_DIR}/kgemm_gen.sh)
+  set(BUILD_KGEMM_GEN_SRC ${KGEMM_GEN_DIR}/elk_gemm_otj.hxx)
   set(KGEMM_GEN_CMD ${CMAKE_HOME_DIRECTORY}/src/kernel/kgemm_gen.sh)
   set(KGEMM_GEN_SRC ${CMAKE_HOME_DIRECTORY}/src/kernel/elk_gemm_otj.hxx)
+  execute_process(COMMAND mkdir -p ${KGEMM_GEN_DIR})
+  configure_file(${KGEMM_GEN_CMD} ${BUILD_KGEMM_GEN_CMD} COPYONLY)
+  configure_file(${KGEMM_GEN_SRC} ${BUILD_KGEMM_GEN_SRC} COPYONLY)
   execute_process(
-    COMMAND mkdir -p ${KGEMM_GEN_DIR}
-    COMMAND ${KGEMM_GEN_CMD} ${KGEMM_GEN_SRC} ${KGEMM_GEN_DIR} ${CMAKE_CXX_COMPILER})
+    COMMAND ${BUILD_KGEMM_GEN_CMD} ${BUILD_KGEMM_GEN_SRC} ${KGEMM_GEN_DIR} ${CMAKE_CXX_COMPILER})
   file (GLOB __euler_gemm_kernel_source ${KGEMM_GEN_DIR}/*.cpp)
 endif()
 
