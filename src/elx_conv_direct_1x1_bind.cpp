@@ -75,12 +75,8 @@ Instance_elx_conv_direct_1x1_t::bind_execute_functions()
     }
   };
 
-  if (xopt_ == 0xa061 || xopt_ == 0xf061) {
-    bind_kernel(this->O, this->T, &ker_gemm_I_O_T_, false);
-    bind_kernel(this->O, this->Tr, &ker_gemm_I_O_Tr_, false);
-  } else if (xopt_ == 0xb061) {
-    bind_kernel(this->O, this->T, &ker_gemm_I_O_T_, false);
-  } else if (std::is_same<UserTypes, conv::FP32>::value) {
+  if (xopt_ != 0xa061  && xopt_ != 0xb061 && xopt_ != 0xf061
+      && std::is_same<UserTypes, conv::FP32>::value) {
     bind_fp32_kernel(this->O, this->T, &ker_fp32_gemm_I_O_T_, false);
     bind_fp32_kernel(this->O, this->Tr, &ker_fp32_gemm_I_O_Tr_, false);
   } else {
