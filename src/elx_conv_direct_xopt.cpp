@@ -20,6 +20,48 @@
 //
 namespace euler {
 
+
+Template_elx_conv_direct_t
+void Instance_elx_conv_direct_t::__execute_a060(
+    OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
+{
+  // input (blocked): t3*, ic4*, ic3, I2, ht*, S, wt*, T(Tr), S, V(Ir)
+  // input (nchw): t3*, ic4*, ic3, I2, V(Ir), ht*, S, wt*, T(Tr), S
+  // weights: oc4*, oc3, O2, ic4*, ic3, I2, V(Ir), V
+  // output:  t3*, oc4*, oc3, O2(O2r), ht*wt*, T(Tr), V
+  MD5(OutputType, aoutput, output, this->t3, this->oc4, this->oc3 * this->O2,
+      this->ht, this->ow * V);
+  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD3(TarrayType, atweights3, tweights_, this->ic4, this->oc4,
+      this->kh * this->kw * this->ic3 * this->oc3 * this->I2 * this->O2 * V * V);
+
+  if (is_first_run_) {
+    trans_weights_blocked_to_compact(tweights_, weights);
+  }
+
+  MD6(InputType, ainput, input, this->t3, this->ic4, this->ic3 * this->I2,
+      this->ht, this->hs, this->iw * V);
+
+  iter_each (_ic4, this->ic4) {
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+#pragma omp for nowait collapse(4)
+  iter_each (_t3, this->t3) {
+  iter_each (_oc4, this->oc4) {
+  iter_each (_ht, this->ht) {
+  iter_each (_wt, this->wt) {
+    MD3(InputType, ainput3, &md6(ainput, _t3, _ic4, 0, _ht, 0, 0), this->wt,
+        this->T * this->ws, V);
+    MD3(OutputType, aoutput3, &md5(aoutput, _t3, _oc4, 0, _ht, 0), this->wt,
+        this->T, V);
+    conv_a060_blocked_input(&md3(aoutput3, _wt, 0, 0),
+        &md3(ainput3, _wt, 0, 0), &md3(atweights3, _ic4, _oc4, 0),
+        &md2(abias, _oc4, 0), _ic4, _oc4, _ht, _wt);
+  }}}}}
+
+  if (inference_acc_)
+    is_first_run_ = false;
+}
+
 // nChw16c (padded) | nchw (compact) + OIhw16i16o -> nChw16c, Ir,Tr
 // kh|kw are odd
 // ih = oh, lp = rp = (kh-1)/2, hs=1

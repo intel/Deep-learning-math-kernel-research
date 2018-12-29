@@ -36,7 +36,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t<UserTypes> &dc)
   no_pad_ = this->lp == 0 && this->rp == 0 && this->tp == 0 && this->bp == 0;
 
   // t3, t2, (T, Tr)
-  if (xopt_ == 0xd060) {
+  if (xopt_ == 0xa060 || xopt_ == 0xd060) {
     this->t3 = this->n;
     this->ht = this->oh;
     this->wt = (this->ow + this->T - 1)/ this->T;
@@ -131,11 +131,11 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
     el_error("Unimplemented: oc4 > 1 for OC % V != 0");
   }
 
-  if (xopt_ == 0xd060) {
+  if (xopt_ == 0xa060 || xopt_ == 0xd060) {
     if ((this->input_fmt == nchw || input_is_bfmt_) && weights_is_bfmt_ && output_is_bfmt_)
       ;
     else
-      el_error("Unimplemented: 0xd060 support only nchw|blocked + blocked => blocked\n");
+      el_error("Unimplemented: ixa060|0xd060 support only nchw|blocked + blocked => blocked\n");
   } else if (!is_bfmt_ && (xopt_ != 0xa061 && xopt_ != 0xf061)) {
     el_error("Unimplemented: only a061, f061 mode support plain format\n");
   }
@@ -156,6 +156,7 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
   boutput_ = nullptr;
 
   switch (xopt_) {
+  case 0xa060:
   case 0xd060:
     tweights_size = this->kh * this->kw * this->IC * this->OC;
     break;
@@ -243,6 +244,41 @@ void Instance_elx_conv_direct_t::trans_weights_blocked_to_compact(
         = md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, _oV);
     }
   }}}}}}}}}}
+}
+
+
+Template_elx_conv_direct_t void
+Instance_elx_conv_direct_t::conv_a060_blocked_input(OutputType *output,
+    InputType *input, WeightsType *weights, BiasType *bias, int _ic4, int _oc4,
+    int _ht, int _wt)
+{
+  // input:   ic3*, I2, ht*, hs*, wt*, T, ws, V
+  // output:  oc3*, O2, ht*, wt*, T, V
+  MD2(InputType, ainput, input, this->ic3, this->I2 * this->ih * this->iw * V);
+  MD2(OutputType, aoutput, output, this->oc3,
+      this->O2 * this->ht * this->ow * V);
+  MD4(WeightsType, aweights, weights, this->kh * this->kw, this->oc3, this->ic3,
+      this->O2 * this->I2 * V * V);
+  MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
+
+  int khs = _ht == 0 ? 1 : 0;
+  int khe = _ht == this->ht - 1 ? this->kh - 1 : this->kh;
+  int kws = _wt == 0 ? 1 : 0;
+  int kwe = _wt == this->wt - 1 ? this->kw - 1 : this->kw;
+  assert(this->T > this->lp);
+  assert(this->Tr > this->rp);
+
+  iter_each (_oc3, this->oc3) {
+  iter_each (_ic3, this->ic3) {
+    int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
+    attr = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
+        ? set_attr(attr, relu_idx)
+        : attr;
+
+    ker_conv_(*this, &md2(aoutput, _oc3, 0),
+        &md2(ainput, _ic3, 0), &md4(aweights, 0, _oc3, _ic3, 0),
+        &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
+  }}
 }
 
 Template_elx_conv_direct_t

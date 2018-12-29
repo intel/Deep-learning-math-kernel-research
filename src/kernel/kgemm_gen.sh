@@ -30,9 +30,9 @@ namespace euler {
 #undef E
 #define E(O, T, r) \\
   gemm_kernel_binder::gemm_ker_cls<conv_impl::$dtype, \\
-      $V, $Vx, $I, $S, $F, O, T, r>::gemm
-  gemm_kernel_binder::kgemm<conv_impl::$dtype>
-      *gemm_kernel_binder::kgemm_${dtype}_${V}_${Vx}_${I}_${S}_${F}[8][32][2] =
+      $V, $Vx, $I, $S, $F, O, T, r>::$ktype
+  gemm_kernel_binder::k${ktype}<conv_impl::$dtype>
+      *gemm_kernel_binder::k${ktype}_${dtype}_${V}_${Vx}_${I}_${S}_${F}[8][32][2] =
   { // 8
     { // 32
       { E(1, 1,  0), E(1, 1, 1), },

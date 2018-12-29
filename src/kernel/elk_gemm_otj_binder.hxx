@@ -1,6 +1,25 @@
 #pragma once
 
 #if !defined(BUILD_KGEMM_TBL)
+#define DECL_KGEMM_TBL(type, V, Vx, I, S, F)                                   \
+  static kgemm<conv_impl::type>                                                \
+      *kgemm_##type##_##V##_##Vx##_##I##_##S##_##F[8][32][2]
+#define DECL_KCONV_TBL(type, V, Vx, I, S, F)                                   \
+  static kconv<conv_impl::type>                                                \
+      *kconv_##type##_##V##_##Vx##_##I##_##S##_##F[8][32][2]
+#else
+#define DECL_KGEMM_TBL(type, V, Vx, I, S, F)                                   \
+  __generate_kgemm_inst__ gemm type V Vx I S F
+#define DECL_KCONV_TBL(type, V, Vx, I, S, F)                                   \
+  __generate_kgemm_inst__ conv type V Vx I S F
+#endif
+
+#define LOOKUP_KGEMM_TBL(type, V, Vx, I, S, F, O, T, has_Ir)                   \
+  kgemm_##type##_##V##_##Vx##_##I##_##S##_##F[O - 1][T - 1][has_Ir]
+#define LOOKUP_KCONV_TBL(type, V, Vx, I, S, F, O, T, has_Ir)                   \
+  kconv_##type##_##V##_##Vx##_##I##_##S##_##F[O - 1][T - 1][has_Ir]
+
+#if !defined(BUILD_KGEMM_TBL)
 #include "el_intrin.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
@@ -18,19 +37,12 @@ struct gemm_kernel_binder {
   template <typename GarrayTypes>
   using kgemm
       = decltype(gemm_ker_cls<GarrayTypes, 1, 1, 1, 1, 1, 1, 1, false>::gemm);
+
+  template <typename GarrayTypes>
+  using kconv
+      = decltype(gemm_ker_cls<GarrayTypes, 1, 1, 1, 1, 1, 1, 1, false>::conv);
+
 #endif // BUILD_KGEMM_TBL
-
-#if !defined(BUILD_KGEMM_TBL)
-#define DECL_KGEMM_TBL(type, V, Vx, I, S, F)                                   \
-  static kgemm<conv_impl::type>                                                \
-      *kgemm_##type##_##V##_##Vx##_##I##_##S##_##F[8][32][2]
-#else
-#define DECL_KGEMM_TBL(type, V, Vx, I, S, F)                                   \
-  __generate_kgemm_inst__ gemm type V Vx I S F
-#endif
-
-#define LOOKUP_KGEMM_TBL(type, V, Vx, I, S, F, O, T, has_Ir)                   \
-  kgemm_##type##_##V##_##Vx##_##I##_##S##_##F[O - 1][T - 1][has_Ir]
 
   DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC);
   DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_CCD);
@@ -52,6 +64,9 @@ struct gemm_kernel_binder {
   DECL_KGEMM_TBL(INT8_F16b, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC);
   DECL_KGEMM_TBL(INT8_F16o, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC);
   DECL_KGEMM_TBL(INT8_F16ob, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC);
+
+  DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD);
+  //DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD);
 
 #if !defined(BUILD_KGEMM_TBL)
   // GarrayTypes->f32f32f32f32, used by WINO with f32 UserTypes
@@ -203,6 +218,26 @@ struct gemm_kernel_binder {
       if (S == 1)
         *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_CCD, O, T, has_Ir);
       break;
+    default:
+      break;
+    }
+  }
+
+
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  static inline void bind(int O, int T, kconv<conv_impl::FP32> **func)
+  {
+    switch (F) {
+    case GKF_DCD:
+      if (S == 1)
+        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, has_Ir);
+      break;
+#if 0
+    case GKF_ECD:
+      if (S == 1)
+        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T, has_Ir);
+      break;
+#endif
     default:
       break;
     }

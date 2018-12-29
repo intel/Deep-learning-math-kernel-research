@@ -29,9 +29,14 @@ class elx_conv_direct_t : public elx_conv_t<UserTypes> {
   virtual void execute(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
 
   private:
+  void __execute_a060(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
   void __execute_d060(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
 
   void trans_weights_blocked_to_compact(TarrayType *tweights, WeightsType *weights);
+
+
+  void conv_a060_blocked_input(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
+ 
   void gemm_d060_blocked_input(OutputType *toutput, InputType *tinput, WeightsType *tweights, BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
   void gemm_d060_nchw_input(OutputType *toutput, InputType *tinput, WeightsType *tweights, BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
 
@@ -51,6 +56,8 @@ class elx_conv_direct_t : public elx_conv_t<UserTypes> {
   gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_gemm_right_I_O_Tr_;
   gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_gemm_right_IrO_T_;
   gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_gemm_right_IrO_Tr_;
+
+  gemm_kernel_binder::kconv<conv_impl::FP32> *ker_conv_;
 
   void (elx_conv_direct_t::*execute_opt_)(OutputType *, InputType *, WeightsType *, BiasType *);
 
