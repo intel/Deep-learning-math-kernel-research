@@ -66,7 +66,7 @@ struct gemm_kernel_binder {
   DECL_KGEMM_TBL(INT8_F16ob, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC);
 
   DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD);
-  //DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD);
+  DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD);
 
 #if !defined(BUILD_KGEMM_TBL)
   // GarrayTypes->f32f32f32f32, used by WINO with f32 UserTypes
@@ -232,12 +232,10 @@ struct gemm_kernel_binder {
       if (S == 1)
         *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, has_Ir);
       break;
-#if 0
     case GKF_ECD:
       if (S == 1)
         *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T, has_Ir);
       break;
-#endif
     default:
       break;
     }

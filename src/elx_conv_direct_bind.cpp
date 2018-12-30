@@ -42,7 +42,11 @@ Instance_elx_conv_direct_t::bind_execute_functions()
       gemm_kernel_binder::kconv<conv_impl::FP32> **func, bool has_Ir) {
     switch (xopt_) {
     case (0xa060):
-      BIND_KERNEL(1, GKF_DCD);
+      if (this->input_fmt == nchw) {
+        BIND_KERNEL(1, GKF_ECD);
+      } else {
+        BIND_KERNEL(1, GKF_DCD);
+      }
       break;
     default:
       el_error("Unknown xopt");

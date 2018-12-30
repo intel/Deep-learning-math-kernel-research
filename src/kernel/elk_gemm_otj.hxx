@@ -1262,6 +1262,23 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   // FP32 convolution kernel
+
+  // overload load_input: support only nchw or blocked format
+  template <int P>
+  static inline __m<V> op_load_input(elx_conv_params_t &xc, InputType *input,
+      const int _ih, const int _iw, const int _V, const int _P, const int _T)
+  {
+    if (F_traits<F>::is_nchw_input) {
+      MD4(InputType, ainput4, input, V / P, P, xc.ih, xc.iw);
+      MD3(InputType, ainput3, &md4(ainput4, _V, _P, _ih, _iw), xc.wt, T, S);
+      return _mm<V>::set1_ps(md3(ainput3, 0, _T, 0));
+    } else {
+      MD3(InputType, ainput3, input, xc.ih, xc.iw, V); // blocked
+      MD4(InputType, ainput4, &md3(ainput3, _ih, _iw, 0), T, S, V / P, P);
+      return _mm<V>::set1_ps(md4(ainput4, _T, 0, _V, _P));
+    }
+  }
+
   // TODO: Currently only 3x3, J=1 support
   template <int JO, int P>
   static inline typename std::enable_if<P == 1, void>::type
@@ -1280,7 +1297,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     }
 
     // TODO: non-blocked handling
-    MD4(InputType, ainput, input, xc.I2, xc.ih, xc.iw, V); // blocked
+    MD2(InputType, ainput, input, xc.I2, xc.ih * xc.iw * V); // blocked or nchw
     MD3(WeightsType, aweights, weights, xc.kh, xc.kw, xc.oc3 * xc.ic3 * xc.O1 * xc.I2 * V * O * V); // compact
     MD2(OutputType, aoutput, output, JO, xc.oh * xc.ow * V); // blocked
 
@@ -1327,7 +1344,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
             unroll_for(_T, T) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
             }
@@ -1343,7 +1360,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
             unroll_from_to(_T, 1, T) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
             }
@@ -1359,7 +1376,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
             unroll_for(_T, T - 1) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
             }
@@ -1379,7 +1396,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
             unroll_for(_T, T) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
             }
@@ -1395,7 +1412,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
             unroll_from_to(_T, 1, T) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
             }
@@ -1411,7 +1428,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
             unroll_for(_T, T - 1) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
             }
@@ -1444,7 +1461,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     }
 
     // TODO: non-blocked handling
-    MD4(InputType, ainput, input, xc.I2, xc.ih, xc.iw, V); // blocked
+    MD2(InputType, ainput, input, xc.I2, xc.ih * xc.iw * V); // blocked or nchw
     MD3(WeightsType, aweights, weights, xc.kh, xc.kw, xc.oc3 * xc.ic3 * xc.O1 * xc.I2 * V * O * V); // compact
     MD2(OutputType, aoutput, output, JO, xc.oh * xc.ow * V); // blocked
 
@@ -1495,7 +1512,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 1, _O);
             unroll_for(_T, T) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
               unroll_for(_O, JO)
                 mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
             }
@@ -1505,7 +1522,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
             unroll_for(_T, T) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 1, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 1, _T);
               unroll_for(_O, JO)
                 mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
             }
@@ -1520,7 +1537,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
           unroll_for(_T, T) {
             __m<V> mmbcst = op_load_input<1>(
-                xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
             unroll_for(_O, JO)
               mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
@@ -1542,7 +1559,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 1, _O);
             unroll_from_to(_T, 1, T) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
               unroll_for(_O, JO)
                 mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
             }
@@ -1552,7 +1569,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
             unroll_from_to(_T, 1, T) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 1, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 1, _T);
               unroll_for(_O, JO)
                 mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
             }
@@ -1567,7 +1584,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
           unroll_from_to(_T, 1, T) {
             __m<V> mmbcst = op_load_input<1>(
-                xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
             unroll_for(_O, JO)
               mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
@@ -1589,7 +1606,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 1, _O);
             unroll_for(_T, T - 1) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
               unroll_for(_O, JO)
                 mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
             }
@@ -1599,7 +1616,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
             unroll_for(_T, T - 1) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 1, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 1, _T);
               unroll_for(_O, JO)
                 mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
             }
@@ -1614,7 +1631,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
           unroll_for(_T, T - 1) {
             __m<V> mmbcst = op_load_input<1>(
-                xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
             unroll_for(_O, JO)
               mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
@@ -1646,7 +1663,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     }
 
     // TODO: non-blocked handling
-    MD4(InputType, ainput, input, xc.I2, xc.ih, xc.iw, V); // blocked
+    MD2(InputType, ainput, input, xc.I2, xc.ih * xc.iw * V); // blocked or nchw
     MD3(WeightsType, aweights, weights, xc.kh, xc.kw, xc.oc3 * xc.ic3 * xc.O1 * xc.I2 * V * O * V); // compact
     MD2(OutputType, aoutput, output, JO, xc.oh * xc.ow * V); // blocked
 
@@ -1699,7 +1716,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 2, _O);
             unroll_for(_T, T) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
             }
@@ -1709,7 +1726,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 3, _O);
             unroll_for(_T, T) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 1, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 1, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
             }
@@ -1719,7 +1736,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
             unroll_for(_T, T) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 2, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 2, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
             }
@@ -1729,7 +1746,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 1, _O);
             unroll_for(_T, T) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 3, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 3, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
             }
@@ -1744,7 +1761,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
           unroll_for(_T, T) {
             __m<V> mmbcst = op_load_input<1>(
-                xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
             unroll_for(_O, JO) mmout[_O][_T] =
                 _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
@@ -1768,7 +1785,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 2, _O);
             unroll_from_to(_T, 1, T) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
             }
@@ -1778,7 +1795,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 3, _O);
             unroll_from_to(_T, 1, T) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 1, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 1, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
             }
@@ -1788,7 +1805,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
             unroll_from_to(_T, 1, T) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 2, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 2, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
             }
@@ -1798,7 +1815,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 1, _O);
             unroll_from_to(_T, 1, T) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 3, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 3, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
             }
@@ -1813,7 +1830,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
           unroll_from_to(_T, 1, T) {
             __m<V> mmbcst = op_load_input<1>(
-                xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
             unroll_for(_O, JO) mmout[_O][_T] =
                 _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
@@ -1837,7 +1854,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 2, _O);
             unroll_for(_T, T - 1) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
             }
@@ -1847,7 +1864,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 3, _O);
             unroll_for(_T, T - 1) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 1, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 1, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
             }
@@ -1857,7 +1874,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
             unroll_for(_T, T - 1) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 2, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 2, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
             }
@@ -1867,7 +1884,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
                 xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 1, _O);
             unroll_for(_T, T - 1) {
               __m<V> mmbcst = op_load_input<P>(
-                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 3, _T);
+                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 3, _T);
               unroll_for(_O, JO) mmout[_O][_T] =
                   _mm<V>::fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
             }
@@ -1881,7 +1898,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
           unroll_for(_T, T - 1) {
             __m<V> mmbcst = op_load_input<1>(
-                xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+                xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
             unroll_for(_O, JO) mmout[_O][_T] =
                 _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
           }
@@ -1894,7 +1911,6 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       unroll_for (_T, T)
         op_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T, attr);
     }
-
   }
 
   template <int O = O, int T = T> static inline

@@ -34,8 +34,7 @@ class elx_conv_direct_t : public elx_conv_t<UserTypes> {
 
   void trans_weights_blocked_to_compact(TarrayType *tweights, WeightsType *weights);
 
-
-  void conv_a060_blocked_input(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
+  void conv_a060(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
  
   void gemm_d060_blocked_input(OutputType *toutput, InputType *tinput, WeightsType *tweights, BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
   void gemm_d060_nchw_input(OutputType *toutput, InputType *tinput, WeightsType *tweights, BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);

@@ -246,17 +246,15 @@ void Instance_elx_conv_direct_t::trans_weights_blocked_to_compact(
   }}}}}}}}}}
 }
 
-
 Template_elx_conv_direct_t void
-Instance_elx_conv_direct_t::conv_a060_blocked_input(OutputType *output,
+Instance_elx_conv_direct_t::conv_a060(OutputType *output,
     InputType *input, WeightsType *weights, BiasType *bias, int _ic4, int _oc4,
     int _ht, int _wt)
 {
-  // input:   ic3*, I2, ht*, hs*, wt*, T, ws, V
+  // input:   ic3*, I2, V, ht*, hs*, wt*, T, ws
   // output:  oc3*, O2, ht*, wt*, T, V
-  MD2(InputType, ainput, input, this->ic3, this->I2 * this->ih * this->iw * V);
-  MD2(OutputType, aoutput, output, this->oc3,
-      this->O2 * this->ht * this->ow * V);
+  MD2(InputType, ainput, input, this->ic3, this->I2 * V * this->ih * this->iw);
+  MD2(OutputType, aoutput, output, this->oc3, this->O2 * this->ht * this->ow * V);
   MD4(WeightsType, aweights, weights, this->kh * this->kw, this->oc3, this->ic3,
       this->O2 * this->I2 * V * V);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
@@ -268,14 +266,13 @@ Instance_elx_conv_direct_t::conv_a060_blocked_input(OutputType *output,
   assert(this->T > this->lp);
   assert(this->Tr > this->rp);
 
-  iter_each (_oc3, this->oc3) {
-  iter_each (_ic3, this->ic3) {
+  iter_each(_oc3, this->oc3) {
+  iter_each(_ic3, this->ic3) {
     int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
     if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
       if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
       if (this->with_relu) attr = set_attr(attr, relu_idx);
     }
-
     ker_conv_(*this, &md2(aoutput, _oc3, 0),
         &md2(ainput, _ic3, 0), &md4(aweights, 0, _oc3, _ic3, 0),
         &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
