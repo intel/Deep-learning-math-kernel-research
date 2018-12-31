@@ -32,6 +32,7 @@ template <typename UserTypes> eld_conv_t<UserTypes>::eld_conv_t()
   partition = { 1, 1 };
   streaming_hint = { 0, 0, 0 };
   format_as_blocked = { false, false, false };
+  winograd_tinput_quantization = { 0.0f, NAN, NAN };
 }
 
 template <typename UserTypes> eld_conv_t<UserTypes>::~eld_conv_t()
@@ -149,22 +150,22 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
 
         using TarrayTypes = conv_impl::FP32_F16wob;
         switch (tile_size) {
-        case 4:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 5:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 5, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 6:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 6, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 7:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 7, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
+        //case 4:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
+        //case 5:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 5, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
+        //case 6:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 6, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
+        //case 7:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 7, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
         default:
           el_error("Unimplemented tile size");
           break;
@@ -173,22 +174,22 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
           && std::is_same<UserTypes, conv::FP32>::value) {
         using TarrayTypes = conv_impl::FP32_F16wo;
         switch (tile_size) {
-        case 4:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 5:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 5, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 6:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 6, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 7:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 7, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
+        //case 4:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
+        //case 5:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 5, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
+        //case 6:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 6, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
+        //case 7:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 7, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
         default:
           el_error("Unimplemented tile size");
           break;
@@ -197,22 +198,22 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
           && std::is_same<UserTypes, conv::FP32>::value) {
         using TarrayTypes = conv_impl::FP32_F16o;
         switch (tile_size) {
-        case 4:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 5:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 5, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 6:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 6, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 7:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 7, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
+        //case 4:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
+        //case 5:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 5, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
+        //case 6:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 6, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
+        //case 7:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 7, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
         default:
           el_error("Unimplemented tile size");
           break;
@@ -221,22 +222,22 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
           && std::is_same<UserTypes, conv::FP16>::value) {
         using TarrayTypes = conv_impl::FP32_F16b;
         switch (tile_size) {
-        case 4:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 5:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 5, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 6:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 6, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 7:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 7, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
+        //case 4:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
+        //case 5:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 5, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
+        //case 6:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 6, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
+        //case 7:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 7, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
         default:
           el_error("Unimplemented tile size");
           break;
@@ -256,10 +257,10 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
           xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 6, 3, 16,
               ISA_SKX_AVX512>(*this);
           break;
-        case 7:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 7, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
+        //case 7:
+        //  xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 7, 3, 16,
+        //      ISA_SKX_AVX512>(*this);
+        //  break;
         default:
           el_error("Unimplemented tile size");
           break;

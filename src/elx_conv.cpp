@@ -60,6 +60,10 @@ elx_conv_t<UserTypes>::elx_conv_t(eld_conv_t<UserTypes> &dc)
   this->input_as_blocked = dc.format_as_blocked.input;
   this->weights_as_blocked = dc.format_as_blocked.weights;
   this->output_as_blocked = dc.format_as_blocked.output;
+
+  this->input_avg = dc.winograd_tinput_quantization.avg;
+  this->tinput_min = dc.winograd_tinput_quantization.tmin;
+  this->tinput_max = dc.winograd_tinput_quantization.tmax;
 }
 
 template <typename UserTypes>

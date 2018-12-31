@@ -72,8 +72,8 @@ namespace test {
 #define RAND() rand_r(&seed)
 
     std::default_random_engine gen;
-    std::normal_distribution<float> dInput(-4.0, 20.0);
-    std::normal_distribution<float> dWeights(-1.0, 1.0);
+    std::normal_distribution<float> dInput(20.0, 2.001);
+    std::normal_distribution<float> dWeights(0.0, 2.301);
 
 // #pragma omp parallel
     {
@@ -88,10 +88,8 @@ namespace test {
         if (input != nullptr) {
 #pragma omp parallel for
           for (size_t i = 0; i < desc.sizes.input; i++) {
-            (*input)[i]
-                = (fp16_mode || f16c_opt)
-                ? dInput(gen)
-                : RAND() % 20 - 4;
+            (*input)[i] = dInput(gen);
+            if ((*input)[i] < 0) (*input)[i] = 0.0f;
           }
 
           if (fp16_mode && (input1 != nullptr)) {
@@ -124,12 +122,7 @@ namespace test {
           if (desc.with_relu) {
 #pragma omp parallel for
             for (size_t i = 0; i < desc.sizes.weights; i++) {
-              (*weights)[i]
-                  = (fp16_mode || f16c_opt)
-                  ? dWeights(gen)
-                  : -RAND() % 32;
-              if (i % 3 == 1)
-                (*weights)[i] = -(*weights)[i];
+              (*weights)[i] = dWeights(gen);
             }
           } else {
 #pragma omp parallel for
@@ -270,7 +263,7 @@ namespace test {
 
 #define MAX_PRINT_ERRORS (20)
     size_t errors = 0;
-    double acc = desc.with_relu ? 1.0 : 1.e-5;
+    double acc = desc.with_relu ? 1.0 : 1.e-2;
 
 #pragma omp parallel for collapse(3)
     iter_each (_n, dims.n) {

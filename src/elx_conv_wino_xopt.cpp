@@ -59,6 +59,7 @@ void Instance_elx_conv_wino_t::__execute_a061(
   MD3(OutputType, aoutput, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(TscaleType, ashift, weights_shift_, this->oc4, this->oc3 * this->O2 * V);
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
@@ -82,7 +83,7 @@ void Instance_elx_conv_wino_t::__execute_a061(
       gemm(&md2(atoutput2, ithr, 0), &md2(atinput2, ithr, 0),
           &md2(atweights2, _oc4, 0), _t2, Tz);
       trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
-          &md2(abias, _oc4, 0), _t2, Tz);
+          &md2(abias, _oc4, 0), &md2(ashift, _oc4, 0), _t2, Tz);
     }}
   }
   if (inference_acc_)
@@ -236,7 +237,7 @@ void Instance_elx_conv_wino_t::__execute_a071(
           &md3(atweights3, _oc4, _ic4, 0), _t2, Tz, _ic4);
       if (_ic4 == this->ic4 - 1)
         trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput3, _oc4, 0),
-            &md2(abias, _oc4, 0), _t2, Tz);
+            &md2(abias, _oc4, 0), nullptr, _t2, Tz);
     }}
   }
 
@@ -285,7 +286,7 @@ void Instance_elx_conv_wino_t::__execute_a073(
       gemm_non_acc(&md2(atoutput2, ithr, 0), &md2(atinput2, ithr, 0),
           &md3(atweights3, _oc4, _ic4, 0), _t2, Tz, _ic4);
       trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
-          &md2(abias, _oc4, 0), _t2, Tz, _ic4);
+          &md2(abias, _oc4, 0), nullptr, _t2, Tz, _ic4);
     }}
   }
 
@@ -329,7 +330,7 @@ void Instance_elx_conv_wino_t::__execute_a07b(
       gemm_non_acc(&md2(atoutput2, ithr, 0), &md2(atinput2, ithr, 0),
                    &md2(atweights2, ithr, 0), _t2, Tz, _ic4);
       trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
-                   &md2(abias, _oc4, 0), _t2, Tz, _ic4);
+                   &md2(abias, _oc4, 0), nullptr, _t2, Tz, _ic4);
 
       last_oc4 = _oc4; last_ic4 = _ic4; last_t2 = _t2;
     }}
@@ -375,7 +376,7 @@ void Instance_elx_conv_wino_t::__execute_a079(
            &md2(atweights2, ithr, 0), _t2, Tz, _ic4);
       if (_ic4 == this->ic4 - 1)
         trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput3, _oc4, 0),
-                     &md2(abias, _oc4, 0), _t2, Tz, _ic4);
+                     &md2(abias, _oc4, 0), nullptr, _t2, Tz, _ic4);
 
       last_oc4 = _oc4; last_ic4 = _ic4; last_t2 = _t2;
     }}
@@ -503,6 +504,7 @@ void Instance_elx_conv_wino_t::__execute_a161(
   MD3(OutputType, aoutput, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  MD2(TscaleType, ashift, weights_shift_, this->oc4, this->oc3 * this->O2 * V);
 
   MD2(uint8_t, atinput2_u8, tinput_u8_, mthr_,
       A * A * this->T * this->IC);
@@ -514,6 +516,43 @@ void Instance_elx_conv_wino_t::__execute_a161(
       this->oc4, this->oc3 * this->ic3 * this->O2 * V * A * A);
   MD2(TscaleType, aweights_qt_factor, tweights_qt_factor_,
       this->oc4, this->oc3 * this->ic3 * this->O2 * V * A * A);
+
+  // experiment: average of input
+  if (is_first_run_) {
+    float sum = 0.0f;
+    iter_each (_i, this->n * this->ic * this->ih * this->iw)
+      sum += input[_i];
+    float avg = sum / (this->n * this->ic * this->ih * this->iw);
+    this->input_avg = avg;
+printf("input avg=%f\n", avg);
+  }
+
+  // experiment: min-max of tinput
+  if (is_first_run_) {
+    __m512 mmax = _mm512_set1_ps(std::numeric_limits<float>::min()),
+           mmin = _mm512_set1_ps(std::numeric_limits<float>::max());
+    iter_each (_t2, this->t2) {
+    iter_each (_oc4, this->oc4) {
+      int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+      MD6(TinputType, atinput, tinput_, A, A, this->ic3, this->I2, Tz, V);
+
+      trans_input(tinput_, input, _t2, Tz);
+
+      iter_each (_wA, A) {
+      iter_each (_hA, A) {
+      iter_each (_ic3, this->ic3) {
+      iter_each (_I2, this->I2) {
+      iter_each (_T, Tz) {
+        __m512 v = *(__m512 *)&md6(atinput, _wA, _hA, _ic3, _I2, _T, 0);
+        mmin = _mm512_min_ps(mmin, v);
+        mmax = _mm512_max_ps(mmax, v);
+      }}}}}
+    }}
+    this->tinput_min = _mm512_reduce_min_ps(mmin);
+    this->tinput_max = _mm512_reduce_max_ps(mmax);
+    global_minmax_ = true;
+printf("tmax=%f, tmin=%f\n", this->tinput_max, this->tinput_min);
+  }
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
@@ -545,7 +584,7 @@ void Instance_elx_conv_wino_t::__execute_a161(
           &md2(atinput_qt_scale, ithr, 0),
           &md2(atweights_qt_scale, _oc4, 0), &md2(aweights_qt_factor, _oc4, 0));
       trans_output(&md3(aoutput, 0, _oc4, 0), tbuf,
-          &md2(abias, _oc4, 0), _t2, Tz);
+          &md2(abias, _oc4, 0), &md2(ashift, _oc4, 0), _t2, Tz);
     }}
   }
   if (inference_acc_)
@@ -610,7 +649,7 @@ void Instance_elx_conv_wino_t::__execute_a173(
           &md3(aweights_qt_factor, _oc4, _ic4, 0),
           _ic4);
       trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
-          &md2(abias, _oc4, 0), _t2, Tz, _ic4);
+          &md2(abias, _oc4, 0), nullptr, _t2, Tz, _ic4);
     }}
   }
 

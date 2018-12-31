@@ -335,10 +335,10 @@ private:
   void trans_inputa(TinputType *tinput, InputType *input, int _t2, int _wA, int Tz);
 
   inline void __trans_output_plain(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int _t2, int Tz, int _ic4);
+      BiasType *bias, TscaleType *shift, int _t2, int Tz, int _ic4);
   inline void __trans_output_blocked(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int _t2, int Tz, int _ic4);
-  void trans_output(OutputType *output, ToutputType *toutput, BiasType *bias,
+      BiasType *bias, TscaleType *shift, int _t2, int Tz, int _ic4);
+  void trans_output(OutputType *output, ToutputType *toutput, BiasType *bias, TscaleType *shift,
       int _t2, int Tz, int _ic4 = -1);
 
   inline void __trans_output_plain(OutputType *output, ToutputType *toutput,
@@ -456,6 +456,8 @@ private:
   bool weights_as_bfmt_;
   bool output_as_bfmt_;
   bool tweights_preprocessed_;
+  bool global_minmax_; // int8-gemm
+
   int attr_;
   int mthr_;
   size_t tweights_size_;
@@ -473,6 +475,7 @@ private:
   size_t tweights_qt_scale_size_;
   size_t tweights_qt_factor_size_;
   size_t tweights_ci_size_;
+  size_t weights_shift_size_;
   void *workspace_;
   void *scratch_;
 
@@ -491,6 +494,7 @@ private:
   TscaleType *tweights_qt_scale_;
   TscaleType *tweights_qt_factor_;
   TscaleType *tweights_ci_;
+  TscaleType *weights_shift_;
 
   int hOA_end_;
   int wOA_end_;
@@ -632,31 +636,31 @@ template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 7, 3, 16, ISA
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 4, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 5, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 6, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 7, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 7, 3, 16, ISA_SKX_AVX512>;
 
 // fp32-u8s8f16
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16o, float, 4, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16o, float, 5, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16o, float, 6, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16o, float, 7, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16o, float, 4, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16o, float, 5, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16o, float, 6, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16o, float, 7, 3, 16, ISA_SKX_AVX512>;
 
 // fp32-f32f16f16
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16wo, float, 4, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16wo, float, 5, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16wo, float, 6, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16wo, float, 7, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16wo, float, 4, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16wo, float, 5, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16wo, float, 6, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16wo, float, 7, 3, 16, ISA_SKX_AVX512>;
 
 // fp16-u8s8f32
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16b, float, 4, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16b, float, 5, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16b, float, 6, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16b, float, 7, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16b, float, 4, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16b, float, 5, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16b, float, 6, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16b, float, 7, 3, 16, ISA_SKX_AVX512>;
 
 // fp16-f32f16f16
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, float, 4, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, float, 5, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, float, 6, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, float, 7, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, float, 4, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, float, 5, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, float, 6, 3, 16, ISA_SKX_AVX512>;
+//template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, float, 7, 3, 16, ISA_SKX_AVX512>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_WINO_HPP__

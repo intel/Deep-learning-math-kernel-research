@@ -172,9 +172,9 @@ class convolution_winograd_kernel
   static void trans_output(
       elx_conv_t<UserTypes>& xc,
       OutputType* output, TrOpType atoutput[A][A][V],
-      BiasType *bias, int hOA_end, int wOA_end) {
+      BiasType *bias, TrOpType *shift, int hOA_end, int wOA_end) {
     super::template __trans_output<conditions...>(
-        xc, output, atoutput, bias, hOA_end, wOA_end);
+        xc, output, atoutput, bias, shift, hOA_end, wOA_end);
   }
 
   template <bool ...conditions>

@@ -1,5 +1,6 @@
 #include <string.h>
 #include <float.h>
+#include <math.h>
 #include "el_intrin.hpp"
 #include "el_utils.hpp"
 #include "el_def.hpp"
@@ -23,13 +24,22 @@ const unsigned DUP_I   = 0x1;
 const unsigned DUP_O   = 0x2;
 const unsigned DUP_W   = 0x8;
 
-const float INT8GEMM_TWT_QTSCALE = 127.0;
-const float INT8GEMM_TIN_MIN_MAX_QTSCALE = 127.0;
+const float INT8GEMM_TWT_QTSCALE = 127.0f;
+const float INT8GEMM_TIN_MIN_MAX_QTSCALE_T = 127.0f;
+const float INT8GEMM_TIN_MIN_MAX_QTSCALE_T4 = 157.0f;
+const float INT8GEMM_TIN_MIN_MAX_QTSCALE_T5 = 177.0f;
+const float INT8GEMM_TIN_MIN_MAX_QTSCALE_T6 = 197.0f;
 
 Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
     eld_conv_t<UserTypes> &dc)
     : elx_conv_t<UserTypes>(dc)
 {
+  if (std::isunordered(this->input_avg, 1.0f) ||
+      std::isunordered(this->tinput_min, 1.0f) ||
+      std::isunordered(this->tinput_max, 1.0f)) {
+    global_minmax_ = false;
+  }
+
   // TODO: error when V!=16 && fmt=OIhw16i16o
   xopt_ = this->execution_mode;
 
@@ -138,7 +148,8 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   size_t binput_size = 0, bweights_size = 0, boutput_size = 0;
   size_t tinput_u8_size = 0, tinput_qt_scale_size = 0,
       tinput_qt_factor_size = 0, tinput_max_abs_size = 0, tweights_s8_size = 0,
-      tweights_qt_scale_size = 0, tweights_qt_factor_size = 0, tweights_ci_size = 0;
+      tweights_qt_scale_size = 0, tweights_qt_factor_size = 0, tweights_ci_size = 0,
+      weights_shift_size = 0;
 
   stream_in_ = this->streaming_input
       ? (this->streaming_input == STORE_STREAMING)
@@ -203,6 +214,7 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   tweights_qt_scale_ = nullptr;
   tweights_qt_factor_ = nullptr;
   tweights_ci_ = nullptr;
+  weights_shift_ = nullptr;
 
   switch (xopt_) {
   case 0xa000:
@@ -219,6 +231,7 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
     tinput_size = A * A * this->IC * this->T * mthr_ * sizeof(TinputType);
     toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
+    weights_shift_size = this->OC * sizeof(TscaleType);
     break;
   case 0xa071:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
@@ -272,6 +285,7 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
     tweights_qt_scale_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType);
     tweights_qt_factor_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType); // * this->ic4
     tweights_ci_size = this->OC * sizeof(TscaleType);
+    weights_shift_size = this->OC * sizeof(TscaleType);
     break;
   case 0xa173:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
@@ -310,10 +324,11 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   tweights_qt_scale_size_ = tweights_qt_scale_size > 0 ? alignup(tweights_qt_scale_size, align) : 0;
   tweights_qt_factor_size_ = tweights_qt_factor_size > 0 ? alignup(tweights_qt_factor_size, align) : 0;
   tweights_ci_size_ = tweights_ci_size > 0 ? alignup(tweights_ci_size, align) : 0;
+  weights_shift_size_ = weights_shift_size > 0 ? alignup(weights_shift_size, align) : 0;
 
   workspace_ = nullptr, scratch_ = nullptr;
   size_t workspace_size = tweights_size_ + tweights_s8_size_
-      + tweights_qt_scale_size_ + tweights_qt_factor_size_ + tweights_ci_size_;
+      + tweights_qt_scale_size_ + tweights_qt_factor_size_ + tweights_ci_size_ + weights_shift_size;
   size_t scratch_size = tinput_size_ + toutput_size_ + toutputa_size_
       + binput_size_ + bweights_size_ + boutput_size_ + tinput_u8_size_
       + tinput_qt_scale_size_ + tinput_qt_factor_size_ + tinput_max_abs_size_;
@@ -353,6 +368,7 @@ void Instance_elx_conv_wino_t::set_trans_buffers()
     tweights_qt_factor_ = (TscaleType *)((char *)tweights_qt_scale_ + tweights_qt_scale_size_);
     tweights_ci_ = (TscaleType *)((char *)tweights_qt_factor_ + tweights_qt_factor_size_);
     tweights_s8_ = (int8_t *)((char *)tweights_ci_ + tweights_ci_size_);
+    weights_shift_ = (TscaleType *)((char *)tweights_s8_ + tweights_s8_size_);
   } else {
     tweights_ = (TweightsType *)galloc::get();
     tinput_ = (TinputType *)((char *)tweights_ + tweights_size_);
@@ -872,6 +888,23 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
             md9(atweights_qt_scale, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _O, _oV) / INT8GEMM_TWT_QTSCALE;
     }
   }}}}}}}}
+
+  // weights shift
+  MD6(WeightsType, aweights6, weights, this->oc2, this->ic2, this->kh, this->kw, V, V);
+  MD2(TscaleType, aweights_shift, weights_shift_, this->oc2, V);
+#pragma omp for nowait schedule(static)
+  iter_each (_oc2, this->oc2) {
+    __m<V> s = _mm<V>::setzero_ps();
+    __m<V> S = _mm<V>::set1_ps(this->input_avg);
+    iter_each (_ic2, this->ic2) {
+    iter_each (_hK, K) {
+    iter_each (_wK, K) {
+    iter_each (_V, V) {
+      s += *(__m<V> *)&md6(aweights6, _oc2, _ic2, _hK, _wK, _V, 0);
+    }}}}
+    s *= S;
+    _mm512_store_ps(&md2(aweights_shift, _oc2, 0), s);
+  }
 }
 
 Template_elx_conv_wino_t
@@ -1463,6 +1496,7 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
     TinputType * __restrict tinput, InputType * __restrict input, int _t2, int Tz)
 {
   _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
+
   MD8(InputType, ainput, input, this->n,
       this->ic4, this->ic3, this->I2, this->Vx, this->ih, this->iw, V);
   // 4i,V temporarily here for store AVX instruction
@@ -1474,10 +1508,69 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
   auto _n = res.quot;
   auto _t_off = res.rem;
 
+  if (global_minmax_) {
+    auto INT8GEMM_TIN_MIN_MAX_QTSCALE =
+        A == 4 ? INT8GEMM_TIN_MIN_MAX_QTSCALE_T4
+               : A == 5 ? INT8GEMM_TIN_MIN_MAX_QTSCALE_T5
+                        : INT8GEMM_TIN_MIN_MAX_QTSCALE_T6;
+printf("QT=%f\n", INT8GEMM_TIN_MIN_MAX_QTSCALE);
+    float max = this->tinput_max, min = this->tinput_min;
+    float fscale = (max - min) / INT8GEMM_TIN_MIN_MAX_QTSCALE;
+    auto mmin = _mm<V>::set1_ps(min);
+    auto mscale = _mm<V>::set1_ps(INT8GEMM_TIN_MIN_MAX_QTSCALE / (max - min));
+    alignas(64) TrOpType aout[A][A][V];
+
+    iter_each (_ic3, this->ic3) {
+    iter_each (_I2, this->I2) {
+    iter_each (_Vx, this->Vx) {
+    input_tile_iter<A, K> t2spati_o(_n, _t_off, this->ht, this->wt,
+        this->ih, this->iw, this->tp, this->lp);
+    iter_each (_T, Tz) {
+      auto _ih = t2spati_o.anchor_t_;
+      auto _iw = t2spati_o.anchor_l_;
+
+      InputType *in = &md8(ainput, t2spati_o.n_, 0, _ic3, _I2, _Vx, _ih, _iw, 0);
+      if (!t2spati_o.is_border())
+        ker_trans_input_(*this, aout, in, 0, A - 1, 0, A - 1);
+      else
+        ker_trans_input0_(*this, aout, in,
+            t2spati_o.t_, t2spati_o.d_, t2spati_o.l_, t2spati_o.r_);
+
+      ++ t2spati_o;
+
+      if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
+          && std::is_same<TinputType, float>::value) {
+        iter_each (_wA, A) {
+        iter_each (_hA, A) {
+          // quant
+          auto f32 = *((__m<V> *)&aout[_wA][_hA][0]);
+          f32 = (f32 - mmin) * mscale;
+          // convert to u8
+          __i<V> u32 = _mm<V>::cvt_roundps_epu32(f32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
+          __m128i u8 = _mm<V>::cvtusepi32_epi8(u32);
+          // store
+          _mm_store_si128((__m128i *)&md7(atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), u8);
+        }}
+      }
+    }}}}
+
+    // TODO:
+    iter_each (_ic3, this->ic3) {
+    iter_each (_wA, A) {
+    iter_each (_hA, A) {
+    iter_each (_T, Tz) {
+      md5(atinput_qt_scale, _ic3, _wA, _hA, 0, _T) = fscale;
+      md5(atinput_qt_scale, _ic3, _wA, _hA, 1, _T) = min;
+    }}}}
+
+    return;
+  }
+
   iter_each(_ic3, this->ic3) {
     input_tile_iter<A, K> t2spati_o(_n, _t_off, this->ht, this->wt, this->ih,
                                     this->iw, this->tp, this->lp);
     iter_each (_T, Tz) {
+      auto INT8GEMM_TIN_MIN_MAX_QTSCALE = INT8GEMM_TIN_MIN_MAX_QTSCALE_T;
       alignas(64) TinputType mmax[A][A][V];
       alignas(64) TinputType mmin[A][A][V];
       bool flush = true;
@@ -2056,6 +2149,7 @@ void Instance_elx_conv_wino_t::trans_input_quantization(
   MD2(TscaleType, atinput_qt_scale2, tinput_qt_scale, this->t2, A * A * this->ic3 * 2 * this->T);
   MD2(TinputType, atinput2, tinput, this->t2, A * A * this->ic3 * this->I2 * this->Vx * this->T * V);
 
+  auto INT8GEMM_TIN_MIN_MAX_QTSCALE = INT8GEMM_TIN_MIN_MAX_QTSCALE_T;
 #pragma omp for nowait collapse(4)
   iter_each (_t2, this->t2) {
   iter_each (_wA, A) {
@@ -2530,7 +2624,7 @@ void Instance_elx_conv_wino_t::gemma(
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_output_plain(
     OutputType * __restrict output, ToutputType * __restrict toutput,
-    BiasType * __restrict bias, int _t2, int Tz, int _ic4)
+    BiasType * __restrict bias, TscaleType *shift, int _t2, int Tz, int _ic4)
 {
   // A, A, oc3, O2, T, V -> n, OC, oh, ow
   MD6(ToutputType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
@@ -2635,7 +2729,7 @@ void Instance_elx_conv_wino_t::__trans_output_plain(
 
     ker_trans_output_(*this, (OutputType *)aout, *(Array *)&In,
         (_ic4 == this->ic4 - 1 || _ic4 == -1)
-        ? &md3(abias, _oc3, _O2, 0) : nullptr, 0, -1);
+        ? &md3(abias, _oc3, _O2, 0) : nullptr, nullptr, 0, -1);
 
     if (this->Or != V)
       writeout_r(_oc3, _O2, _T, aout);
@@ -2646,7 +2740,7 @@ void Instance_elx_conv_wino_t::__trans_output_plain(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_output_blocked(
-    OutputType *output, ToutputType *toutput, BiasType *bias, int _t2, int Tz, int _ic4)
+    OutputType *output, ToutputType *toutput, BiasType *bias, TscaleType *shift, int _t2, int Tz, int _ic4)
 {
   auto ker_trans_output = (this->with_ip_sum || _ic4 > 0) ?
       ker_trans_output_acc_ : ker_trans_output_;
@@ -2658,6 +2752,7 @@ void Instance_elx_conv_wino_t::__trans_output_blocked(
   MD7(OutputType, aoutput, output, this->n, this->oc4, this->oc3, this->O2,
       this->oh, this->ow, V);
   MD3(BiasType, abias, bias, this->oc3, this->O2, V);
+  MD3(TscaleType, ashift, shift, this->oc3, this->O2, V);
 
   auto res = std::div(_t2 * this->T, this->nt);
   auto _n_off = res.quot;
@@ -2690,11 +2785,11 @@ void Instance_elx_conv_wino_t::__trans_output_blocked(
     if (t2spato_o.is_border())
       ker_trans_output_tail(*this, out, *(Array *)&In,
           (_ic4 == -1 || _ic4 == this->ic4 - 1)
-          ? &md3(abias, _oc3, _O2, 0) : nullptr, t2spato_o.d_, t2spato_o.r_);
+          ? &md3(abias, _oc3, _O2, 0) : nullptr, &md3(ashift, _oc3, _O2, 0), t2spato_o.d_, t2spato_o.r_);
     else
       ker_trans_output(*this, out, *(Array *)&In,
           (_ic4 == -1 || _ic4 == this->ic4 - 1)
-          ? &md3(abias, _oc3, _O2, 0) : nullptr, A - K, A - K);
+          ? &md3(abias, _oc3, _O2, 0) : nullptr, &md3(ashift, _oc3, _O2, 0), A - K, A - K);
 
     ++ t2spato_o;
   }}}
@@ -2702,12 +2797,12 @@ void Instance_elx_conv_wino_t::__trans_output_blocked(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::trans_output(
-    OutputType *output, ToutputType *toutput, BiasType *bias, int _t2, int Tz, int _ic4)
+    OutputType *output, ToutputType *toutput, BiasType *bias, TscaleType *shift, int _t2, int Tz, int _ic4)
 {
   if (output_is_bfmt_ || output_as_bfmt_)
-    __trans_output_blocked(output, toutput, bias, _t2, Tz, _ic4);
+    __trans_output_blocked(output, toutput, bias, shift, _t2, Tz, _ic4);
   else
-    __trans_output_plain(output, toutput, bias, _t2, Tz, _ic4);
+    __trans_output_plain(output, toutput, bias, shift, _t2, Tz, _ic4);
 }
 
 // toutput:  mthr | hA/A, oc3, O2, T, V
@@ -2924,11 +3019,11 @@ void Instance_elx_conv_wino_t::__trans_output_blocked(
       if (_hOA_end < A - K || _wOA_end < A - K)
         ker_trans_output_tail(
             *this, out, *(Array *)&In, (_ic4 == -1 || _ic4 == this->ic4 - 1) ?
-            &md3(abias, _oc3, _O2, 0) : nullptr, _hOA_end, _wOA_end);
+            &md3(abias, _oc3, _O2, 0) : nullptr, nullptr, _hOA_end, _wOA_end);
       else
         ker_trans_output(
             *this, out, *(Array *)&In, (_ic4 == -1 || _ic4 == this->ic4 - 1) ?
-            &md3(abias, _oc3, _O2, 0) : nullptr, A - K, A - K);
+            &md3(abias, _oc3, _O2, 0) : nullptr, nullptr, A - K, A - K);
     }
   }}}
 }
@@ -3048,7 +3143,7 @@ void Instance_elx_conv_wino_t::__trans_output_plain(
 
       ker_trans_output_(*this, (OutputType *)aout, *(Array *)&In,
           (_ic4 == -1 || _ic4 == this->ic4 - 1)
-          ? &md3(abias, _oc3, _O2, 0) : nullptr, 0, -1);
+          ? &md3(abias, _oc3, _O2, 0) : nullptr, nullptr, 0, -1);
 
       if (this->Or != V)
         writeout_r(_t2, _oc3, _O2, _T, aout);
