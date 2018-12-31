@@ -53,7 +53,7 @@ template <typename UserTypes, typename TrOpType, int V>
 template <bool... conditions>
 inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 5, 3>::__trans_output(elx_conv_t<UserTypes> &xc,
-    OutputType *output, TrOpType atoutput[A][A][V], BiasType *bias, TrOpType *shift,
+    OutputType *output, TrOpType atoutput[A][A][V], BiasType *bias,
     int hOA_end, int wOA_end)
 {
   ENABLE_AVX512F();
@@ -129,7 +129,6 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   auto z1 = _mm<V>::set1_ps(0.6666666666666666f);
   auto z2 = _mm<V>::set1_ps(1.3333333333333333f);
   __m<V> z = XOR(z, z);
-  auto mshift = shift == nullptr ? _mm<V>::setzero_ps() : *(__m<V>*)shift;
 
 #pragma unroll
   for (int i = 0; i < 5; i++) {
@@ -158,9 +157,9 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     auto t0 = f2 * z0;
     auto t1 = t0 + f1;
 
-    auto p0 = f3 * z2 + f0 + t1 + mshift;
-    auto p1 = t0 - f1 - f3 * z1 + mshift;
-    auto p2 = f3 * z0 + f4 + t1 + mshift;
+    auto p0 = f3 * z2 + f0 + t1;
+    auto p1 = t0 - f1 - f3 * z1;
+    auto p2 = f3 * z0 + f4 + t1;
 
     if (fuse_bias) {
       p0 += BIAS;

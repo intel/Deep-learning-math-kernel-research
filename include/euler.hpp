@@ -122,9 +122,6 @@ template<typename UserTypes> struct eld_conv_t {
     // Use blocked format internally for plain format
     struct { bool input, weights, output; } format_as_blocked;
 
-    // Int8 quantization for winograd transformed input
-    struct { float avg, tmin, tmax; } winograd_tinput_quantization;
-
     // Defaults
     eld_conv_t();
     ~eld_conv_t();

@@ -1,7 +1,6 @@
 #pragma once
 #include <assert.h>
 #include <x86intrin.h>
-#include "el_intrin.hpp"
 #include "elk_def.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
@@ -16,7 +15,7 @@ template <typename UserTypes, typename TrOpType, int V>
 template <bool... conditions>
 inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 4, 3>::__trans_output(elx_conv_t<UserTypes> &xc,
-    OutputType *output, TrOpType atoutput[A][A][V], BiasType *bias, TrOpType *shift,
+    OutputType *output, TrOpType atoutput[A][A][V], BiasType *bias,
     int hOA_end, int wOA_end)
 {
 
@@ -28,7 +27,6 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   bool fuse_ip_sum = with_ip_sum && (wOA_end != -1);
   bool fuse_bias = with_bias && (bias != nullptr);
   bool fuse_relu = with_relu && (bias != nullptr);
-  auto mshift = shift == nullptr ? _mm<V>::setzero_ps() : *(__m<V>*)shift;
 
   alignas(64) OutputType dummy[16];
   auto p_cb = [&](int _h, int _w) {
@@ -70,7 +68,6 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   c3 = SUB(ADD(t22, t23), t21);
 
   __m<V> p00 = ADD(ADD(ADD(ADD(t00, t01), t02), c0), c1);
-  p00 += mshift;
   if (fuse_bias) {FUSE_BIAS(p00)}
   if (fuse_ip_sum) p00 = ADD(p00, *(__m<V>*)P(0, 0));
   if (fuse_relu) {
@@ -78,17 +75,14 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     p00 = MAX(p00, zero);
   }
   __m<V> p10 = ADD(ADD(ADD(SUB(c1, c0), t30), t31), t32);
-  p10 += mshift;
   if (fuse_bias) {FUSE_BIAS(p10)}
   if (fuse_ip_sum) p10 = ADD(p10, *(__m<V>*)P(1, 0));
   if (fuse_relu) p10 = MAX(p10, zero);
   __m<V> p01 = ADD(ADD(ADD(SUB(t02, t01), t03), c2), c3);
-  p01 += mshift;
   if (fuse_bias) {FUSE_BIAS(p01)}
   if (fuse_ip_sum) p01 = ADD(p01, *(__m<V>*)P(0, 1));
   if (fuse_relu) p01 = MAX(p01, zero);
   __m<V> p11 = ADD(ADD(SUB(SUB(c3, c2), t31), t32), t33);
-  p11 += mshift;
   if (fuse_bias) {FUSE_BIAS(p11)}
   if (fuse_ip_sum) p11 = ADD(p11, *(__m<V>*)P(1, 1));
   if (fuse_relu) p11 = MAX(p11, zero);

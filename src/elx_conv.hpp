@@ -70,9 +70,6 @@ struct elx_conv_params_t {
   // threading
   int nthreads;
   int execution_mode;
-
-  // tinput quantization
-  float input_avg, tinput_min, tinput_max;
 };
 
 template <typename UserTypes> struct elx_conv_t : elx_conv_params_t {

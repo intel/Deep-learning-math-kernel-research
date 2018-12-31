@@ -46,7 +46,6 @@ namespace euler {
 
 #define AVX512_CALCULATE_O(n)                                                  \
   __m<V> p0##n = ADD(ADD(ADD(ADD(ADD(c0, c1), c2), c3), c4), c5);              \
-  p0##n += mshift;                                                             \
   if (fuse_bias) {FUSE_BIAS(p0##n)}                                            \
   if (fuse_ip_sum)                                                             \
     p0##n = ADD(p0##n, *(__m<V>*)P(0, n));                                     \
@@ -56,7 +55,6 @@ namespace euler {
   }                                                                            \
   STORE(0, n)                                                                  \
   __m<V> p1##n = ADD(FMADD(z2, SUB(c2, c3), c0), FMSUB(z1_2, SUB(c4, c5), c1));\
-  p1##n += mshift;                                                             \
   if (fuse_bias) {FUSE_BIAS(p1##n)}                                            \
   if (fuse_ip_sum)                                                             \
     p1##n = ADD(p1##n, *(__m<V>*)P(1, n));                                     \
@@ -64,7 +62,6 @@ namespace euler {
     p1##n = MAX(p1##n, zero);                                                  \
   STORE(1, n)                                                                  \
   __m<V> p2##n = ADD(FMADD(z4, ADD(c2, c3), c0), FMADD(z1_4, ADD(c4, c5), c1));\
-  p2##n += mshift;                                                             \
   if (fuse_bias) {FUSE_BIAS(p2##n)}                                            \
   if (fuse_ip_sum)                                                             \
     p2##n = ADD(p2##n, *(__m<V>*)P(2, n));                                     \
@@ -72,15 +69,13 @@ namespace euler {
     p2##n = MAX(p2##n, zero);                                                  \
   STORE(2, n)                                                                  \
   __m<V> p3##n = ADD(FMADD(z8, SUB(c2, c3), c0), FMSUB(z1_8, SUB(c4, c5), c1));\
-  p3##n += mshift;                                                             \
   if (fuse_bias) {FUSE_BIAS(p3##n)}                                            \
   if (fuse_ip_sum)                                                             \
     p3##n = ADD(p3##n, *(__m<V>*)P(3, n));                                     \
   if (fuse_relu)                                                               \
     p3##n = MAX(p3##n, zero);                                                  \
   STORE(3, n)                                                                  \
-  __m<V> p4##n = ADD(FMADD(z16, ADD(c2, c3), c0), FMADD(z1_16, ADD(c4, c5), c1));\
-  p4##n += mshift;                                                             \
+  __m<V> p4##n = ADD(FMADD(z16, ADD(c2, c3), c0), FMADD(z1_16, ADD(c4, c5), c1));
 
 #define AVX512_ADD_B(n);                                                       \
   if (fuse_bias) {FUSE_BIAS(p4##n)}                                            \
@@ -99,7 +94,7 @@ template <typename UserTypes, typename TrOpType, int V>
 template <bool... conditions>
 inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 7, 3>::__trans_output(elx_conv_t<UserTypes> &xc,
-    OutputType *output, TrOpType atoutput[A][A][V], BiasType *bias, TrOpType *shift,
+    OutputType *output, TrOpType atoutput[A][A][V], BiasType *bias,
     int hOA_end, int wOA_end)
 {
   ENABLE_AVX512F();
@@ -209,7 +204,6 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   __m<V> z1_4 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 4.0f));
   __m<V> z1_8 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 8.0f));
   __m<V> z1_16 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 16.0f));
-  auto mshift = shift == nullptr ? _mm<V>::setzero_ps() : *(__m<V>*)shift;
 
   __m<V> t0 = _mm<V>::load_ps(T(0));
   __m<V> t1 = _mm<V>::load_ps(T(1));

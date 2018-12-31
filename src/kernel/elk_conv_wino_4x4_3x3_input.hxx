@@ -32,7 +32,7 @@ class convolution_winograd_kernel_base<UserTypes, TrOpType,
 
   template <bool ...conditions>
   static inline void __trans_output(elx_conv_t<UserTypes> &xc, OutputType *output,
-      TrOpType atoutput[A][A][V], BiasType *bias, TrOpType *shift, int hOA_end, int wOA_end);
+      TrOpType atoutput[A][A][V], BiasType *bias, int hOA_end, int wOA_end);
 
   template <bool ...conditions>
   static inline void __trans_outputa_th(elx_conv_t<UserTypes> &xc,
@@ -97,12 +97,11 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
          t50, t51, t52, t53, t54, t55;
 #endif
 
-  auto S = _mm512_set1_ps(xc.input_avg * -1.0f);
   auto f_cb = [&](int _h, int _w) {
     if (wT_end == -1) {
       MD3(InputType, ainput, input, A, A, V);
       if (std::is_same<InputType, float>::value)
-        return _mm<V>::load_ps(&md3(ainput, _h, _w, 0)) + S;
+        return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
       else {
         auto f16 = _mm<V/2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
         return _mm<V>::cvtph_ps(f16);
@@ -111,9 +110,9 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
       MD3(InputType, ainput, input, xc.ih, xc.iw, V);
       if (is_border
           && (_h < hT_start || _w < wT_start || _h > hT_end || _w > wT_end)) {
-        return S; //_mm<V>::setzero_ps();
+        return _mm<V>::setzero_ps();
       } else if (std::is_same<InputType, float>::value)
-        return _mm<V>::load_ps(&md3(ainput, _h, _w, 0)) + S;
+        return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
       else {
         auto f16 = _mm<V/2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
         return _mm<V>::cvtph_ps(f16);
