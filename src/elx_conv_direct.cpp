@@ -266,6 +266,7 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
   assert(this->T > this->lp);
   assert(this->Tr > this->rp);
 
+  auto ker_conv = _wt == this->wt - 1 ? ker_conv_Tr_ : ker_conv_;
   iter_each(_oc3, this->oc3) {
   iter_each(_ic3, this->ic3) {
     int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
@@ -273,7 +274,7 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
       if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
       if (this->with_relu) attr = set_attr(attr, relu_idx);
     }
-    ker_conv_(*this, &md2(aoutput, _oc3, 0),
+    ker_conv(*this, &md2(aoutput, _oc3, 0),
         &md2(ainput, _ic3, 0), &md4(aweights, 0, _oc3, _ic3, 0),
         &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
   }}

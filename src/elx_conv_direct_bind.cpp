@@ -56,6 +56,7 @@ Instance_elx_conv_direct_t::bind_execute_functions()
 
   if (xopt_ == 0xa060) {
     bind_conv_kernel(this->O, this->T, &ker_conv_, false);
+    bind_conv_kernel(this->O, this->Tr, &ker_conv_Tr_, false);
   } else if (xopt_ == 0xd060) {
     bind_gemm_kernel(this->O, this->T, &ker_gemm_I_O_T_, false);
     bind_gemm_kernel(this->O, this->Tr, &ker_gemm_I_O_Tr_, false);

@@ -57,6 +57,7 @@ class elx_conv_direct_t : public elx_conv_t<UserTypes> {
   gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_gemm_right_IrO_Tr_;
 
   gemm_kernel_binder::kconv<conv_impl::FP32> *ker_conv_;
+  gemm_kernel_binder::kconv<conv_impl::FP32> *ker_conv_Tr_;
 
   void (elx_conv_direct_t::*execute_opt_)(OutputType *, InputType *, WeightsType *, BiasType *);
 
