@@ -87,6 +87,14 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
   byte_sizes.output = sizeof(OutputType) * sizes.output;
   byte_sizes.bias = sizeof(BiasType) * sizes.bias;
 
+  // Validate padding
+  int oh = (dims.input.h + pads.t + pads.b - dims.weights.h) / strides.h + 1; 
+  int ow = (dims.input.w + pads.l + pads.r - dims.weights.w) / strides.w + 1;
+  if (oh != dims.output.h || ow != dims.output.w) {
+    el_error("Padding parameter error");
+    return ELX_GENERAL_ERROR;
+  }
+
   // TODO: Check CPUID
   xc = nullptr;
 

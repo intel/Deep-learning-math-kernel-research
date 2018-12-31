@@ -78,16 +78,6 @@ int elx_conv(eld_conv_t<UserTypes> &desc,
     return ELX_GENERAL_ERROR;
   }
 
-  int r_pad = desc.strides.w * (desc.dims.output.w - 1) + desc.dims.weights.w -
-              desc.dims.input.w - desc.pads.l;
-  if (r_pad < 0) {
-    r_pad = 0;
-  }
-  if (r_pad != desc.pads.r) {
-    el_error("Padding parameter error");
-    return ELX_GENERAL_ERROR;
-  }
-
   xc.execute(output, input, weights, bias);
   return ELX_OK;
 }
