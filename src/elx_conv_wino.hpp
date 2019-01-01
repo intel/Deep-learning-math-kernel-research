@@ -327,8 +327,11 @@ private:
       TinputType *__restrict tinput, InputType *__restrict input, int _t2, int Tz);
   void trans_input_u8(TscaleType *tinput_qt_scale, uint8_t *__restrict tinput_u8,
       TinputType *__restrict tinput, InputType *__restrict input, int _t2, int Tz);
-  void trans_input_quantization(uint8_t *tinput_u8, TscaleType *tinput_qt_scale,
-      TscaleType *tinput_qt_factor, TscaleType *tinput_max_abs, TinputType *tinput);
+
+  void __trans_input_u8_blocked(TscaleType *tinput_qt_scale, uint8_t *tinput_u8,
+      TinputType *tinput, InputType *input);
+  void trans_input_u8(TscaleType *tinput_qt_scale, uint8_t *tinput_u8,
+      TinputType *tinput, InputType *input);
 
   inline void __trans_inputa_plain(TinputType *tinput, InputType *input, int _t2, int _wA, int Tz);
   inline void __trans_inputa_blocked(TinputType *tinput, InputType *input, int _t2, int _wA, int Tz);

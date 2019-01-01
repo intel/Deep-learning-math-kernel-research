@@ -2048,22 +2048,57 @@ void Instance_elx_conv_wino_t::gemm(
   }
 }
 
-Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::trans_input_quantization(
-    uint8_t *tinput_u8, TscaleType *tinput_qt_scale, TscaleType *tinput_qt_factor,
-    TscaleType *tinput_max_abs, TinputType *tinput) {
+Template_elx_conv_wino_t void Instance_elx_conv_wino_t::trans_input_u8(
+    TscaleType *tinput_qt_scale, uint8_t *tinput_u8, TinputType *tinput,
+    InputType *input) {
+  if (input_is_bfmt_ || input_as_bfmt_)
+    __trans_input_u8_blocked(tinput_qt_scale, tinput_u8, tinput, input);
+  else
+    el_error("Unimplemented: plain format input for int8");
+}
+
+Template_elx_conv_wino_t void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
+    TscaleType *tinput_qt_scale, uint8_t *tinput_u8, TinputType *tinput,
+    InputType *input) {
   MD2(uint8_t, atinput2_u8, tinput_u8, this->t2, A * A * this->T * this->ic3 * this->I2 * this->Vx * V);
   MD2(TscaleType, atinput_qt_scale2, tinput_qt_scale, this->t2, A * A * this->ic3 * 2 * this->T);
   MD2(TinputType, atinput2, tinput, this->t2, A * A * this->ic3 * this->I2 * this->Vx * this->T * V);
+  MD8(InputType, ainput, input, this->n, this->ic4, this->ic3, this->I2, this->Vx, this->ih, this->iw, V);
 
+#pragma omp for nowait collapse(4)
+  iter_each (_t2, this->t2) {
+  iter_each (_ic3, this->ic3) {
+  iter_each (_I2, this->I2) {
+  iter_each (_Vx, this->Vx) {
+    int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+    MD7(uint8_t, atinput_u8, &md2(atinput2_u8, _t2, 0), A, A, this->ic3, this->I2, Tz, this->Vx, V);
+    MD5(TscaleType, atinput_qt_scale, &md2(atinput_qt_scale2, _t2, 0), A, A, this->ic3, 2, Tz);
+    MD5(TinputType, atinput5, &md2(atinput2, _t2, 0), this->ic3, this->I2, this->Vx, Tz, A * A * V);
+    using Array = TrOpType[A][A][V];
+
+    iter_each (_T, Tz) {
+      int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
+      t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
+
+      InputType *in = &md8(ainput, _n, 0, _ic3, _I2, _Vx, _ih, _iw, 0);
+      auto aout = &md5(atinput5, _ic3, _I2, _Vx, _T, 0);
+      if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
+          && _wA_end == A - 1)
+        ker_trans_input_(*this, *(Array *)aout, in, 0, A - 1, 0, A - 1);
+      else
+        ker_trans_input0_(
+            *this, *(Array *)aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
+    }
+  }}}}
+
+#pragma omp barrier
 #pragma omp for nowait collapse(4)
   iter_each (_t2, this->t2) {
   iter_each (_wA, A) {
   iter_each (_hA, A) {
   iter_each (_ic3, this->ic3) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    MD7(TinputType, atinput7, &md2(atinput2, _t2, 0),
-        A, A, this->ic3, this->I2, this->Vx, Tz, V);
+    MD7(TinputType, atinput7, &md2(atinput2, _t2, 0), this->ic3, this->I2, this->Vx, Tz, A, A, V);
     MD5(TscaleType, atinput_qt_scale, &md2(atinput_qt_scale2, _t2, 0),
         A, A, this->ic3, 2, Tz);
     MD7(uint8_t, atinput_u8, &md2(atinput2_u8, _t2, 0),
@@ -2073,7 +2108,7 @@ void Instance_elx_conv_wino_t::trans_input_quantization(
       bool flush = true;
       iter_each (_I2, this->I2) {
       iter_each (_Vx, this->Vx) {
-        __m<V> mcur = *(__m<V> *)&md7(atinput7, _wA, _hA, _ic3, _I2, _Vx, _T, 0);
+        __m<V> mcur = *(__m<V> *)&md7(atinput7, _ic3, _I2, _Vx, _T, _wA, _hA, 0);
         if (flush) {
           mmax = mcur;
           mmin = mcur;
@@ -2109,7 +2144,7 @@ void Instance_elx_conv_wino_t::trans_input_quantization(
       __m<V> mminf32 = _mm<V>::set1_ps(min);
       iter_each (_I2, this->I2) {
       iter_each (_Vx, this->Vx) {
-        __m<V> f = *(__m<V> *)&md7(atinput7, _wA, _hA, _ic3, _I2, _Vx, _T, 0);
+        __m<V> f = *(__m<V> *)&md7(atinput7, _ic3, _I2, _Vx, _T, _wA, _hA, 0);
         __m<V> mmresf32 = (f - mminf32) * mdifff32;
         __i<V> mmresu32 = _mm<V>::cvt_roundps_epu32(mmresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
         __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mmresu32);
@@ -2117,7 +2152,6 @@ void Instance_elx_conv_wino_t::trans_input_quantization(
       }}
     }
   }}}}
-#pragma omp barrier
 }
 
 // tweights:      oc4 | oc3, ic3, A, A, O2, I2, V, V, Vx
