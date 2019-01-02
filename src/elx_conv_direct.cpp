@@ -271,9 +271,10 @@ Instance_elx_conv_direct_t::conv_a060_blocked_input(OutputType *output,
   iter_each (_oc3, this->oc3) {
   iter_each (_ic3, this->ic3) {
     int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
-    attr = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
-        ? set_attr(attr, relu_idx)
-        : attr;
+    if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+      if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+      if (this->with_relu) attr = set_attr(attr, relu_idx);
+    }
 
     ker_conv_(*this, &md2(aoutput, _oc3, 0),
         &md2(ainput, _ic3, 0), &md4(aweights, 0, _oc3, _ic3, 0),

@@ -1264,7 +1264,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   // FP32 convolution kernel
   // TODO: Currently only 3x3, J=1 support
   template <int JO, int P>
-  static inline typename std::enable_if<P == 1 && has_Ir == false, void>::type
+  static inline typename std::enable_if<P == 1, void>::type
   op_conv(elx_conv_params_t &xc, OutputType *output,
       InputType *input, WeightsType *weights, BiasType *bias, int _wt,
       int khs, int khe, int kws, int kwe, int attr)
@@ -1273,9 +1273,15 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     const int AKH = xc.kh / 2;
     const int AKW = xc.kw / 2;
 
+    int I2 = xc.I2, Ir = 0;
+    if (get_attr(attr, has_Ir_idx)) {
+      I2 = xc.I2 - 1;
+      Ir = xc.Ir;
+    }
+
     // TODO: non-blocked handling
     MD4(InputType, ainput, input, xc.I2, xc.ih, xc.iw, V); // blocked
-    MD6(WeightsType, aweights, weights, xc.kh, xc.kw, xc.oc3, xc.ic3, xc.O1, xc.I2 * V * JO * V); // compact
+    MD3(WeightsType, aweights, weights, xc.kh, xc.kw, xc.oc3 * xc.ic3 * xc.O1 * xc.I2 * V * O * V); // compact
     MD2(OutputType, aoutput, output, JO, xc.oh * xc.ow * V); // blocked
 
     __m<V> mmout[JO][T], mmwei[JO][P];
@@ -1311,13 +1317,14 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     }
 
     for (int _kh = khs; _kh < khe; ++_kh) {
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+      for (int _I2 = 0; _I2 < I2; ++_I2) {
         // mid
         for (int _kw = kws; _kw < kwe; ++_kw) {
 #pragma nounroll
           for (int _V = 0; _V < V / P; ++_V) {
-            unroll_for(_O, JO) mmwei[_O][0] = op_load_weights<JO, P>(
-                xc, &md6(aweights, _kh, _kw, 0, 0, 0, 0), _I2, _V, 0, _O);
+            unroll_for(_O, JO)
+              mmwei[_O][0] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
             unroll_for(_T, T) {
               __m<V> mmbcst = op_load_input<P>(
                   xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
@@ -1331,8 +1338,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           int _kw = 0;
 #pragma nounroll
           for (int _V = 0; _V < V / P; ++_V) {
-            unroll_for(_O, JO) mmwei[_O][0] = op_load_weights<JO, P>(
-                xc, &md6(aweights, _kh, _kw, 0, 0, 0, 0), _I2, _V, 0, _O);
+            unroll_for(_O, JO)
+              mmwei[_O][0] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
             unroll_from_to(_T, 1, T) {
               __m<V> mmbcst = op_load_input<P>(
                   xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
@@ -1346,8 +1354,61 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           int _kw = 2;
 #pragma nounroll
           for (int _V = 0; _V < V / P; ++_V) {
-            unroll_for(_O, JO) mmwei[_O][0] = op_load_weights<JO, P>(
-                xc, &md6(aweights, _kh, _kw, 0, 0, 0, 0), _I2, _V, 0, _O);
+            unroll_for(_O, JO)
+              mmwei[_O][0] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
+            unroll_for(_T, T - 1) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+              unroll_for(_O, JO) mmout[_O][_T] =
+                  _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            }
+          }
+        }
+      } // I2 loop
+
+      // Ir
+      if (Ir > 0) {
+        int _I2 = xc.I2 - 1;
+        // mid
+        for (int _kw = kws; _kw < kwe; ++_kw) {
+#pragma nounroll
+          for (int _V = 0; _V < Ir; ++_V) {
+            unroll_for(_O, JO)
+              mmwei[_O][0] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
+            unroll_for(_T, T) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+              unroll_for(_O, JO) mmout[_O][_T] =
+                  _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            }
+          }
+        }
+        // left
+        if (_wt == 0) {
+          int _kw = 0;
+#pragma nounroll
+          for (int _V = 0; _V < Ir; ++_V) {
+            unroll_for(_O, JO)
+              mmwei[_O][0] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
+            unroll_from_to(_T, 1, T) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+              unroll_for(_O, JO) mmout[_O][_T] =
+                  _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            }
+          }
+        }
+        // right
+        if (_wt == xc.wt - 1) {
+          int _kw = 2;
+#pragma nounroll
+          for (int _V = 0; _V < Ir; ++_V) {
+            unroll_for(_O, JO)
+              mmwei[_O][0] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
             unroll_for(_T, T - 1) {
               __m<V> mmbcst = op_load_input<P>(
                   xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
@@ -1367,32 +1428,475 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int JO, int P>
-  static inline typename std::enable_if<P == 1 && has_Ir == true, void>::type
-  op_conv(elx_conv_params_t &xc, OutputType *output,
-      InputType *input, WeightsType *weights, BiasType *bias, int _wt,
-      int khs, int khe, int kws, int kwe, int attr)
-  {
-    // TODO
-  }
-
-  template <int JO, int P>
   static inline typename std::enable_if<P == 2, void>::type
   op_conv(elx_conv_params_t &xc, OutputType *output,
       InputType *input, WeightsType *weights, BiasType *bias, int _wt,
       int khs, int khe, int kws, int kwe, int attr)
   {
-    // TODO
-  }
+    // 3x3 conv
+    const int AKH = xc.kh / 2;
+    const int AKW = xc.kw / 2;
+
+    int I2 = xc.I2, Ir = 0;
+    if (get_attr(attr, has_Ir_idx)) {
+      I2 = xc.I2 - 1;
+      Ir = xc.Ir;
+    }
+
+    // TODO: non-blocked handling
+    MD4(InputType, ainput, input, xc.I2, xc.ih, xc.iw, V); // blocked
+    MD3(WeightsType, aweights, weights, xc.kh, xc.kw, xc.oc3 * xc.ic3 * xc.O1 * xc.I2 * V * O * V); // compact
+    MD2(OutputType, aoutput, output, JO, xc.oh * xc.ow * V); // blocked
+
+    __m<V> mmout[JO][T], mmwei[JO][P];
+
+    // reset, or load-bias, or load-sum
+    if (get_attr(attr, r_output_idx)) {
+      if (get_attr(attr, bias_idx)) {
+        // load bias
+        unroll_for (_O, JO) {
+          unroll_for (_T, T)
+            mmout[_O][_T] = op_load_bias<JO>(bias, _O);
+        }
+      } else {
+        // clear output
+        __m<V> tmp = _mm<V>::setzero_ps();
+        unroll_for (_O, JO)
+          unroll_for (_T, T)
+            mmout[_O][_T] = tmp;
+      }
+      // load output
+      if (get_attr(attr, ip_sum_idx)) {
+        unroll_for (_O, JO) {
+          unroll_for (_T, T)
+            mmout[_O][_T] += op_load_output<JO>(&md2(aoutput, _O, 0), _T);
+        }
+      }
+    } else {
+      // load output
+      unroll_for (_O, JO) {
+        unroll_for (_T, T)
+          mmout[_O][_T] = op_load_output<JO>(&md2(aoutput, _O, 0), _T);
+      }
+    }
+
+    for (int _kh = khs; _kh < khe; ++_kh) {
+      // mid
+      for (int _kw = kws; _kw < kwe; ++_kw) {
+        // preload weights
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+        for (int _I2 = 0; _I2 < I2; ++_I2) {
+#pragma nounroll
+          for (int _V = 0; _V < V / P; ++_V) {
+            // _P = 0
+            unroll_for(_O, JO)
+              mmwei[_O][1] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 1, _O);
+            unroll_for(_T, T) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+              unroll_for(_O, JO)
+                mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            }
+            // _P = 1
+            unroll_for(_O, JO)
+              mmwei[_O][0] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
+            unroll_for(_T, T) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 1, _T);
+              unroll_for(_O, JO)
+                mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
+            }
+          }
+        }
+        // Ir
+        int _I2 = xc.I2 - 1;
+#pragma nounroll
+        for (int _V = 0; _V < Ir; ++_V) {
+          unroll_for(_O, JO)
+            mmwei[_O][0] = op_load_weights<JO, 1>(
+              xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
+          unroll_for(_T, T) {
+            __m<V> mmbcst = op_load_input<1>(
+                xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+            unroll_for(_O, JO)
+              mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+          }
+        }
+      } // _kw loop, mid
  
+      // left
+      if (_wt == 0) {
+        int _kw = 0;
+
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+        for (int _I2 = 0; _I2 < I2; ++_I2) {
+#pragma nounroll
+          for (int _V = 0; _V < V / P; ++_V) {
+            // _P = 0
+            unroll_for(_O, JO)
+              mmwei[_O][1] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 1, _O);
+            unroll_from_to(_T, 1, T) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+              unroll_for(_O, JO)
+                mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            }
+            // _P = 1
+            unroll_for(_O, JO)
+              mmwei[_O][0] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
+            unroll_from_to(_T, 1, T) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 1, _T);
+              unroll_for(_O, JO)
+                mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
+            }
+          }
+        }
+        // Ir
+        int _I2 = xc.I2 - 1;
+#pragma nounroll
+        for (int _V = 0; _V < Ir; ++_V) {
+          unroll_for(_O, JO)
+            mmwei[_O][0] = op_load_weights<JO, 1>(
+              xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
+          unroll_from_to(_T, 1, T) {
+            __m<V> mmbcst = op_load_input<1>(
+                xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+            unroll_for(_O, JO)
+              mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+          }
+        }
+      } // left
+
+      // right
+      if (_wt == xc.wt - 1) {
+        int _kw = 2;
+
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+        for (int _I2 = 0; _I2 < I2; ++_I2) {
+#pragma nounroll
+          for (int _V = 0; _V < V / P; ++_V) {
+            // _P = 0
+            unroll_for(_O, JO)
+              mmwei[_O][1] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 1, _O);
+            unroll_for(_T, T - 1) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+              unroll_for(_O, JO)
+                mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            }
+            // _P = 1
+            unroll_for(_O, JO)
+              mmwei[_O][0] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
+            unroll_for(_T, T - 1) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 1, _T);
+              unroll_for(_O, JO)
+                mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
+            }
+          } // _V
+        }
+        // Ir
+        int _I2 = xc.I2 - 1;
+#pragma nounroll
+        for (int _V = 0; _V < Ir; ++_V) {
+          unroll_for(_O, JO)
+            mmwei[_O][0] = op_load_weights<JO, 1>(
+              xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
+          unroll_for(_T, T - 1) {
+            __m<V> mmbcst = op_load_input<1>(
+                xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+            unroll_for(_O, JO)
+              mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+          }
+        }
+      } // right
+    } // _kh loop
+
+    // store output
+    unroll_for (_O, JO) {
+      unroll_for (_T, T)
+        op_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T, attr);
+    }
+  }
+
   template <int JO, int P>
   static inline typename std::enable_if<P == 4, void>::type
   op_conv(elx_conv_params_t &xc, OutputType *output,
       InputType *input, WeightsType *weights, BiasType *bias, int _wt,
       int khs, int khe, int kws, int kwe, int attr)
   {
-    // TODO
-  }
+    // 3x3 conv
+    const int AKH = xc.kh / 2;
+    const int AKW = xc.kw / 2;
+
+    int I2 = xc.I2, Ir = 0;
+    if (get_attr(attr, has_Ir_idx)) {
+      I2 = xc.I2 - 1;
+      Ir = xc.Ir;
+    }
+
+    // TODO: non-blocked handling
+    MD4(InputType, ainput, input, xc.I2, xc.ih, xc.iw, V); // blocked
+    MD3(WeightsType, aweights, weights, xc.kh, xc.kw, xc.oc3 * xc.ic3 * xc.O1 * xc.I2 * V * O * V); // compact
+    MD2(OutputType, aoutput, output, JO, xc.oh * xc.ow * V); // blocked
+
+    __m<V> mmout[JO][T], mmwei[JO][P];
+
+    // reset, or load-bias, or load-sum
+    if (get_attr(attr, r_output_idx)) {
+      if (get_attr(attr, bias_idx)) {
+        // load bias
+        unroll_for (_O, JO) {
+          unroll_for (_T, T)
+            mmout[_O][_T] = op_load_bias<JO>(bias, _O);
+        }
+      } else {
+        // clear output
+        __m<V> tmp = _mm<V>::setzero_ps();
+        unroll_for (_O, JO)
+          unroll_for (_T, T)
+            mmout[_O][_T] = tmp;
+      }
+      // load output
+      if (get_attr(attr, ip_sum_idx)) {
+        unroll_for (_O, JO) {
+          unroll_for (_T, T)
+            mmout[_O][_T] += op_load_output<JO>(&md2(aoutput, _O, 0), _T);
+        }
+      }
+    } else {
+      // load output
+      unroll_for (_O, JO) {
+        unroll_for (_T, T)
+          mmout[_O][_T] = op_load_output<JO>(&md2(aoutput, _O, 0), _T);
+      }
+    }
+
+    for (int _kh = khs; _kh < khe; ++_kh) {
+      // mid
+      for (int _kw = kws; _kw < kwe; ++_kw) {
+        // preload weights
+        unroll_for(_O, JO) {
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+          mmwei[_O][1] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
+        }
+        for (int _I2 = 0; _I2 < I2; ++_I2) {
+#pragma nounroll
+          for (int _V = 0; _V < V / P; ++_V) {
+            // _P = 0
+            unroll_for(_O, JO)
+              mmwei[_O][2] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 2, _O);
+            unroll_for(_T, T) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+              unroll_for(_O, JO) mmout[_O][_T] =
+                  _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            }
+            // _P = 1
+            unroll_for(_O, JO)
+              mmwei[_O][3] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 3, _O);
+            unroll_for(_T, T) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 1, _T);
+              unroll_for(_O, JO) mmout[_O][_T] =
+                  _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
+            }
+            // _P = 2
+            unroll_for(_O, JO)
+              mmwei[_O][0] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
+            unroll_for(_T, T) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 2, _T);
+              unroll_for(_O, JO) mmout[_O][_T] =
+                  _mm<V>::fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
+            }
+            // _P = 3
+            unroll_for(_O, JO)
+              mmwei[_O][1] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 1, _O);
+            unroll_for(_T, T) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 3, _T);
+              unroll_for(_O, JO) mmout[_O][_T] =
+                  _mm<V>::fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
+            }
+          } // _V
+        }
+        // Ir
+        int _I2 = xc.I2 - 1;
+#pragma nounroll
+        for (int _V = 0; _V < Ir; ++_V) {
+          unroll_for(_O, JO)
+            mmwei[_O][0] = op_load_weights<JO, 1>(
+              xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
+          unroll_for(_T, T) {
+            __m<V> mmbcst = op_load_input<1>(
+                xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+            unroll_for(_O, JO) mmout[_O][_T] =
+                _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+          }
+        }
+      } // _kw loop, mid
  
+      // left
+      if (_wt == 0) {
+        int _kw = 0;
+
+        unroll_for(_O, JO) {
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+          mmwei[_O][1] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
+        }
+        for (int _I2 = 0; _I2 < I2; ++_I2) {
+#pragma nounroll
+          for (int _V = 0; _V < V / P; ++_V) {
+            // _P = 0
+            unroll_for(_O, JO)
+              mmwei[_O][2] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 2, _O);
+            unroll_from_to(_T, 1, T) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+              unroll_for(_O, JO) mmout[_O][_T] =
+                  _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            }
+            // _P = 1
+            unroll_for(_O, JO)
+              mmwei[_O][3] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 3, _O);
+            unroll_from_to(_T, 1, T) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 1, _T);
+              unroll_for(_O, JO) mmout[_O][_T] =
+                  _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
+            }
+            // _P = 2
+            unroll_for(_O, JO)
+              mmwei[_O][0] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
+            unroll_from_to(_T, 1, T) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 2, _T);
+              unroll_for(_O, JO) mmout[_O][_T] =
+                  _mm<V>::fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
+            }
+            // _P = 3
+            unroll_for(_O, JO)
+              mmwei[_O][1] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 1, _O);
+            unroll_from_to(_T, 1, T) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 3, _T);
+              unroll_for(_O, JO) mmout[_O][_T] =
+                  _mm<V>::fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
+            }
+          } // _V
+        }
+        // Ir
+        int _I2 = xc.I2 - 1;
+#pragma nounroll
+        for (int _V = 0; _V < Ir; ++_V) {
+          unroll_for(_O, JO)
+            mmwei[_O][0] = op_load_weights<JO, 1>(
+              xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
+          unroll_from_to(_T, 1, T) {
+            __m<V> mmbcst = op_load_input<1>(
+                xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+            unroll_for(_O, JO) mmout[_O][_T] =
+                _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+          }
+        }
+      } // left
+
+      // right
+      if (_wt == xc.wt - 1) {
+        int _kw = 2;
+
+        unroll_for(_O, JO) {
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+          mmwei[_O][1] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
+        }
+        for (int _I2 = 0; _I2 < I2; ++_I2) {
+#pragma nounroll
+          for (int _V = 0; _V < V / P; ++_V) {
+            // _P = 0
+            unroll_for(_O, JO)
+              mmwei[_O][2] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 2, _O);
+            unroll_for(_T, T - 1) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+              unroll_for(_O, JO) mmout[_O][_T] =
+                  _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            }
+            // _P = 1
+            unroll_for(_O, JO)
+              mmwei[_O][3] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 3, _O);
+            unroll_for(_T, T - 1) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 1, _T);
+              unroll_for(_O, JO) mmout[_O][_T] =
+                  _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
+            }
+            // _P = 2
+            unroll_for(_O, JO)
+              mmwei[_O][0] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
+            unroll_for(_T, T - 1) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 2, _T);
+              unroll_for(_O, JO) mmout[_O][_T] =
+                  _mm<V>::fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
+            }
+            // _P = 3
+            unroll_for(_O, JO)
+              mmwei[_O][1] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 1, _O);
+            unroll_for(_T, T - 1) {
+              __m<V> mmbcst = op_load_input<P>(
+                  xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 3, _T);
+              unroll_for(_O, JO) mmout[_O][_T] =
+                  _mm<V>::fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
+            }
+          } // _V
+        }
+        int _I2 = xc.I2 - 1;
+#pragma nounroll
+        for (int _V = 0; _V < Ir; ++_V) {
+          unroll_for(_O, JO)
+            mmwei[_O][0] = op_load_weights<JO, 1>(
+              xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
+          unroll_for(_T, T - 1) {
+            __m<V> mmbcst = op_load_input<1>(
+                xc, &md4(ainput, _I2, _kh - AKH, _kw - AKW, 0), _V, 0, _T);
+            unroll_for(_O, JO) mmout[_O][_T] =
+                _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+          }
+        }
+      } // right
+    } // _kh loop
+
+    // store output
+    unroll_for (_O, JO) {
+      unroll_for (_T, T)
+        op_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T, attr);
+    }
+
+  }
+
   template <int O = O, int T = T> static inline
       typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 1)
           && (F_traits<F>::is_compact_weights)>::type
@@ -1403,14 +1907,14 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
-    MD6(WeightsType, aweights, weights, xc.kh, xc.kw, xc.oc3, xc.ic3, xc.O1,
+    MD3(WeightsType, aweights, weights, xc.kh * xc.kw * xc.oc3 * xc.ic3, xc.O1,
         xc.I2 * V * O * V * Vx); // compact
     MD2(OutputType, aoutput, output, xc.O1, O * O_stride);
     MD2(BiasType, abias, bias, xc.O1, O * V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       op_conv<JO0, JP0>(xc, &md2(aoutput, _O1, 0), input,
-          &md6(aweights, 0, 0, 0, 0, _O1, 0), &md2(abias, _O1, 0), _wt, khs,
+          &md3(aweights, 0, _O1, 0), &md2(abias, _O1, 0), _wt, khs,
           khe, kws, kwe, attr);
     }
   }
@@ -1422,6 +1926,22 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
           int kws, int kwe, int attr)
   {
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
+
+    MD5(WeightsType, aweights, weights, xc.kh * xc.kw * xc.oc3 * xc.ic3, xc.O1,
+        xc.I2 * V, O, V * Vx); // compact
+    MD3(OutputType, aoutput, output, xc.O1, O, O_stride);
+    MD3(BiasType, abias, bias, xc.O1, O, V);
+
+    for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
+      op_conv<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
+          &md5(aweights, 0, _O1, 0, 0, 0), &md3(abias, _O1, 0, 0), _wt, khs,
+          khe, kws, kwe, attr);
+      op_conv<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
+          &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0), _wt, khs,
+          khe, kws, kwe, attr);
+    }
   }
 
   template <int O = O, int T = T> static inline
@@ -1431,6 +1951,25 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
           int kws, int kwe, int attr)
   {
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
+
+    MD5(WeightsType, aweights, weights, xc.kh * xc.kw * xc.oc3 * xc.ic3, xc.O1,
+        xc.I2 * V, O, V * Vx); // compact
+    MD3(OutputType, aoutput, output, xc.O1, O, O_stride);
+    MD3(BiasType, abias, bias, xc.O1, O, V);
+
+    for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
+      op_conv<JO0, JP0>(xc, &md3(aoutput, _O1, 0, 0), input,
+          &md5(aweights, 0, _O1, 0, 0, 0), &md3(abias, _O1, 0, 0), _wt, khs,
+          khe, kws, kwe, attr);
+      op_conv<JO1, JP1>(xc, &md3(aoutput, _O1, JO0, 0), input,
+          &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0), _wt, khs,
+          khe, kws, kwe, attr);
+      op_conv<JO2, JP2>(xc, &md3(aoutput, _O1, JO0 + JO1, 0), input,
+          &md5(aweights, 0, _O1, 0, JO0 + JO1, 0), &md3(abias, _O1, JO0 + JO1, 0),
+          _wt, khs, khe, kws, kwe, attr);
+    }
   }
 
 };

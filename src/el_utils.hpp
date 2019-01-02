@@ -55,6 +55,7 @@ enum {
   s_output_idx = 0x20,    // streaming output
   c_output_idx = 0x40,    // convert and restore output for int8 gemm
   l_output_idx = 0x80,    // output lazy accumulation
+  has_Ir_idx = 0x100,     // conv: has Ir
 };
 
 inline int set_attr(int attr, int index) {
