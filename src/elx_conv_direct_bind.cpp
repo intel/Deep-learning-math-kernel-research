@@ -37,10 +37,10 @@ Instance_elx_conv_direct_t::bind_execute_functions()
       gemm_kernel_binder::kgemm<TarrayTypes> **func, bool has_Ir) {
     switch (xopt_) {
     case (0xd060):
-      if (this->input_fmt == nchw) {
-        BIND_GEMM_KERNEL(1, GKF_ECD)
-      } else {
+      if (this->ws == 1) {
         BIND_GEMM_KERNEL(1, GKF_DCD)
+      } else if (this->ws == 2) {
+        BIND_GEMM_KERNEL(2, GKF_DCD)
       }
       break;
     default:
@@ -69,20 +69,26 @@ Instance_elx_conv_direct_t::bind_execute_functions()
     bind_conv_kernel(this->O, this->T, &ker_conv_, this->kw);
     bind_conv_kernel(this->O, this->Tr, &ker_conv_Tr_, this->kw);
   } else if (xopt_ == 0xd060) {
-    bind_gemm_kernel(this->O, this->T, &ker_gemm_I_O_T_, false);
-    bind_gemm_kernel(this->O, this->Tr, &ker_gemm_I_O_Tr_, false);
-    bind_gemm_kernel(this->O, this->T, &ker_gemm_IrO_T_, this->Ir != V);
-    bind_gemm_kernel(this->O, this->Tr, &ker_gemm_IrO_Tr_, this->Ir != V);
-
-    bind_gemm_kernel(this->O, this->T - 1, &ker_gemm_left_I_O_T_, false);
-    bind_gemm_kernel(this->O, this->Tr - 1, &ker_gemm_left_I_O_Tr_, false);
-    bind_gemm_kernel(this->O, this->T - 1, &ker_gemm_left_IrO_T_, this->Ir != V);
-    bind_gemm_kernel(this->O, this->Tr - 1, &ker_gemm_left_IrO_Tr_, this->Ir != V);
-
-    bind_gemm_kernel(this->O, this->T - 1, &ker_gemm_right_I_O_T_, false);
-    bind_gemm_kernel(this->O, this->Tr - 1, &ker_gemm_right_I_O_Tr_, false);
-    bind_gemm_kernel(this->O, this->T - 1, &ker_gemm_right_IrO_T_, this->Ir != V);
-    bind_gemm_kernel(this->O, this->Tr - 1, &ker_gemm_right_IrO_Tr_, this->Ir != V);
+    iter_each (_wt, this->wt) {
+      int Tz = _wt == this->wt - 1 ? this->Tr : this->T;
+      for (int _kw = 0; _kw < this->kw; ++_kw) {
+        // _iws, _iwe
+        // _iw = ws * _ow + _kw - lp
+        auto ows0 = _wt * this->T;
+        auto owe0 = _wt * this->T + Tz - 1;
+        auto _iws = this->ws * ows0 + _kw - this->lp;
+        while (_iws < 0)
+          _iws += this->ws;
+        auto _iwe = this->ws * owe0 + _kw - this->lp;
+        while (_iwe > this->iw - 1)
+          _iwe -= this->ws;
+        auto _ows = (_iws + this->lp - _kw) / this->ws;
+        auto _owe = (_iwe + this->lp - _kw) / this->ws;
+        bind_gemm_kernel(this->O, _owe - _ows + 1, &ker_gemm_[_wt][_kw], false);
+        bind_gemm_kernel(
+            this->O, _owe - _ows + 1, &ker_gemmr_[_wt][_kw], this->Ir != V);
+      }
+    }
   }
 
 #define EXECUTE_CASE(n)                                                        \
