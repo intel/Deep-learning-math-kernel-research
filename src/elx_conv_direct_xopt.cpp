@@ -34,7 +34,7 @@ void Instance_elx_conv_direct_t::__execute_a060(
   MD5(OutputType, aoutput, output, this->t3, this->oc4, this->oc3 * this->O2,
       this->ht, this->ow * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-  MD3(TarrayType, atweights3, tweights_, this->ic4, this->oc4,
+  MD3(TweightsType, atweights3, tweights_, this->ic4, this->oc4,
       this->kh * this->kw * this->ic3 * this->oc3 * this->I2 * this->O2 * V * V);
 
   if (is_first_run_) {
@@ -101,7 +101,7 @@ void Instance_elx_conv_direct_t::__execute_d060(
   MD5(OutputType, aoutput, output, this->t3, this->oc4, this->oc3 * this->O2,
       this->ht, this->ow * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-  MD3(TarrayType, atweights3, tweights_, this->ic4, this->oc4,
+  MD3(TweightsType, atweights3, tweights_, this->ic4, this->oc4,
       this->kh * this->kw * this->ic3 * this->oc3 * this->I2 * this->O2 * V * V);
 
   if (is_first_run_) {

@@ -16,28 +16,28 @@ namespace test {
   void prepare_conv_data(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &desc,
       InputType **input, WeightsType **weights, OutputType **output,
       BiasType **bias, short **input1, short **weights1, short **output1,
-      short **bias1, bool double_buffering = false, bool fp16_mode = false,
+      short **bias1, bool double_buffering = false, int fp_mode = 0,
       bool f16c_opt = false, bool validate_results = false);
 
   void teardown_conv_data(void *input, void *weights, void *output, void *bias,
-      void *input1, void *weights1, void *output1, void *bias1, bool fp16_mode = false,
+      void *input1, void *weights1, void *output1, void *bias1, int fp_mode = 0,
       bool validate_results = false);
 
   template <typename OutputType>
   int __compare_conv_results_nchw(eld_conv_t<conv::FP32> &, OutputType *out,
-      float *ref, bool fp16_mode);
+      float *ref, int fp_mode);
 
   template <typename OutputType>
   int __compare_conv_results_nhwc(eld_conv_t<conv::FP32> &, OutputType *out,
-      float *ref, bool fp16_mode);
+      float *ref, int fp_mode);
 
   template <typename OutputType>
   int __compare_conv_results_blocked(eld_conv_t<conv::FP32> &, OutputType *out,
-      float *ref, bool fp16_mode);
+      float *ref, int fp_mode);
 
   template <typename OutputType>
   int compare_conv_results(eld_conv_t<conv::FP32> &, OutputType *out, float *ref,
-      bool fp16_mode);
+      int fp_mode);
 
   size_t cal_ops(eld_conv_t<conv::FP32> &desc);
   int cal_iterations(size_t num_ops);

@@ -18,6 +18,7 @@ template <typename... Types> struct ConvTypes {
 namespace conv {
   using FP32 = ConvTypes<float, float, float, float>;
   using FP16 = ConvTypes<short, short, short, short>;
+  using FP16O = ConvTypes<float, float, short, float>;
 };
 
 // Convolution algorithm
@@ -67,6 +68,12 @@ enum prop_kinds {
     backward_weights
 };
 
+enum fp_modes {
+  FP32,
+  FP16,
+  FP16O
+};
+
 template<typename UserTypes> struct elx_conv_t;
 
 // Convolution desc
@@ -95,6 +102,7 @@ template<typename UserTypes> struct eld_conv_t {
 
     // propagation kind
     int prop_kind;
+    int fp_mode;
 
     // Algorithm
     int algorithm; // CONV_DIRECT | CONV_WINOGRAD
@@ -105,7 +113,6 @@ template<typename UserTypes> struct eld_conv_t {
     bool with_ip_sum;
     bool with_op_sum;
     bool f16c_opt;
-    bool fp16_mode;
     bool is_inference;
 
     // Performance:
@@ -139,6 +146,7 @@ template<typename UserTypes> struct eld_conv_t {
 
 template struct eld_conv_t<conv::FP32>;
 template struct eld_conv_t<conv::FP16>;
+template struct eld_conv_t<conv::FP16O>;
 
 // Convolution execution
 template <typename UserTypes>

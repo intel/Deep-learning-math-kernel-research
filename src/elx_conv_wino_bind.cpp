@@ -116,7 +116,7 @@ void Instance_elx_conv_wino_t::bind_execute_functions()
       gemm_kernel_binder::bind<TarrayTypes,
           V, 1, I, 1, GKF_CCC, true>(O, T, func1);
 
-      if (this->fp16_mode) {
+      if (this->fp_mode) {
         gemm_kernel_binder::bind<conv_impl::INT8_F16b,
             V, 4, I, 1, GKF_CCC, true>(O, T, func2);
       } else if (this->f16c_opt) {
@@ -130,7 +130,7 @@ void Instance_elx_conv_wino_t::bind_execute_functions()
       gemm_kernel_binder::bind<TarrayTypes,
           V, 1, I, 1, GKF_CCC, false>(O, T, func1);
 
-      if (this->fp16_mode) {
+      if (this->fp_mode) {
         gemm_kernel_binder::bind<conv_impl::INT8_F16b,
             V, 4, I, 1, GKF_CCC, false>(O, T, func2);
       } if (this->f16c_opt) {

@@ -6,7 +6,7 @@ cat <<!
   -p   Use plain format.
   -r   ReLU fusion.
   -l   Repeated layer.
-  -f   fp16 UserTypes
+  -f   fp UserTypes
   -B   Double buffering.
   -A   Output buffer bas input
   -T   Preprocess tweights.
@@ -23,7 +23,7 @@ output_format=nChw16c
 tile_size=5
 
 OPTIND=1
-while getopts "vprsfl:BATHh" opt; do
+while getopts "vprsf:l:BATHh" opt; do
   case $opt in
     v)
       v=1
@@ -40,7 +40,7 @@ while getopts "vprsfl:BATHh" opt; do
       s=1
       ;;
     f)
-      f=1
+      f=$OPTARG
       ;;
     l)
       l=$OPTARG
@@ -67,7 +67,7 @@ while getopts "vprsfl:BATHh" opt; do
 done
 shift $((OPTIND-1))
 
-COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format -r$r --with-ip-sum=$s -l$l -B$B -A$A -T$T --f16c-opt=$H --fp16-mode=$f"
+COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format -r$r --with-ip-sum=$s -l$l -B$B -A$A -T$T --f16c-opt=$H --fp-mode=$f"
 
 echo "Common option:" $COMMON
 echo

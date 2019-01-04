@@ -4,7 +4,6 @@
 # batch-size: 1
 # SKX 8180 1S
 
-
 source ./scripts/best_configs/common.sh $@
 
 # vgg19_conv1_2,

@@ -23,7 +23,7 @@ template <typename UserTypes> eld_conv_t<UserTypes>::eld_conv_t()
   with_ip_sum = false;
   with_op_sum = false;
   f16c_opt = false;
-  fp16_mode = false;
+  fp_mode = 0;
   xc = nullptr;
   nthreads = 0;
   execution_mode = 0;
@@ -122,10 +122,11 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
   // Direct
   if (algorithm == CONV_DIRECT) {
     if (std::is_same<UserTypes, conv::FP32>::value)
-      xc = new elx_conv_direct_t<UserTypes, float, 16, ISA_SKX_AVX512>(*this);
+      xc = new elx_conv_direct_t<UserTypes, conv_impl::FP32, 16, ISA_SKX_AVX512>(*this);
+    else if (std::is_same<UserTypes, conv::FP16O>::value)
+      xc = new elx_conv_direct_t<UserTypes, conv_impl::FP32_F16o, 16, ISA_SKX_AVX512>(*this);
     else
       el_error("TODO: FP16 UserTypes for DIRECT 1x1.");
-
   } else if (algorithm == CONV_DIRECT_1X1) {
     if (dims.weights.h != 1 || dims.weights.w != 1) {
       el_error("Algorithm CONV_DIRECT_1X1 not supported for this shape.");
@@ -249,7 +250,7 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
           el_error("Unimplemented tile size");
           break;
         }
-      } else {
+      } else if (!std::is_same<UserTypes, conv::FP16O>::value) {
         using TarrayTypes = conv_impl::FP32;
         switch (tile_size) {
         case 4:

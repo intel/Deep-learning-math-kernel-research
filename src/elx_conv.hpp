@@ -54,8 +54,10 @@ struct elx_conv_params_t {
   // propagation kind
   int prop_kind;
 
+  int fp_mode;
+
   // relu, bias, sum
-  bool with_relu, with_bias, with_ip_sum, with_op_sum, f16c_opt, fp16_mode;
+  bool with_relu, with_bias, with_ip_sum, with_op_sum, f16c_opt;
 
   // streaming hint
   int streaming_weights;
@@ -90,6 +92,7 @@ template <typename UserTypes> struct elx_conv_t : elx_conv_params_t {
 
 template struct elx_conv_t<conv::FP32>;
 template struct elx_conv_t<conv::FP16>;
+template struct elx_conv_t<conv::FP16O>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_HPP__

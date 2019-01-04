@@ -36,7 +36,7 @@ elx_conv_t<UserTypes>::elx_conv_t(eld_conv_t<UserTypes> &dc)
   this->with_ip_sum = dc.with_ip_sum;
   this->with_op_sum = dc.with_op_sum;
   this->f16c_opt = dc.f16c_opt;
-  this->fp16_mode = dc.fp16_mode;
+  this->fp_mode = dc.fp_mode;
 
   this->prop_kind = dc.prop_kind;
 
@@ -87,4 +87,7 @@ template int elx_conv<conv::FP32>(
 
 template int elx_conv<conv::FP16>(
     eld_conv_t<conv::FP16> &, short *, short *, short *, short *);
+
+template int elx_conv<conv::FP16O>(
+    eld_conv_t<conv::FP16O> &, short *, float *, float *, float *);
 }  // namespace euler

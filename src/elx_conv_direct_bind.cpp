@@ -15,15 +15,15 @@ Instance_elx_conv_direct_t::bind_execute_functions()
 {
 #define BIND_KERNEL(S, F)                                                      \
   if (has_Ir) {                                                                \
-    gemm_kernel_binder::bind<conv_impl::FP32, V, 1, I, S,                      \
+    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S,                          \
         F, true>(O, T, func);                                                  \
   } else {                                                                     \
-    gemm_kernel_binder::bind<conv_impl::FP32, V, 1, I, S,                      \
+    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S,                          \
         F, false>(O, T, func);                                                 \
   }
 
   auto bind_gemm_kernel = [&](int O, int T,
-      gemm_kernel_binder::kgemm<conv_impl::FP32> **func, bool has_Ir) {
+      gemm_kernel_binder::kgemm<TarrayTypes> **func, bool has_Ir) {
     switch (xopt_) {
     case (0xd060):
       if (this->input_fmt == nchw) {
@@ -39,7 +39,7 @@ Instance_elx_conv_direct_t::bind_execute_functions()
   };
 
   auto bind_conv_kernel = [&](int O, int T,
-      gemm_kernel_binder::kconv<conv_impl::FP32> **func, bool has_Ir) {
+      gemm_kernel_binder::kconv<TarrayTypes> **func, bool has_Ir) {
     switch (xopt_) {
     case (0xa060):
       if (this->input_fmt == nchw) {

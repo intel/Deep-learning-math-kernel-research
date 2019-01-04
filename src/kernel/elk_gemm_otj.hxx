@@ -1543,7 +1543,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           }
         }
       } // _kw loop, mid
- 
+
       // left
       if (_wt == 0) {
         int _kw = 0;
@@ -1767,7 +1767,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           }
         }
       } // _kw loop, mid
- 
+
       // left
       if (_wt == 0) {
         int _kw = 0;

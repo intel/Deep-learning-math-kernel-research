@@ -57,6 +57,8 @@ struct gemm_kernel_binder {
   DECL_KGEMM_TBL(FP32_F16b, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC);
   DECL_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC);
   DECL_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_CCD);
+  DECL_KGEMM_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD);
+  DECL_KGEMM_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD);
   DECL_KGEMM_TBL(FP32_F16wo, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC);
   DECL_KGEMM_TBL(FP32_F16wob, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC);
 
@@ -67,6 +69,8 @@ struct gemm_kernel_binder {
 
   DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD);
   DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD);
+  DECL_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD);
+  DECL_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD);
 
 #if !defined(BUILD_OTJ_TBL)
   // GarrayTypes->f32f32f32f32, used by WINO with f32 UserTypes
@@ -223,6 +227,23 @@ struct gemm_kernel_binder {
     }
   }
 
+  // GarrayTypes->f32f32f16f32, used by DIRECT CONV with f16o UserTypes
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  static inline void bind(int O, int T, kgemm<conv_impl::FP32_F16o> **func)
+  {
+    switch (F) {
+    case GKF_DCD:
+      if (S == 1)
+        *func = LOOKUP_KGEMM_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, has_Ir);
+      break;
+    case GKF_ECD:
+      if (S == 1)
+        *func = LOOKUP_KGEMM_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T, has_Ir);
+      break;
+    default:
+      break;
+    }
+  }
 
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
   static inline void bind(int O, int T, kconv<conv_impl::FP32> **func)
@@ -242,8 +263,22 @@ struct gemm_kernel_binder {
   }
 
   template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
-  static inline void bind(int, int, kgemm<conv_impl::FP32_F16o> **)
-  {}
+  static inline void bind(int O, int T, kconv<conv_impl::FP32_F16o> **func)
+  {
+    switch (F) {
+    case GKF_DCD:
+      if (S == 1)
+        *func = LOOKUP_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T);
+      break;
+    case GKF_ECD:
+      if (S == 1)
+        *func = LOOKUP_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T);
+      break;
+    default:
+      break;
+    }
+  }
+
 #endif // BUILD_OTJ_TBL
 
 // Implicit instantiation is disabled b/c slow build. This build path can be
