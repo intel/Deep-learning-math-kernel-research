@@ -234,8 +234,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   constexpr static auto O = estl::get<2, int, kparams>();
   constexpr static auto T = estl::get<3, int, kparams>();
   constexpr static auto K = estl::get<4, int, kparams>(); // reuse, conv
-  // TODO: disable P=2/4 for K>3 due to ICC build crash
-  constexpr static auto has_Ir = K == 3 ? false : estl::get<4, bool, kparams>(); // reuse, gemm
+  constexpr static auto has_Ir = K >= 3 ? false : estl::get<4, bool, kparams>(); // reuse, gemm
 
   // Jamming components
   constexpr static int J = J_traits<O, T, has_Ir, WeightsType>::J;
@@ -1215,7 +1214,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int JO, int P, int FROM, int TO>
-  static inline typename std::enable_if<P == 1, void>::type op_gemm_OVT(
+  static inline typename std::enable_if<P == 1, void>::type op_conv_OVT(
       elx_conv_params_t &xc, InputType *input, WeightsType *weights,
       __m<V> mmout[JO][T], __m<V> mmwei[JO], int V_, int _kh, int _kw,
       int _I2)
@@ -1262,38 +1261,38 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       for (int _I2 = 0; _I2 < I2; ++_I2) {
         // mid
         for (int _kw = kws; _kw < kwe; ++_kw) {
-          op_gemm_OVT<JO, P, 0, T>(xc, &md2(ainput, _I2, 0),
+          op_conv_OVT<JO, P, 0, T>(xc, &md2(ainput, _I2, 0),
               &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
         }
         // left
         if (_wt == 0) {
           int _kw = 0; // K = 3, 5, 7
-          op_gemm_OVT<JO, P, AKW, T>(xc, &md2(ainput, _I2, 0),
+          op_conv_OVT<JO, P, AKW, T>(xc, &md2(ainput, _I2, 0),
               &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
           if (K > 3) {
             _kw = 1; // K = 5, 7
-            op_gemm_OVT<JO, P, AKW-1, T>(xc, &md2(ainput, _I2, 0),
+            op_conv_OVT<JO, P, AKW-1, T>(xc, &md2(ainput, _I2, 0),
                 &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
           }
           if (K > 5) {
             _kw = 2; // K = 7
-            op_gemm_OVT<JO, P, AKW-2, T>(xc, &md2(ainput, _I2, 0),
+            op_conv_OVT<JO, P, AKW-2, T>(xc, &md2(ainput, _I2, 0),
                 &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
           }
         }
         // right
         if (_wt == xc.wt - 1) {
           int _kw = K - 1; // K = 3, 5, 7
-          op_gemm_OVT<JO, P, 0, T-AKW>(xc, &md2(ainput, _I2, 0),
+          op_conv_OVT<JO, P, 0, T-AKW>(xc, &md2(ainput, _I2, 0),
               &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
           if (K > 3) {
             _kw = K - 2; // K = 5, 7
-            op_gemm_OVT<JO, P, 0, T-(AKW-1)>(xc, &md2(ainput, _I2, 0),
+            op_conv_OVT<JO, P, 0, T-(AKW-1)>(xc, &md2(ainput, _I2, 0),
                 &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
           }
           if (K > 5) {
             _kw = K - 3; // K = 7
-            op_gemm_OVT<JO, P, 0, T-(AKW-2)>(xc, &md2(ainput, _I2, 0),
+            op_conv_OVT<JO, P, 0, T-(AKW-2)>(xc, &md2(ainput, _I2, 0),
                 &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
           }
         }
@@ -1304,38 +1303,38 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         int _I2 = xc.I2 - 1;
         // mid
         for (int _kw = kws; _kw < kwe; ++_kw) {
-          op_gemm_OVT<JO, P, 0, T>(xc, &md2(ainput, _I2, 0),
+          op_conv_OVT<JO, P, 0, T>(xc, &md2(ainput, _I2, 0),
               &md3(aweights, _kh, _kw, 0), mmout, mmwei, Ir, _kh, _kw, _I2);
         }
         // left
         if (_wt == 0) {
           int _kw = 0; // K = 3, 5, 7
-          op_gemm_OVT<JO, P, AKW, T>(xc, &md2(ainput, _I2, 0),
+          op_conv_OVT<JO, P, AKW, T>(xc, &md2(ainput, _I2, 0),
               &md3(aweights, _kh, _kw, 0), mmout, mmwei, Ir, _kh, _kw, _I2);
           if (K > 3) {
             _kw = 1; // K = 5, 7
-            op_gemm_OVT<JO, P, AKW-1, T>(xc, &md2(ainput, _I2, 0),
+            op_conv_OVT<JO, P, AKW-1, T>(xc, &md2(ainput, _I2, 0),
                 &md3(aweights, _kh, _kw, 0), mmout, mmwei, Ir, _kh, _kw, _I2);
           }
           if (K > 5) {
             _kw = 2; // K = 7
-            op_gemm_OVT<JO, P, AKW-2, T>(xc, &md2(ainput, _I2, 0),
+            op_conv_OVT<JO, P, AKW-2, T>(xc, &md2(ainput, _I2, 0),
                 &md3(aweights, _kh, _kw, 0), mmout, mmwei, Ir, _kh, _kw, _I2);
           }
         }
         // right
         if (_wt == xc.wt - 1) {
           int _kw = K - 1; // K = 3, 5, 7
-          op_gemm_OVT<JO, P, 0, T-AKW>(xc, &md2(ainput, _I2, 0),
+          op_conv_OVT<JO, P, 0, T-AKW>(xc, &md2(ainput, _I2, 0),
               &md3(aweights, _kh, _kw, 0), mmout, mmwei, Ir, _kh, _kw, _I2);
           if (K > 3) {
             _kw = K - 2; // K = 5, 7
-            op_gemm_OVT<JO, P, 0, T-(AKW-1)>(xc, &md2(ainput, _I2, 0),
+            op_conv_OVT<JO, P, 0, T-(AKW-1)>(xc, &md2(ainput, _I2, 0),
                 &md3(aweights, _kh, _kw, 0), mmout, mmwei, Ir, _kh, _kw, _I2);
           }
           if (K > 5) {
             _kw = K - 3; // K = 7
-            op_gemm_OVT<JO, P, 0, T-(AKW-2)>(xc, &md2(ainput, _I2, 0),
+            op_conv_OVT<JO, P, 0, T-(AKW-2)>(xc, &md2(ainput, _I2, 0),
                 &md3(aweights, _kh, _kw, 0), mmout, mmwei, Ir, _kh, _kw, _I2);
           }
         }
@@ -1350,7 +1349,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int JO, int P, int FROM, int TO>
-  static inline typename std::enable_if<P == 2, void>::type op_gemm_OVT(
+  static inline typename std::enable_if<P == 2, void>::type op_conv_OVT(
       elx_conv_params_t &xc, InputType *input, WeightsType *weights,
       __m<V> mmout[JO][T], __m<V> mmwei[P][JO], int V_, int _kh, int _kw,
       int _I2)
@@ -1381,87 +1380,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     }
   }
 
-  template <int JO, int P>
-  static inline typename std::enable_if<P == 2, void>::type
-  op_conv(elx_conv_params_t &xc, OutputType *output,
-      InputType *input, WeightsType *weights, BiasType *bias, int _wt,
-      int khs, int khe, int kws, int kwe, int attr)
-  {
-    // 3x3 conv
-    constexpr int AKW = K / 2;
-    int I2 = xc.I2, Ir = 0;
-    if (get_attr(attr, has_Ir_idx)) {
-      I2 = xc.I2 - 1;
-      Ir = xc.Ir;
-    }
-
-    MD2(InputType, ainput, input, xc.I2, xc.ih * xc.iw * V); // blocked or nchw
-    MD3(WeightsType, aweights, weights, xc.kh, xc.kw, xc.oc3 * xc.ic3 * xc.O1 * xc.I2 * V * O * V); // compact
-    MD2(OutputType, aoutput, output, JO, xc.oh * xc.ow * V); // blocked
-
-    __m<V> mmout[JO][T], mmwei[P][JO];
-
-    op_setup_output<JO>(xc, output, bias, mmout, attr);
-
-    for (int _kh = khs; _kh < khe; ++_kh) {
-      // mid
-      for (int _kw = kws; _kw < kwe; ++_kw) {
-        // preload weights
-        unroll_for (_O, JO)
-          mmwei[0][_O] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
-        for (int _I2 = 0; _I2 < I2; ++_I2) {
-          op_gemm_OVT<JO, P, 0, T>(xc, &md2(ainput, _I2, 0),
-              &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
-        }
-        // Ir
-        int _I2 = xc.I2 - 1;
-        op_gemm_OVT<JO, 1, 0, T>(xc, &md2(ainput, _I2, 0),
-            &md3(aweights, _kh, _kw, 0), mmout, mmwei[0], Ir, _kh, _kw, _I2);
-      } // _kw loop, mid
-
-      // left
-      if (_wt == 0) {
-        int _kw = 0;
-        unroll_for (_O, JO)
-          mmwei[0][_O] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
-        for (int _I2 = 0; _I2 < I2; ++_I2) {
-          op_gemm_OVT<JO, P, AKW, T>(xc, &md2(ainput, _I2, 0),
-              &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
-        }
-        // Ir
-        int _I2 = xc.I2 - 1;
-        op_gemm_OVT<JO, 1, AKW, T>(xc, &md2(ainput, _I2, 0),
-            &md3(aweights, _kh, _kw, 0), mmout, mmwei[0], Ir, _kh, _kw, _I2);
-      } // left
-
-      // right
-      if (_wt == xc.wt - 1) {
-        int _kw = 2;
-        unroll_for (_O, JO)
-          mmwei[0][_O] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
-        for (int _I2 = 0; _I2 < I2; ++_I2) {
-          op_gemm_OVT<JO, P, 0, T - AKW>(xc, &md2(ainput, _I2, 0),
-              &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
-        }
-        // Ir
-        int _I2 = xc.I2 - 1;
-        op_gemm_OVT<JO, 1, 0, T - AKW>(xc, &md2(ainput, _I2, 0),
-            &md3(aweights, _kh, _kw, 0), mmout, mmwei[0], Ir, _kh, _kw, _I2);
-      } // right
-    } // _kh loop
-
-    // store output
-    unroll_for (_O, JO) {
-      unroll_for (_T, T)
-        op_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T, attr);
-    }
-  }
-
   template <int JO, int P, int FROM, int TO>
-  static inline typename std::enable_if<P == 4, void>::type op_gemm_OVT(
+  static inline typename std::enable_if<P == 4, void>::type op_conv_OVT(
       elx_conv_params_t &xc, InputType *input, WeightsType *weights,
       __m<V> mmout[JO][T], __m<V> mmwei[P][JO], int V_, int _kh, int _kw,
       int _I2)
@@ -1511,7 +1431,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int JO, int P>
-  static inline typename std::enable_if<P == 4, void>::type
+  static inline typename std::enable_if<P == 2 || P == 4, void>::type
   op_conv(elx_conv_params_t &xc, OutputType *output,
       InputType *input, WeightsType *weights, BiasType *bias, int _wt,
       int khs, int khe, int kws, int kwe, int attr)
@@ -1539,54 +1459,135 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         unroll_for (_O, JO) {
           mmwei[0][_O] = op_load_weights<JO, P>(
               xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
-          mmwei[1][_O] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
+          if (P == 4)
+            mmwei[1][_O] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
         }
         for (int _I2 = 0; _I2 < I2; ++_I2) {
-          op_gemm_OVT<JO, P, 0, T>(xc, &md2(ainput, _I2, 0),
+          op_conv_OVT<JO, P, 0, T>(xc, &md2(ainput, _I2, 0),
               &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
         }
         // Ir
         int _I2 = xc.I2 - 1;
-        op_gemm_OVT<JO, 1, 0, T>(xc, &md2(ainput, _I2, 0),
+        op_conv_OVT<JO, 1, 0, T>(xc, &md2(ainput, _I2, 0),
             &md3(aweights, _kh, _kw, 0), mmout, mmwei[0], Ir, _kh, _kw, _I2);
       } // _kw loop, mid
 
       // left
       if (_wt == 0) {
-        int _kw = 0;
-        unroll_for (_O, JO) {
-          mmwei[0][_O] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
-          mmwei[1][_O] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
+        {
+          int _kw = 0; // K = 3, 5, 7
+          unroll_for (_O, JO) {
+            mmwei[0][_O] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+            if (P == 4)
+              mmwei[1][_O] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
+          }
+          for (int _I2 = 0; _I2 < I2; ++_I2) {
+            op_conv_OVT<JO, P, AKW, T>(xc, &md2(ainput, _I2, 0),
+                &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
+          }
+          // Ir
+          int _I2 = xc.I2 - 1;
+          op_conv_OVT<JO, 1, AKW, T>(xc, &md2(ainput, _I2, 0),
+              &md3(aweights, _kh, _kw, 0), mmout, mmwei[0], Ir, _kh, _kw, _I2);
         }
-        for (int _I2 = 0; _I2 < I2; ++_I2) {
-          op_gemm_OVT<JO, P, AKW, T>(xc, &md2(ainput, _I2, 0),
-              &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
+        if (K > 3) {
+          int _kw = 1; // K = 5, 7
+          unroll_for (_O, JO) {
+            mmwei[0][_O] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+            if (P == 4)
+              mmwei[1][_O] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
+          }
+          for (int _I2 = 0; _I2 < I2; ++_I2) {
+            op_conv_OVT<JO, P, AKW - 1, T>(xc, &md2(ainput, _I2, 0),
+                &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
+          }
+          // Ir
+          int _I2 = xc.I2 - 1;
+          op_conv_OVT<JO, 1, AKW - 1, T>(xc, &md2(ainput, _I2, 0),
+              &md3(aweights, _kh, _kw, 0), mmout, mmwei[0], Ir, _kh, _kw, _I2);
         }
-        // Ir
-        int _I2 = xc.I2 - 1;
-        op_gemm_OVT<JO, 1, AKW, T>(xc, &md2(ainput, _I2, 0),
-            &md3(aweights, _kh, _kw, 0), mmout, mmwei[0], Ir, _kh, _kw, _I2);
+        if (K > 5) {
+          int _kw = 2; // K = 7
+          unroll_for (_O, JO) {
+            mmwei[0][_O] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+            if (P == 4)
+              mmwei[1][_O] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
+          }
+          for (int _I2 = 0; _I2 < I2; ++_I2) {
+            op_conv_OVT<JO, P, AKW - 2, T>(xc, &md2(ainput, _I2, 0),
+                &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
+          }
+          // Ir
+          int _I2 = xc.I2 - 1;
+          op_conv_OVT<JO, 1, AKW - 2, T>(xc, &md2(ainput, _I2, 0),
+              &md3(aweights, _kh, _kw, 0), mmout, mmwei[0], Ir, _kh, _kw, _I2);
+        }
       } // left
 
       // right
       if (_wt == xc.wt - 1) {
-        int _kw = 2;
-        unroll_for (_O, JO) {
-          mmwei[0][_O] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
-          mmwei[1][_O] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
+        {
+          int _kw = K - 1; // K = 3, 5, 7
+          unroll_for (_O, JO) {
+            mmwei[0][_O] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+            if (P == 4)
+              mmwei[1][_O] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
+          }
+          for (int _I2 = 0; _I2 < I2; ++_I2) {
+            op_conv_OVT<JO, P, 0, T - AKW>(xc, &md2(ainput, _I2, 0),
+                &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
+          }
+          // Ir
+          int _I2 = xc.I2 - 1;
+          op_conv_OVT<JO, 1, 0, T - AKW>(xc, &md2(ainput, _I2, 0),
+              &md3(aweights, _kh, _kw, 0), mmout, mmwei[0], Ir, _kh, _kw, _I2);
         }
-        for (int _I2 = 0; _I2 < I2; ++_I2) {
-          op_gemm_OVT<JO, P, 0, T - AKW>(xc, &md2(ainput, _I2, 0),
-              &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
+
+        if (K > 3) {
+          int _kw = K - 2; // K = 5, 7
+          unroll_for (_O, JO) {
+            mmwei[0][_O] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+            if (P == 4)
+              mmwei[1][_O] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
+          }
+          for (int _I2 = 0; _I2 < I2; ++_I2) {
+            op_conv_OVT<JO, P, 0, T - (AKW - 1)>(xc, &md2(ainput, _I2, 0),
+                &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
+          }
+          // Ir
+          int _I2 = xc.I2 - 1;
+          op_conv_OVT<JO, 1, 0, T - (AKW - 1)>(xc, &md2(ainput, _I2, 0),
+              &md3(aweights, _kh, _kw, 0), mmout, mmwei[0], Ir, _kh, _kw, _I2);
         }
-        int _I2 = xc.I2 - 1;
-        op_gemm_OVT<JO, 1, 0, T - AKW>(xc, &md2(ainput, _I2, 0),
-            &md3(aweights, _kh, _kw, 0), mmout, mmwei[0], Ir, _kh, _kw, _I2);
+        if (K > 5) {
+          int _kw = K - 3; // K = 7
+          unroll_for (_O, JO) {
+            mmwei[0][_O] = op_load_weights<JO, P>(
+                xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+            if (P == 4)
+              mmwei[1][_O] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
+          }
+          for (int _I2 = 0; _I2 < I2; ++_I2) {
+            op_conv_OVT<JO, P, 0, T - (AKW - 2)>(xc, &md2(ainput, _I2, 0),
+                &md3(aweights, _kh, _kw, 0), mmout, mmwei, V, _kh, _kw, _I2);
+          }
+          // Ir
+          int _I2 = xc.I2 - 1;
+          op_conv_OVT<JO, 1, 0, T - (AKW - 2)>(xc, &md2(ainput, _I2, 0),
+              &md3(aweights, _kh, _kw, 0), mmout, mmwei[0], Ir, _kh, _kw, _I2);
+        }
       } // right
     } // _kh loop
 
