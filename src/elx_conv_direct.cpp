@@ -33,8 +33,6 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t<UserTypes> &dc)
   this->ic2 = this->IC / V;
   this->oc2 = this->OC / V;
 
-  no_pad_ = this->lp == 0 && this->rp == 0 && this->tp == 0 && this->bp == 0;
-
   // t3, t2, (T, Tr)
   if (xopt_ == 0xa060 || xopt_ == 0xd060) {
     this->t3 = this->n;
@@ -48,9 +46,12 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t<UserTypes> &dc)
     if (this->T <= this->lp || this->Tr <= this->rp) {
       el_error("Unimplemented T: (T,Tr) must greater than (lp,rp)");
     }
-    if (no_pad_ && (this->ht * this->hs != this->ih
-        || this->wt * this->ws * this->T != this->iw)) {
-      el_error("Unimplemented non-unitride shape or blocking");
+
+    // kh,kw=odd, lp=rp, tp=bp, ih=oh*hs, iw=ow*ws
+    if (this->kh % 2 != 1 || this->kw % 2 != 1
+        || this->lp != this->rp || this->tp != this->bp
+        || this->ih != this->oh * this->hs || this->iw != this->ow * this->ws) {
+      el_error("a060|d060: shape not supported");
     }
   }
 
@@ -261,6 +262,7 @@ void Instance_elx_conv_direct_t::trans_weights_blocked_to_compact(
   }}}}}}}}}}
 }
 
+// kh,kw=odd, lp=rp=standard, ih=oh*hs, iw=ow*ws, hs=ws=1
 Template_elx_conv_direct_t void
 Instance_elx_conv_direct_t::conv_a060(OutputType *output,
     InputType *input, TweightsType *weights, BiasType *bias, int _ic4, int _oc4,
@@ -274,14 +276,15 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
       this->O2 * this->I2 * V * V);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
 
-  int khs = _ht == 0 ? 1 : 0;
-  int khe = _ht == this->ht - 1 ? this->kh - 1 : this->kh;
-  int kws = _wt == 0 ? 1 : 0;
-  int kwe = _wt == this->wt - 1 ? this->kw - 1 : this->kw;
-  assert(this->T > this->lp);
-  assert(this->Tr > this->rp);
-
+  int Tz = _wt == this->wt - 1 ? this->Tr : this->T;
   auto ker_conv = _wt == this->wt - 1 ? ker_conv_Tr_ : ker_conv_;
+
+  int khs = std::max(0, this->tp - this->hs * _ht);
+  int khe = std::min(this->kh, this->ih + this->tp - this->hs * _ht);
+  int kws = std::max(0, this->lp - this->ws * _wt * this->T);
+  int kwe = std::min(this->kw, this->iw + this->lp - this->ws * (_wt * this->T + Tz - 1));
+  assert(this->T > this->lp && this->Tr > this->rp);
+
   iter_each(_oc3, this->oc3) {
   iter_each(_ic3, this->ic3) {
     int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;

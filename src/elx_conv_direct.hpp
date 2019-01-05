@@ -66,7 +66,6 @@ class elx_conv_direct_t : public elx_conv_t<UserTypes> {
 
   void (elx_conv_direct_t::*execute_opt_)(OutputType *, InputType *, WeightsType *, BiasType *);
 
-  bool no_pad_;
   bool is_first_run_;
   bool inference_acc_;
 

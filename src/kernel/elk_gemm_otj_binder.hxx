@@ -6,7 +6,7 @@
       *kgemm_##type##_##V##_##Vx##_##I##_##S##_##F[8][32][2]
 #define DECL_KCONV_TBL(type, V, Vx, I, S, F)                                   \
   static kconv<conv_impl::type>                                                \
-      *kconv_##type##_##V##_##Vx##_##I##_##S##_##F[8][32]
+      *kconv_##type##_##V##_##Vx##_##I##_##S##_##F[8][32][3]
 #else
 #define DECL_KGEMM_TBL(type, V, Vx, I, S, F)                                   \
   __kgemm_generate_inst__ gemm type V Vx I S F
@@ -16,8 +16,8 @@
 
 #define LOOKUP_KGEMM_TBL(type, V, Vx, I, S, F, O, T, has_Ir)                   \
   kgemm_##type##_##V##_##Vx##_##I##_##S##_##F[O - 1][T - 1][has_Ir]
-#define LOOKUP_KCONV_TBL(type, V, Vx, I, S, F, O, T)                           \
-  kconv_##type##_##V##_##Vx##_##I##_##S##_##F[O - 1][T - 1]
+#define LOOKUP_KCONV_TBL(type, V, Vx, I, S, F, O, T, K)                        \
+  kconv_##type##_##V##_##Vx##_##I##_##S##_##F[O - 1][T - 1][K/2-1]
 
 #if !defined(BUILD_OTJ_TBL)
 #include "el_intrin.hpp"
@@ -245,34 +245,34 @@ struct gemm_kernel_binder {
     }
   }
 
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, int K>
   static inline void bind(int O, int T, kconv<conv_impl::FP32> **func)
   {
     switch (F) {
     case GKF_DCD:
       if (S == 1)
-        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T);
+        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, K);
       break;
     case GKF_ECD:
       if (S == 1)
-        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T);
+        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T, K);
       break;
     default:
       break;
     }
   }
 
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, int K>
   static inline void bind(int O, int T, kconv<conv_impl::FP32_F16o> **func)
   {
     switch (F) {
     case GKF_DCD:
       if (S == 1)
-        *func = LOOKUP_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T);
+        *func = LOOKUP_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, K);
       break;
     case GKF_ECD:
       if (S == 1)
-        *func = LOOKUP_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T);
+        *func = LOOKUP_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T, K);
       break;
     default:
       break;

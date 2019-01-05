@@ -44,7 +44,7 @@ static inline ConvType create_conv_desc(void) {
   desc.formats = {
     input_format, weights_format, output_format
   };
-  desc.pads = { ph, ph, pw, pw };
+  desc.pads = { pw, pw, ph, ph };
   desc.strides   = { sh, sw };
   desc.with_bias = with_bias;
   desc.with_relu = with_relu;

@@ -13,7 +13,7 @@ namespace euler {
 Template_elx_conv_direct_t void
 Instance_elx_conv_direct_t::bind_execute_functions()
 {
-#define BIND_KERNEL(S, F)                                                      \
+#define BIND_GEMM_KERNEL(S, F)                                                 \
   if (has_Ir) {                                                                \
     gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S,                          \
         F, true>(O, T, func);                                                  \
@@ -21,15 +21,26 @@ Instance_elx_conv_direct_t::bind_execute_functions()
     gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S,                          \
         F, false>(O, T, func);                                                 \
   }
+#define BIND_CONV_KERNEL(S, F, K)                                              \
+  if (K == 3) {                                                                \
+    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S,                          \
+        F, 3>(O, T, func);                                                     \
+  } else if (K == 5) {                                                         \
+    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S,                          \
+        F, 5>(O, T, func);                                                     \
+  } else if (K == 7) {                                                         \
+    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S,                          \
+        F, 7>(O, T, func);                                                     \
+  }
 
   auto bind_gemm_kernel = [&](int O, int T,
       gemm_kernel_binder::kgemm<TarrayTypes> **func, bool has_Ir) {
     switch (xopt_) {
     case (0xd060):
       if (this->input_fmt == nchw) {
-        BIND_KERNEL(1, GKF_ECD)
+        BIND_GEMM_KERNEL(1, GKF_ECD)
       } else {
-        BIND_KERNEL(1, GKF_DCD)
+        BIND_GEMM_KERNEL(1, GKF_DCD)
       }
       break;
     default:
@@ -39,13 +50,13 @@ Instance_elx_conv_direct_t::bind_execute_functions()
   };
 
   auto bind_conv_kernel = [&](int O, int T,
-      gemm_kernel_binder::kconv<TarrayTypes> **func, bool has_Ir) {
+      gemm_kernel_binder::kconv<TarrayTypes> **func, int K) {
     switch (xopt_) {
     case (0xa060):
       if (this->input_fmt == nchw) {
-        BIND_KERNEL(1, GKF_ECD);
+        BIND_CONV_KERNEL(1, GKF_ECD, K);
       } else {
-        BIND_KERNEL(1, GKF_DCD);
+        BIND_CONV_KERNEL(1, GKF_DCD, K);
       }
       break;
     default:
@@ -55,8 +66,8 @@ Instance_elx_conv_direct_t::bind_execute_functions()
   };
 
   if (xopt_ == 0xa060) {
-    bind_conv_kernel(this->O, this->T, &ker_conv_, false);
-    bind_conv_kernel(this->O, this->Tr, &ker_conv_Tr_, false);
+    bind_conv_kernel(this->O, this->T, &ker_conv_, this->kw);
+    bind_conv_kernel(this->O, this->Tr, &ker_conv_Tr_, this->kw);
   } else if (xopt_ == 0xd060) {
     bind_gemm_kernel(this->O, this->T, &ker_gemm_I_O_T_, false);
     bind_gemm_kernel(this->O, this->Tr, &ker_gemm_I_O_Tr_, false);

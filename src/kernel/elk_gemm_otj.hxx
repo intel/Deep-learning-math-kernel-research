@@ -233,7 +233,9 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   constexpr static auto F = estl::get<1, int, kparams>();
   constexpr static auto O = estl::get<2, int, kparams>();
   constexpr static auto T = estl::get<3, int, kparams>();
-  constexpr static auto has_Ir = estl::get<4, bool, kparams>();
+  constexpr static auto K = estl::get<4, int, kparams>(); // reuse, conv
+  // TODO: disable P=2/4 for K>3 due to ICC build crash
+  constexpr static auto has_Ir = K > 3 ? true : estl::get<4, bool, kparams>(); // reuse, gemm
 
   // Jamming components
   constexpr static int J = J_traits<O, T, has_Ir, WeightsType>::J;
@@ -1279,16 +1281,14 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     }
   }
 
-  // TODO: Currently only 3x3, J=1 support
   template <int JO, int P>
   static inline typename std::enable_if<P == 1, void>::type
   op_conv(elx_conv_params_t &xc, OutputType *output,
       InputType *input, WeightsType *weights, BiasType *bias, int _wt,
       int khs, int khe, int kws, int kwe, int attr)
   {
-    // 3x3 conv
     const int AKH = xc.kh / 2;
-    const int AKW = xc.kw / 2;
+    constexpr int AKW = K / 2;
 
     int I2 = xc.I2, Ir = 0;
     if (get_attr(attr, has_Ir_idx)) {
@@ -1333,53 +1333,121 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       }
     }
 
+    auto gemm_OVT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 0, _O);
+        unroll_for(_T, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVxT = [&](InputType *input_, WeightsType *weights_,
+                         int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 0, _O);
+        unroll_from_to(_T, AKW, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVxxT = [&](InputType *input_, WeightsType *weights_,
+                         int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 0, _O);
+        unroll_from_to(_T, AKW-1, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVxxxT = [&](InputType *input_, WeightsType *weights_,
+                         int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 0, _O);
+        unroll_from_to(_T, AKW-2, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVTx = [&](InputType *input_, WeightsType *weights_,
+                         int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 0, _O);
+        unroll_for(_T, T-AKW) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVTxx = [&](InputType *input_, WeightsType *weights_,
+                         int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 0, _O);
+        unroll_for(_T, T-(AKW-1)) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVTxxx = [&](InputType *input_, WeightsType *weights_,
+                         int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 0, _O);
+        unroll_for(_T, T-(AKW-2)) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+
     for (int _kh = khs; _kh < khe; ++_kh) {
       for (int _I2 = 0; _I2 < I2; ++_I2) {
         // mid
         for (int _kw = kws; _kw < kwe; ++_kw) {
-#pragma nounroll
-          for (int _V = 0; _V < V / P; ++_V) {
-            unroll_for(_O, JO)
-              mmwei[_O][0] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
-            unroll_for(_T, T) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            }
-          }
+          gemm_OVT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
         }
         // left
         if (_wt == 0) {
-          int _kw = 0;
-#pragma nounroll
-          for (int _V = 0; _V < V / P; ++_V) {
-            unroll_for(_O, JO)
-              mmwei[_O][0] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
-            unroll_from_to(_T, 1, T) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            }
+          int _kw = 0; // K = 3, 5, 7
+          gemm_OVxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
+          if (K > 3) {
+            _kw = 1; // K = 5, 7
+            gemm_OVxxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
+          }
+          if (K > 5) {
+            _kw = 2; // K = 7
+            gemm_OVxxxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
           }
         }
         // right
         if (_wt == xc.wt - 1) {
-          int _kw = 2;
-#pragma nounroll
-          for (int _V = 0; _V < V / P; ++_V) {
-            unroll_for(_O, JO)
-              mmwei[_O][0] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
-            unroll_for(_T, T - 1) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            }
+          int _kw = K - 1; // K = 3, 5, 7
+          gemm_OVTx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
+          if (K > 3) {
+            _kw = K - 2; // K = 5, 7
+            gemm_OVTxx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
+          }
+          if (K > 5) {
+            _kw = K - 3; // K = 7
+            gemm_OVTxxx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
           }
         }
       } // I2 loop
@@ -1389,49 +1457,32 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         int _I2 = xc.I2 - 1;
         // mid
         for (int _kw = kws; _kw < kwe; ++_kw) {
-#pragma nounroll
-          for (int _V = 0; _V < Ir; ++_V) {
-            unroll_for(_O, JO)
-              mmwei[_O][0] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
-            unroll_for(_T, T) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            }
-          }
+          gemm_OVT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
         }
         // left
         if (_wt == 0) {
-          int _kw = 0;
-#pragma nounroll
-          for (int _V = 0; _V < Ir; ++_V) {
-            unroll_for(_O, JO)
-              mmwei[_O][0] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
-            unroll_from_to(_T, 1, T) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            }
+          int _kw = 0; // K = 3, 5, 7
+          gemm_OVxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+          if (K > 3) {
+            _kw = 1; // K = 5, 7
+            gemm_OVxxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+          }
+          if (K > 5) {
+            _kw = 2; // K = 7
+            gemm_OVxxxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
           }
         }
         // right
         if (_wt == xc.wt - 1) {
-          int _kw = 2;
-#pragma nounroll
-          for (int _V = 0; _V < Ir; ++_V) {
-            unroll_for(_O, JO)
-              mmwei[_O][0] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
-            unroll_for(_T, T - 1) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            }
+          int _kw = K - 1; // K = 3, 5, 7
+          gemm_OVTx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+          if (K > 3) {
+            _kw = K - 2; // K = 5, 7
+            gemm_OVTxx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+          }
+          if (K > 5) {
+            _kw = K - 3; // K = 7
+            gemm_OVTxxx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
           }
         }
       }
@@ -1450,9 +1501,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       InputType *input, WeightsType *weights, BiasType *bias, int _wt,
       int khs, int khe, int kws, int kwe, int attr)
   {
-    // 3x3 conv
     const int AKH = xc.kh / 2;
-    const int AKW = xc.kw / 2;
+    constexpr int AKW = K / 2; //xc.kw / 2;
 
     int I2 = xc.I2, Ir = 0;
     if (get_attr(attr, has_Ir_idx)) {
@@ -1460,7 +1510,6 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       Ir = xc.Ir;
     }
 
-    // TODO: non-blocked handling
     MD2(InputType, ainput, input, xc.I2, xc.ih * xc.iw * V); // blocked or nchw
     MD3(WeightsType, aweights, weights, xc.kh, xc.kw, xc.oc3 * xc.ic3 * xc.O1 * xc.I2 * V * O * V); // compact
     MD2(OutputType, aoutput, output, JO, xc.oh * xc.ow * V); // blocked
@@ -1497,6 +1546,252 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       }
     }
 
+    auto gemm_OVT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+       for (int _V = 0; _V < V_ / P; ++_V) {
+         // _P = 0
+         unroll_for(_O, JO)
+           mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 1, _O);
+         unroll_for(_T, T) {
+           __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+           unroll_for(_O, JO)
+             mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+         }
+         // _P = 1
+         unroll_for(_O, JO)
+           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 0, _O);
+         unroll_for(_T, T) {
+           __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 1, _T);
+           unroll_for(_O, JO)
+             mmout[_O][_T] += mmwei[_O][1] * mmbcst;
+         }
+       }
+    };
+    auto gemmr_OVT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights_, _I2, _V, 0, _O);
+        unroll_for(_T, T) {
+          __m<V> mmbcst = op_load_input<1>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVxT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+       for (int _V = 0; _V < V_ / P; ++_V) {
+         // _P = 0
+         unroll_for(_O, JO)
+           mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 1, _O);
+         unroll_from_to(_T, AKW, T) {
+           __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+           unroll_for(_O, JO)
+             mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+         }
+         // _P = 1
+         unroll_for(_O, JO)
+           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 0, _O);
+         unroll_from_to(_T, AKW, T) {
+           __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 1, _T);
+           unroll_for(_O, JO)
+             mmout[_O][_T] += mmwei[_O][1] * mmbcst;
+         }
+       }
+    };
+    auto gemmr_OVxT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights_, _I2, _V, 0, _O);
+        unroll_from_to(_T, AKW, T) {
+          __m<V> mmbcst = op_load_input<1>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVxxT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+       for (int _V = 0; _V < V_ / P; ++_V) {
+         // _P = 0
+         unroll_for(_O, JO)
+           mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 1, _O);
+         unroll_from_to(_T, AKW-1, T) {
+           __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+           unroll_for(_O, JO)
+             mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+         }
+         // _P = 1
+         unroll_for(_O, JO)
+           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 0, _O);
+         unroll_from_to(_T, AKW-1, T) {
+           __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 1, _T);
+           unroll_for(_O, JO)
+             mmout[_O][_T] += mmwei[_O][1] * mmbcst;
+         }
+       }
+    };
+    auto gemmr_OVxxT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights_, _I2, _V, 0, _O);
+        unroll_from_to(_T, AKW-1, T) {
+          __m<V> mmbcst = op_load_input<1>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVxxxT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+       for (int _V = 0; _V < V_ / P; ++_V) {
+         // _P = 0
+         unroll_for(_O, JO)
+           mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 1, _O);
+         unroll_from_to(_T, AKW-2, T) {
+           __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+           unroll_for(_O, JO)
+             mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+         }
+         // _P = 1
+         unroll_for(_O, JO)
+           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 0, _O);
+         unroll_from_to(_T, AKW-2, T) {
+           __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 1, _T);
+           unroll_for(_O, JO)
+             mmout[_O][_T] += mmwei[_O][1] * mmbcst;
+         }
+       }
+    };
+    auto gemmr_OVxxxT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights_, _I2, _V, 0, _O);
+        unroll_from_to(_T, AKW-2, T) {
+          __m<V> mmbcst = op_load_input<1>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVTx = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V / P; ++_V) {
+        // _P = 0
+        unroll_for(_O, JO)
+          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 1, _O);
+        unroll_for(_T, T - AKW) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+        // _P = 1
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 0, _O);
+        unroll_for(_T, T - 1) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 1, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][1] * mmbcst;
+        }
+      } // _V
+    };
+    auto gemmr_OVTx = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights_, _I2, _V, 0, _O);
+        unroll_for(_T, T - AKW) {
+          __m<V> mmbcst = op_load_input<1>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVTxx = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V / P; ++_V) {
+        // _P = 0
+        unroll_for(_O, JO)
+          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 1, _O);
+        unroll_for(_T, T - (AKW-1)) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+        // _P = 1
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 0, _O);
+        unroll_for(_T, T - (AKW-1)) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 1, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][1] * mmbcst;
+        }
+      } // _V
+    };
+    auto gemmr_OVTxx = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights_, _I2, _V, 0, _O);
+        unroll_for(_T, T - (AKW-1)) {
+          __m<V> mmbcst = op_load_input<1>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVTxxx = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V / P; ++_V) {
+        // _P = 0
+        unroll_for(_O, JO)
+          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 1, _O);
+        unroll_for(_T, T - (AKW-2)) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+        // _P = 1
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 0, _O);
+        unroll_for(_T, T - (AKW-2)) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 1, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][1] * mmbcst;
+        }
+      } // _V
+    };
+    auto gemmr_OVTxxx = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights_, _I2, _V, 0, _O);
+        unroll_for(_T, T - (AKW-2)) {
+          __m<V> mmbcst = op_load_input<1>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+
     for (int _kh = khs; _kh < khe; ++_kh) {
       // mid
       for (int _kw = kws; _kw < kwe; ++_kw) {
@@ -1504,137 +1799,82 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         unroll_for(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
         for (int _I2 = 0; _I2 < I2; ++_I2) {
-#pragma nounroll
-          for (int _V = 0; _V < V / P; ++_V) {
-            // _P = 0
-            unroll_for(_O, JO)
-              mmwei[_O][1] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 1, _O);
-            unroll_for(_T, T) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-              unroll_for(_O, JO)
-                mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            }
-            // _P = 1
-            unroll_for(_O, JO)
-              mmwei[_O][0] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
-            unroll_for(_T, T) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 1, _T);
-              unroll_for(_O, JO)
-                mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
-            }
-          }
+          gemm_OVT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
         }
         // Ir
         int _I2 = xc.I2 - 1;
-#pragma nounroll
-        for (int _V = 0; _V < Ir; ++_V) {
-          unroll_for(_O, JO)
-            mmwei[_O][0] = op_load_weights<JO, 1>(
-              xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
-          unroll_for(_T, T) {
-            __m<V> mmbcst = op_load_input<1>(
-                xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-            unroll_for(_O, JO)
-              mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-          }
-        }
+        gemmr_OVT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
       } // _kw loop, mid
 
       // left
       if (_wt == 0) {
-        int _kw = 0;
-
+        int _kw = 0; // K = 3, 5, 7
         unroll_for(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
         for (int _I2 = 0; _I2 < I2; ++_I2) {
-#pragma nounroll
-          for (int _V = 0; _V < V / P; ++_V) {
-            // _P = 0
-            unroll_for(_O, JO)
-              mmwei[_O][1] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 1, _O);
-            unroll_from_to(_T, 1, T) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-              unroll_for(_O, JO)
-                mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            }
-            // _P = 1
-            unroll_for(_O, JO)
-              mmwei[_O][0] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
-            unroll_from_to(_T, 1, T) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 1, _T);
-              unroll_for(_O, JO)
-                mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
-            }
-          }
+          gemm_OVxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
         }
         // Ir
         int _I2 = xc.I2 - 1;
-#pragma nounroll
-        for (int _V = 0; _V < Ir; ++_V) {
+        gemmr_OVxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+
+        if (K > 3) {
+          _kw = 1; // K = 5, 7
           unroll_for(_O, JO)
-            mmwei[_O][0] = op_load_weights<JO, 1>(
-              xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
-          unroll_from_to(_T, 1, T) {
-            __m<V> mmbcst = op_load_input<1>(
-                xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-            unroll_for(_O, JO)
-              mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+          for (int _I2 = 0; _I2 < I2; ++_I2) {
+            gemm_OVxxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
           }
+          // Ir
+          int _I2 = xc.I2 - 1;
+          gemmr_OVxxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+        }
+        if (K > 5) {
+          _kw = 2; // K = 7
+          unroll_for(_O, JO)
+            mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+          for (int _I2 = 0; _I2 < I2; ++_I2) {
+            gemm_OVxxxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
+          }
+          // Ir
+          int _I2 = xc.I2 - 1;
+          gemmr_OVxxxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
         }
       } // left
 
       // right
       if (_wt == xc.wt - 1) {
-        int _kw = 2;
-
+        int _kw = K - 1; // K = 3, 5, 7
         unroll_for(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
         for (int _I2 = 0; _I2 < I2; ++_I2) {
-#pragma nounroll
-          for (int _V = 0; _V < V / P; ++_V) {
-            // _P = 0
-            unroll_for(_O, JO)
-              mmwei[_O][1] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 1, _O);
-            unroll_for(_T, T - 1) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-              unroll_for(_O, JO)
-                mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            }
-            // _P = 1
-            unroll_for(_O, JO)
-              mmwei[_O][0] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
-            unroll_for(_T, T - 1) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 1, _T);
-              unroll_for(_O, JO)
-                mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
-            }
-          } // _V
+          gemm_OVTx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
         }
         // Ir
         int _I2 = xc.I2 - 1;
-#pragma nounroll
-        for (int _V = 0; _V < Ir; ++_V) {
+        gemmr_OVTx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+
+        if (K > 3) {
+          _kw = K - 2; // K = 5, 7
           unroll_for(_O, JO)
-            mmwei[_O][0] = op_load_weights<JO, 1>(
-              xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
-          unroll_for(_T, T - 1) {
-            __m<V> mmbcst = op_load_input<1>(
-                xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-            unroll_for(_O, JO)
-              mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+            mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+          for (int _I2 = 0; _I2 < I2; ++_I2) {
+            gemm_OVTxx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
           }
+          // Ir
+          int _I2 = xc.I2 - 1;
+          gemmr_OVTxx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+        }
+        if (K > 5) {
+          _kw = K - 3; // K = 7
+          unroll_for(_O, JO)
+            mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+          for (int _I2 = 0; _I2 < I2; ++_I2) {
+            gemm_OVTxxx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
+          }
+          // Ir
+          int _I2 = xc.I2 - 1;
+          gemmr_OVTxxx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
         }
       } // right
     } // _kh loop
@@ -1652,9 +1892,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       InputType *input, WeightsType *weights, BiasType *bias, int _wt,
       int khs, int khe, int kws, int kwe, int attr)
   {
-    // 3x3 conv
     const int AKH = xc.kh / 2;
-    const int AKW = xc.kw / 2;
+    constexpr int AKW = K / 2; //xc.kw / 2;
 
     int I2 = xc.I2, Ir = 0;
     if (get_attr(attr, has_Ir_idx)) {
@@ -1662,7 +1901,6 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       Ir = xc.Ir;
     }
 
-    // TODO: non-blocked handling
     MD2(InputType, ainput, input, xc.I2, xc.ih * xc.iw * V); // blocked or nchw
     MD3(WeightsType, aweights, weights, xc.kh, xc.kw, xc.oc3 * xc.ic3 * xc.O1 * xc.I2 * V * O * V); // compact
     MD2(OutputType, aoutput, output, JO, xc.oh * xc.ow * V); // blocked
@@ -1699,6 +1937,337 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       }
     }
 
+    auto gemm_OVT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V / P; ++_V) {
+        // _P = 0
+        unroll_for(_O, JO)
+          mmwei[_O][2] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 2, _O);
+        unroll_for(_T, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+        // _P = 1
+        unroll_for(_O, JO)
+          mmwei[_O][3] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 3, _O);
+        unroll_for(_T, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 1, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][1] * mmbcst;
+        }
+        // _P = 2
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 0, _O);
+        unroll_for(_T, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 2, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][2] * mmbcst;
+        }
+        // _P = 3
+        unroll_for(_O, JO)
+          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 1, _O);
+        unroll_for(_T, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 3, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][3] * mmbcst;
+        }
+      } // _V
+    };
+    auto gemmr_OVT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights_, _I2, _V, 0, _O);
+        unroll_for(_T, T) {
+          __m<V> mmbcst = op_load_input<1>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVxT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+
+#pragma nounroll
+      for (int _V = 0; _V < V / P; ++_V) {
+        // _P = 0
+        unroll_for(_O, JO)
+          mmwei[_O][2] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 2, _O);
+        unroll_from_to(_T, AKW, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+        // _P = 1
+        unroll_for(_O, JO)
+          mmwei[_O][3] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 3, _O);
+        unroll_from_to(_T, AKW, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 1, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][1] * mmbcst;
+        }
+        // _P = 2
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 0, _O);
+        unroll_from_to(_T, AKW, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 2, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][2] * mmbcst;
+        }
+        // _P = 3
+        unroll_for(_O, JO)
+          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 1, _O);
+        unroll_from_to(_T, AKW, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 3, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][3] * mmbcst;
+        }
+      } // _V
+    };
+    auto gemmr_OVxT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights_, _I2, _V, 0, _O);
+        unroll_from_to(_T, AKW, T) {
+          __m<V> mmbcst = op_load_input<1>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVxxT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V / P; ++_V) {
+        // _P = 0
+        unroll_for(_O, JO)
+          mmwei[_O][2] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 2, _O);
+        unroll_from_to(_T, AKW-1, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+        // _P = 1
+        unroll_for(_O, JO)
+          mmwei[_O][3] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 3, _O);
+        unroll_from_to(_T, AKW-1, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 1, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][1] * mmbcst;
+        }
+        // _P = 2
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 0, _O);
+        unroll_from_to(_T, AKW-1, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 2, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][2] * mmbcst;
+        }
+        // _P = 3
+        unroll_for(_O, JO)
+          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 1, _O);
+        unroll_from_to(_T, AKW-1, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 3, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][3] * mmbcst;
+        }
+      } // _V
+    };
+    auto gemmr_OVxxT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights_, _I2, _V, 0, _O);
+        unroll_from_to(_T, AKW-1, T) {
+          __m<V> mmbcst = op_load_input<1>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVxxxT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V / P; ++_V) {
+        // _P = 0
+        unroll_for(_O, JO)
+          mmwei[_O][2] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 2, _O);
+        unroll_from_to(_T, AKW-2, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+        // _P = 1
+        unroll_for(_O, JO)
+          mmwei[_O][3] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 3, _O);
+        unroll_from_to(_T, AKW-2, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 1, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][1] * mmbcst;
+        }
+        // _P = 2
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 0, _O);
+        unroll_from_to(_T, AKW-2, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 2, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][2] * mmbcst;
+        }
+        // _P = 3
+        unroll_for(_O, JO)
+          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 1, _O);
+        unroll_from_to(_T, AKW-2, T) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 3, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][3] * mmbcst;
+        }
+      } // _V
+    };
+    auto gemmr_OVxxxT = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights_, _I2, _V, 0, _O);
+        unroll_from_to(_T, AKW-2, T) {
+          __m<V> mmbcst = op_load_input<1>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVTx = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V / P; ++_V) {
+        // _P = 0
+        unroll_for(_O, JO)
+          mmwei[_O][2] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 2, _O);
+        unroll_for(_T, T - AKW) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+        // _P = 1
+        unroll_for(_O, JO)
+          mmwei[_O][3] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 3, _O);
+        unroll_for(_T, T - AKW) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 1, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][1] * mmbcst;
+        }
+        // _P = 2
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 0, _O);
+        unroll_for(_T, T - AKW) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 2, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][2] * mmbcst;
+        }
+        // _P = 3
+        unroll_for(_O, JO)
+          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 1, _O);
+        unroll_for(_T, T - AKW) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 3, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][3] * mmbcst;
+        }
+      } // _V
+    };
+    auto gemmr_OVTx = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights_, _I2, _V, 0, _O);
+        unroll_for(_T, T - AKW) {
+          __m<V> mmbcst = op_load_input<1>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVTxx = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V / P; ++_V) {
+        // _P = 0
+        unroll_for(_O, JO)
+          mmwei[_O][2] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 2, _O);
+        unroll_for(_T, T - (AKW-1)) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+        // _P = 1
+        unroll_for(_O, JO)
+          mmwei[_O][3] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 3, _O);
+        unroll_for(_T, T - (AKW-1)) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 1, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][1] * mmbcst;
+        }
+        // _P = 2
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 0, _O);
+        unroll_for(_T, T - (AKW-1)) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 2, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][2] * mmbcst;
+        }
+        // _P = 3
+        unroll_for(_O, JO)
+          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 1, _O);
+        unroll_for(_T, T - (AKW-1)) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 3, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][3] * mmbcst;
+        }
+      } // _V
+    };
+    auto gemmr_OVTxx = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights_, _I2, _V, 0, _O);
+        unroll_for(_T, T - (AKW-1)) {
+          __m<V> mmbcst = op_load_input<1>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+    auto gemm_OVTxxx = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V / P; ++_V) {
+        // _P = 0
+        unroll_for(_O, JO)
+          mmwei[_O][2] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 2, _O);
+        unroll_for(_T, T - (AKW-2)) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+        // _P = 1
+        unroll_for(_O, JO)
+          mmwei[_O][3] = op_load_weights<JO, P>(xc, weights_, _I2, _V, 3, _O);
+        unroll_for(_T, T - (AKW-2)) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 1, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][1] * mmbcst;
+        }
+        // _P = 2
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 0, _O);
+        unroll_for(_T, T - (AKW-2)) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 2, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][2] * mmbcst;
+        }
+        // _P = 3
+        unroll_for(_O, JO)
+          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V + 1, 1, _O);
+        unroll_for(_T, T - (AKW-2)) {
+          __m<V> mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW, _V, 3, _T);
+          unroll_for(_O, JO) mmout[_O][_T] += mmwei[_O][3] * mmbcst;
+        }
+      }
+    };
+    auto gemmr_OVTxxx = [&](InputType *input_, WeightsType *weights_,
+                        int V_, int _kh, int _kw, int _I2) {
+#pragma nounroll
+      for (int _V = 0; _V < V_; ++_V) {
+        unroll_for(_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights_, _I2, _V, 0, _O);
+        unroll_for(_T, T - (AKW-2)) {
+          __m<V> mmbcst = op_load_input<1>(xc, input_, _kh - AKH, _kw - AKW, _V, 0, _T);
+          unroll_for(_O, JO)
+            mmout[_O][_T] += mmwei[_O][0] * mmbcst;
+        }
+      }
+    };
+
     for (int _kh = khs; _kh < khe; ++_kh) {
       // mid
       for (int _kw = kws; _kw < kwe; ++_kw) {
@@ -1708,200 +2277,93 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           mmwei[_O][1] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
         }
         for (int _I2 = 0; _I2 < I2; ++_I2) {
-#pragma nounroll
-          for (int _V = 0; _V < V / P; ++_V) {
-            // _P = 0
-            unroll_for(_O, JO)
-              mmwei[_O][2] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 2, _O);
-            unroll_for(_T, T) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            }
-            // _P = 1
-            unroll_for(_O, JO)
-              mmwei[_O][3] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 3, _O);
-            unroll_for(_T, T) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 1, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
-            }
-            // _P = 2
-            unroll_for(_O, JO)
-              mmwei[_O][0] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
-            unroll_for(_T, T) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 2, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
-            }
-            // _P = 3
-            unroll_for(_O, JO)
-              mmwei[_O][1] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 1, _O);
-            unroll_for(_T, T) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 3, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
-            }
-          } // _V
+          gemm_OVT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
         }
         // Ir
         int _I2 = xc.I2 - 1;
-#pragma nounroll
-        for (int _V = 0; _V < Ir; ++_V) {
-          unroll_for(_O, JO)
-            mmwei[_O][0] = op_load_weights<JO, 1>(
-              xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
-          unroll_for(_T, T) {
-            __m<V> mmbcst = op_load_input<1>(
-                xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-            unroll_for(_O, JO) mmout[_O][_T] =
-                _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-          }
-        }
+        gemmr_OVT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
       } // _kw loop, mid
 
       // left
       if (_wt == 0) {
-        int _kw = 0;
-
+        int _kw = 0; // K = 3, 5, 7
         unroll_for(_O, JO) {
           mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
           mmwei[_O][1] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
         }
         for (int _I2 = 0; _I2 < I2; ++_I2) {
-#pragma nounroll
-          for (int _V = 0; _V < V / P; ++_V) {
-            // _P = 0
-            unroll_for(_O, JO)
-              mmwei[_O][2] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 2, _O);
-            unroll_from_to(_T, 1, T) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            }
-            // _P = 1
-            unroll_for(_O, JO)
-              mmwei[_O][3] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 3, _O);
-            unroll_from_to(_T, 1, T) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 1, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
-            }
-            // _P = 2
-            unroll_for(_O, JO)
-              mmwei[_O][0] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
-            unroll_from_to(_T, 1, T) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 2, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
-            }
-            // _P = 3
-            unroll_for(_O, JO)
-              mmwei[_O][1] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 1, _O);
-            unroll_from_to(_T, 1, T) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 3, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
-            }
-          } // _V
+          gemm_OVxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
         }
         // Ir
         int _I2 = xc.I2 - 1;
-#pragma nounroll
-        for (int _V = 0; _V < Ir; ++_V) {
-          unroll_for(_O, JO)
-            mmwei[_O][0] = op_load_weights<JO, 1>(
-              xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
-          unroll_from_to(_T, 1, T) {
-            __m<V> mmbcst = op_load_input<1>(
-                xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-            unroll_for(_O, JO) mmout[_O][_T] =
-                _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+        gemmr_OVxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+
+        if (K > 3) {
+          _kw = 1; // K = 5, 7
+          unroll_for(_O, JO) {
+            mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+            mmwei[_O][1] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
           }
+          for (int _I2 = 0; _I2 < I2; ++_I2) {
+            gemm_OVxxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
+          }
+          // Ir
+          int _I2 = xc.I2 - 1;
+          gemmr_OVxxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+        }
+        if (K > 5) {
+          _kw = 2; // K = 7
+          unroll_for(_O, JO) {
+            mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+            mmwei[_O][1] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
+          }
+          for (int _I2 = 0; _I2 < I2; ++_I2) {
+            gemm_OVxxxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
+          }
+          // Ir
+          int _I2 = xc.I2 - 1;
+          gemmr_OVxxxT(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
         }
       } // left
 
       // right
       if (_wt == xc.wt - 1) {
-        int _kw = 2;
-
+        int _kw = K - 1; // K = 3, 5, 7
         unroll_for(_O, JO) {
           mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
           mmwei[_O][1] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
         }
         for (int _I2 = 0; _I2 < I2; ++_I2) {
-#pragma nounroll
-          for (int _V = 0; _V < V / P; ++_V) {
-            // _P = 0
-            unroll_for(_O, JO)
-              mmwei[_O][2] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 2, _O);
-            unroll_for(_T, T - 1) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-            }
-            // _P = 1
-            unroll_for(_O, JO)
-              mmwei[_O][3] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 3, _O);
-            unroll_for(_T, T - 1) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 1, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
-            }
-            // _P = 2
-            unroll_for(_O, JO)
-              mmwei[_O][0] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 0, _O);
-            unroll_for(_T, T - 1) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 2, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
-            }
-            // _P = 3
-            unroll_for(_O, JO)
-              mmwei[_O][1] = op_load_weights<JO, P>(
-                xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, 1, _O);
-            unroll_for(_T, T - 1) {
-              __m<V> mmbcst = op_load_input<P>(
-                  xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 3, _T);
-              unroll_for(_O, JO) mmout[_O][_T] =
-                  _mm<V>::fmadd_ps(mmwei[_O][3], mmbcst, mmout[_O][_T]);
-            }
-          } // _V
+          gemm_OVTx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
         }
         int _I2 = xc.I2 - 1;
-#pragma nounroll
-        for (int _V = 0; _V < Ir; ++_V) {
-          unroll_for(_O, JO)
-            mmwei[_O][0] = op_load_weights<JO, 1>(
-              xc, &md3(aweights, _kh, _kw, 0), _I2, _V, 0, _O);
-          unroll_for(_T, T - 1) {
-            __m<V> mmbcst = op_load_input<1>(
-                xc, &md2(ainput, _I2, 0), _kh - AKH, _kw - AKW, _V, 0, _T);
-            unroll_for(_O, JO) mmout[_O][_T] =
-                _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+        gemmr_OVTx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+
+        if (K > 3) {
+          _kw = K - 2; // K = 5, 7
+          unroll_for(_O, JO) {
+            mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+            mmwei[_O][1] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
           }
+          for (int _I2 = 0; _I2 < I2; ++_I2) {
+            gemmr_OVTxx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
+          }
+          // Ir
+          int _I2 = xc.I2 - 1;
+          gemmr_OVTxx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+        }
+        if (K > 5) {
+          _kw = K - 3; // K = 7
+          unroll_for(_O, JO) {
+            mmwei[_O][0] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 0, _O);
+            mmwei[_O][1] = op_load_weights<JO, P>(xc, &md3(aweights, _kh, _kw, 0), 0, 0, 1, _O);
+          }
+          for (int _I2 = 0; _I2 < I2; ++_I2) {
+            gemmr_OVTxxx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
+          }
+          // Ir
+          int _I2 = xc.I2 - 1;
+          gemmr_OVTxxx(&md2(ainput, _I2, 0), &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
         }
       } // right
     } // _kh loop
