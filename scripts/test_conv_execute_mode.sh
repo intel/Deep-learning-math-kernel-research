@@ -77,10 +77,6 @@ function val_conv() {
   __val_conv 0xa079 18
   __val_conv 0xa07b 0
   __val_conv 0xa07b 18
-  __val_conv 0xa0e0 0
-  __val_conv 0xa0e0 18
-  __val_conv 0xa0e1 0
-  __val_conv 0xa0e1 18
 }
 
 set -x

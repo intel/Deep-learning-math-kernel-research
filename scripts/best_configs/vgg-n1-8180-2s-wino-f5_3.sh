@@ -19,7 +19,7 @@ sleep 1
 NSOCKETS=2 ./scripts/run.sh -c -i128 -h56 -o256 -H56 -n1 --blk-i=8 --blk-o=4 --flt-t=18 --tile-size=7 --execution-mode=0xa000 --streaming-input=2 $COMMON
 sleep 1
 # vgg19_conv3_2, 12.6T
-NSOCKETS=2 ./scripts/run.sh -c -i256 -h56 -o256 -H56 -n1 --blk-i=8 --blk-o=8 --flt-t=12 --pat-o=2 --tile-size=7 --execution-mode=0xa0e0 $COMMON
+NSOCKETS=2 ./scripts/run.sh -c -i256 -h56 -o256 -H56 -n1 --blk-i=8 --blk-o=8 --flt-t=12 --pat-o=1 --tile-size=7 --execution-mode=0xa000 $COMMON
 sleep 1
 # vgg19_conv4_1, 10.2T
 NSOCKETS=2 ./scripts/run.sh -c -i256 -h28 -o512 -H28 -n1 --blk-i=8 --blk-o=4 --flt-t=18 --tile-size=7 --execution-mode=0xa000 --streaming-input=2 $COMMON

@@ -17,10 +17,6 @@ void Instance_elx_conv_wino_t::bind_execute_functions()
     = Instance_convolution_winograd_kernel::template trans_input<no>;
   ker_trans_input0_
     = Instance_convolution_winograd_kernel::template trans_input<is_border>;
-  ker_trans_inputa_
-    = Instance_convolution_winograd_kernel::template trans_inputa<no>;
-  ker_trans_inputa0_
-    = Instance_convolution_winograd_kernel::template trans_inputa<is_border>;
   ker_trans_weights_
     = Instance_convolution_winograd_kernel::trans_weights;
 
@@ -35,55 +31,35 @@ void Instance_elx_conv_wino_t::bind_execute_functions()
   static const struct {
     decltype (ker_trans_output_) f1_;
     decltype (ker_trans_output0_) f2_;
-    decltype (ker_trans_outputa_bh_) f3_;
-    decltype (ker_trans_outputa0_bh_) f4_;
   } pointer_table[2][2][2] = {
     {{{kernel_set::template trans_output<0, 0, 0, 0>
-    , kernel_set::template trans_output<1, 0, 0, 0>
-    , kernel_set::template trans_outputa_bh<0, 0, 0, 0>
-    , kernel_set::template trans_outputa_bh<1, 0, 0, 0>}
+    , kernel_set::template trans_output<1, 0, 0, 0>}
 
     ,{kernel_set::template trans_output<0, 0, 0, 1>
-    , kernel_set::template trans_output<1, 0, 0, 1>
-    , kernel_set::template trans_outputa_bh<0, 0, 0, 1>
-    , kernel_set::template trans_outputa_bh<1, 0, 0, 1>}}
+    , kernel_set::template trans_output<1, 0, 0, 1>}}
 
     ,{{kernel_set::template trans_output<0, 0, 1, 0>
-    , kernel_set::template trans_output<1, 0, 1, 0>
-    , kernel_set::template trans_outputa_bh<0, 0, 1, 0>
-    , kernel_set::template trans_outputa_bh<1, 0, 1, 0>}
+    , kernel_set::template trans_output<1, 0, 1, 0>}
 
     ,{kernel_set::template trans_output<0, 0, 1, 1>
-    , kernel_set::template trans_output<1, 0, 1, 1>
-    , kernel_set::template trans_outputa_bh<0, 0, 1, 1>
-    , kernel_set::template trans_outputa_bh<1, 0, 1, 1>}}}
+    , kernel_set::template trans_output<1, 0, 1, 1>}}}
 
     ,{{{kernel_set::template trans_output<0, 1, 0, 0>
-    , kernel_set::template trans_output<1, 1, 0, 0>
-    , kernel_set::template trans_outputa_bh<0, 1, 0, 0>
-    , kernel_set::template trans_outputa_bh<1, 1, 0, 0>}
+    , kernel_set::template trans_output<1, 1, 0, 0>}
 
     ,{kernel_set::template trans_output<0, 1, 0, 1>
-    , kernel_set::template trans_output<1, 1, 0, 1>
-    , kernel_set::template trans_outputa_bh<0, 1, 0, 1>
-    , kernel_set::template trans_outputa_bh<1, 1, 0, 1>}}
+    , kernel_set::template trans_output<1, 1, 0, 1>}}
 
     ,{{kernel_set::template trans_output<0, 1, 1, 0>
-    , kernel_set::template trans_output<1, 1, 1, 0>
-    , kernel_set::template trans_outputa_bh<0, 1, 1, 0>
-    , kernel_set::template trans_outputa_bh<1, 1, 1, 0>}
+    , kernel_set::template trans_output<1, 1, 1, 0>}
 
     ,{kernel_set::template trans_output<0, 1, 1, 1>
-    , kernel_set::template trans_output<1, 1, 1, 1>
-    , kernel_set::template trans_outputa_bh<0, 1, 1, 1>
-    , kernel_set::template trans_outputa_bh<1, 1, 1, 1>}}}
+    , kernel_set::template trans_output<1, 1, 1, 1>}}}
   };
 
   auto slot = pointer_table[this->with_bias][this->with_relu][this->with_ip_sum];
   ker_trans_output_ = slot.f1_;
   ker_trans_output0_ = slot.f2_;
-  ker_trans_outputa_bh_ = slot.f3_;
-  ker_trans_outputa0_bh_ = slot.f4_;
 
   static const struct {
     decltype (ker_trans_output_) f1_;
@@ -105,9 +81,6 @@ void Instance_elx_conv_wino_t::bind_execute_functions()
   auto slot2 = pointer_table2[this->with_bias][this->with_relu];
   ker_trans_output_acc_ = slot2.f1_;
   ker_trans_output0_acc_ = slot2.f2_;
-
-  ker_trans_outputa_th_ = Instance_convolution_winograd_kernel::
-      template trans_outputa_th<no, no, no, no>;
 
   auto bind_gemm_kernel =
       [&](int O, int T, bool has_Ir,
@@ -154,14 +127,6 @@ void Instance_elx_conv_wino_t::bind_execute_functions()
     execute_opt_ = &Instance_elx_conv_wino_t::__execute_##n;                 \
     break
 
-#define EXECUTE_FP32_CASE(n)                                                 \
-  case 0x##n:                                                                \
-    printf("execute_opt=" #n "\n");                                          \
-    if (!std::is_same<TarrayTypes, conv_impl::FP32>::value)                  \
-      el_error("Unimplemented non-fp32 type for a0e0/a0e1 mode");            \
-    execute_opt_ = &Instance_elx_conv_wino_t::__execute_##n;                 \
-    break
-
   switch (xopt_) {
   EXECUTE_CASE(a000);
   EXECUTE_CASE(a033);
@@ -170,8 +135,6 @@ void Instance_elx_conv_wino_t::bind_execute_functions()
   EXECUTE_CASE(a073);
   EXECUTE_CASE(a079);
   EXECUTE_CASE(a07b);
-  EXECUTE_FP32_CASE(a0e0);
-  EXECUTE_FP32_CASE(a0e1);
   EXECUTE_CASE(a133);
   EXECUTE_CASE(a161);
   EXECUTE_CASE(a173);

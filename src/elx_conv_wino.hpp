@@ -303,10 +303,6 @@ private:
       WeightsType *weights, BiasType *bias);
   void __execute_a07b(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
-  void __execute_a0e0(OutputType *output, InputType *input,
-      WeightsType *weights, BiasType *bias);
-  void __execute_a0e1(OutputType *output, InputType *input,
-      WeightsType *weights, BiasType *bias);
   void __execute_a133(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
   void __execute_a161(OutputType *output, InputType *input,
@@ -333,10 +329,6 @@ private:
   void trans_input_u8(TscaleType *tinput_qt_scale, uint8_t *tinput_u8,
       TinputType *tinput, InputType *input);
 
-  inline void __trans_inputa_plain(TinputType *tinput, InputType *input, int _t2, int _wA, int Tz);
-  inline void __trans_inputa_blocked(TinputType *tinput, InputType *input, int _t2, int _wA, int Tz);
-  void trans_inputa(TinputType *tinput, InputType *input, int _t2, int _wA, int Tz);
-
   inline void __trans_output_plain(OutputType *output, ToutputType *toutput,
       BiasType *bias, int _t2, int Tz, int _ic4);
   inline void __trans_output_blocked(OutputType *output, ToutputType *toutput,
@@ -348,14 +340,6 @@ private:
           BiasType *bias, int _ic4);
   inline void __trans_output_blocked(OutputType *output, ToutputType *toutput, BiasType *bias, int _ic4);
   void trans_output(OutputType *output, ToutputType *toutput, BiasType *bias, int _ic4 = -1);
-
-  inline void __trans_outputa_bh_plain(OutputType *output, TrOpType *toutputa, BiasType *bias);
-  inline void __trans_outputa_bh_blocked(OutputType *output, TrOpType *toutputa, BiasType *bias);
-  void trans_outputa_bh(OutputType *output, TrOpType *toutputa, BiasType *bias);
-
-  // TODO support fp16 for 0e0/0e1 mode,
-  // currently, use void* type for building happy
-  void trans_outputa_th(TrOpType *toutputa, void *toutput, int Tz);
 
   inline void __trans_weights_plain(TweightsType *tweights, WeightsType *weights, int oc4);
   inline void __trans_weights_blocked(TweightsType *tweights, WeightsType *weights, int oc4);
@@ -370,15 +354,10 @@ private:
   inline void __trans_weightsf_blocked(TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4);
   void trans_weightsf(TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4);
 
-  inline void __trans_weightsa_plain(TweightsType *tweights, WeightsType *weights);
-  inline void __trans_weightsa_blocked(TweightsType *tweights, WeightsType *weights);
-  void trans_weightsa(TweightsType *tweights, WeightsType *weights);
-
   void gemm(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _t2, int Tz, int _ic4 = 0);
   void gemm_non_acc(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _t2, int Tz, int _ic4);
   void gemm(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _ic4 = 0);
   void gemm_non_acc(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _ic4 = 0);
-  void gemma(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _t2, int Tz);
   void gemm(ToutputType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
       TscaleType *src_scale, TscaleType *weights_scale,
       TscaleType *weights_factor, int _ic4 = 0);
@@ -419,10 +398,6 @@ private:
   decltype(Instance_convolution_winograd_kernel
       ::template trans_input<no>) *ker_trans_input0_;
   decltype(Instance_convolution_winograd_kernel
-      ::template trans_inputa<no>) *ker_trans_inputa_;
-  decltype(Instance_convolution_winograd_kernel
-      ::template trans_inputa<no>) *ker_trans_inputa0_;
-  decltype(Instance_convolution_winograd_kernel
       ::trans_weights) *ker_trans_weights_;
   decltype(Instance_convolution_winograd_kernel
       ::template trans_output<false, false, false, false>) *ker_trans_output_;
@@ -436,12 +411,6 @@ private:
       ::template trans_output<false, false, false, false>) *ker_trans_output_nobias_;
   decltype(Instance_convolution_winograd_kernel
       ::template trans_output<false, false, false, false>) *ker_trans_output0_nobias_;
-  decltype(Instance_convolution_winograd_kernel
-      ::template trans_outputa_th<false, false, false, false>) *ker_trans_outputa_th_;
-  decltype(Instance_convolution_winograd_kernel
-      ::template trans_outputa_bh<false, false, false, false>) *ker_trans_outputa_bh_;
-  decltype(Instance_convolution_winograd_kernel
-      ::template trans_outputa_bh<false, false, false, false>) *ker_trans_outputa0_bh_;
 
   void (elx_conv_wino_t::*execute_opt_)(OutputType *, InputType *, WeightsType *, BiasType *);
 
@@ -464,7 +433,6 @@ private:
   size_t tweights_size_;
   size_t tinput_size_;
   size_t toutput_size_;
-  size_t toutputa_size_;
   size_t binput_size_;
   size_t bweights_size_;
   size_t boutput_size_;
@@ -482,7 +450,6 @@ private:
   TweightsType *tweights_;
   TinputType *tinput_;
   ToutputType *toutput_;
-  TrOpType *toutputa_;
   InputType *binput_; // blocked input
   WeightsType *bweights_;
   OutputType *boutput_;

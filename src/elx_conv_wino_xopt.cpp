@@ -27,9 +27,9 @@ namespace euler {
 // -------------+------------+--------------+-------------
 //     A07b     |   FP32     |  i + t + o   |  I + W + O
 // -------------+------------+--------------+-------------
-//     A0e0     |   FP32     |  t + o + wA  |    _
+//    *A0e0     |   FP32     |  t + o + wA  |    _
 // -------------+------------+--------------+-------------
-//     A0e1     |   FP32     |  t + o + wA  |    I
+//    *A0e1     |   FP32     |  t + o + wA  |    I
 // -------------+------------+--------------+-------------
 //     A133     |   INT8     |    i + o     |  I + O
 // -------------+------------+--------------+-------------
@@ -84,106 +84,6 @@ void Instance_elx_conv_wino_t::__execute_a061(
       trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
           &md2(abias, _oc4, 0), _t2, Tz);
     }}
-  }
-  if (inference_acc_)
-    is_first_run_ = false;
-}
-
-// tweights:     oc4, wA | hA, oc3, ic3, O2, I2, V, V
-// tinputa:  t2,      wA | hA, ic3, I2, T, V
-// toutput:  t2, oc4, wA | hA, oc3, O2, T, V
-// toutputa: t2, oc4, oc3, O2, T, wA, hA, V
-Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::__execute_a0e1(
-    OutputType * __restrict output, InputType * __restrict input,
-    WeightsType * __restrict weights, BiasType * __restrict bias)
-{
-  MD2(TinputType, atinputa2, tinput_, mthr_,
-      A * this->T * this->IC);
-  MD2(ToutputType, atoutput2, toutput_, mthr_,
-      A * this->T * this->oc3 * this->O2 * V);
-  MD2(TrOpType, atoutputa2, toutputa_, this->t2,
-      this->OC * A * (A - K + 1) * this->T);
-  MD3(TweightsType, atweights3, tweights_, this->oc4, A,
-      A * this->IC * this->oc3 * this->O2 * V);
-  MD3(OutputType, aoutput, output, this->n, this->oc4,
-      this->oh * this->ow * this->oc3 * this->O2 * V);
-  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-  {
-    if (is_first_run_) {
-      trans_weightsa(tweights_, weights);
-#pragma omp barrier
-    }
-#pragma omp for nowait collapse(3)
-    iter_each (_t2, this->t2) {
-    iter_each (_oc4, this->oc4) {
-    iter_each (_wA, A) {
-      int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-      size_t ithr = omp_get_thread_num();
-
-      MD6(TrOpType, atoutputa6, &md2(atoutputa2, _t2, 0),
-          this->oc4, this->oc3, this->O2, Tz, A, (A - K + 1) * V);
-      trans_inputa(&md2(atinputa2, ithr, 0), input, _t2, _wA, Tz);
-      gemma(&md2(atoutput2, ithr, 0), &md2(atinputa2, ithr, 0),
-          &md3(atweights3, _oc4, _wA, 0), _t2, Tz);
-      trans_outputa_th(&md6(atoutputa6, _oc4, 0, 0, 0, _wA, 0),
-          &md2(atoutput2, ithr, 0), Tz);
-    }}}
-#pragma omp barrier
-    trans_outputa_bh(output, toutputa_, bias);
-  }
-  if (inference_acc_)
-    is_first_run_ = false;
-}
-
-// tweights:     oc4, wA | hA, oc3, ic3, O2, I2, V, V
-// tinputa:  t2,      wA | hA, ic3, I2, T, V
-// toutput:  t2, oc4, wA | hA, oc3, O2, T, V
-// toutputa: t2, oc4, oc3, O2, T, wA, hA, V
-Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::__execute_a0e0(
-    OutputType * __restrict output, InputType * __restrict input,
-    WeightsType * __restrict weights, BiasType * __restrict bias)
-{
-  MD2(TinputType, atinput2, tinput_, this->t2,
-      A * A * this->T * this->IC);
-  MD2(ToutputType, atoutput2, toutput_, mthr_,
-      A * this->T * this->oc3 * this->O2 * V);
-  MD2(TrOpType, atoutputa2, toutputa_, this->t2,
-      this->OC * A * (A - K + 1) * this->T);
-  MD3(TweightsType, atweights3, tweights_, this->oc4, A,
-      A * this->IC * this->oc3 * this->O2 * V);
-  MD3(OutputType, aoutput, output, this->n, this->oc4,
-      this->oh * this->ow * this->oc3 * this->O2 * V);
-  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-  {
-    if (is_first_run_) {
-      trans_weightsa(tweights_, weights);
-    }
-    trans_input(tinput_, input);
-#pragma omp barrier
-
-#pragma omp for nowait collapse(3)
-    iter_each (_t2, this->t2) {
-    iter_each (_oc4, this->oc4) {
-    iter_each (_wA, A) {
-      int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-      size_t ithr = omp_get_thread_num();
-
-      MD6(TrOpType, atoutputa6, &md2(atoutputa2, _t2, 0),
-          this->oc4, this->oc3, this->O2, Tz, A, (A - K + 1) * V);
-      MD2(TinputType, atinputa2, &md2(atinput2, _t2, 0), A, A * Tz * this->IC);
-      gemma(&md2(atoutput2, ithr, 0), &md2(atinputa2, _wA, 0),
-          &md3(atweights3, _oc4, _wA, 0), _t2, Tz);
-      trans_outputa_th(&md6(atoutputa6, _oc4, 0, 0, 0, _wA, 0),
-          &md2(atoutput2, ithr, 0), Tz);
-    }}}
-#pragma omp barrier
-    trans_outputa_bh(output, toutputa_, bias);
   }
   if (inference_acc_)
     is_first_run_ = false;
