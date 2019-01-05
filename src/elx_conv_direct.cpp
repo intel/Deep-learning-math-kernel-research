@@ -286,10 +286,14 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
   int Tz = _wt == this->wt - 1 ? this->Tr : this->T;
   auto ker_conv = _wt == this->wt - 1 ? ker_conv_Tr_ : ker_conv_;
 
-  int khs = std::max(0, this->tp - _ht);
-  int khe = std::min(this->kh, this->ih + this->tp - _ht);
+  int khs = estl::max(0, this->tp - _ht);
+  int khe = estl::min(this->kh, this->ih + this->tp - _ht);
   int kws = _wt == 0 ? this->lp : 0;
   int kwe = _wt == this->wt - 1 ? this->kw - this->lp : this->kw;
+  //int khs = estl::max(0, this->tp - this->hs * _ht);
+  //int khe = estl::min(this->kh, this->ih + this->tp - this->hs * _ht);
+  //int kws = estl::max(0, this->lp - this->ws * _wt * this->T);
+  //int kwe = estl::min(this->kw, this->iw + this->lp - this->ws * (_wt * this->T + Tz - 1));
   assert(this->T > this->lp && this->Tr > this->rp);
 
   iter_each(_oc3, this->oc3) {
@@ -320,10 +324,10 @@ void Instance_elx_conv_direct_t::gemm_d060_blocked_input(OutputType *output, Inp
   const int AKW = this->kw / 2;
   int Tz = _wt == this->wt - 1 ? this->Tr : this->T;
 
-  int khs = std::max(0, this->tp - this->hs * _ht);
-  int khe = std::min(this->kh, this->ih + this->tp - this->hs * _ht);
-  int kws = std::max(0, this->lp - this->ws * _wt * this->T);
-  int kwe = std::min(this->kw, this->iw + this->lp - this->ws * (_wt * this->T + Tz - 1));
+  int khs = estl::max(0, this->tp - this->hs * _ht);
+  int khe = estl::min(this->kh, this->ih + this->tp - this->hs * _ht);
+  int kws = estl::max(0, this->lp - this->ws * _wt * this->T);
+  int kwe = estl::min(this->kw, this->iw + this->lp - this->ws * (_wt * this->T + Tz - 1));
 
   assert(this->T > this->lp);
   assert(this->Tr > this->rp);

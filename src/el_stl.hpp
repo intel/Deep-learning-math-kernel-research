@@ -257,11 +257,23 @@ template <typename T, typename... Args> inline bool none_of(
   return !any_of(val, args...);
 }
 
-template <typename T, typename U> inline bool all_of(T val, U last)
-{ return val == last; }
+template <typename T, typename U> inline bool all_of(T val, U last) {
+  return val == last;
+}
+
 template <typename T, typename U, typename... Args> inline bool all_of(
     T val, U first, Args... rest) {
   return (val == first) && all_of(val, rest...);
 }
 
+template<typename T>
+inline const T& max(const T& m, const T& n) {
+    return m > n ? m : n;
 }
+
+template<typename T>
+inline const T& min(const T& m, const T& n) {
+    return m < n ? m : n;
+}
+
+} // estl
