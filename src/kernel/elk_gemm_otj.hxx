@@ -25,14 +25,17 @@ namespace euler {
 //    Output: O1, O, T, V
 //    factor: O1, O, V
 //    weights_scale: O1, O, V
-// D: discrete
+// D: blocked
 //    Input: I2, ih, iw, V, Vx
 //    Weights: O1, O, ic2, V, V, Vx
 //    Output: O1, O, oh, ow, V
 //    factor: O1, O, V
 //    weights_scale: O1, O, V
-// E: discrete (for nchw input)
+// E: nchw
 //    Input: I2, V, ih, iw
+// F: nhwc
+//    Input: ih, iw, I2, V
+//    Output: oh, ow, O1, O, V
 const int GKF_CCC = 0xccc;
 const int GKF_CCD = 0xccd;
 const int GKF_DCD = 0xdcd;
