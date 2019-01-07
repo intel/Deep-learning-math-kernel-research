@@ -235,7 +235,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   constexpr static auto T = estl::get<3, int, kparams>();
   constexpr static auto K = estl::get<4, int, kparams>(); // reuse, conv
   // TODO: disable P=2/4 for K>3 due to ICC build crash
-  constexpr static auto has_Ir = K > 3 ? true : estl::get<4, bool, kparams>(); // reuse, gemm
+  constexpr static auto has_Ir = K == 3 ? false : estl::get<4, bool, kparams>(); // reuse, gemm
 
   // Jamming components
   constexpr static int J = J_traits<O, T, has_Ir, WeightsType>::J;
