@@ -35,6 +35,7 @@ function conv_test() {
   input_format=nChw16c; weights_format=OIhw16i16o; output_format=nChw16c
   input_as_blocked=0; weights_as_blocked=0; output_as_blocked=0
   with_ip_sum=0; f16c_opt=0; fp_mode=0
+  input_file=""; weights_file=""; bias_file=""
 
   OPTIND=1
   while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:f:l:B:A:T:a:-:" opt; do
@@ -150,11 +151,29 @@ function conv_test() {
             ;;
           fp-mode=*) fp_mode=${OPTARG#*=}
             ;;
+          input-data-file) input_file="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          input-data-file=*) input_file=${OPTARG#*=}
+            ;;
+          weights-data-file) weights_file="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          weights-data-file=*) weights_file=${OPTARG#*=}
+            ;;
+          bias-data-file) bias_file="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          bias-data-file=*) bias_file=${OPTARG#*=}
+            ;;
        esac
        ;;
     esac
   done
   shift $((OPTIND-1))
+  input_file_opt=""
+  weights_file_opt=""
+  bias_file_opt=""
+  if [ "x$input_file" != "x" ]; then input_file_opt="--input-data-file=$input_file"; fi
+  if [ "x$weights_file" != "x" ]; then weights_file_opt="--weights-data-file=$weights_file"; fi
+  if [ "x$bias_file" != "x" ]; then bias_file_opt="--bias-data-file=$bias_file"; fi
   set -v
   eval $OMP_ENV $ROOT_DIR/$build_dir/tests/elt_conv \
     -n$n -i$i -o$o -h$h -w$w -H$H -W$W -k$k -K$K -p$p -P$P -s$s -S$S \
@@ -173,7 +192,10 @@ function conv_test() {
     --output-as-blocked=$output_as_blocked   \
     --with-ip-sum=$with_ip_sum \
     --f16c-opt=$f16c_opt \
-    --fp-mode=$fp_mode
+    --fp-mode=$fp_mode \
+    $input_file_opt \
+    $weights_file_opt \
+    $bias_file_opt
   set +v
 }
 

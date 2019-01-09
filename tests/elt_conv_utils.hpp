@@ -16,7 +16,8 @@ namespace test {
   void prepare_conv_data(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &desc,
       InputType **input, WeightsType **weights, OutputType **output,
       BiasType **bias, short **input1, short **weights1, short **output1,
-      short **bias1, bool double_buffering = false, int fp_mode = 0,
+      short **bias1, const char *input_file, const char *weights_file, const char *bias_file,
+      bool double_buffering = false, int fp_mode = 0,
       bool f16c_opt = false, bool validate_results = false);
 
   void teardown_conv_data(void *input, void *weights, void *output, void *bias,

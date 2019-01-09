@@ -27,6 +27,7 @@ int pat_i = 1, pat_o = 1;
 int tile_size = 7;
 int streaming_weights = 0, streaming_input = 0, streaming_output = 0;
 bool input_as_blocked = false, weights_as_blocked = false, output_as_blocked = false;
+const char *input_file = nullptr, *weights_file = nullptr, *bias_file = nullptr;
 
 bool validate_results = false;
 int repeated_layer = 1;
@@ -179,6 +180,7 @@ int main(int argc, char **argv)
       test::prepare_conv_data<float, float, float, float>(
           convs0[c], in, &weights[c], out, &bias[c],
           &input1[c], &weights1[c], &output1[c], &bias1[c],
+          input_file, weights_file, bias_file,
           reuse_inout, fp_mode, f16c_opt, validate_results);
     }
 
@@ -214,7 +216,8 @@ int main(int argc, char **argv)
 
       test::prepare_conv_data<float, float, float, float>(
           convs0[0], &input[c], &weights[c], &output[c], &bias[c],
-          in, &weights1[c], out, &bias1[c], reuse_inout, fp_mode,
+          in, &weights1[c], out, &bias1[c],
+          input_file, weights_file, bias_file, reuse_inout, fp_mode,
           f16c_opt, validate_results);
     }
 
@@ -242,6 +245,7 @@ int main(int argc, char **argv)
       test::prepare_conv_data<float, float, float, float>(
           convs0[0], &input[c], &weights[c], &output[c], &bias[c],
           nullptr, nullptr, &output1[c], nullptr,
+          input_file, weights_file, bias_file, 
           reuse_inout, fp_mode, f16c_opt, validate_results);
     }
 
@@ -345,7 +349,10 @@ int parse_cmd_options(int argc, char **argv) {
     ("output-as-blocked", po::value<bool>(&output_as_blocked), "on|off. Format output as blocked. Default: off")
     ("f16c-opt", po::value<bool>(&f16c_opt), "on|off. With half-precision opt, Default: off")
     ("fp-mode", po::value<int>(&fp_mode), "fp16 UserTypes, Default: FP32")
-    ("with-ip-sum", po::value<bool>(&with_ip_sum), "on|off. With inplace sum, Default: off");
+    ("with-ip-sum", po::value<bool>(&with_ip_sum), "on|off. With inplace sum, Default: off")
+    ("input-data-file", po::value<std::string>(), "Input data file(nchw)")
+    ("weights-data-file", po::value<std::string>(), "Weights data file(oihw)")
+    ("bias-data-file", po::value<std::string>(), "Bias data file(oihw)");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -417,6 +424,18 @@ int parse_cmd_options(int argc, char **argv) {
       return -1;
     }
   }
+  if (vm.count("input-data-file")) {
+    input_file = strdup(vm["input-data-file"].as<std::string>().c_str());
+  }
+  if (vm.count("weights-data-file")) {
+    weights_file = strdup(vm["weights-data-file"].as<std::string>().c_str());
+  }
+  if (vm.count("bias-data-file")) {
+    bias_file = strdup(vm["bias-data-file"].as<std::string>().c_str());
+  }
+  printf("input-data-file: %s\n", input_file); fflush(NULL);
+  printf("weights-data-file: %s\n", weights_file);
+  printf("bias-data-file: %s\n", bias_file);
 
   if (output_as_input && double_buffering) {
     printf("Error: convolution options: output-as-input is exclusive with "

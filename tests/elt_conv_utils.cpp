@@ -3,6 +3,7 @@
 #include <omp.h>
 #include <memory.h>
 #include <random>
+#include <fstream>
 #include "elt_conv_utils.hpp"
 #include "el_intrin.hpp"
 
@@ -16,12 +17,59 @@ namespace test {
   {
   }
 
+  void read_blob_data(void *buffer, const char *filename, size_t size) {
+    std::ifstream input_file (filename, std::ios::in | std::ios::binary);
+    if (input_file) {
+      input_file.read((char *)buffer, size);
+      input_file.close();
+    }
+  }
+
+  template <typename InputType, typename WeightsType, typename OutputType,
+      typename BiasType>
+  void load_conv_data(eld_conv_t<conv::FP32> &desc, InputType *input,
+      WeightsType *weights, BiasType *bias, const char *input_file,
+      const char *weights_file, const char *bias_file)
+  {
+    InputType *nchw_input;
+    WeightsType *oihw_weights;
+    MEMALIGN64(&nchw_input, desc.byte_sizes.input);
+    MEMALIGN64(&oihw_weights, desc.byte_sizes.weights);
+
+    auto input_dims = desc.dims.input;
+    auto weights_dims = desc.dims.weights;
+    auto input_sz = input_dims.n * input_dims.c * input_dims.h * input_dims.w;
+    auto weights_sz = weights_dims.o * weights_dims.i * weights_dims.h * weights_dims.w;
+
+    if (input_file != nullptr && input != nullptr) {
+      read_blob_data(nchw_input, input_file, input_sz * sizeof(InputType));
+      reorder<InputType, nChw16c, nchw>(input, nchw_input, input_dims.n,
+          input_dims.c, input_dims.h, input_dims.w);
+      printf("nchw_input=%g,... %g\n", nchw_input[0], nchw_input[input_sz - 1]);
+      free(nchw_input);
+    }
+
+    if (weights_file != nullptr && weights != nullptr) {
+      read_blob_data(
+          oihw_weights, weights_file, weights_sz * sizeof(WeightsType));
+      reorder<WeightsType, OIhw16i16o, oihw>(weights, oihw_weights,
+          weights_dims.o, weights_dims.i, weights_dims.h, weights_dims.w);
+      printf("oihw_weights=%g,... %g\n", oihw_weights[0], oihw_weights[weights_sz - 1]);
+      free(oihw_weights);
+    }
+
+    if (bias_file != nullptr && bias != nullptr) {
+      read_blob_data(bias, bias_file, weights_dims.o * sizeof(BiasType));
+    }
+  }
+
   __thread unsigned int seed;
   template <>
   void prepare_conv_data<float>(eld_conv_t<conv::FP32> &desc,
       float **input, float **weights, float **output, float **bias, short **input1,
-      short **weights1, short **output1, short **bias1, bool reuse_inout, int fp_mode,
-      bool f16c_opt, bool validate_results)
+      short **weights1, short **output1, short **bias1,
+      const char *input_file, const char *weights_file, const char *bias_file,
+      bool reuse_inout, int fp_mode, bool f16c_opt, bool validate_results)
   {
     seed = time(nullptr);
     size_t input_size = desc.byte_sizes.input;
@@ -74,6 +122,11 @@ namespace test {
         MEMALIGN64(bias, desc.byte_sizes.bias);
     }
 
+    if (input_file != nullptr && weights_file != nullptr) {
+      load_conv_data<float, float, float>(
+          desc, *input, *weights, *bias, input_file, weights_file, bias_file);
+      return;
+    }
 #define RAND() rand_r(&seed)
 
     std::default_random_engine gen;
@@ -89,7 +142,7 @@ namespace test {
           }
         }
       } else {
-        if (input != nullptr) {
+        if (input_file == nullptr && input != nullptr) {
 #pragma omp parallel for
           for (size_t i = 0; i < desc.sizes.input; i++) {
             (*input)[i]
