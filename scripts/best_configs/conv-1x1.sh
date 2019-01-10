@@ -38,9 +38,9 @@ NSOCKETS=1 ./scripts/run.sh -c -n1 -i1024 -o256  -h19 -k1 -K1 -H19 -p0 -P0 -s1 -
 # ssd_300_voc0712:conv7_1
 NSOCKETS=1 ./scripts/run.sh -c -n1 -i512  -o128  -h10 -k1 -K1 -H10 -p0 -P0 -s1 -b1 -adirect_1x1 --blk-i=32 --flt-o=2 --flt-t=10 --execution-mode=0xb061 --pat-o=2 $COMMON
 # ssd_300_voc0712:conv8_1
-NSOCKETS=1 ./scripts/run.sh -c -n1 -i256  -o128  -h5  -k1 -K1 -H5  -p0 -P0 -s1 -b1 -adirect_1x1 --blk-i=16 --flt-o=3 --flt-t=3 --execution-mode=0xc060 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -n1 -i256  -o128  -h5  -k1 -K1 -H5  -p0 -P0 -s1 -b1 -adirect_1x1 --blk-i=16 --flt-o=2 --flt-t=3 --execution-mode=0xc060 $COMMON
 # ssd_300_voc0712:conv9_1
-NSOCKETS=1 ./scripts/run.sh -c -n1 -i256  -o128  -h3  -k1 -K1 -H3  -p0 -P0 -s1 -b1 -adirect_1x1 --blk-i=16 --flt-o=3 --flt-t=3 --execution-mode=0xc060 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -n1 -i256  -o128  -h3  -k1 -K1 -H3  -p0 -P0 -s1 -b1 -adirect_1x1 --blk-i=16 --flt-o=2 --flt-t=3 --execution-mode=0xc060 $COMMON
 
 # bs=64, stride=1, blocked
 # ssd_300_voc0712:fc7

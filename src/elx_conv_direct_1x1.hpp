@@ -38,9 +38,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t<UserTypes> {
   void __execute_a061(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
   void __execute_f061(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
   void __execute_b061(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
-  void __execute_e060(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
   void __execute_c060(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
-  void __execute_d060(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
 
   inline void __trans_input_plain(TinputType *tinput, InputType *input, int _ht, int _wt);
   inline void __trans_input_blocked(TinputType *tinput, InputType *input, int _ht, int _wt);
@@ -68,9 +66,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t<UserTypes> {
   void gemm_a061(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, BiasType *bias, int _ic4);
   void gemm_f061(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, BiasType *bias, int _t2, int Tz);
   void gemm_b061(OutputType *output, TinputType *tinput, TweightsType *tweights, BiasType *bias, int _ic4);
-  void gemm_e060(OutputType *output, InputType *input, TweightsType *tweights, BiasType *bias, int _ic4);
-  void gemm_c060(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias, int _ic4, int _oc4, int _t2);
-  void gemm_d060(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
+  void gemm_c060(OutputType *output, InputType *input, TweightsType *weights, BiasType *bias, int _ic4, int _oc4, int _t2);
 
   void trans_input_2_blocked(InputType *tinput, InputType *input);
   void trans_weights_2_blocked(WeightsType *tweghts, WeightsType *weights);
@@ -80,23 +76,10 @@ class elx_conv_direct_1x1_t : public elx_conv_t<UserTypes> {
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_fp32_gemm_I_O_T_;
-  gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_fp32_gemm_I_O_Tr_;
-  gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_fp32_gemm_I_OrT_;
-  gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_fp32_gemm_I_OrTr_;
-  gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_fp32_gemm_IrO_T_;
-  gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_fp32_gemm_IrO_Tr_;
-  gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_fp32_gemm_IrOrT_;
-  gemm_kernel_binder::kgemm<conv_impl::FP32> *ker_fp32_gemm_IrOrTr_;
-
   gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_I_O_T_;
   gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_I_O_Tr_;
-  gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_I_OrT_;
-  gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_I_OrTr_;
   gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_IrO_T_;
   gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_IrO_Tr_;
-  gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_IrOrT_;
-  gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_IrOrTr_;
 
   void (elx_conv_direct_1x1_t::*execute_opt_)(OutputType *, InputType *, WeightsType *, BiasType *);
 

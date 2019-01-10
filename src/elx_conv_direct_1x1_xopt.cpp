@@ -12,9 +12,7 @@
 // kernel options:
 //   - a: CCC, s1
 //   - b: CCD, s1
-//   - c: DDD: s1
-//   - d: DDD: s2
-//   - e: DCD: s2
+//   - c: DCD: s1
 // fusion:  same as winograd
 // dup:     same as winograd
 //
@@ -29,81 +27,20 @@
 // ------+-----+--------+-----+--------------------------------------
 //  c060 |  c  |   t+o  |  -  | blocked, Tr, Or, stride=1
 // ------+-----+--------+-----+--------------------------------------
-//  d060 |  d  |   t+o  |  -  | blocked, Or, stride=2, oh=wt*T
-// ------+-----+--------+-----+--------------------------------------
-//  e060 |  e  |   t+o  |  -  | blocked, stride=2, oh=wt*T
-// ------+-----+--------+-----+--------------------------------------
 //
+
 namespace euler {
 
 Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::__execute_c060(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
-  // weights: oc4*, oc3, O2(O2r), ic4*, ic3, I2, V, V
+  // weights: oc4*, oc3, O2, ic4*, ic3, I2, V, V
   // input:   t3*, ic4*, ic3, I2, t2*, T(Tr), V
-  // output:  t3*, oc4*, oc3, O2(O2r), t2*, T(Tr), V
-  MD2(WeightsType, aweights, weights, this->oc4, this->oc3 * this->O2 * this->IC * V);
+  // output:  t3*, oc4*, oc3, O2, t2*, T(Tr), V
   MD3(InputType, ainput, input, this->t3, this->ic4,
       this->ic3 * this->I2 * this->ih * this->iw * V);
   MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
-  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-
-  iter_each (_ic4, this->ic4) {
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-#pragma omp for nowait collapse(3)
-    iter_each (_t3, this->t3) {
-    iter_each (_oc4, this->oc4) {
-    iter_each (_t2, this->t2) {
-      MD2(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
-          this->oc3 * this->O2 * this->oh * this->ow * V);
-      gemm_c060(&md2(aoutput2, _oc4, 0), &md3(ainput, _t3, _ic4, 0),
-          &md2(aweights, _oc4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _t2);
-    }}}
-  }
-}
-
-Template_elx_conv_direct_1x1_t
-void Instance_elx_conv_direct_1x1_t::__execute_d060(
-    OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
-{
-  // weights: oc4*, oc3, O2(O2r), ic4*, ic3, I2, V, V
-  // input:   t3*, ic4*, ic3, I2, ht*, S, wt*, T, S, V
-  // output:  t3*, oc4*, oc3, O2(O2r), ht*wt*, T, V
-  MD2(WeightsType, aweights, weights, this->oc4, this->oc3 * this->O2 * this->IC * V);
-  MD7(InputType, ainput, input, this->t3, this->ic4, this->ic3 * this->I2,
-      this->ht, this->hs, this->wt, this->T * this->ws * V);
-  MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
-  MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-
-  iter_each (_ic4, this->ic4) {
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-#pragma omp for nowait collapse(4)
-    iter_each (_t3, this->t3) {
-    iter_each (_oc4, this->oc4) {
-    iter_each (_ht, this->ht) {
-    iter_each (_wt, this->wt) {
-      MD5(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
-          this->oc3 * this->O2, this->ht, this->wt, this->T * V);
-      gemm_d060(&md5(aoutput2, _oc4, 0, _ht, _wt, 0),
-          &md7(ainput, _t3, _ic4, 0, _ht, 0, _wt, 0),
-          &md2(aweights, _oc4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _ht,
-          _wt);
-    }}}}
-  }
-}
-
-Template_elx_conv_direct_1x1_t
-void Instance_elx_conv_direct_1x1_t::__execute_e060(
-    OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
-{
-  // weights: oc4*, oc3, O2, ic4*, ic3, I2, V, V
-  // input:   t3*, ic4*, ic3, I2, ht*, S, wt*, S, T, V
-  // output:  t3*, oc4*, oc3, O2, ht*, wt*, T, V
-  MD7(InputType, ainput, input, this->t3, this->ic4, this->ic3 * this->I2,
-      this->ht, this->hs, this->wt, this->T * this->ws * V);
-  MD6(OutputType, aoutput, output, this->t3, this->oc4, this->oc3 * this->O2,
-      this->ht, this->wt, this->T * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
@@ -115,15 +52,19 @@ void Instance_elx_conv_direct_1x1_t::__execute_e060(
 
   iter_each (_ic4, this->ic4) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
-#pragma omp for nowait collapse(4)
+#pragma omp for nowait collapse(3)
     iter_each (_t3, this->t3) {
     iter_each (_oc4, this->oc4) {
-    iter_each (_ht, this->ht) {
-    iter_each (_wt, this->wt) {
-      gemm_e060(&md6(aoutput, _t3, _oc4, 0, _ht, _wt, 0),
-          &md7(ainput, _t3, _ic4, 0, _ht, 0, _wt, 0),
-          &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0), _ic4);
-    }}}}
+    iter_each (_t2, this->t2) {
+      MD2(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
+          this->oc3 * this->O2 * this->oh * this->ow * V);
+      gemm_c060(
+          &md2(aoutput2, _oc4, 0),
+          &md3(ainput, _t3, _ic4, 0),
+          &md3(atweights, _oc4, _ic4, 0),
+          &md2(abias, _oc4, 0),
+          _ic4, _oc4, _t2);
+    }}}
   }
 
   if (inference_acc_)
@@ -162,10 +103,16 @@ void Instance_elx_conv_direct_1x1_t::__execute_b061(
         MD5(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
             this->oc3 * this->O2, this->ht, this->wt, this->T * V);
 
-        trans_input(&md2(atinput, ithr, 0),
-            &md3(ainput, _t3, _ic4, 0), _ht, _wt);
-        gemm_b061(&md5(aoutput2, _oc4, 0, _ht, _wt, 0), &md2(atinput, ithr, 0),
-            &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0), _ic4);
+        trans_input(
+            &md2(atinput, ithr, 0),
+            &md3(ainput, _t3, _ic4, 0),
+            _ht, _wt);
+        gemm_b061(
+            &md5(aoutput2, _oc4, 0, _ht, _wt, 0),
+            &md2(atinput, ithr, 0),
+            &md3(atweights, _oc4, _ic4, 0),
+            &md2(abias, _oc4, 0),
+            _ic4);
       }}}}
     }
   } else {
@@ -189,13 +136,18 @@ void Instance_elx_conv_direct_1x1_t::__execute_b061(
           t3_history = _t3;
         }
         if (md3(atinput_msk, ithr,  _ht, _wt) == 0) {
-          trans_input(&md4(atinput, ithr, _ht, _wt, 0),
-              &md3(ainput, _t3, _ic4, 0), _ht, _wt);
+          trans_input(
+              &md4(atinput, ithr, _ht, _wt, 0),
+              &md3(ainput, _t3, _ic4, 0),
+              _ht, _wt);
           md3(atinput_msk, ithr, _ht, _wt) = 1;
         }
-        gemm_b061(&md5(aoutput2, _oc4, 0, _ht, _wt, 0),
+        gemm_b061(
+            &md5(aoutput2, _oc4, 0, _ht, _wt, 0),
             &md4(atinput, ithr, _ht, _wt, 0),
-            &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0), _ic4);
+            &md3(atweights, _oc4, _ic4, 0),
+            &md2(abias, _oc4, 0),
+            _ic4);
       }}}}
     }
   }
@@ -229,11 +181,19 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
     iter_each (_ht, this->ht) {
     iter_each (_wt, this->wt) {
       size_t ithr = omp_get_thread_num();
-      trans_input(&md2(atinput, ithr, 0),
-          &md2(ainput, _t3, 0), _ht, _wt);
-      gemm_a061(&md2(atoutput, ithr, 0), &md2(atinput, ithr, 0),
-          &md3(atweights, _oc4, 0, 0), &md2(abias, _oc4, 0), 0);
-      trans_output(&md2(aoutput, _t3, 0), &md2(atoutput, ithr, 0),
+      trans_input(
+          &md2(atinput, ithr, 0),
+          &md2(ainput, _t3, 0),
+          _ht, _wt);
+      gemm_a061(
+          &md2(atoutput, ithr, 0),
+          &md2(atinput, ithr, 0),
+          &md3(atweights, _oc4, 0, 0),
+          &md2(abias, _oc4, 0),
+          0);
+      trans_output(
+          &md2(aoutput, _t3, 0),
+          &md2(atoutput, ithr, 0),
           _oc4, _ht, _wt);
     }}}}
   } else {
@@ -253,14 +213,21 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
         t3_history = _t3;
       }
       if (md3(atinput_msk, ithr,  _ht, _wt) == 0) {
-        trans_input(&md4(atinput, ithr, _ht, _wt, 0),
-            &md2(ainput, _t3, 0), _ht, _wt);
+        trans_input(
+            &md4(atinput, ithr, _ht, _wt, 0),
+            &md2(ainput, _t3, 0),
+            _ht, _wt);
         md3(atinput_msk, ithr, _ht, _wt) = 1;
       }
-      gemm_a061(&md2(atoutput, ithr, 0),
+      gemm_a061(
+          &md2(atoutput, ithr, 0),
           &md4(atinput, ithr, _ht, _wt, 0),
-          &md3(atweights, _oc4, 0, 0), &md2(abias, _oc4, 0), 0);
-      trans_output(&md2(aoutput, _t3, 0), &md2(atoutput, ithr, 0),
+          &md3(atweights, _oc4, 0, 0),
+          &md2(abias, _oc4, 0),
+          0);
+      trans_output(
+          &md2(aoutput, _t3, 0),
+          &md2(atoutput, ithr, 0),
           _oc4, _ht, _wt);
     }}}}
   }
@@ -294,10 +261,19 @@ void Instance_elx_conv_direct_1x1_t::__execute_f061(
     iter_each (_t2, this->t2) {
       size_t ithr = omp_get_thread_num();
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-      trans_input2(&md2(atinput, ithr, 0), &md2(ainput, _t3, 0), _t2, Tz);
-      gemm_f061(&md2(atoutput, ithr, 0), &md2(atinput, ithr, 0),
-          &md3(atweights, _oc4, 0, 0), &md2(abias, _oc4, 0), _t2, Tz);
-      trans_output2(&md2(aoutput, _t3, 0), &md2(atoutput, ithr, 0),
+      trans_input2(
+           &md2(atinput, ithr, 0),
+           &md2(ainput, _t3, 0),
+           _t2, Tz);
+      gemm_f061(
+          &md2(atoutput, ithr, 0),
+          &md2(atinput, ithr, 0),
+          &md3(atweights, _oc4, 0, 0),
+          &md2(abias, _oc4, 0),
+          _t2, Tz);
+      trans_output2(
+          &md2(aoutput, _t3, 0),
+          &md2(atoutput, ithr, 0),
           _oc4, _t2, Tz);
     }}}
   } else {
@@ -317,13 +293,21 @@ void Instance_elx_conv_direct_1x1_t::__execute_f061(
         t3_history = _t3;
       }
       if (md2(atinput_msk, ithr, _t2) == 0) {
-        trans_input2(&md3(atinput, ithr, _t2, 0),
-            &md2(ainput, _t3, 0), _t2, Tz);
+        trans_input2(
+            &md3(atinput, ithr, _t2, 0),
+            &md2(ainput, _t3, 0),
+            _t2, Tz);
         md2(atinput_msk, ithr, _t2) = 1;
       }
-      gemm_f061(&md2(atoutput, ithr, 0), &md3(atinput, ithr, _t2, 0),
-          &md3(atweights, _oc4, 0, 0), &md2(abias, _oc4, 0), _t2, Tz);
-      trans_output2(&md2(aoutput, _t3, 0), &md2(atoutput, ithr, 0),
+      gemm_f061(
+          &md2(atoutput, ithr, 0),
+          &md3(atinput, ithr, _t2, 0),
+          &md3(atweights, _oc4, 0, 0),
+          &md2(abias, _oc4, 0),
+          _t2, Tz);
+      trans_output2(
+          &md2(aoutput, _t3, 0),
+          &md2(atoutput, ithr, 0),
           _oc4, _t2, Tz);
     }}}
   }

@@ -57,13 +57,7 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t<UserTypes> &dc)
     this->t = this->nt * this->n;
     this->t2 = (this->nt + this->T - 1) / this->T;
     this->Tr = this->nt % this->T ? this->nt % this->T : this->T;
-  } else if (xopt_ == 0xd060 || xopt_ == 0xa061 ||
-      xopt_ == 0xb061 || xopt_ == 0xe060) {
-    if (xopt_ == 0xd060) {
-      bool shape_ok = this->hs == 2 && this->ws == 2 && no_pad_;
-      if (!shape_ok)
-        el_error("Shape not supported by d060");
-    }
+  } else if (xopt_ == 0xa061 || xopt_ == 0xb061) {
     this->t3 = this->n;
     this->ht = this->oh;
     this->wt = this->ow / this->T;
@@ -90,7 +84,7 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t<UserTypes> &dc)
   this->oc3r = this->oc34 % this->oc3;
   if (this->oc3r == 0) this->oc3r = this->oc3;
 
-  if ((xopt_ == 0xa061 || xopt_ == 0xb061 || xopt_ == 0xe060 || xopt_ == 0xf061)
+  if ((xopt_ == 0xa061 || xopt_ == 0xb061 || xopt_ == 0xc060 || xopt_ == 0xf061)
       && (this->O2r != this->O2 || this->oc3r != this->oc3)) {
     el_error("No oc tailing for 0xa061, 0xb061, 0xe060, 0xf061");
   }
@@ -112,7 +106,7 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t<UserTypes> &dc)
   inference_acc_ = this->prop_kind == forward_inference;
 
   attr_ = this->with_bias ? set_attr(attr_, bias_idx) : attr_;
-  if (xopt_ == 0xb061 || xopt_ == 0xe060 || xopt_ == 0xc060 || xopt_ == 0xd060) {
+  if (xopt_ == 0xb061 || xopt_ == 0xc060) {
     attr_ = this->with_ip_sum ? set_attr(attr_, ip_sum_idx) : attr_;
   }
 
@@ -188,9 +182,6 @@ int  Instance_elx_conv_direct_1x1_t::prepare_execute_opt()
     tinput_size = mthr_ * this->ic3 * this->I2 * V * this->ht * this->wt * this->T * sizeof(TinputType);
     tweights_size = this->IC * this->OC * sizeof(TweightsType);
     break;
-  case 0xe060:
-    tweights_size = this->IC * this->OC * sizeof(TweightsType);
-    break;
   case 0xf061:
     tinput_msk_ = (unsigned char *)malloc(mthr_ * this->t2);
     toutput_size = mthr_ * this->oc3 * this->O2 * this->T * V * sizeof(ToutputType);
@@ -198,7 +189,7 @@ int  Instance_elx_conv_direct_1x1_t::prepare_execute_opt()
     tweights_size = this->IC * this->OC * sizeof(TweightsType);
     break;
   case 0xc060:
-  case 0xd060:
+    tweights_size = this->IC * this->OC * sizeof(TweightsType);
     break;
   default:
       el_error("Unknown xopt!");
@@ -1168,21 +1159,36 @@ void Instance_elx_conv_direct_1x1_t::gemm_a061(ToutputType *output,
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
 
   iter_each (_ic3, this->ic3 - 1) {
-    int attr = _ic4 == 0 && _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+    int attr
+        = _ic4 == 0 && _ic3 == 0
+        ? set_attr(attr_, r_output_idx)
+        : attr_;
     iter_each (_oc3, this->oc3) {
-      ker_gemm_I_O_T_(*(elx_conv_params_t *)this, &md2(aoutput, _oc3, 0),
-          &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr, nullptr);
+      ker_gemm_I_O_T_(
+          *this,
+          &md2(aoutput, _oc3, 0),
+          &md2(ainput, _ic3, 0),
+          &md3(aweights, _oc3, _ic3, 0),
+          &md2(abias, _oc3, 0),
+          attr, 0, nullptr, nullptr, nullptr);
     }
   }
-  int attr = _ic4 == 0 && this->ic3 == 1 ?
-      set_attr(attr_, r_output_idx) : attr_;
-  attr = this->with_relu && _ic4 == this->ic4 - 1 ?
-      (set_attr(attr, relu_idx)) : attr;
+  int attr
+      = _ic4 == 0 && this->ic3 == 1
+      ? set_attr(attr_, r_output_idx)
+      : attr_;
+  attr
+      = this->with_relu && _ic4 == this->ic4 - 1
+      ? (set_attr(attr, relu_idx))
+      : attr;
   iter_each (_oc3, this->oc3) {
-    ker_gemm_IrO_T_(*(elx_conv_params_t *)this, &md2(aoutput, _oc3, 0),
-        &md2(ainput, this->ic3 - 1, 0), &md3(aweights, _oc3, this->ic3 - 1, 0),
-        &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr, nullptr);
+    ker_gemm_IrO_T_(
+        *this,
+        &md2(aoutput, _oc3, 0),
+        &md2(ainput, this->ic3 - 1, 0),
+        &md3(aweights, _oc3, this->ic3 - 1, 0),
+        &md2(abias, _oc3, 0),
+        attr, 0, nullptr, nullptr, nullptr);
   }
 }
 
@@ -1201,13 +1207,22 @@ void Instance_elx_conv_direct_1x1_t::gemm_b061(OutputType *output,
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
 
   iter_each (_ic3, this->ic3) {
-    int attr = _ic4 == 0 && _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
-    attr = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 ?
-        set_attr(attr, relu_idx) : attr;
+    int attr
+        = _ic4 == 0 && _ic3 == 0
+        ? set_attr(attr_, r_output_idx)
+        : attr_;
+    attr
+        = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
+        ? set_attr(attr, relu_idx)
+        : attr;
     iter_each (_oc3, this->oc3) {
-      ker_gemm_I_O_T_(*this, &md5(aoutput, _oc3, 0, 0, 0, 0),
-          &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr, nullptr);
+      ker_gemm_I_O_T_(
+          *this,
+          &md5(aoutput, _oc3, 0, 0, 0, 0),
+          &md2(ainput, _ic3, 0),
+          &md3(aweights, _oc3, _ic3, 0),
+          &md2(abias, _oc3, 0),
+          attr, 0, nullptr, nullptr, nullptr);
     }
   }
 }
@@ -1229,139 +1244,63 @@ void Instance_elx_conv_direct_1x1_t::gemm_f061(ToutputType *output,
   iter_each (_ic3, this->ic3 - 1) {
     int attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
     iter_each (_oc3, this->oc3) {
-      ker_gemm(*(elx_conv_params_t *)this, &md2(aoutput, _oc3, 0),
-          &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr, nullptr);
+      ker_gemm(
+          *this,
+          &md2(aoutput, _oc3, 0),
+          &md2(ainput, _ic3, 0),
+          &md3(aweights, _oc3, _ic3, 0),
+          &md2(abias, _oc3, 0),
+          attr, 0, nullptr, nullptr, nullptr);
     }
   }
   int attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
   attr = this->with_relu ? set_attr(attr, relu_idx) : attr;
   iter_each(_oc3, this->oc3) {
-    ker_gemm_tail(*(elx_conv_params_t *)this, &md2(aoutput, _oc3, 0),
-        &md2(ainput, this->ic3 - 1, 0), &md3(aweights, _oc3, this->ic3 - 1, 0),
-        &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr, nullptr);
+    ker_gemm_tail(
+        *this,
+        &md2(aoutput, _oc3, 0),
+        &md2(ainput, this->ic3 - 1, 0),
+        &md3(aweights, _oc3, this->ic3 - 1, 0),
+        &md2(abias, _oc3, 0),
+        attr, 0, nullptr, nullptr, nullptr);
   }
 }
 
 Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::gemm_c060(OutputType *output,
-    InputType *input, WeightsType *weights, BiasType *bias,
+    InputType *input, TweightsType *weights, BiasType *bias,
     int _ic4, int _oc4, int _t2)
 {
-  // weights: oc3, O2(O2r), ic4*, ic3, I2, V(Ir), V(Or)
-  // input:   ic3, I2, t2*, T(Tr), V(Ir)
-  // output:  oc3, O2(O2r), t2*, T(Tr), V(Or)
+  // weights: oc3, O2, ic4*, ic3, I2, V, V
+  // input:   ic3, I2, t2*, T(Tr), V
+  // output:  oc3, O2, t2*, T(Tr), V
   MD2(InputType, ainput, input, this->ic3, this->I2 * this->ih * this->iw * V);
   MD2(OutputType, aoutput, output, this->oc3, this->O2 * this->oh * this->ow * V);
-  MD5(WeightsType, aweights, weights, this->oc3, this->O2, this->ic4, this->ic3,
-      this->I2 * V * V);
-  MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
-
-  auto  ker_I_O_T = ker_fp32_gemm_I_O_T_;
-  auto  ker_I_OrT = ker_fp32_gemm_I_OrT_;
-  auto  ker_I_O_Tr = ker_fp32_gemm_I_O_Tr_;
-  auto  ker_I_OrTr = ker_fp32_gemm_I_OrTr_;
-
-  int oc3 = _oc4 == this->oc4 - 1 ? this->oc3r : this->oc3;
-  iter_each (_ic3, this->ic3) {
-    int attr = _ic4 == 0 && _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
-    attr  = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 ?
-        set_attr(attr, relu_idx) : attr;
-    MD2(InputType, ainput2, &md2(ainput, _ic3, 0), this->t2, this->T * V);
-    iter_each (_oc3, oc3) {
-      MD2(OutputType, aoutput2, &md2(aoutput, _oc3, 0), this->t2, this->T * V);
-      if (_oc4 == this->oc4 - 1 && _oc3 == oc3 - 1) {
-        if (_t2 == this->t2 - 1)
-          ker_I_OrTr(*(elx_conv_params_t *)this,
-              &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
-              &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-              attr, 0, nullptr, nullptr, nullptr);
-        else
-          ker_I_OrT(*(elx_conv_params_t *)this,
-              &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
-              &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-              attr, 0, nullptr, nullptr, nullptr);
-      } else {
-        if (_t2 == this->t2 - 1)
-          ker_I_O_Tr(*(elx_conv_params_t *)this,
-              &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
-              &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-              attr, 0, nullptr, nullptr, nullptr);
-        else
-          ker_I_O_T(*(elx_conv_params_t *)this,
-              &md2(aoutput2, _t2, 0), &md2(ainput2, _t2, 0),
-              &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-              attr, 0, nullptr, nullptr, nullptr);
-      }
-    }
-  }
-}
-
-Template_elx_conv_direct_1x1_t
-void Instance_elx_conv_direct_1x1_t::gemm_d060(OutputType *output, InputType *input,
-    WeightsType *weights, BiasType *bias, int _ic4, int _oc4, int _ht, int _wt)
-{
-  // weights: oc3*, O2, ic4*, ic3*, I2, V, V
-  // input:   ic3*, I2, ht*, hs*, wt*, T, ws, V
-  // output:  oc3*, O2(O2r), ht*, wt*, T, V
-  MD5(InputType, ainput, input, this->ic3, this->I2, this->ih, this->wt,
-      this->T * this->ws * V);
-  MD5(OutputType, aoutput, output, this->oc3, this->O2, this->ht, this->wt,
-      this->T * V);
-  MD5(WeightsType, aweights, weights, this->oc3, this->O2, this->ic4, this->ic3,
-      this->I2 * V * V);
-  MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
-
-  auto ker_I_O_T = ker_fp32_gemm_I_O_T_;
-  auto ker_I_OrT = ker_fp32_gemm_I_OrT_;
-
-  iter_each (_ic3, this->ic3) {
-    int attr = _ic4 == 0 && _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
-    attr = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 ?
-        set_attr(attr, relu_idx) : attr;
-    int oc3 = _oc4 == this->oc4 - 1 ? this->oc3r : this->oc3;
-
-    iter_each (_oc3, oc3) {
-      if (_oc4 == this->oc4 - 1 && _oc3 == oc3 - 1) {
-        ker_I_OrT(*(elx_conv_params_t *)this,
-            &md5(aoutput, _oc3, 0, 0, 0, 0), &md5(ainput, _ic3, 0, 0, 0, 0),
-            &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-            attr, 0, nullptr, nullptr, nullptr);
-      } else {
-        ker_I_O_T(*(elx_conv_params_t *)this,
-            &md5(aoutput, _oc3, 0, 0, 0, 0), &md5(ainput, _ic3, 0, 0, 0, 0),
-            &md5(aweights, _oc3, 0, _ic4, _ic3, 0), &md2(abias, _oc3, 0),
-            attr, 0, nullptr, nullptr, nullptr);
-      }
-    }
-  }
-}
-
-Template_elx_conv_direct_1x1_t
-void Instance_elx_conv_direct_1x1_t::gemm_e060(OutputType *output, InputType *input,
-    TweightsType *weights, BiasType *bias, int _ic4)
-{
-  // weights: oc3*, ic3*, O2, I2, V, V
-  // input:   ic3*, I2, ht*, hs*, wt*, T, ws, V
-  // output:  oc3*, O2, ht*, wt*, T, V
-  MD5(InputType, ainput, input, this->ic3, this->I2, this->ih, this->wt,
-      this->T * this->ws * V);
-  MD5(OutputType, aoutput, output, this->oc3, this->O2, this->ht, this->wt,
-      this->T * V);
-  MD3(WeightsType, aweights, weights, this->oc3, this->ic3,
+  MD3(TweightsType, aweights, weights, this->oc3, this->ic3,
       this->O2 * this->I2 * V * V);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
 
-  auto ker_I_O_T = ker_fp32_gemm_I_O_T_;
+  auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm_I_O_Tr_ : ker_gemm_I_O_T_;
 
   iter_each (_ic3, this->ic3) {
-    int attr = _ic4 == 0 && _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
-    attr = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 ?
-        set_attr(attr, relu_idx) : attr;
+    int attr
+        = _ic4 == 0 && _ic3 == 0
+        ? set_attr(attr_, r_output_idx)
+        : attr_;
+    attr
+        = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
+        ? set_attr(attr, relu_idx)
+        : attr;
+    MD2(InputType, ainput2, &md2(ainput, _ic3, 0), this->t2, this->T * V);
     iter_each (_oc3, this->oc3) {
-      ker_I_O_T(*(elx_conv_params_t *)this, &md5(aoutput, _oc3, 0, 0, 0, 0),
-          &md5(ainput, _ic3, 0, 0, 0, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), attr, 0, nullptr, nullptr, nullptr);
+      MD2(OutputType, aoutput2, &md2(aoutput, _oc3, 0), this->t2, this->T * V);
+      ker_gemm(
+          *this,
+          &md2(aoutput2, _t2, 0),
+          &md2(ainput2, _t2, 0),
+          &md3(aweights, _oc3, _ic3, 0),
+          &md2(abias, _oc3, 0),
+          attr, 0, nullptr, nullptr, nullptr);
     }
   }
 }
