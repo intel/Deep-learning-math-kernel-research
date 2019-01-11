@@ -13,33 +13,23 @@ namespace euler {
 Template_elx_conv_direct_1x1_t void
 Instance_elx_conv_direct_1x1_t::bind_execute_functions()
 {
-#define BIND_KERNEL_1(S, F)                                                    \
-  gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S, F,                         \
-      false>(O, T, func);
-
-#define BIND_KERNEL_2(S, F)                                                    \
-  if (has_Ir) {                                                                \
-    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S,                          \
-        F, true>(O, T, func);                                                  \
-  } else {                                                                     \
-    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S,                          \
-        F, false>(O, T, func);                                                 \
-  }
+#define BIND_KERNEL(S, F)                                                    \
+  gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S, F>(O, T, func);
 
   auto bind_kernel = [&](int O, int T,
-      gemm_kernel_binder::kgemm<TarrayTypes> **func, bool has_Ir) {
+      gemm_kernel_binder::kgemm<TarrayTypes> **func) {
     switch (xopt_) {
     case (0xa061):
-      BIND_KERNEL_2(1, GKF_CCC)
+      BIND_KERNEL(1, GKF_CCC)
       break;
     case (0xf061):
-      BIND_KERNEL_2(1, GKF_CCC)
+      BIND_KERNEL(1, GKF_CCC)
       break;
     case (0xb061):
-      BIND_KERNEL_1(1, GKF_CCD)
+      BIND_KERNEL(1, GKF_CCD)
       break;
     case (0xc060):
-      BIND_KERNEL_2(1, GKF_DCD)
+      BIND_KERNEL(1, GKF_DCD)
       break;
     default:
       el_error("Unknown xopt");
@@ -47,14 +37,8 @@ Instance_elx_conv_direct_1x1_t::bind_execute_functions()
     }
   };
 
-  bind_kernel(this->O, this->T, &ker_gemm_I_O_T_, false);
-  bind_kernel(this->O, this->Tr, &ker_gemm_I_O_Tr_, false);
-
-  // Ir != V
-  if (xopt_ == 0xa061 || xopt_ == 0xf061) {
-    bind_kernel(this->O, this->T, &ker_gemm_IrO_T_, true);
-    bind_kernel(this->O, this->Tr, &ker_gemm_IrO_Tr_, true);
-  }
+  bind_kernel(this->O, this->T, &ker_gemm_I_O_T_);
+  bind_kernel(this->O, this->Tr, &ker_gemm_I_O_Tr_);
 
 #define EXECUTE_CASE(n)                                                     \
   case 0x##n:                                                               \

@@ -1177,12 +1177,12 @@ void Instance_elx_conv_direct_1x1_t::gemm_a061(ToutputType *output,
       = _ic4 == 0 && this->ic3 == 1
       ? set_attr(attr_, r_output_idx)
       : attr_;
-  attr
-      = this->with_relu && _ic4 == this->ic4 - 1
-      ? (set_attr(attr, relu_idx))
-      : attr;
+  if (_ic4 == this->ic4 - 1) {
+    if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+    if (this->with_relu) attr = set_attr(attr, relu_idx);
+  }
   iter_each (_oc3, this->oc3) {
-    ker_gemm_IrO_T_(
+    ker_gemm_I_O_T_(
         *this,
         &md2(aoutput, _oc3, 0),
         &md2(ainput, this->ic3 - 1, 0),
@@ -1238,8 +1238,6 @@ void Instance_elx_conv_direct_1x1_t::gemm_f061(ToutputType *output,
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
 
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm_I_O_Tr_ : ker_gemm_I_O_T_;
-  auto ker_gemm_tail = (_t2 == this->t2 - 1) ?
-      ker_gemm_IrO_Tr_ : ker_gemm_IrO_T_;
 
   iter_each (_ic3, this->ic3 - 1) {
     int attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
@@ -1254,9 +1252,10 @@ void Instance_elx_conv_direct_1x1_t::gemm_f061(ToutputType *output,
     }
   }
   int attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
-  attr = this->with_relu ? set_attr(attr, relu_idx) : attr;
+  if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+  if (this->with_relu) attr = set_attr(attr, relu_idx);
   iter_each(_oc3, this->oc3) {
-    ker_gemm_tail(
+    ker_gemm(
         *this,
         &md2(aoutput, _oc3, 0),
         &md2(ainput, this->ic3 - 1, 0),

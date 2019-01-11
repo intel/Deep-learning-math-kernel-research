@@ -1605,7 +1605,6 @@ void Instance_elx_conv_wino_t::gemm(
     ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _t2, int Tz, int _ic4)
 {
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
-  auto ker_gemm_tail = (_t2 == this->t2 - 1) ? ker_gemm0_tail_ : ker_gemm_tail_;
 
   MD6(TinputType, atinput, tinput, A, A, this->ic3, this->I2, Tz, V);
   MD6(ToutputType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
@@ -1624,21 +1623,22 @@ void Instance_elx_conv_wino_t::gemm(
         iter_each(_ic3, ic3) {
           int attr = _ic3 == 0 && _ic4 == 0
               ? set_attr(attr_, r_output_idx) : attr_;
-          ker_gemm(*(elx_conv_params_t *)this,
-                   &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-                   &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
-                   &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
-                   nullptr, attr, 0, nullptr, nullptr, nullptr);
+          ker_gemm(*this,
+              &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+              &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
+              &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
+              nullptr, attr, 0, nullptr, nullptr, nullptr);
         }
         if (last_ic4) {
           auto attr = this->ic3 == 1 && this->ic4 == 1
                           ? set_attr(attr_, r_output_idx)
                           : attr_;
-          ker_gemm_tail(*(elx_conv_params_t *)this,
-                        &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-                        &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
-                        &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
-                        nullptr, attr, 0, nullptr, nullptr, nullptr);
+         if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+          ker_gemm(*this,
+              &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+              &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
+              &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
+              nullptr, attr, 0, nullptr, nullptr, nullptr);
         }
       }
     }
@@ -1651,21 +1651,22 @@ void Instance_elx_conv_wino_t::gemm(
       iter_each(_ic3, ic3) {
         int attr =
             _ic3 == 0 && _ic4 == 0 ? set_attr(attr_, r_output_idx) : attr_;
-        ker_gemm(*(elx_conv_params_t *)this,
-                 &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-                 &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
-                 &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
-                 nullptr, attr, 0, nullptr, nullptr, nullptr);
+        ker_gemm(*this,
+            &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+            &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
+            &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
+            nullptr, attr, 0, nullptr, nullptr, nullptr);
       }
       if (last_ic4) {
         auto attr = this->ic3 == 1 && this->ic4 == 1
                         ? set_attr(attr_, r_output_idx)
                         : attr_;
-        ker_gemm_tail(*(elx_conv_params_t *)this,
-                      &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-                      &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
-                      &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
-                      nullptr, attr, 0, nullptr, nullptr, nullptr);
+        if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+        ker_gemm(*this,
+            &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
+            &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
+            &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
+            nullptr, attr, 0, nullptr, nullptr, nullptr);
       }
     }}}
   }
@@ -1788,7 +1789,6 @@ void Instance_elx_conv_wino_t::gemm(
     TscaleType *src_scale, TscaleType *weights_scale, TscaleType *weights_factor, int _ic4)
 {
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_i8_gemm0_ : ker_i8_gemm_;
-  auto ker_gemm_tail = (_t2 == this->t2 - 1) ? ker_i8_gemm0_tail_ : ker_i8_gemm_tail_;
 
   MD6(uint8_t, atinput, tinput, A, A, this->ic3, this->I2, Tz, V * this->Vx);
   MD6(ToutputType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
@@ -1823,7 +1823,8 @@ void Instance_elx_conv_wino_t::gemm(
           set_attr(attr_, r_output_idx) : attr_;
       attr = set_attr(attr, l_output_idx);
       attr = set_attr(attr, c_output_idx);
-      ker_gemm_tail(*(elx_conv_params_t *)this,
+      if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+      ker_gemm(*(elx_conv_params_t *)this,
           &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
           &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
           &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
@@ -1841,7 +1842,6 @@ void Instance_elx_conv_wino_t::gemm_non_acc(
     ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _t2, int Tz, int _ic4)
 {
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
-  auto ker_gemm_tail = (_t2 == this->t2 - 1) ? ker_gemm0_tail_ : ker_gemm_tail_;
 
   MD6(TinputType, atinput, tinput, A, A, this->ic3, this->I2, Tz, V);
   MD6(ToutputType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
@@ -1868,7 +1868,8 @@ void Instance_elx_conv_wino_t::gemm_non_acc(
         }
         if (last_ic4) {
           auto attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
-          ker_gemm_tail(*(elx_conv_params_t *)this,
+          if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+          ker_gemm(*(elx_conv_params_t *)this,
                         &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
                         &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
                         &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
@@ -1892,7 +1893,8 @@ void Instance_elx_conv_wino_t::gemm_non_acc(
       }
       if (last_ic4) {
         auto attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
-        ker_gemm_tail(*(elx_conv_params_t *)this,
+        if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+        ker_gemm(*(elx_conv_params_t *)this,
                       &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
                       &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
                       &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
@@ -1909,7 +1911,6 @@ void Instance_elx_conv_wino_t::gemm_non_acc(
     TscaleType *weights_factor, int _ic4)
 {
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_i8_gemm0_ : ker_i8_gemm_;
-  auto ker_gemm_tail = (_t2 == this->t2 - 1) ? ker_i8_gemm0_tail_ : ker_i8_gemm_tail_;
 
   MD6(uint8_t, atinput, tinput, A, A, this->ic3, this->I2, Tz, V * this->Vx);
   MD6(ToutputType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
@@ -1947,7 +1948,8 @@ void Instance_elx_conv_wino_t::gemm_non_acc(
           auto attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
           attr = set_attr(attr, l_output_idx);
           attr = set_attr(attr, c_output_idx);
-          ker_gemm_tail(*(elx_conv_params_t *)this,
+          if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+          ker_gemm(*(elx_conv_params_t *)this,
               &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
               &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
               &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
@@ -1983,7 +1985,8 @@ void Instance_elx_conv_wino_t::gemm_non_acc(
         auto attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
         attr = set_attr(attr, l_output_idx);
         attr = set_attr(attr, c_output_idx);
-        ker_gemm_tail(*(elx_conv_params_t *)this,
+        if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+        ker_gemm(*(elx_conv_params_t *)this,
             &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
             &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
             &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
@@ -2016,8 +2019,6 @@ void Instance_elx_conv_wino_t::gemm(
   iter_each (_t2, this->t2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
     auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
-    auto ker_gemm_tail
-        = (_t2 == this->t2 - 1) ? ker_gemm0_tail_ : ker_gemm_tail_;
     MD6(TinputType, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2, Tz, V);
     MD6(ToutputType, atoutput6, &md2(atoutput2, _t2, 0), A, A, this->oc3, this->O2, Tz, V);
     bool last_ic4 = _ic4 == this->ic4 - 1;
@@ -2035,7 +2036,8 @@ void Instance_elx_conv_wino_t::gemm(
     if (last_ic4) {
       int attr = this->ic3 == 1 && this->ic4 == 1 ?
           set_attr(attr_, r_output_idx) : attr_;
-      ker_gemm_tail(*(elx_conv_params_t *)this,
+      if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+      ker_gemm(*(elx_conv_params_t *)this,
           &md6(atoutput6, _wA, _hA, _oc3, 0, 0, 0),
           &md6(atinput6, _wA, _hA, this->ic3 - 1, 0, 0, 0),
           &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
@@ -2060,8 +2062,6 @@ void Instance_elx_conv_wino_t::gemm_non_acc(
   iter_each (_t2, this->t2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
     auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm0_ : ker_gemm_;
-    auto ker_gemm_tail
-        = (_t2 == this->t2 - 1) ? ker_gemm0_tail_ : ker_gemm_tail_;
     MD6(TinputType, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2, Tz, V);
     MD6(ToutputType, atoutput6, &md2(atoutput2, _t2, 0), A, A, this->oc3, this->O2, Tz, V);
     bool last_ic4 = _ic4 == this->ic4 - 1;
@@ -2079,7 +2079,8 @@ void Instance_elx_conv_wino_t::gemm_non_acc(
     if (last_ic4) {
       int attr = this->ic3 == 1 ?
           set_attr(attr_, r_output_idx) : attr_;
-      ker_gemm_tail(*(elx_conv_params_t *)this,
+      if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+      ker_gemm(*(elx_conv_params_t *)this,
           &md6(atoutput6, _wA, _hA, _oc3, 0, 0, 0),
           &md6(atinput6, _wA, _hA, this->ic3 - 1, 0, 0, 0),
           &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
@@ -2110,8 +2111,6 @@ void Instance_elx_conv_wino_t::gemm_non_acc(
   iter_each (_t2, this->t2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
     auto ker_gemm = (_t2 == this->t2 - 1) ? ker_i8_gemm0_ : ker_i8_gemm_;
-    auto ker_gemm_tail
-        = (_t2 == this->t2 - 1) ? ker_i8_gemm0_tail_ : ker_i8_gemm_tail_;
     MD6(uint8_t, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2, Tz, V * this->Vx);
     MD6(ToutputType, atoutput6, &md2(atoutput2, _t2, 0), A, A, this->oc3, this->O2, Tz, V);
     MD5(TscaleType, asrc_scale5, &md2(asrc_scale2, _t2, 0), A, A, this->ic3, 2, Tz);
@@ -2137,7 +2136,8 @@ void Instance_elx_conv_wino_t::gemm_non_acc(
           set_attr(attr_, r_output_idx) : attr_;
       attr = set_attr(attr, l_output_idx);
       attr = set_attr(attr, c_output_idx);
-      ker_gemm_tail(*this, &md6(atoutput6, _wA, _hA, _oc3, 0, 0, 0),
+      if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+      ker_gemm(*this, &md6(atoutput6, _wA, _hA, _oc3, 0, 0, 0),
           &md6(atinput6, _wA, _hA, this->ic3 - 1, 0, 0, 0),
           &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
           nullptr, attr,

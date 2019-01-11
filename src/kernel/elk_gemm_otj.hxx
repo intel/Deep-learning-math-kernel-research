@@ -13,7 +13,7 @@
 // V: vector size
 // Vx: packed size of data with InputType
 // I: ISA
-// has_Ir: has tailing ic
+// K: kernel size
 
 namespace euler {
 
@@ -51,17 +51,15 @@ const int GKF_ECD = 0xecd;
 // Wtype = fp32 || fp16:
 //   O == 1: T + P <= 32
 //   O > 1: O (T + P) + 1 <= 32
-template <int O, int T, bool has_Ir, typename Wtype>
+template <int O, int T, typename Wtype>
 struct P_traits {
-  static constexpr int P = IF (has_Ir) THEN (1) ELSE (
-    IF (O == 1) THEN (
-      IF (T <= 28) THEN (4) ELSE (
-        IF (T == 29 || T == 30) THEN (2) ELSE (1)
-      )
-    ) ELSE (
-      IF (O > 1 && (31 / O - T) >= 4) THEN (4) ELSE (
-        IF (O > 1 && (31 / O - T == 2 || 31 / O - T == 3)) THEN (2) ELSE (1)
-      )
+  static constexpr int P = IF (O == 1) THEN (
+    IF (T <= 28) THEN (4) ELSE (
+      IF (T == 29 || T == 30) THEN (2) ELSE (1)
+    )
+  ) ELSE (
+    IF (O > 1 && (31 / O - T) >= 4) THEN (4) ELSE (
+      IF (O > 1 && (31 / O - T == 2 || 31 / O - T == 3)) THEN (2) ELSE (1)
     )
   );
 };
@@ -69,86 +67,84 @@ struct P_traits {
 // Wtype = int8_t:
 //   O == 1: T + P + 1(one) + 1(t0) <= 32
 //   O > 1: O (T + P) + 1(bcast) + 1(one) + 1(t0) <= 32
-template <int O, int T, bool has_Ir>
-struct P_traits<O, T, has_Ir, int8_t> {
-  static constexpr int P = IF (has_Ir) THEN (1) ELSE (
-    IF (O == 1) THEN (
-      IF (T <= 26) THEN (4) ELSE (
-        IF (T == 27 || T == 28) THEN (2) ELSE (1)
-      )
-    ) ELSE (
-      IF (O > 1 && (29 / O - T) >= 4) THEN (4) ELSE (
-        IF (O > 1 && (29 / O - T == 2 || 29 / O - T == 3)) THEN (2) ELSE (1)
-      )
+template <int O, int T>
+struct P_traits<O, T, int8_t> {
+  static constexpr int P = IF (O == 1) THEN (
+    IF (T <= 26) THEN (4) ELSE (
+      IF (T == 27 || T == 28) THEN (2) ELSE (1)
+    )
+  ) ELSE (
+    IF (O > 1 && (29 / O - T) >= 4) THEN (4) ELSE (
+      IF (O > 1 && (29 / O - T == 2 || 29 / O - T == 3)) THEN (2) ELSE (1)
     )
   );
 };
 
 // Jamming
-template <int O, int T, bool has_Ir, typename Wtype = float, typename C = void>
+template <int O, int T, typename Wtype = float, typename C = void>
 struct J_traits {};
 
-template <int T, bool has_Ir, typename Wtype>
-struct J_traits<8, T, has_Ir, Wtype, typename std::enable_if<T == 6>::type> {
+template <int T, typename Wtype>
+struct J_traits<8, T, Wtype, typename std::enable_if<T == 6>::type> {
   static constexpr int J = 2;
   static constexpr int O0 = 4;
   static constexpr int O1 = 4;
   static constexpr int O2 = 0;
-  static constexpr int P0 = P_traits<O0, T, has_Ir, Wtype>::P;
-  static constexpr int P1 = P_traits<O1, T, has_Ir, Wtype>::P;
+  static constexpr int P0 = P_traits<O0, T, Wtype>::P;
+  static constexpr int P1 = P_traits<O1, T, Wtype>::P;
   static constexpr int P2 = 0;
 };
 
-template <int T, bool has_Ir, typename Wtype>
-struct J_traits<8, T, has_Ir, Wtype,
+template <int T, typename Wtype>
+struct J_traits<8, T, Wtype,
     typename std::enable_if<T == 7 || T == 8, void>::type> {
   static constexpr int J = 3;
   static constexpr int O0 = 3;
   static constexpr int O1 = 3;
   static constexpr int O2 = 2;
-  static constexpr int P0 = P_traits<O0, T, has_Ir, Wtype>::P;
-  static constexpr int P1 = P_traits<O1, T, has_Ir, Wtype>::P;
-  static constexpr int P2 = P_traits<O2, T, has_Ir, Wtype>::P;
+  static constexpr int P0 = P_traits<O0, T, Wtype>::P;
+  static constexpr int P1 = P_traits<O1, T, Wtype>::P;
+  static constexpr int P2 = P_traits<O2, T, Wtype>::P;
 };
 
-template <int T, bool has_Ir, typename Wtype>
-struct J_traits<8, T, has_Ir, Wtype,
+template <int T, typename Wtype>
+struct J_traits<8, T, Wtype,
     typename std::enable_if<(T >= 3 && T < 6), void>::type> {
   static constexpr int J = 2;
   static constexpr int O0 = 4;
   static constexpr int O1 = 4;
   static constexpr int O2 = 0;
-  static constexpr int P0 = P_traits<O0, T, has_Ir, Wtype>::P;
-  static constexpr int P1 = P_traits<O1, T, has_Ir, Wtype>::P;
+  static constexpr int P0 = P_traits<O0, T, Wtype>::P;
+  static constexpr int P1 = P_traits<O1, T, Wtype>::P;
   static constexpr int P2 = 0;
 };
 
-template <int T, bool has_Ir, typename Wtype>
-struct J_traits<4, T, has_Ir, Wtype,
+template <int T, typename Wtype>
+struct J_traits<4, T, Wtype,
     typename std::enable_if<(T >= 7 && T < 15), void>::type> {
   static constexpr int J = 2;
   static constexpr int O0 = 2;
   static constexpr int O1 = 2;
   static constexpr int O2 = 0;
-  static constexpr int P0 = P_traits<O0, T, has_Ir, Wtype>::P;
-  static constexpr int P1 = P_traits<O1, T, has_Ir, Wtype>::P;
+  static constexpr int P0 = P_traits<O0, T, Wtype>::P;
+  static constexpr int P1 = P_traits<O1, T, Wtype>::P;
   static constexpr int P2 = 0;
 };
 
-template <int T, bool has_Ir, typename Wtype>
-struct J_traits<3, T, has_Ir, Wtype,
+template <int T, typename Wtype>
+struct J_traits<3, T, Wtype,
     typename std::enable_if<(T >= 10 && T < 15), void>::type> {
   static constexpr int J = 2;
   static constexpr int O0 = 2;
   static constexpr int O1 = 1;
   static constexpr int O2 = 0;
-  static constexpr int P0 = P_traits<O0, T, has_Ir, Wtype>::P;
-  static constexpr int P1 = P_traits<O1, T, has_Ir, Wtype>::P;
+  static constexpr int P0 = P_traits<O0, T, Wtype>::P;
+  static constexpr int P1 = P_traits<O1, T, Wtype>::P;
   static constexpr int P2 = 0;
 };
 
-template <int O, int T, bool has_Ir>
-struct J_traits<O, T, has_Ir, float,
+template <int O, int T>
+struct J_traits<O, T, float,
     typename std::enable_if<((O == 1 && T < 32)) || (O == 2 && T < 15)
         || (O == 3 && T < 10) || (O == 4 && T < 7) || (O == 5 && T < 6)
         || (O == 6 && T < 5) || (O == 7 && T < 4) || (O == 8 && T < 3)>::type> {
@@ -156,13 +152,13 @@ struct J_traits<O, T, has_Ir, float,
   static constexpr int O0 = O;
   static constexpr int O1 = 0;
   static constexpr int O2 = 0;
-  static constexpr int P0 = P_traits<O0, T, has_Ir, float>::P;
+  static constexpr int P0 = P_traits<O0, T, float>::P;
   static constexpr int P1 = 0;
   static constexpr int P2 = 0;
 };
 
-template <int O, int T, bool has_Ir>
-struct J_traits<O, T, has_Ir, float16,
+template <int O, int T>
+struct J_traits<O, T, float16,
     typename std::enable_if<((O == 1 && T < 32)) || (O == 2 && T < 15)
         || (O == 3 && T < 10) || (O == 4 && T < 7) || (O == 5 && T < 6)
         || (O == 6 && T < 5) || (O == 7 && T < 4) || (O == 8 && T < 3)>::type> {
@@ -170,13 +166,13 @@ struct J_traits<O, T, has_Ir, float16,
   static constexpr int O0 = O;
   static constexpr int O1 = 0;
   static constexpr int O2 = 0;
-  static constexpr int P0 = P_traits<O0, T, has_Ir, float16>::P;
+  static constexpr int P0 = P_traits<O0, T, float16>::P;
   static constexpr int P1 = 0;
   static constexpr int P2 = 0;
 };
 
-template <int O, int T, bool has_Ir>
-struct J_traits<O, T, has_Ir, int8_t,
+template <int O, int T>
+struct J_traits<O, T, int8_t,
     typename std::enable_if<((O == 1 && T < 32)) || (O == 2 && T < 15)
         || (O == 3 && T < 10) || (O == 4 && T < 7) || (O == 5 && T < 6)
         || (O == 6 && T < 5) || (O == 7 && T < 4) || (O == 8 && T < 3)>::type> {
@@ -184,7 +180,7 @@ struct J_traits<O, T, has_Ir, int8_t,
   static constexpr int O0 = O;
   static constexpr int O1 = 0;
   static constexpr int O2 = 0;
-  static constexpr int P0 = P_traits<O0, T, has_Ir, int8_t>::P;
+  static constexpr int P0 = P_traits<O0, T, int8_t>::P;
   static constexpr int P1 = 0;
   static constexpr int P2 = 0;
 };
@@ -224,7 +220,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     estl::integer_sequence<Kp...>> {
   using kparams = estl::integer_sequence<Kp...>;
   static_assert(sizeof...(Kp) == 5,
-      "Kernel parameters must be GarrayTypes, V, Vx, I, <S, F, O, T, has_Ir>");
+      "Kernel parameters must be GarrayTypes, V, Vx, I, <S, F, O, T, K>");
 
   using InputType = typename GarrayTypes::InputType;
   using WeightsType = typename GarrayTypes::WeightsType;
@@ -237,17 +233,15 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   constexpr static auto O = estl::get<2, int, kparams>();
   constexpr static auto T = estl::get<3, int, kparams>();
   constexpr static auto K = estl::get<4, int, kparams>(); // reuse, conv
-  // TODO: disable P=2/4 for K>3 due to ICC build crash
-  constexpr static auto has_Ir = K == 3 ? false : estl::get<4, bool, kparams>(); // reuse, gemm
 
   // Jamming components
-  constexpr static int J = J_traits<O, T, has_Ir, WeightsType>::J;
-  constexpr static int JO0 = J_traits<O, T, has_Ir, WeightsType>::O0;
-  constexpr static int JP0 = J_traits<O, T, has_Ir, WeightsType>::P0;
-  constexpr static int JO1 = J_traits<O, T, has_Ir, WeightsType>::O1;
-  constexpr static int JP1 = J_traits<O, T, has_Ir, WeightsType>::P1;
-  constexpr static int JO2 = J_traits<O, T, has_Ir, WeightsType>::O2;
-  constexpr static int JP2 = J_traits<O, T, has_Ir, WeightsType>::P2;
+  constexpr static int J = J_traits<O, T, WeightsType>::J;
+  constexpr static int JO0 = J_traits<O, T, WeightsType>::O0;
+  constexpr static int JP0 = J_traits<O, T, WeightsType>::P0;
+  constexpr static int JO1 = J_traits<O, T, WeightsType>::O1;
+  constexpr static int JP1 = J_traits<O, T, WeightsType>::P1;
+  constexpr static int JO2 = J_traits<O, T, WeightsType>::O2;
+  constexpr static int JP2 = J_traits<O, T, WeightsType>::P2;
 
 
   // FP32 gemm kernel
@@ -370,8 +364,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
   template <int JO, int P>
   static inline typename std::enable_if<
-      !std::is_same<InputType, uint8_t>::value
-      && (P == 1 && has_Ir == false), void>::type
+      !std::is_same<InputType, uint8_t>::value && P == 1>::type
   op_gemm(elx_conv_params_t &xc,
       OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
       int attr, ScaleType *src_scale, ScaleType *src_factor,
@@ -388,6 +381,12 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput, output, JO, O_stride);
     MD2(InputType, ainput, input, xc.I2, I2_stride);
     MD2(BiasType, abias2, bias, JO, V);
+
+    int I2 = xc.I2, Ir = 0;
+    if (get_attr(attr, has_Ir_idx)) {
+      I2 = xc.I2 - 1;
+      Ir = xc.Ir;
+    }
 
     if (get_attr(attr, r_output_idx)) {
       if (get_attr(attr, bias_idx)) {
@@ -418,77 +417,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       }
     }
 
-    for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
-#pragma nounroll
-      for (int _V = 0; _V < V / P; ++_V) {
-        unroll_for (_O, JO)
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights, _I2, _V, 0, _O);
-        unroll_for (_T, T) {
-          __m<V> mmbcst = op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 0, _T);
-          unroll_for (_O, JO)
-            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
-        }
-      }
-    }
-
-    // store output
-    unroll_for (_O, JO) {
-      unroll_for (_T, T)
-        op_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T, attr);
-    }
-  }
-
-  template <int JO, int P>
-  static inline typename std::enable_if<
-      !std::is_same<InputType, uint8_t>::value
-      && (P == 1 && has_Ir == true), void>::type
-  op_gemm(elx_conv_params_t &xc,
-      OutputType *output, InputType *input, WeightsType *weights, BiasType *bias,
-      int attr, ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
-  {
-    __type_check_fp32_fp16(output, input, weights, bias);
-
-    __m<V> mmout[JO][T], mmwei[JO][P];
-    const int I2_stride
-        = F_traits<F>::is_compact_input ? T * V : xc.ih * xc.iw * V;
-    const int O_stride
-        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
-
-    MD2(OutputType, aoutput, output, JO, O_stride);
-    MD2(InputType, ainput, input, xc.I2, I2_stride);
-    MD2(BiasType, abias2, bias, JO, V);
-
-    if (get_attr(attr, r_output_idx)) {
-      if (get_attr(attr, bias_idx)) {
-        // load bias
-        unroll_for (_O, JO) {
-          unroll_for (_T, T)
-            mmout[_O][_T] = op_load_bias<JO>(bias, _O);
-        }
-      } else {
-        // clear output
-        __m<V> tmp = _mm<V>::setzero_ps();
-        unroll_for (_O, JO)
-          unroll_for (_T, T)
-            mmout[_O][_T] = tmp;
-      }
-      // load output
-      if (get_attr(attr, ip_sum_idx)) {
-        unroll_for (_O, JO) {
-          unroll_for (_T, T)
-            mmout[_O][_T] += op_load_output<JO>(&md2(aoutput, _O, 0), _T);
-        }
-      }
-    } else {
-      // load output
-      unroll_for (_O, JO) {
-        unroll_for (_T, T)
-          mmout[_O][_T] = op_load_output<JO>(&md2(aoutput, _O, 0), _T);
-      }
-    }
-
-    for (int _I2 = 0; _I2 < xc.I2 - 1; ++_I2) {
+    for (int _I2 = 0; _I2 < I2; ++_I2) {
 #pragma nounroll
       for (int _V = 0; _V < V; ++_V) {
         unroll_for (_O, JO)
@@ -501,13 +430,13 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       }
     }
     // Ir
-    {
+    if (Ir > 0) {
 #pragma nounroll
       for (int _V = 0; _V < xc.Ir; ++_V) {
         unroll_for (_O, JO)
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights, xc.I2 - 1, _V, 0, _O);
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights, xc.I2 - 1, _V, 0, _O);
         unroll_for (_T, T) {
-          __m<V> mmbcst = op_load_input<P>(xc, &md2(ainput, xc.I2 - 1, 0), _V, 0, _T);
+          __m<V> mmbcst = op_load_input<1>(xc, &md2(ainput, xc.I2 - 1, 0), _V, 0, _T);
           unroll_for (_O, JO)
             mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
         }
@@ -540,7 +469,12 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     MD2(OutputType, aoutput, output, JO, O_stride);
     MD2(InputType, ainput, input, xc.I2, I2_stride);
-    MD2(BiasType, abias2, bias, JO, V);
+
+    int I2 = xc.I2, Ir = 0;
+    if (get_attr(attr, has_Ir_idx)) {
+      I2 = xc.I2 - 1;
+      Ir = xc.Ir;
+    }
 
     // preload weights
     unroll_for (_O, JO)
@@ -575,7 +509,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       }
     }
 
-    for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+    for (int _I2 = 0; _I2 < I2; ++_I2) {
 #pragma nounroll
       for (int _V = 0; _V < V / P; ++_V) {
         // _P = 0
@@ -593,6 +527,19 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           __m<V> mmbcst = op_load_input<P>(xc, &md2(ainput, _I2, 0), _V, 1, _T);
           unroll_for (_O, JO)
             mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
+        }
+      }
+    }
+    // Ir
+    if (Ir > 0) {
+#pragma nounroll
+      for (int _V = 0; _V < xc.Ir; ++_V) {
+        unroll_for (_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights, xc.I2 - 1, _V, 0, _O);
+        unroll_for (_T, T) {
+          __m<V> mmbcst = op_load_input<1>(xc, &md2(ainput, xc.I2 - 1, 0), _V, 0, _T);
+          unroll_for (_O, JO)
+            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
         }
       }
     }
@@ -623,6 +570,12 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput, output, JO, O_stride);
     MD2(InputType, ainput, input, xc.I2, I2_stride);
     MD2(BiasType, abias2, bias, JO, V);
+
+    int I2 = xc.I2, Ir = 0;
+    if (get_attr(attr, has_Ir_idx)) {
+      I2 = xc.I2 - 1;
+      Ir = xc.Ir;
+    }
 
     // preload weights
     unroll_for (_O, JO) {
@@ -658,7 +611,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       }
     }
 
-    for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+    for (int _I2 = 0; _I2 < I2; ++_I2) {
 #pragma nounroll
       for (int _V = 0; _V < V / P; ++_V) {
         // _P = 0
@@ -695,6 +648,20 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         }
       }
     }
+    // Ir
+    if (Ir > 0) {
+#pragma nounroll
+      for (int _V = 0; _V < xc.Ir; ++_V) {
+        unroll_for (_O, JO)
+          mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights, xc.I2 - 1, _V, 0, _O);
+        unroll_for (_T, T) {
+          __m<V> mmbcst = op_load_input<1>(xc, &md2(ainput, xc.I2 - 1, 0), _V, 0, _T);
+          unroll_for (_O, JO)
+            mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
+        }
+      }
+    }
+
     // store output
     unroll_for (_O, JO) {
       unroll_for (_T, T)
@@ -819,7 +786,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
   // u8s8f32 fma
   template <int JO, int P>
-  static inline typename std::enable_if<(P == 1 && has_Ir == false), void>::type
+  static inline typename std::enable_if<P == 1, void>::type
   op_gemm(elx_conv_params_t &xc, OutputType *output, uint8_t *input,
       int8_t *weights, BiasType *bias, int attr, ScaleType *src_scale,
       ScaleType *src_factor, ScaleType *weights_scale,
@@ -833,6 +800,10 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     MD2(OutputType, aoutput, output, JO, O_stride);
     MD2(uint8_t, ainput, input, xc.I2, I2_stride);
+
+    if (get_attr(attr, has_Ir_idx)) {
+      el_error("Unimplement non-64x IC for int8 gemm");
+    }
 
     if (get_attr(attr, r_output_idx) || get_attr(attr, l_output_idx)) {
       // clear output
@@ -877,79 +848,6 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     }
   }
 
-  // TODO: handling V and Vx tail
-  template <int JO, int P>
-  static inline typename std::enable_if<(P == 1 && has_Ir == true), void>::type
-  op_gemm(elx_conv_params_t &xc,
-      OutputType *output, uint8_t *input, int8_t *weights, BiasType *bias, int attr,
-      ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
-  {
-    __i<V> mmout[JO][T], mmwei[JO][P];
-    const int I2_stride
-        = F_traits<F>::is_compact_input ? T * V * Vx: xc.ih * xc.iw * V * Vx;
-    const int O_stride
-        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
-
-    MD2(OutputType, aoutput, output, JO, O_stride);
-    MD2(uint8_t, ainput, input, xc.I2, I2_stride);
-
-    if (get_attr(attr, r_output_idx) || get_attr(attr, l_output_idx)) {
-      // clear output
-      __i<V> tmp = _mm<V>::setzero_epi32();
-      unroll_for (_O, JO)
-      unroll_for (_T, T)
-        mmout[_O][_T] = tmp;
-    } else {
-      // load output
-      unroll_for (_O, JO) {
-        unroll_for (_T, T)
-          mmout[_O][_T] = op_int8_load_output(&md2(aoutput, _O, 0), _T);
-      }
-    }
-
-    for (int _I2 = 0; _I2 < xc.I2 - 1; ++_I2) {
-#pragma nounroll
-      for (int _V = 0; _V < V; ++_V) {
-        unroll_for (_O, JO)
-          mmwei[_O][0] = op_int8_load_weights<JO, P>(xc, weights, _I2, _V, 0, _O);
-        unroll_for (_T, T) {
-          __i<V> bcast = op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, 0, _T);
-          unroll_for (_O, JO)
-            mmout[_O][_T] = op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][0]);
-        }
-      }
-    }
-    // Ir
-    {
-#pragma nounroll
-      for (int _V = 0; _V < xc.Ir; ++_V) {
-        unroll_for (_O, JO)
-          mmwei[_O][0] = op_int8_load_weights<JO, P>(xc, weights, xc.I2 - 1, _V, 0, _O);
-        unroll_for (_T, T) {
-          __i<V> bcast = op_int8_load_input<P>(&md2(ainput, xc.I2 - 1, 0), _V, 0, _T);
-          unroll_for (_O, JO)
-            mmout[_O][_T] = op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][0]);
-        }
-      }
-    }
-
-    // store output
-    if (get_attr(attr, c_output_idx)) {
-      unroll_for (_O, JO) {
-        unroll_for (_T, T)
-          op_int8_restore_output<JO>(xc, &md2(aoutput, _O, 0), bias,
-              mmout[_O][_T], src_scale, src_factor, weights_scale,
-              weights_factor, _O1, _O0, _O, _T, attr);
-      }
-    } else {
-      unroll_for (_O, JO) {
-        unroll_for (_T, T)
-          op_int8_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T);
-      }
-    }
-  }
-
   template <int JO, int P>
   static inline typename std::enable_if<P == 2, void>::type
   op_gemm(elx_conv_params_t &xc,
@@ -965,6 +863,10 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     MD2(OutputType, aoutput, output, JO, O_stride);
     MD2(uint8_t, ainput, input, xc.I2, I2_stride);
+
+    if (get_attr(attr, has_Ir_idx)) {
+      el_error("Unimplement non-64x IC for int8 gemm");
+    }
 
     // preload weights
     unroll_for (_O, JO)
@@ -1037,6 +939,10 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     MD2(OutputType, aoutput, output, JO, O_stride);
     MD2(uint8_t, ainput, input, xc.I2, I2_stride);
+
+    if (get_attr(attr, has_Ir_idx)) {
+      el_error("Unimplement non-64x IC for int8 gemm");
+    }
 
     // preload weights
     unroll_for (_O, JO) {
@@ -1116,29 +1022,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 1)
-      && (F_traits<F>::is_compact_weights)>::type
-  gemm(elx_conv_params_t &xc, OutputType *output, InputType *input,
-      WeightsType *weights, BiasType *bias, int attr,
-      ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor)
-  {
-    const int O_stride
-        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
-
-    MD2(WeightsType, aweights, weights, xc.O1, xc.I2 * V * O * V * Vx);
-    MD2(OutputType, aoutput, output, xc.O1, O * O_stride);
-    MD2(BiasType, abias, bias, xc.O1, O * V);
-
-    for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
-      op_gemm<JO0, JP0>(xc, &md2(aoutput, _O1, 0), input, &md2(aweights, _O1, 0),
-          &md2(abias, _O1, 0), attr, src_scale, src_factor,
-          weights_scale, weights_factor, _O1, 0);
-    }
-  }
-
-  template <int O = O, int T = T>
-  static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 1)
+  static inline typename std::enable_if<(J_traits<O, T, WeightsType>::J == 1)
       && !(F_traits<F>::is_compact_weights)>::type
   gemm(elx_conv_params_t &xc, OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias, int attr,
@@ -1160,7 +1044,29 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 2)
+  static inline typename std::enable_if<(J_traits<O, T, WeightsType>::J == 1)
+      && (F_traits<F>::is_compact_weights)>::type
+  gemm(elx_conv_params_t &xc, OutputType *output, InputType *input,
+      WeightsType *weights, BiasType *bias, int attr,
+      ScaleType *src_scale, ScaleType *src_factor,
+      ScaleType *weights_scale, ScaleType *weights_factor)
+  {
+    const int O_stride
+        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
+
+    MD2(WeightsType, aweights, weights, xc.O1, xc.I2 * V * O * V * Vx);
+    MD2(OutputType, aoutput, output, xc.O1, O * O_stride);
+    MD2(BiasType, abias, bias, xc.O1, O * V);
+
+    for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
+      op_gemm<JO0, JP0>(xc, &md2(aoutput, _O1, 0), input, &md2(aweights, _O1, 0),
+          &md2(abias, _O1, 0), attr, src_scale, src_factor,
+          weights_scale, weights_factor, _O1, 0);
+    }
+  }
+
+  template <int O = O, int T = T>
+  static inline typename std::enable_if<(J_traits<O, T, WeightsType>::J == 2)
       && (F_traits<F>::is_compact_weights)>::type
   gemm(elx_conv_params_t &xc, OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias, int attr,
@@ -1185,7 +1091,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 2)
+  static inline typename std::enable_if<(J_traits<O, T, WeightsType>::J == 2)
       && !(F_traits<F>::is_compact_weights)>::type
   gemm(elx_conv_params_t &xc, OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias, int attr,
@@ -1210,7 +1116,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 3)
+  static inline typename std::enable_if<(J_traits<O, T, WeightsType>::J == 3)
       && (F_traits<F>::is_compact_weights)>::type
   gemm(elx_conv_params_t &xc, OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias, int attr,
@@ -1239,7 +1145,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 3)
+  static inline typename std::enable_if<(J_traits<O, T, WeightsType>::J == 3)
       && !(F_traits<F>::is_compact_weights)>::type
   gemm(elx_conv_params_t &xc, OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias, int attr,
@@ -1966,7 +1872,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T> static inline
-      typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 1)
+      typename std::enable_if<(J_traits<O, T, WeightsType>::J == 1)
           && (F_traits<F>::is_compact_weights)>::type
       conv(elx_conv_params_t &xc, OutputType *output, InputType *input,
           WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
@@ -1988,7 +1894,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T> static inline
-      typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 2)
+      typename std::enable_if<(J_traits<O, T, WeightsType>::J == 2)
           && (F_traits<F>::is_compact_weights)>::type
       conv(elx_conv_params_t &xc, OutputType *output, InputType *input,
           WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
@@ -2013,7 +1919,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T> static inline
-      typename std::enable_if<(J_traits<O, T, has_Ir, WeightsType>::J == 3)
+      typename std::enable_if<(J_traits<O, T, WeightsType>::J == 3)
           && (F_traits<F>::is_compact_weights)>::type
       conv(elx_conv_params_t &xc, OutputType *output, InputType *input,
           WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,

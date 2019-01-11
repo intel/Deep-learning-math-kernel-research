@@ -83,43 +83,24 @@ void Instance_elx_conv_wino_t::bind_execute_functions()
   ker_trans_output0_acc_ = slot2.f2_;
 
   auto bind_gemm_kernel =
-      [&](int O, int T, bool has_Ir,
-      ker_type **func1, i8_ker_type **func2) {
-    if (this->Ir != V * this->Vx && has_Ir) {
-      gemm_kernel_binder::bind<TarrayTypes,
-          V, 1, I, 1, GKF_CCC, true>(O, T, func1);
+      [&](int O, int T, ker_type **func1, i8_ker_type **func2) {
+    gemm_kernel_binder::bind<TarrayTypes,
+        V, 1, I, 1, GKF_CCC>(O, T, func1);
 
-      if (this->fp_mode) {
-        gemm_kernel_binder::bind<conv_impl::INT8_F16b,
-            V, 4, I, 1, GKF_CCC, true>(O, T, func2);
-      } else if (this->f16c_opt) {
-        gemm_kernel_binder::bind<conv_impl::INT8_F16o,
-            V, 4, I, 1, GKF_CCC, true>(O, T, func2);
-      } else {
-        gemm_kernel_binder::bind<conv_impl::INT8_F32,
-            V, 4, I, 1, GKF_CCC, true>(O, T, func2);
-      }
+    if (this->fp_mode) {
+      gemm_kernel_binder::bind<conv_impl::INT8_F16b,
+          V, 4, I, 1, GKF_CCC>(O, T, func2);
+    } if (this->f16c_opt) {
+      gemm_kernel_binder::bind<conv_impl::INT8_F16o,
+          V, 4, I, 1, GKF_CCC>(O, T, func2);
     } else {
-      gemm_kernel_binder::bind<TarrayTypes,
-          V, 1, I, 1, GKF_CCC, false>(O, T, func1);
-
-      if (this->fp_mode) {
-        gemm_kernel_binder::bind<conv_impl::INT8_F16b,
-            V, 4, I, 1, GKF_CCC, false>(O, T, func2);
-      } if (this->f16c_opt) {
-        gemm_kernel_binder::bind<conv_impl::INT8_F16o,
-            V, 4, I, 1, GKF_CCC, false>(O, T, func2);
-      } else {
-        gemm_kernel_binder::bind<conv_impl::INT8_F32,
-            V, 4, I, 1, GKF_CCC, false>(O, T, func2);
-      }
+      gemm_kernel_binder::bind<conv_impl::INT8_F32,
+          V, 4, I, 1, GKF_CCC>(O, T, func2);
     }
   };
 
-  bind_gemm_kernel(this->O, this->T, false, &ker_gemm_, &ker_i8_gemm_);
-  bind_gemm_kernel(this->O, this->Tr, false, &ker_gemm0_, &ker_i8_gemm0_);
-  bind_gemm_kernel(this->O, this->T, true, &ker_gemm_tail_, &ker_i8_gemm_tail_);
-  bind_gemm_kernel(this->O, this->Tr, true, &ker_gemm0_tail_, &ker_i8_gemm0_tail_);
+  bind_gemm_kernel(this->O, this->T, &ker_gemm_, &ker_i8_gemm_);
+  bind_gemm_kernel(this->O, this->Tr, &ker_gemm0_, &ker_i8_gemm0_);
 
 #define EXECUTE_CASE(n)                                                      \
   case 0x##n:                                                                \

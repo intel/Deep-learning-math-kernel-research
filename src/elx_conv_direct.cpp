@@ -341,16 +341,14 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           }
         }
       }
-      decltype(ker_gemm_) &ker_gemm
-          = (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) ? ker_gemmr_
-                                                             : ker_gemm_;
+
       for (int _kh = khs; _kh < khe; ++_kh) {
         auto _ih = this->hs * _ht + _kh - this->tp;
         for (int _kw = 0; _kw < this->kw; ++_kw) {
           auto _iws = this->ws * ows0 + _kw - this->lp;
           while (_iws < 0) _iws += this->ws;
           auto _ows = (_iws + this->lp - _kw) / this->ws;
-          ker_gemm[_wt][_kw](*this, &md5(aoutput, _oc3, 0, _ht, _ows, 0),
+          ker_gemm_[_wt][_kw](*this, &md5(aoutput, _oc3, 0, _ht, _ows, 0),
               &md5(ainput, _ic3, 0, _ih, _iws, 0),
               &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
               attr, 0, nullptr, nullptr, nullptr);

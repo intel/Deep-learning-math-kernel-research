@@ -78,8 +78,6 @@ class elx_conv_direct_1x1_t : public elx_conv_t<UserTypes> {
 
   gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_I_O_T_;
   gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_I_O_Tr_;
-  gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_IrO_T_;
-  gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_IrO_Tr_;
 
   void (elx_conv_direct_1x1_t::*execute_opt_)(OutputType *, InputType *, WeightsType *, BiasType *);
 

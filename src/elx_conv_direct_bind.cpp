@@ -14,27 +14,19 @@ Template_elx_conv_direct_t void
 Instance_elx_conv_direct_t::bind_execute_functions()
 {
 #define BIND_GEMM_KERNEL(S, F)                                                 \
-  if (has_Ir) {                                                                \
-    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S,                          \
-        F, true>(O, T, func);                                                  \
-  } else {                                                                     \
-    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S,                          \
-        F, false>(O, T, func);                                                 \
-  }
+  gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S, F>(O, T, func);
+
 #define BIND_CONV_KERNEL(S, F, K)                                              \
   if (K == 3) {                                                                \
-    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S,                          \
-        F, 3>(O, T, func);                                                     \
+    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S, F, 3>(O, T, func);       \
   } else if (K == 5) {                                                         \
-    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S,                          \
-        F, 5>(O, T, func);                                                     \
+    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S, F, 5>(O, T, func);       \
   } else if (K == 7) {                                                         \
-    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S,                          \
-        F, 7>(O, T, func);                                                     \
+    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S, F, 7>(O, T, func);       \
   }
 
   auto bind_gemm_kernel = [&](int O, int T,
-      gemm_kernel_binder::kgemm<TarrayTypes> **func, bool has_Ir) {
+      gemm_kernel_binder::kgemm<TarrayTypes> **func) {
     switch (xopt_) {
     case (0xd060):
       if (this->ws == 1) {
@@ -84,9 +76,7 @@ Instance_elx_conv_direct_t::bind_execute_functions()
           _iwe -= this->ws;
         auto _ows = (_iws + this->lp - _kw) / this->ws;
         auto _owe = (_iwe + this->lp - _kw) / this->ws;
-        bind_gemm_kernel(this->O, _owe - _ows + 1, &ker_gemm_[_wt][_kw], false);
-        bind_gemm_kernel(
-            this->O, _owe - _ows + 1, &ker_gemmr_[_wt][_kw], this->Ir != V);
+        bind_gemm_kernel(this->O, _owe - _ows + 1, &ker_gemm_[_wt][_kw]);
       }
     }
   }

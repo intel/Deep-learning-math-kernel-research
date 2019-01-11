@@ -54,7 +54,6 @@ Template_elx_conv_direct_t class elx_conv_direct_t
 
   // TODO: optimize it
   gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_[64][8];
-  gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemmr_[64][8];
   gemm_kernel_binder::kconv<TarrayTypes> *ker_conv_;
   gemm_kernel_binder::kconv<TarrayTypes> *ker_conv_Tr_;
 

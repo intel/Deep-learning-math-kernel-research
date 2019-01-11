@@ -9,14 +9,6 @@ NSOCKETS=1 ./scripts/run.sh -c -i127 -h56 -o255 -H56 -n1 --blk-i=8 --blk-o=1 --f
 # with_relu=0 with_ip_sum=1
 NSOCKETS=1 ./scripts/run.sh -c -i127 -h56 -o255 -H56 -n1 --blk-i=8 --blk-o=1 --flt-o=2 --flt-t=14 --pat-o=1 --tile-size=6 --execution-mode=0xa061 --input-format=nchw --weights-format=oihw --output-format=nchw --with-ip-sum=1 -v1
 
-# a0e1
-# with_relu=0 with_ip_sum=0
-NSOCKETS=2 ./scripts/run.sh -c -i255 -h28 -o511 -H28 -n1 --blk-i=8 --blk-o=8 --flt-t=20 --pat-i=1 --pat-o=1 --tile-size=5 --execution-mode=0xa0e1 --input-format=nchw --weights-format=oihw --output-format=nchw -v1
-# with_relu=1 with_ip_sum=0
-NSOCKETS=2 ./scripts/run.sh -c -i255 -h28 -o511 -H28 -n1 --blk-i=8 --blk-o=8 --flt-t=20 --pat-i=1 --pat-o=1 --tile-size=5 --execution-mode=0xa0e1 --input-format=nchw --weights-format=oihw --output-format=nchw -r1 -v1
-# with_relu=0 with_ip_sum=1
-NSOCKETS=2 ./scripts/run.sh -c -i255 -h28 -o511 -H28 -n1 --blk-i=8 --blk-o=8 --flt-t=20 --pat-i=1 --pat-o=1 --tile-size=5 --execution-mode=0xa0e1 --input-format=nchw --weights-format=oihw --output-format=nchw --with-ip-sum=1 -v1
-
 # a073
 # with_relu=0 with_ip_sum=0
 NSOCKETS=1 ./scripts/run.sh -c -i255 -h56 -o255 -H56 -n1 --blk-i=8 --blk-o=1 --flt-o=2 --flt-t=14 --pat-i=1 --pat-o=1 --tile-size=6 --execution-mode=0xa073 --input-format=nchw --weights-format=oihw --output-format=nchw -v1

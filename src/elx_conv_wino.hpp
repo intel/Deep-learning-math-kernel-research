@@ -385,13 +385,9 @@ private:
 
   ker_type *ker_gemm_;
   ker_type *ker_gemm0_;
-  ker_type *ker_gemm_tail_;
-  ker_type *ker_gemm0_tail_;
 
   i8_ker_type *ker_i8_gemm_;
   i8_ker_type *ker_i8_gemm0_;
-  i8_ker_type *ker_i8_gemm_tail_;
-  i8_ker_type *ker_i8_gemm0_tail_;
 
   decltype(Instance_convolution_winograd_kernel
       ::template trans_input<no>) *ker_trans_input_;

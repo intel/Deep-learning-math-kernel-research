@@ -3,7 +3,7 @@
 #if !defined(BUILD_OTJ_TBL)
 #define DECL_KGEMM_TBL(type, V, Vx, I, S, F)                                   \
   static kgemm<conv_impl::type>                                                \
-      *kgemm_##type##_##V##_##Vx##_##I##_##S##_##F[8][32][2]
+      *kgemm_##type##_##V##_##Vx##_##I##_##S##_##F[8][32]
 #define DECL_KCONV_TBL(type, V, Vx, I, S, F)                                   \
   static kconv<conv_impl::type>                                                \
       *kconv_##type##_##V##_##Vx##_##I##_##S##_##F[8][32][3]
@@ -14,8 +14,8 @@
   __kconv_generate_inst__ conv type V Vx I S F
 #endif
 
-#define LOOKUP_KGEMM_TBL(type, V, Vx, I, S, F, O, T, has_Ir)                   \
-  kgemm_##type##_##V##_##Vx##_##I##_##S##_##F[O - 1][T - 1][has_Ir]
+#define LOOKUP_KGEMM_TBL(type, V, Vx, I, S, F, O, T)                           \
+  kgemm_##type##_##V##_##Vx##_##I##_##S##_##F[O - 1][T - 1]
 #define LOOKUP_KCONV_TBL(type, V, Vx, I, S, F, O, T, K)                        \
   kconv_##type##_##V##_##Vx##_##I##_##S##_##F[O - 1][T - 1][K/2-1]
 
@@ -36,11 +36,11 @@ struct gemm_kernel_binder {
 
   template <typename GarrayTypes>
   using kgemm
-      = decltype(gemm_ker_cls<GarrayTypes, 1, 1, 1, 1, 1, 1, 1, false>::gemm);
+      = decltype(gemm_ker_cls<GarrayTypes, 1, 1, 1, 1, 1, 1, 1, 1>::gemm);
 
   template <typename GarrayTypes>
   using kconv
-      = decltype(gemm_ker_cls<GarrayTypes, 1, 1, 1, 1, 1, 1, 1, false>::conv);
+      = decltype(gemm_ker_cls<GarrayTypes, 1, 1, 1, 1, 1, 1, 1, 1>::conv);
 
 #endif // BUILD_OTJ_TBL
 
@@ -71,29 +71,29 @@ struct gemm_kernel_binder {
 
 #if !defined(BUILD_OTJ_TBL)
   // GarrayTypes->f32f32f32f32, used by WINO with f32 UserTypes
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F>
   static inline void bind(int O, int T, kgemm<conv_impl::FP32> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
       else if (S == 2)
-        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_CCC, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_CCC, O, T);
       break;
     case GKF_CCD:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_CCD, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_CCD, O, T);
       else if (S == 2)
-        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_CCD, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_CCD, O, T);
       break;
     case GKF_DCD:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T);
       break;
     case GKF_ECD:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T);
       break;
     default:
       break;
@@ -101,13 +101,13 @@ struct gemm_kernel_binder {
   }
 
   // GarrayTypes->f32f32f32f16, used by WINO with f16 UserTypes
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F>
   static inline void bind(int O, int T, kgemm<conv_impl::FP32_F16b> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16b, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16b, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
       break;
     default:
       break;
@@ -115,13 +115,13 @@ struct gemm_kernel_binder {
   }
 
   // GarrayTypes->f32f16f16f32, used by WINO with f32 UserTypes
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F>
   static inline void bind(int O, int T, kgemm<conv_impl::FP32_F16wo> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16wo, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16wo, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
       break;
     default:
       break;
@@ -129,13 +129,13 @@ struct gemm_kernel_binder {
   }
 
   // GarrayTypes->f32f16f16f16, used by WINO with f16 UserTypes
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F>
   static inline void bind(int O, int T, kgemm<conv_impl::FP32_F16wob> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16wob, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16wob, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
       break;
     default:
       break;
@@ -143,13 +143,13 @@ struct gemm_kernel_binder {
   }
 
   // GarrayTypes->u8s8f32f32, used by WINO with f32 UserTypes
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F>
   static inline void bind(int O, int T, kgemm<conv_impl::INT8_F32> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(INT8_F32, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(INT8_F32, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
       break;
     default:
       break;
@@ -157,13 +157,13 @@ struct gemm_kernel_binder {
   }
 
   // GarrayTypes->u8s8f32f16, used by WINO with f16 UserTypes
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F>
   static inline void bind(int O, int T, kgemm<conv_impl::INT8_F16b> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(INT8_F16b, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(INT8_F16b, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
       break;
     default:
       break;
@@ -171,13 +171,13 @@ struct gemm_kernel_binder {
   }
 
   // GarrayTypes->u8s8f16f32, used by WINO with f32 UserTypes
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F>
   static inline void bind(int O, int T, kgemm<conv_impl::INT8_F16o> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(INT8_F16o, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(INT8_F16o, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
       break;
     default:
       break;
@@ -185,13 +185,13 @@ struct gemm_kernel_binder {
   }
 
   // GarrayTypes->u8s8f16f16, used by WINO with f16 UserTypes
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F>
   static inline void bind(int O, int T, kgemm<conv_impl::INT8_F16ob> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(INT8_F16ob, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(INT8_F16ob, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
       break;
     default:
       break;
@@ -199,17 +199,17 @@ struct gemm_kernel_binder {
   }
 
   // GarrayTypes->f32f16f32f32, used by CONV 1x1 with f32 UserTypes
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F>
   static inline void bind(int O, int T, kgemm<conv_impl::FP32_F16w> **func)
   {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
       break;
     case GKF_CCD:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_CCD, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_CCD, O, T);
       break;
     default:
       break;
@@ -217,17 +217,17 @@ struct gemm_kernel_binder {
   }
 
   // GarrayTypes->f32f32f16f32, used by DIRECT CONV with f16o UserTypes
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, bool has_Ir>
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F>
   static inline void bind(int O, int T, kgemm<conv_impl::FP32_F16o> **func)
   {
     switch (F) {
     case GKF_DCD:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T);
       break;
     case GKF_ECD:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T, has_Ir);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T);
       break;
     default:
       break;
