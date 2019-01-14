@@ -237,11 +237,11 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   // Jamming components
   constexpr static int J = J_traits<O, T, WeightsType>::J;
   constexpr static int JO0 = J_traits<O, T, WeightsType>::O0;
-  constexpr static int JP0 = J_traits<O, T, WeightsType>::P0;
+  constexpr static int JP0 = K > 3 ? 1 : J_traits<O, T, WeightsType>::P0;
   constexpr static int JO1 = J_traits<O, T, WeightsType>::O1;
-  constexpr static int JP1 = J_traits<O, T, WeightsType>::P1;
+  constexpr static int JP1 = K > 3 ? 1 : J_traits<O, T, WeightsType>::P1;
   constexpr static int JO2 = J_traits<O, T, WeightsType>::O2;
-  constexpr static int JP2 = J_traits<O, T, WeightsType>::P2;
+  constexpr static int JP2 = K > 3 ? 1 : J_traits<O, T, WeightsType>::P2;
 
 
   // FP32 gemm kernel
