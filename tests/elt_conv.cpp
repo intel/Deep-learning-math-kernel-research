@@ -35,6 +35,9 @@ bool double_buffering = false;
 bool output_as_input = false;
 bool tweights_preprocess = false;
 
+bool is_int8_lp = false;
+bool with_real_data = false;
+
 template <typename ConvType>
 static inline ConvType create_conv_desc(void) {
   ConvType desc;
@@ -383,6 +386,12 @@ int parse_cmd_options(int argc, char **argv) {
     std::stringstream interpreter;
     interpreter << std::hex << vm["execution-mode"].as<std::string>();
     interpreter >> execution_mode;
+    // TODO: improve LP semantics
+    if (alg == CONV_WINOGRAD &&
+        (execution_mode == 0xa161 || execution_mode == 0xa133 ||
+         execution_mode == 0xa173)) {
+      is_int8_lp = true;
+    }
   }
   if (vm.count("input-format")) {
     std::string fmt_str = vm["input-format"].as<std::string>();
@@ -426,9 +435,11 @@ int parse_cmd_options(int argc, char **argv) {
   }
   if (vm.count("input-data-file")) {
     input_file = strdup(vm["input-data-file"].as<std::string>().c_str());
+    with_real_data = true;
   }
   if (vm.count("weights-data-file")) {
     weights_file = strdup(vm["weights-data-file"].as<std::string>().c_str());
+    with_real_data = true;
   }
   if (vm.count("bias-data-file")) {
     bias_file = strdup(vm["bias-data-file"].as<std::string>().c_str());

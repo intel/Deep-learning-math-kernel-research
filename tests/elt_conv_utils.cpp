@@ -7,6 +7,8 @@
 #include "elt_conv_utils.hpp"
 #include "el_intrin.hpp"
 
+extern bool is_int8_lp, with_real_data;
+
 namespace euler {
 namespace test {
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
@@ -333,7 +335,7 @@ namespace test {
 
 #define MAX_PRINT_ERRORS (20)
     size_t errors = 0;
-    double acc = desc.with_relu ? 1.0 : 1.e-5;
+    double acc = is_int8_lp ? (with_real_data ? 1e-1 : 1e-2) : 1e-5;
 
 #pragma omp parallel for collapse(3)
     iter_each (_n, dims.n) {
@@ -394,7 +396,7 @@ namespace test {
 
 #define MAX_PRINT_ERRORS (20)
     size_t errors = 0;
-    double acc = desc.with_relu ? 1.0 : 1e-5;
+    double acc = is_int8_lp ? (with_real_data ? 1e-1 : 1e-2) : 1e-5;
 
 #pragma omp parallel for collapse(3)
     iter_each (_n, dims.n) {
