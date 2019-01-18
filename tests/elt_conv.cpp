@@ -245,7 +245,7 @@ int main(int argc, char **argv)
       test::prepare_conv_data<float, float, float, float>(
           convs0[0], &input[c], &weights[c], &output[c], &bias[c],
           nullptr, nullptr, &output1[c], nullptr,
-          input_file, weights_file, bias_file, 
+          input_file, weights_file, bias_file,
           reuse_inout, fp_mode, f16c_opt, validate_results);
     }
 
@@ -433,7 +433,7 @@ int parse_cmd_options(int argc, char **argv) {
   if (vm.count("bias-data-file")) {
     bias_file = strdup(vm["bias-data-file"].as<std::string>().c_str());
   }
-  printf("input-data-file: %s\n", input_file); fflush(NULL);
+  printf("input-data-file: %s\n", input_file);
   printf("weights-data-file: %s\n", weights_file);
   printf("bias-data-file: %s\n", bias_file);
 
