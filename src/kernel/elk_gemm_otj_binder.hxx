@@ -66,7 +66,8 @@ struct gemm_kernel_binder {
 
   DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD);
   DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD);
-  DECL_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD);
+  DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF);
+  //DECL_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD);
   DECL_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD);
 
 #if !defined(BUILD_OTJ_TBL)
@@ -246,6 +247,10 @@ struct gemm_kernel_binder {
       if (S == 1)
         *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T, K);
       break;
+    case GKF_FCF:
+      if (S == 1)
+        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF, O, T, K);
+      break;
     default:
       break;
     }
@@ -255,10 +260,10 @@ struct gemm_kernel_binder {
   static inline void bind(int O, int T, kconv<conv_impl::FP32_F16o> **func)
   {
     switch (F) {
-    case GKF_DCD:
-      if (S == 1)
-        *func = LOOKUP_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, K);
-      break;
+    //case GKF_DCD:
+    //  if (S == 1)
+    //    *func = LOOKUP_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, K);
+    //  break;
     case GKF_ECD:
       if (S == 1)
         *func = LOOKUP_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T, K);

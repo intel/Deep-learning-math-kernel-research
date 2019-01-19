@@ -47,6 +47,8 @@ Instance_elx_conv_direct_t::bind_execute_functions()
     case (0xa060):
       if (this->input_fmt == nchw) {
         BIND_CONV_KERNEL(1, GKF_ECD, K);
+      } else if (this->input_fmt == nhwc) {
+        BIND_CONV_KERNEL(1, GKF_FCF, K);
       } else {
         BIND_CONV_KERNEL(1, GKF_DCD, K);
       }
