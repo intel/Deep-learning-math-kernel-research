@@ -60,7 +60,7 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
 
   bool format_okay
       = estl::any_of(formats.input, nchw, nhwc, fmt_blocked_data)
-      && estl::any_of(formats.weights, oihw, fmt_blocked_weights)
+      && estl::any_of(formats.weights, oihw, hwio, fmt_blocked_weights)
       && estl::any_of(formats.output, nchw, nhwc, fmt_blocked_data);
 
   if (!format_okay) {
@@ -126,7 +126,7 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
     else if (std::is_same<UserTypes, conv::FP16O>::value)
       xc = new elx_conv_direct_t<UserTypes, conv_impl::FP32_F16o, 16, ISA_SKX_AVX512>(*this);
     else
-      el_error("TODO: FP16 UserTypes for DIRECT 1x1.");
+      el_error("TODO: FP16 UserTypes for DIRECT.");
   } else if (algorithm == CONV_DIRECT_1X1) {
     if (dims.weights.h != 1 || dims.weights.w != 1) {
       el_error("Algorithm CONV_DIRECT_1X1 not supported for this shape.");

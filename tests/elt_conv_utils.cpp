@@ -691,6 +691,24 @@ namespace test {
     }
   }
 
+  template <typename Type>
+  reorder<Type, oihw, hwio>::reorder(
+      Type *dst, Type *src, int o, int i, int h, int w)
+  {
+    MD4(Type, asrc, src, h, w, i, o);
+    MD4(Type, adst, dst, o, i, h, w);
+
+#pragma omp parallel for collapse(3)
+    iter_each (_o, o) {
+      iter_each (_i, i) {
+        iter_each (_h, h) {
+          iter_each (_w, w)
+            md4(adst, _o, _i, _h, _w) = md4(asrc, _h, _w, _i, _o);
+        }
+      }
+    }
+  }
+
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
   int ref_convolution2d(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &desc,
       OutputType *output, InputType *input,
@@ -731,6 +749,9 @@ namespace test {
     if (desc.formats.weights == OIhw16i16o) {
       tweights = (WeightsType *)malloc(desc.byte_sizes.weights);
       reorder<WeightsType, oihw, OIhw16i16o>(tweights, weights, oc, ic, kh, kw);
+    } else if (desc.formats.weights == hwio) {
+      tweights = (WeightsType *)malloc(desc.byte_sizes.weights);
+      reorder<WeightsType, oihw, hwio>(tweights, weights, oc, ic, kh, kw);
     }
     if (desc.formats.output == nChw16c) {
       toutput = (OutputType *)malloc(desc.byte_sizes.output);

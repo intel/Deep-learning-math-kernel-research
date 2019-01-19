@@ -76,6 +76,10 @@ namespace test {
     reorder(Type *dst, Type *src, int o, int i, int h, int w);
   };
 
+  template <typename Type> struct reorder<Type, oihw, hwio> {
+    reorder(Type *dst, Type *src, int o, int i, int h, int w);
+  };
+
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
   int ref_convolution2d(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &desc,
       OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);

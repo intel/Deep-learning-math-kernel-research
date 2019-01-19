@@ -38,7 +38,7 @@ void Instance_elx_conv_direct_t::__execute_a060(
       this->kh * this->kw * this->ic3 * this->oc3 * this->I2 * this->O2 * V * V);
 
   if (is_first_run_) {
-    trans_weights_blocked_to_compact(tweights_, weights);
+    trans_weights_to_compact(tweights_, weights);
   }
 
   if (this->input_fmt == nchw) {
@@ -106,7 +106,7 @@ void Instance_elx_conv_direct_t::__execute_d060(
       this->kh * this->kw * this->ic3 * this->oc3 * this->I2 * this->O2 * V * V);
 
   if (is_first_run_) {
-    trans_weights_blocked_to_compact(tweights_, weights);
+    trans_weights_to_compact(tweights_, weights);
   }
 
   iter_each (_ic4, this->ic4) {

@@ -40,8 +40,7 @@ Template_elx_conv_direct_t class elx_conv_direct_t
   void __execute_d060(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
 
-  void trans_weights_blocked_to_compact(
-      TweightsType *tweights, WeightsType *weights);
+  void trans_weights_to_compact(TweightsType *tweights, WeightsType *weights);
 
   void conv_a060(OutputType *output, InputType *input, TweightsType *weights,
       BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);

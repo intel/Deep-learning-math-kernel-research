@@ -46,6 +46,18 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t<UserTypes> &dc)
     if (this->T <= this->lp || this->Tr <= this->rp) {
       el_error("Unimplemented T: (T,Tr) must greater than (lp,rp)");
     }
+    bool format_ok =
+        estl::any_of(this->weights_fmt, hwio, OIhw16i16o) &&
+        (((this->input_fmt == nhwc) && (this->output_fmt == nhwc)) ||
+         (V == 16 && xopt_ == 0xa060 &&
+          (estl::any_of(this->input_fmt, nchw, nChw16c)) &&
+          (this->output_fmt == nChw16c)) ||
+         (V == 16 && xopt_ == 0xd060 && (this->input_fmt == nChw16c) &&
+          (this->output_fmt == nChw16c)));
+    if (!format_ok) {
+      el_error("direct: format not supported");
+    }
+
     if (xopt_ == 0xa060) {
       bool shape_ok = estl::any_of(this->kh, 3, 5, 7)
           && estl::any_of(this->kw, 3, 5, 7) && this->ih == this->oh
@@ -53,17 +65,6 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t<UserTypes> &dc)
           && this->lp == (this->kw / 2) && (this->tp == this->kh / 2);
       if (!shape_ok) {
         el_error("direct: a060: shape not supported");
-      }
-      bool format_ok = estl::any_of(this->input_fmt, nchw, nChw16c)
-          && this->output_fmt == nChw16c && this->weights_fmt == OIhw16i16o;
-      if (!format_ok) {
-        el_error("direct: a060: format not supported");
-      }
-    } else if (xopt_ == 0xd060) {
-      bool format_ok = this->input_fmt == nChw16c && this->output_fmt == nChw16c
-          && this->weights_fmt == OIhw16i16o;
-      if (!format_ok) {
-        el_error("direct: d060: format not supported");
       }
     }
   }
@@ -220,50 +221,107 @@ Instance_elx_conv_direct_t::~elx_conv_direct_t()
   galloc::release();
 }
 
+// weights (hwio): kh, kw, ic, oc
+// weights (blocked): oc2, ic2, kh, kw, V, V
+// tweights: ic4, oc4, kh, kw, oc3, _ic3, O1, I2, V, O, V
 Template_elx_conv_direct_t
-void Instance_elx_conv_direct_t::trans_weights_blocked_to_compact(
+void Instance_elx_conv_direct_t::trans_weights_to_compact(
     TweightsType *tweights, WeightsType *weights)
 {
-  MD11(WeightsType, aweights, weights, this->oc4, this->oc3, this->O1, this->O,
-      this->ic4, this->ic3, this->I2, this->kh, this->kw, V, V);
   MD11(TweightsType, atweights, tweights, this->ic4, this->oc4, this->kh,
       this->kw, this->oc3, this->ic3, this->O1, this->I2, V, this->O, V);
 
-  // weights: oc2, ic2, kh, kw, V, V
-  // tweights: ic4, oc4, kh, kw, oc3, _ic3, O1, I2, V, O, V
+  if (this->weights_fmt == OIhw16i16o) {
+    MD11(WeightsType, aweights, weights, this->oc4, this->oc3, this->O1, this->O,
+        this->ic4, this->ic3, this->I2, this->kh, this->kw, V, V);
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(6)
-  iter_each (_oc4, this->oc4) {
-  iter_each (_oc3, this->oc3) {
-  iter_each (_O1, this->O1) {
-  iter_each (_O, this->O) {
-  iter_each (_ic4, this->ic4) {
-  iter_each (_ic3, this->ic3) {
-  iter_each (_I2, this->I2) {
-  iter_each (_kh, this->kh) {
-  iter_each (_kw, this->kw) {
-  iter_each (_iV, V) {
-    if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
-      if (std::is_same<TweightsType, float>::value) {
-        _mm<V>::store_ps(
-            &md11(atweights, _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV, _O, 0),
-            *(__m<V> *)&md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, 0));
+    iter_each (_oc4, this->oc4) {
+    iter_each (_oc3, this->oc3) {
+    iter_each (_O1, this->O1) {
+    iter_each (_O, this->O) {
+    iter_each (_ic4, this->ic4) {
+    iter_each (_ic3, this->ic3) {
+    iter_each (_I2, this->I2) {
+    iter_each (_kh, this->kh) {
+    iter_each (_kw, this->kw) {
+    iter_each (_iV, V) {
+      if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+        if (std::is_same<TweightsType, float>::value) {
+          _mm<V>::store_ps(
+              &md11(atweights, _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV, _O, 0),
+              *(__m<V> *)&md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, 0));
+        } else {
+          auto fp16v = _mm<V>::cvtps_ph(
+              *(__m<V> *)&md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, 0),
+              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+          _mm<V/2>::store_si256(
+              (__m256i *)&md11(atweights, _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV, _O, 0),
+              fp16v);
+        }
       } else {
-        auto fp16v = _mm<V>::cvtps_ph(
-            *(__m<V> *)&md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, 0),
-            _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-        _mm<V/2>::store_si256(
-            (__m256i *)&md11(atweights, _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV, _O, 0),
-            fp16v);
-      }
-    } else {
 #pragma omp simd
-      iter_each (_oV, V) {
-        md11(atweights, _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV, _O, _oV)
-          = md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, _oV);
+        iter_each (_oV, V) {
+          md11(atweights, _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV, _O, _oV)
+            = md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, _oV);
+        }
       }
-    }
-  }}}}}}}}}}
+    }}}}}}}}}}
+  } else if (this->weights_fmt == hwio) {
+    MD4(WeightsType, aweights0, weights, this->kh, this->kw, this->ic, this->oc);
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+#pragma omp for nowait collapse(4)
+    iter_each (_kh, this->kh) {
+    iter_each (_kw, this->kw) {
+    iter_each (_ic4, this->ic4) {
+    iter_each (_ic3, this->ic3) {
+    iter_each (_I2, this->I2) {
+      auto Ir = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
+           && _I2 == this->I2 - 1 ? this->Ir : V;
+      iter_each (_iV, Ir) {
+      iter_each (_oc4, this->oc4) {
+      iter_each (_oc3, this->oc3) {
+      iter_each (_O1, this->O1) {
+        // handling ic/oc != 16x
+        auto O = (this->Or == V) ? this->O : this->O - 1;
+        auto Or = this->Or == V ? 0 : this->Or;
+        MD5(WeightsType, aweights1, &md4(aweights0, _kh, _kw, 0, 0), this->ic4,
+            this->ic3, this->I2, V, this->oc);
+        MD5(WeightsType, aweights2, &md5(aweights1, _ic4, _ic3, _I2, _iV, 0),
+            this->oc4, this->oc3, this->O1, this->O, V);
+        iter_each(_O, O) {
+          if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+            if (std::is_same<TweightsType, float>::value) {
+              _mm<V>::store_ps(
+                  &md11(atweights, _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2,
+                        _iV, _O, 0),
+                  *(__m<V> *)&md5(aweights2, _oc4, _oc3, _O1, _O, 0));
+            } else {
+              auto fp16v = _mm<V>::cvtps_ph(
+                  *(__m<V> *)&md5(aweights2, _oc4, _oc3, _O1, _O, 0),
+                  _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+              _mm<V / 2>::store_si256(
+                  (__m256i *)&md11(atweights, _ic4, _oc4, _kh, _kw, _oc3, _ic3,
+                                   _O1, _I2, _iV, _O, 0), fp16v);
+            }
+          } else {
+#pragma omp simd
+            iter_each(_oV, V) {
+              md11(atweights, _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV,
+                   _O, _oV) = md5(aweights2, _oc4, _oc3, _O1, _O, _oV);
+            }
+          }
+        }
+        iter_each(_oV, Or) {
+          md11(atweights, _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV,
+               this->O - 1, _oV) =
+              md5(aweights2, _oc4, _oc3, _O1, this->O - 1, _oV);
+        }
+      }}}}
+    }}}}}
+  } else {
+    el_error("Unimplemented weights format\n");
+  }
 }
 
 // kh,kw=odd, lp=rp=standard, ih=oh*hs, iw=ow*ws, hs=ws=1

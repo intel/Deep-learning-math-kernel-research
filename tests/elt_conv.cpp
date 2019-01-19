@@ -345,7 +345,7 @@ int parse_cmd_options(int argc, char **argv) {
     ("streaming-input", po::value<int>(&streaming_input), "Streaming hint for winograd transformed input")
     ("streaming-output", po::value<int>(&streaming_output), "Streaming hint for winograd transformed output")
     ("input-format", po::value<std::string>(), "nchw|nhwc|nChw16c. Input data format. Default: nChw16c")
-    ("weights-format", po::value<std::string>(), "oihw|OIhw16i16o. Weights data format. Default: OIhw16i16o")
+    ("weights-format", po::value<std::string>(), "oihw|hwio|OIhw16i16o. Weights data format. Default: OIhw16i16o")
     ("output-format", po::value<std::string>(), "nchw|nhwc|nChw16c. Output data format. Default: nChw16c")
     ("input-as-blocked", po::value<bool>(&input_as_blocked), "on|off. Format input as blocked. Default: off")
     ("weights-as-blocked", po::value<bool>(&weights_as_blocked), "on|off. Format weighs as blocked. Default: off")
@@ -355,7 +355,7 @@ int parse_cmd_options(int argc, char **argv) {
     ("with-ip-sum", po::value<bool>(&with_ip_sum), "on|off. With inplace sum, Default: off")
     ("input-data-file", po::value<std::string>(), "Input data file(nchw)")
     ("weights-data-file", po::value<std::string>(), "Weights data file(oihw)")
-    ("bias-data-file", po::value<std::string>(), "Bias data file(oihw)");
+    ("bias-data-file", po::value<std::string>(), "Bias data file");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -411,11 +411,13 @@ int parse_cmd_options(int argc, char **argv) {
     std::string fmt_str = vm["weights-format"].as<std::string>();
     if (fmt_str == "oihw")
       weights_format = oihw;
+    else if (fmt_str == "hwio")
+      weights_format = hwio;
     else if (fmt_str == "OIhw16i16o")
       weights_format = OIhw16i16o;
     else {
       printf("Error: convolution options: weights-format should be "
-             "oihw|OIhw16i16o\n");
+             "oihw|hwio|OIhw16i16o\n");
       return -1;
     }
   }
@@ -491,7 +493,7 @@ int parse_cmd_options(int argc, char **argv) {
   printf("\n");
 
   std::unordered_map<int, const char *> fmt_str { {nchw, "nchw"}, {nhwc, "nhwc"},
-    {oihw, "oihw"}, {nChw16c, "nChw16c"}, {OIhw16i16o, "OIhw16i16o"}
+    {oihw, "oihw"}, {hwio, "hwio"}, {nChw16c, "nChw16c"}, {OIhw16i16o, "OIhw16i16o"}
   };
   printf("input-fmt:%s, weights-fmt:%s, output-fmt:%s\n", fmt_str[input_format],
       fmt_str[weights_format], fmt_str[output_format]);
