@@ -2071,7 +2071,7 @@ void Instance_elx_conv_wino_t::gemm_non_acc(
 }
 
 Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::__trans_output_plain(
+void Instance_elx_conv_wino_t::__trans_output_nchw(
     OutputType * __restrict output, ToutputType * __restrict toutput,
     BiasType * __restrict bias, int _t2, int Tz, int _ic4)
 {
@@ -2205,7 +2205,6 @@ void Instance_elx_conv_wino_t::__trans_output_blocked(
   auto res = std::div(_t2 * this->T, this->nt);
   auto _n_off = res.quot;
   auto _t_off = res.rem;
-
   union {__m<V> vin; TrOpType ain[V];} In[A][A];
   using Array = TrOpType[A][A][V];
 
@@ -2213,34 +2212,92 @@ void Instance_elx_conv_wino_t::__trans_output_blocked(
   iter_each (_O2, this->O2) {
     output_tile_iter<A, K> t2spato_o(_n_off, _t_off, this->ht, this->wt,
         this->oh, this->ow);
-  iter_each (_T, Tz) {
-    iter_each (_wA, A) {
-    iter_each (_hA, A) {
-      if (std::is_same<ToutputType, float>::value) {
-        In[_wA][_hA].vin = _mm<V>::load_ps(&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
-      } else {
-        auto fp16v = _mm<V/2>::load_si256(
-            (__m256i *)&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
-        In[_wA][_hA].vin = _mm<V>::cvtph_ps(fp16v);
-      }
-    }}
+    iter_each (_T, Tz) {
+      iter_each (_wA, A) {
+      iter_each (_hA, A) {
+        if (std::is_same<ToutputType, float>::value) {
+          In[_wA][_hA].vin =
+              _mm<V>::load_ps(&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
+        } else {
+          auto fp16v = _mm<V / 2>::load_si256(
+              (__m256i *)&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
+          In[_wA][_hA].vin = _mm<V>::cvtph_ps(fp16v);
+        }
+      }}
 
-    auto _n = t2spato_o.n_;
-    auto _oh = t2spato_o.t_;
-    auto _ow = t2spato_o.l_;
-    OutputType *out = &md7(aoutput, _n, 0, _oc3, _O2, _oh, _ow, 0);
+      auto _n = t2spato_o.n_;
+      auto _oh = t2spato_o.t_;
+      auto _ow = t2spato_o.l_;
+      OutputType *out = &md7(aoutput, _n, 0, _oc3, _O2, _oh, _ow, 0);
 
-    if (t2spato_o.is_border())
-      ker_trans_output_tail(*this, out, *(Array *)&In,
-          (_ic4 == -1 || _ic4 == this->ic4 - 1)
-          ? &md3(abias, _oc3, _O2, 0) : nullptr, t2spato_o.d_, t2spato_o.r_);
-    else
-      ker_trans_output(*this, out, *(Array *)&In,
-          (_ic4 == -1 || _ic4 == this->ic4 - 1)
-          ? &md3(abias, _oc3, _O2, 0) : nullptr, A - K, A - K);
+      if (t2spato_o.is_border())
+        ker_trans_output_tail(*this, out, *(Array *)&In,
+            (_ic4 == -1 || _ic4 == this->ic4 - 1)
+            ? &md3(abias, _oc3, _O2, 0) : nullptr, t2spato_o.d_, t2spato_o.r_);
+      else
+        ker_trans_output(*this, out, *(Array *)&In,
+            (_ic4 == -1 || _ic4 == this->ic4 - 1)
+            ? &md3(abias, _oc3, _O2, 0) : nullptr, A - K, A - K);
 
-    ++ t2spato_o;
-  }}}
+      ++ t2spato_o;
+    }
+  }}
+}
+
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__trans_output_nhwc(
+    OutputType *output, ToutputType *toutput, BiasType *bias, int _t2, int Tz, int _ic4)
+{
+  auto ker_trans_output = (this->with_ip_sum || _ic4 > 0) ?
+      ker_trans_output_acc_ : ker_trans_output_;
+  auto ker_trans_output_tail = (this->with_ip_sum || _ic4 > 0) ?
+      ker_trans_output0_acc_ : ker_trans_output0_;
+
+  // A, A, oc3, O2, T, V -> n, oc2, oh, ow, V
+  MD6(ToutputType, atoutput, toutput, A, A, this->oc3, this->O2, Tz, V);
+  MD3(BiasType, abias, bias, this->oc3, this->O2, V);
+  MD4(OutputType, aoutput0, output, this->n, this->oh, this->ow, this->oc);
+
+  auto res = std::div(_t2 * this->T, this->nt);
+  auto _n_off = res.quot;
+  auto _t_off = res.rem;
+  union {__m<V> vin; TrOpType ain[V];} In[A][A];
+  using Array = TrOpType[A][A][V];
+
+  iter_each (_oc3, this->oc3) {
+  iter_each (_O2, this->O2) {
+    output_tile_iter<A, K> t2spato_o(_n_off, _t_off, this->ht, this->wt,
+        this->oh, this->ow);
+    iter_each (_T, Tz) {
+      iter_each (_wA, A) {
+      iter_each (_hA, A) {
+        if (std::is_same<ToutputType, float>::value) {
+          In[_wA][_hA].vin =
+              _mm<V>::load_ps(&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
+        } else {
+          auto fp16v = _mm<V / 2>::load_si256(
+              (__m256i *)&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
+          In[_wA][_hA].vin = _mm<V>::cvtph_ps(fp16v);
+        }
+      }}
+      auto _n = t2spato_o.n_;
+      auto _oh = t2spato_o.t_;
+      auto _ow = t2spato_o.l_;
+      MD4(OutputType, aoutput1, &md4(aoutput0, _n, _oh, _ow, 0), this->oc4,
+          this->oc3, this->O2, V);
+      OutputType *out = &md4(aoutput1, 0, _oc3, _O2, 0);
+      if (t2spato_o.is_border())
+        ker_trans_output_tail(*this, out, *(Array *)&In,
+            (_ic4 == -1 || _ic4 == this->ic4 - 1)
+            ? &md3(abias, _oc3, _O2, 0) : nullptr, t2spato_o.d_, t2spato_o.r_);
+      else
+        ker_trans_output(*this, out, *(Array *)&In,
+            (_ic4 == -1 || _ic4 == this->ic4 - 1)
+            ? &md3(abias, _oc3, _O2, 0) : nullptr, A - K, A - K);
+
+      ++ t2spato_o;
+    }
+  }}
 }
 
 Template_elx_conv_wino_t
@@ -2249,8 +2306,10 @@ void Instance_elx_conv_wino_t::trans_output(
 {
   if (output_is_bfmt_ || output_as_bfmt_)
     __trans_output_blocked(output, toutput, bias, _t2, Tz, _ic4);
+  else if (this->output_fmt == nhwc)
+    __trans_output_nhwc(output, toutput, bias, _t2, Tz, _ic4);
   else
-    __trans_output_plain(output, toutput, bias, _t2, Tz, _ic4);
+    __trans_output_nchw(output, toutput, bias, _t2, Tz, _ic4);
 }
 
 Template_elx_conv_wino_t
@@ -2306,9 +2365,59 @@ void Instance_elx_conv_wino_t::__trans_output_blocked(
 }
 
 Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::__trans_output_plain(
-    OutputType * __restrict output, ToutputType * __restrict toutput, BiasType *bias, int _ic4)
+void Instance_elx_conv_wino_t::__trans_output_nhwc(
+    OutputType *output, ToutputType *toutput, BiasType *bias, int _ic4)
 {
+  // A, A, oc3, O2, T, V -> n, oh, ow, oc
+  MD4(OutputType, aoutput0, output, this->n, this->oh, this->ow, this->oc);
+  MD2(ToutputType, atoutput2, toutput, this->t2, A * A * this->T * this->oc3 * this->O2 * V);
+  MD3(BiasType, abias, bias, this->oc3, this->O2, V);
+
+  auto ker_trans_output = (this->with_ip_sum || _ic4 > 0) ?
+      ker_trans_output_acc_ : ker_trans_output_;
+  auto ker_trans_output_tail = (this->with_ip_sum || _ic4 > 0) ?
+      ker_trans_output0_acc_ : ker_trans_output0_;
+
+#pragma omp for nowait collapse(3)
+  iter_each (_t2, this->t2) {
+  iter_each (_oc3, this->oc3) {
+  iter_each (_O2, this->O2) {
+    int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+    MD6(ToutputType, atoutput, &md2(atoutput2, _t2, 0), A, A, this->oc3, this->O2, Tz, V);
+    union {__m<V> vin; TrOpType ain[V];} In[A][A];
+    using Array = TrOpType[A][A][V];
+
+    iter_each (_T, Tz) {
+      iter_each (_wA, A) {
+      iter_each (_hA, A) {
+        if (std::is_same<ToutputType, float>::value) {
+          In[_wA][_hA].vin = _mm<V>::load_ps(&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
+        } else {
+          auto fp16v = _mm<V/2>::load_si256(
+              (__m256i *)&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
+          In[_wA][_hA].vin = _mm<V>::cvtph_ps(fp16v);
+        }
+      }}
+      int _n, _oh, _ow, _hOA_end, _wOA_end;
+      t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
+      MD4(OutputType, aoutput1, &md4(aoutput0, _n, _oh, _ow, 0), this->oc4,
+          this->oc3, this->O2, V);
+      OutputType *out = &md4(aoutput1, 0, _oc3, _O2, 0);
+
+      if (_hOA_end < A - K || _wOA_end < A - K)
+        ker_trans_output_tail(
+            *this, out, *(Array *)&In, (_ic4 == -1 || _ic4 == this->ic4 - 1) ?
+            &md3(abias, _oc3, _O2, 0) : nullptr, _hOA_end, _wOA_end);
+      else
+        ker_trans_output(
+            *this, out, *(Array *)&In, (_ic4 == -1 || _ic4 == this->ic4 - 1) ?
+            &md3(abias, _oc3, _O2, 0) : nullptr, A - K, A - K);
+    }
+  }}}
+}
+Template_elx_conv_wino_t void Instance_elx_conv_wino_t::__trans_output_nchw(
+    OutputType *__restrict output, ToutputType *__restrict toutput,
+    BiasType *bias, int _ic4) {
   // A, A, oc3, O2, T, V -> n, OC, oh, ow
   MD3(BiasType, abias, bias, this->oc3, this->O2, V);
   MD2(ToutputType, atoutput2, toutput, this->t2,
@@ -2436,8 +2545,10 @@ void Instance_elx_conv_wino_t::trans_output(
 {
   if (output_is_bfmt_ || output_as_bfmt_)
     __trans_output_blocked(output, toutput, bias, _ic4);
+  else if (this->output_fmt == nhwc)
+    __trans_output_nhwc(output, toutput, bias, _ic4);
   else
-    __trans_output_plain(output, toutput, bias, _ic4);
+    __trans_output_nchw(output, toutput, bias, _ic4);
 }
 
 Template_elx_conv_wino_t

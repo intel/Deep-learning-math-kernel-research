@@ -91,13 +91,14 @@ namespace euler {
 //   float *output, float atoutput[A][A][V], float *bias,
 //   int _hOA_end, int _wOA_end
 template <typename UserTypes, typename TrOpType, int V>
-template <bool... conditions>
+template <int... conditions>
 inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 7, 3>::__trans_output(elx_conv_t<UserTypes> &xc,
     OutputType *output, TrOpType atoutput[A][A][V], BiasType *bias,
     int hOA_end, int wOA_end)
 {
   ENABLE_AVX512F();
+  constexpr int output_format = cd_traits<conditions...>::output_format;
   constexpr bool is_border = cd_traits<conditions...>::is_border;
   constexpr bool with_bias = cd_traits<conditions...>::with_bias;
   constexpr bool with_relu = cd_traits<conditions...>::with_relu;
@@ -106,13 +107,19 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   bool fuse_bias = with_bias && (bias != nullptr);
   bool fuse_relu = with_relu && (bias != nullptr);
 
-  alignas(64) float dummy[16];
+  alignas(64) OutputType dummy[16];
   auto p_cb = [&](int _h, int _w) {
-    if (wOA_end == -1) {
-      MD3(float, aoutput, output, A - K + 1, A - K + 1, V);
+    if (output_format == TKF_COMPACT) {
+      MD3(OutputType, aoutput, output, A - K + 1, A - K + 1, V);
       return &md3(aoutput, _h, _w, 0);
+    } else if (output_format == TKF_BLOCKED) {
+      MD3(OutputType, aoutput, output, xc.oh, xc.ow, V);
+      if (is_border && (_h > hOA_end || _w > wOA_end))
+        return dummy;
+      else
+        return &md3(aoutput, _h, _w, 0);
     } else {
-      MD3(float, aoutput, output, xc.oh, xc.ow, V);
+      MD3(OutputType, aoutput, output, xc.oh, xc.ow, xc.oc);
       if (is_border && (_h > hOA_end || _w > wOA_end))
         return dummy;
       else

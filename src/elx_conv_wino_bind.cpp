@@ -12,91 +12,89 @@ namespace euler {
 
 Template_elx_conv_wino_t void
 Instance_elx_conv_wino_t::bind_execute_functions() {
-  if (input_is_bfmt_ || input_as_bfmt_) {
-    ker_trans_input_ =
-        Instance_convolution_winograd_kernel::template trans_input<TKF_BLOCKED,
-                                                                   no>;
-    ker_trans_input0_ =
-        Instance_convolution_winograd_kernel::template trans_input<TKF_BLOCKED,
-                                                                   is_border>;
-  } else if (this->input_fmt == nhwc) {
-    ker_trans_input_ =
-        Instance_convolution_winograd_kernel::template trans_input<TKF_NHWC,
-                                                                   no>;
-    ker_trans_input0_ =
-        Instance_convolution_winograd_kernel::template trans_input<TKF_NHWC,
-                                                                   is_border>;
-  } else {  // nchw
-    ker_trans_input_ =
-        Instance_convolution_winograd_kernel::template trans_input<TKF_COMPACT,
-                                                                   no>;
-    ker_trans_input0_ =
-        Instance_convolution_winograd_kernel::template trans_input<TKF_COMPACT,
-                                                                   is_border>;
-  }
+
   ker_trans_weights_ = Instance_convolution_winograd_kernel::trans_weights;
 
-  // TODO: ker_trans_output_nobias_norelu_nosum (no fusion)
-  // Fusion operation is done in related ker_trans_output_
-  ker_trans_output_nobias_ = Instance_convolution_winograd_kernel::
-      template trans_output<no, no, no, no>;
-  ker_trans_output0_nobias_ = Instance_convolution_winograd_kernel::
-      template trans_output<is_border, no, no, no>;
+  if (input_is_bfmt_ || input_as_bfmt_) {
+    ker_trans_input_ = Instance_convolution_winograd_kernel
+      ::template trans_input<TKF_BLOCKED, no>;
+    ker_trans_input0_ = Instance_convolution_winograd_kernel
+      ::template trans_input<TKF_BLOCKED, is_border>;
+  } else if (this->input_fmt == nhwc) {
+    ker_trans_input_ = Instance_convolution_winograd_kernel
+      ::template trans_input<TKF_NHWC, no>;
+    ker_trans_input0_ = Instance_convolution_winograd_kernel
+      ::template trans_input<TKF_NHWC, is_border>;
+  } else {  // nchw
+    ker_trans_input_ = Instance_convolution_winograd_kernel
+      ::template trans_input<TKF_COMPACT, no>;
+    ker_trans_input0_ = Instance_convolution_winograd_kernel
+      ::template trans_input<TKF_COMPACT, is_border>;
+  }
 
-  using kernel_set = Instance_convolution_winograd_kernel;
+#undef E
+#define E(format, border, bias, relu, sum)                                    \
+  Instance_convolution_winograd_kernel::template trans_output<format, border, \
+                                                              bias, relu, sum>
   static const struct {
-    decltype (ker_trans_output_) f1_;
-    decltype (ker_trans_output0_) f2_;
-  } pointer_table[2][2][2] = {
-    {{{kernel_set::template trans_output<0, 0, 0, 0>
-    , kernel_set::template trans_output<1, 0, 0, 0>}
-
-    ,{kernel_set::template trans_output<0, 0, 0, 1>
-    , kernel_set::template trans_output<1, 0, 0, 1>}}
-
-    ,{{kernel_set::template trans_output<0, 0, 1, 0>
-    , kernel_set::template trans_output<1, 0, 1, 0>}
-
-    ,{kernel_set::template trans_output<0, 0, 1, 1>
-    , kernel_set::template trans_output<1, 0, 1, 1>}}}
-
-    ,{{{kernel_set::template trans_output<0, 1, 0, 0>
-    , kernel_set::template trans_output<1, 1, 0, 0>}
-
-    ,{kernel_set::template trans_output<0, 1, 0, 1>
-    , kernel_set::template trans_output<1, 1, 0, 1>}}
-
-    ,{{kernel_set::template trans_output<0, 1, 1, 0>
-    , kernel_set::template trans_output<1, 1, 1, 0>}
-
-    ,{kernel_set::template trans_output<0, 1, 1, 1>
-    , kernel_set::template trans_output<1, 1, 1, 1>}}}
-  };
-
-  auto slot = pointer_table[this->with_bias][this->with_relu][this->with_ip_sum];
-  ker_trans_output_ = slot.f1_;
-  ker_trans_output0_ = slot.f2_;
-
+    decltype(ker_trans_output_) f1_;
+    decltype(ker_trans_output0_) f2_;
+  } C_pointer_table[2][2][2] = {
+      {{{E(TKF_COMPACT, 0, 0, 0, 0), E(TKF_COMPACT, 1, 0, 0, 0)},
+        {E(TKF_COMPACT, 0, 0, 0, 1), E(TKF_COMPACT, 1, 0, 0, 1)}},
+       {{E(TKF_COMPACT, 0, 0, 1, 0), E(TKF_COMPACT, 1, 0, 1, 0)},
+        {E(TKF_COMPACT, 0, 0, 1, 1), E(TKF_COMPACT, 1, 0, 1, 1)}}},
+      {{{E(TKF_COMPACT, 0, 1, 0, 0), E(TKF_COMPACT, 1, 1, 0, 0)},
+        {E(TKF_COMPACT, 0, 1, 0, 1), E(TKF_COMPACT, 1, 1, 0, 1)}},
+       {{E(TKF_COMPACT, 0, 1, 1, 0), E(TKF_COMPACT, 1, 1, 1, 0)},
+        {E(TKF_COMPACT, 0, 1, 1, 1), E(TKF_COMPACT, 1, 1, 1, 1)}}}};
   static const struct {
-    decltype (ker_trans_output_) f1_;
-    decltype (ker_trans_output0_) f2_;
-  } pointer_table2[2][2] = {
-    {{kernel_set::template trans_output<0, 0, 0, 1>
-    , kernel_set::template trans_output<1, 0, 0, 1>}
+    decltype(ker_trans_output_) f1_;
+    decltype(ker_trans_output0_) f2_;
+  } D_pointer_table[2][2][2] = {
+      {{{E(TKF_BLOCKED, 0, 0, 0, 0), E(TKF_BLOCKED, 1, 0, 0, 0)},
+        {E(TKF_BLOCKED, 0, 0, 0, 1), E(TKF_BLOCKED, 1, 0, 0, 1)}},
+       {{E(TKF_BLOCKED, 0, 0, 1, 0), E(TKF_BLOCKED, 1, 0, 1, 0)},
+        {E(TKF_BLOCKED, 0, 0, 1, 1), E(TKF_BLOCKED, 1, 0, 1, 1)}}},
+      {{{E(TKF_BLOCKED, 0, 1, 0, 0), E(TKF_BLOCKED, 1, 1, 0, 0)},
+        {E(TKF_BLOCKED, 0, 1, 0, 1), E(TKF_BLOCKED, 1, 1, 0, 1)}},
+       {{E(TKF_BLOCKED, 0, 1, 1, 0), E(TKF_BLOCKED, 1, 1, 1, 0)},
+        {E(TKF_BLOCKED, 0, 1, 1, 1), E(TKF_BLOCKED, 1, 1, 1, 1)}}}};
+  static const struct {
+    decltype(ker_trans_output_) f1_;
+    decltype(ker_trans_output0_) f2_;
+  } F_pointer_table[2][2][2] = {
+      {{{E(TKF_NHWC, 0, 0, 0, 0), E(TKF_NHWC, 1, 0, 0, 0)},
+        {E(TKF_NHWC, 0, 0, 0, 1), E(TKF_NHWC, 1, 0, 0, 1)}},
+       {{E(TKF_NHWC, 0, 0, 1, 0), E(TKF_NHWC, 1, 0, 1, 0)},
+        {E(TKF_NHWC, 0, 0, 1, 1), E(TKF_NHWC, 1, 0, 1, 1)}}},
+      {{{E(TKF_NHWC, 0, 1, 0, 0), E(TKF_NHWC, 1, 1, 0, 0)},
+        {E(TKF_NHWC, 0, 1, 0, 1), E(TKF_NHWC, 1, 1, 0, 1)}},
+       {{E(TKF_NHWC, 0, 1, 1, 0), E(TKF_NHWC, 1, 1, 1, 0)},
+        {E(TKF_NHWC, 0, 1, 1, 1), E(TKF_NHWC, 1, 1, 1, 1)}}}};
 
-    ,{kernel_set::template trans_output<0, 0, 1, 1>
-    , kernel_set::template trans_output<1, 0, 1, 1>}}
-
-    ,{{kernel_set::template trans_output<0, 1, 0, 1>
-    , kernel_set::template trans_output<1, 1, 0, 1>}
-
-    ,{kernel_set::template trans_output<0, 1, 1, 1>
-    , kernel_set::template trans_output<1, 1, 1, 1>}}
-  };
-
-  auto slot2 = pointer_table2[this->with_bias][this->with_relu];
-  ker_trans_output_acc_ = slot2.f1_;
-  ker_trans_output0_acc_ = slot2.f2_;
+  if (output_is_bfmt_ || output_as_bfmt_) {
+    ker_trans_output_ =
+      D_pointer_table[this->with_bias][this->with_relu][this->with_ip_sum].f1_;
+    ker_trans_output0_ =
+      D_pointer_table[this->with_bias][this->with_relu][this->with_ip_sum].f2_;
+    ker_trans_output_acc_ = D_pointer_table[this->with_bias][this->with_relu][1].f1_;
+    ker_trans_output0_acc_ = D_pointer_table[this->with_bias][this->with_relu][1].f2_;
+  } else if (this->output_fmt == nhwc) {
+    ker_trans_output_ =
+      F_pointer_table[this->with_bias][this->with_relu][this->with_ip_sum].f1_;
+    ker_trans_output0_ =
+      F_pointer_table[this->with_bias][this->with_relu][this->with_ip_sum].f2_;
+    ker_trans_output_acc_ = F_pointer_table[this->with_bias][this->with_relu][1].f1_;
+    ker_trans_output0_acc_ = F_pointer_table[this->with_bias][this->with_relu][1].f2_;
+  } else {  // nchw
+    ker_trans_output_ =
+      C_pointer_table[this->with_bias][this->with_relu][this->with_ip_sum].f1_;
+    ker_trans_output0_ =
+      C_pointer_table[this->with_bias][this->with_relu][this->with_ip_sum].f2_;
+    ker_trans_output_acc_ = C_pointer_table[this->with_bias][this->with_relu][1].f1_;
+    ker_trans_output0_acc_ = C_pointer_table[this->with_bias][this->with_relu][1].f2_;
+  }
 
   auto bind_gemm_kernel =
       [&](int O, int T, ker_type **func1, i8_ker_type **func2) {

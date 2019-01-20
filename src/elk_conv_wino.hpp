@@ -21,15 +21,16 @@ namespace euler {
 // V: vector size
 // I: ISA
 // with_bias: has bias
-template <bool ...conditions> struct cd_traits {
-  enum {border_ind = 0, bias_ind, relu_ind, ip_sum_ind, op_sum_ind};
+template <int ...conditions> struct cd_traits {
+  enum {format_ind = 0, border_ind, bias_ind, relu_ind, ip_sum_ind, op_sum_ind};
   constexpr static int c_[] {conditions...};
+  constexpr static int output_format = c_[format_ind];
   constexpr static bool is_border = c_[border_ind];
   constexpr static bool with_bias = c_[bias_ind];
   constexpr static bool with_relu = c_[relu_ind];
   constexpr static bool with_ip_sum = c_[ip_sum_ind];
-  static_assert(sizeof...(conditions) == 4,
-      "Template argument error! Please specify if border, bias, relu, sum...");
+  static_assert(sizeof...(conditions) == 5,
+      "Template argument error! Please specify if format, border, bias, relu, sum...");
 };
 
 template <int ...configs> struct gemm_traits {
@@ -80,7 +81,7 @@ protected:
       TrOpType atinput[A][A][V], InputType *input,
       int hT_start, int hT_end, int wT_start, int wT_end);
 
-  template <bool ...conditions>
+  template <int ...conditions>
   static inline void __trans_output(
       elx_conv_t<UserTypes> &xc,
       OutputType *output, TrOpType atoutput[A][A][V],
@@ -118,7 +119,7 @@ class convolution_winograd_kernel
         xc, atinput, input, hA_start, hA_end, wA_start, wA_end);
   }
 
-  template <bool ...conditions>
+  template <int ...conditions>
   static void trans_output(
       elx_conv_t<UserTypes>& xc,
       OutputType* output, TrOpType atoutput[A][A][V],

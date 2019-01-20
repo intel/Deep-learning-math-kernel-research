@@ -56,8 +56,10 @@ void Instance_elx_conv_wino_t::__execute_a061(
   MD2(TweightsType, atweights2, tweights_, this->oc4,
       A * A * this->IC * this->oc3 * this->O2 * V);
 
-  MD3(OutputType, aoutput, output, this->n, this->oc4,
+  MD3(OutputType, aoutput_blocked, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
+  MD4(OutputType, aoutput_nhwc, output, this->n, this->oh * this->ow,
+      this->oc4, this->oc3 * this->O2 * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
@@ -81,8 +83,10 @@ void Instance_elx_conv_wino_t::__execute_a061(
       }
       gemm(&md2(atoutput2, ithr, 0), &md2(atinput2, ithr, 0),
           &md2(atweights2, _oc4, 0), _t2, Tz);
-      trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
-          &md2(abias, _oc4, 0), _t2, Tz);
+      auto aout = this->output_fmt == nhwc ? &md4(aoutput_nhwc, 0, 0, _oc4, 0)
+                                           : &md3(aoutput_blocked, 0, _oc4, 0);
+      trans_output(aout, &md2(atoutput2, ithr, 0), &md2(abias, _oc4, 0),
+          _t2, Tz);
     }}
   }
   if (inference_acc_)
@@ -106,8 +110,10 @@ void Instance_elx_conv_wino_t::__execute_a071(
 
   MD3(InputType, ainput, input, this->n, this->ic4,
       this->ih * this->iw * this->ic3 * this->I2 * V);
-  MD3(OutputType, aoutput, output, this->n, this->oc4,
+  MD3(OutputType, aoutput_blocked, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
+  MD4(OutputType, aoutput_nhwc, output, this->n, this->oh * this->ow,
+      this->oc4, this->oc3 * this->O2 * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   if (is_first_run_) {
@@ -134,9 +140,13 @@ void Instance_elx_conv_wino_t::__execute_a071(
       }
       gemm(&md2(atoutput3, _oc4, 0), &md2(atinput2, ithr, 0),
           &md3(atweights3, _oc4, _ic4, 0), _t2, Tz, _ic4);
-      if (_ic4 == this->ic4 - 1)
-        trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput3, _oc4, 0),
-            &md2(abias, _oc4, 0), _t2, Tz);
+      if (_ic4 == this->ic4 - 1) {
+        auto aout = this->output_fmt == nhwc
+                        ? &md4(aoutput_nhwc, 0, 0, _oc4, 0)
+                        : &md3(aoutput_blocked, 0, _oc4, 0);
+        trans_output(aout, &md2(atoutput3, _oc4, 0), &md2(abias, _oc4, 0),
+                     _t2, Tz);
+      }
     }}
   }
 
@@ -158,8 +168,10 @@ void Instance_elx_conv_wino_t::__execute_a073(
 
   MD3(InputType, ainput, input, this->n, this->ic4,
       this->ih * this->iw * this->ic3 * this->I2 * V);
-  MD3(OutputType, aoutput, output, this->n, this->oc4,
+  MD3(OutputType, aoutput_blocked, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
+  MD4(OutputType, aoutput_nhwc, output, this->n, this->oh * this->ow,
+      this->oc4, this->oc3 * this->O2 * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   if (is_first_run_) {
@@ -184,7 +196,10 @@ void Instance_elx_conv_wino_t::__execute_a073(
       }
       gemm_non_acc(&md2(atoutput2, ithr, 0), &md2(atinput2, ithr, 0),
           &md3(atweights3, _oc4, _ic4, 0), _t2, Tz, _ic4);
-      trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
+      auto aout = this->output_fmt == nhwc
+                      ? &md4(aoutput_nhwc, 0, 0, _oc4, 0)
+                      : &md3(aoutput_blocked, 0, _oc4, 0);
+      trans_output(aout, &md2(atoutput2, ithr, 0),
           &md2(abias, _oc4, 0), _t2, Tz, _ic4);
     }}
   }
@@ -207,8 +222,10 @@ void Instance_elx_conv_wino_t::__execute_a07b(
 
   MD3(InputType, ainput, input, this->n, this->ic4,
       this->ih * this->iw * this->ic3 * this->I2 * V);
-  MD3(OutputType, aoutput, output, this->n, this->oc4,
+  MD3(OutputType, aoutput_blocked, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
+  MD4(OutputType, aoutput_nhwc, output, this->n, this->oh * this->ow,
+      this->oc4, this->oc3 * this->O2 * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   int last_ic4 = -1, last_t2 = -1, last_oc4 = -1;
@@ -228,7 +245,10 @@ void Instance_elx_conv_wino_t::__execute_a07b(
       }
       gemm_non_acc(&md2(atoutput2, ithr, 0), &md2(atinput2, ithr, 0),
                    &md2(atweights2, ithr, 0), _t2, Tz, _ic4);
-      trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput2, ithr, 0),
+      auto aout = this->output_fmt == nhwc
+                      ? &md4(aoutput_nhwc, 0, 0, _oc4, 0)
+                      : &md3(aoutput_blocked, 0, _oc4, 0);
+      trans_output(aout, &md2(atoutput2, ithr, 0),
                    &md2(abias, _oc4, 0), _t2, Tz, _ic4);
 
       last_oc4 = _oc4; last_ic4 = _ic4; last_t2 = _t2;
@@ -250,8 +270,10 @@ void Instance_elx_conv_wino_t::__execute_a079(
 
   MD3(InputType, ainput, input, this->n, this->ic4,
       this->ih * this->iw * this->ic3 * this->I2 * V);
-  MD3(OutputType, aoutput, output, this->n, this->oc4,
+  MD3(OutputType, aoutput_blocked, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
+  MD4(OutputType, aoutput_nhwc, output, this->n, this->oh * this->ow,
+      this->oc4, this->oc3 * this->O2 * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   int last_ic4 = -1, last_t2 = -1, last_oc4 = -1;
@@ -273,9 +295,13 @@ void Instance_elx_conv_wino_t::__execute_a079(
       }
       gemm(&md2(atoutput3, _oc4, 0), &md2(atinput2, ithr, 0),
            &md2(atweights2, ithr, 0), _t2, Tz, _ic4);
-      if (_ic4 == this->ic4 - 1)
-        trans_output(&md3(aoutput, 0, _oc4, 0), &md2(atoutput3, _oc4, 0),
+      if (_ic4 == this->ic4 - 1) {
+        auto aout = this->output_fmt == nhwc
+                        ? &md4(aoutput_nhwc, 0, 0, _oc4, 0)
+                        : &md3(aoutput_blocked, 0, _oc4, 0);
+        trans_output(aout, &md2(atoutput3, _oc4, 0),
                      &md2(abias, _oc4, 0), _t2, Tz, _ic4);
+      }
 
       last_oc4 = _oc4; last_ic4 = _ic4; last_t2 = _t2;
     }}
@@ -310,8 +336,11 @@ void Instance_elx_conv_wino_t::__execute_a033(
       this->ih * this->iw * this->ic3 * this->I2 * V);
   MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
       A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
-  MD3(OutputType, aoutput, output, this->n, this->oc4,
+  MD3(OutputType, aoutput_blocked, output, this->n, this->oc4,
       this->oh * this->ow * this->oc3 * this->O2 * V);
+  MD4(OutputType, aoutput_nhwc, output, this->n, this->oh * this->ow,
+      this->oc4, this->oc3 * this->O2 * V);
+
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   if (is_first_run_) {
@@ -331,7 +360,10 @@ void Instance_elx_conv_wino_t::__execute_a033(
 #pragma omp barrier
       gemm_non_acc(toutput_, tinput_, &md3(atweights, _oc4, _ic4, 0), _ic4);
 #pragma omp barrier
-      trans_output(&md3(aoutput, 0, _oc4, 0), toutput_, &md2(abias, _oc4, 0), _ic4);
+      auto aout = this->output_fmt == nhwc
+                      ? &md4(aoutput_nhwc, 0, 0, _oc4, 0)
+                      : &md3(aoutput_blocked, 0, _oc4, 0);
+      trans_output(aout, toutput_, &md2(abias, _oc4, 0), _ic4);
     }}
   }
 

@@ -315,14 +315,18 @@ private:
   void trans_input_u8(TscaleType *tinput_qt_scale, uint8_t *tinput_u8,
       TinputType *tinput, InputType *input);
 
-  inline void __trans_output_plain(OutputType *output, ToutputType *toutput,
+  inline void __trans_output_nhwc(OutputType *output, ToutputType *toutput,
+      BiasType *bias, int _t2, int Tz, int _ic4);
+  inline void __trans_output_nchw(OutputType *output, ToutputType *toutput,
       BiasType *bias, int _t2, int Tz, int _ic4);
   inline void __trans_output_blocked(OutputType *output, ToutputType *toutput,
       BiasType *bias, int _t2, int Tz, int _ic4);
   void trans_output(OutputType *output, ToutputType *toutput, BiasType *bias,
       int _t2, int Tz, int _ic4 = -1);
 
-  inline void __trans_output_plain(OutputType *output, ToutputType *toutput,
+  inline void __trans_output_nhwc(OutputType *output, ToutputType *toutput,
+          BiasType *bias, int _ic4);
+  inline void __trans_output_nchw(OutputType *output, ToutputType *toutput,
           BiasType *bias, int _ic4);
   inline void __trans_output_blocked(OutputType *output, ToutputType *toutput, BiasType *bias, int _ic4);
   void trans_output(OutputType *output, ToutputType *toutput, BiasType *bias, int _ic4 = -1);
@@ -382,17 +386,13 @@ private:
   decltype(Instance_convolution_winograd_kernel
       ::trans_weights) *ker_trans_weights_;
   decltype(Instance_convolution_winograd_kernel
-      ::template trans_output<false, false, false, false>) *ker_trans_output_;
+      ::template trans_output<0, false, false, false, false>) *ker_trans_output_;
   decltype(Instance_convolution_winograd_kernel
-      ::template trans_output<false, false, false, false>) *ker_trans_output0_;
+      ::template trans_output<0, false, false, false, false>) *ker_trans_output0_;
   decltype(Instance_convolution_winograd_kernel
-      ::template trans_output<false, false, false, false>) *ker_trans_output_acc_;
+      ::template trans_output<0, false, false, false, false>) *ker_trans_output_acc_;
   decltype(Instance_convolution_winograd_kernel
-      ::template trans_output<false, false, false, false>) *ker_trans_output0_acc_;
-  decltype(Instance_convolution_winograd_kernel
-      ::template trans_output<false, false, false, false>) *ker_trans_output_nobias_;
-  decltype(Instance_convolution_winograd_kernel
-      ::template trans_output<false, false, false, false>) *ker_trans_output0_nobias_;
+      ::template trans_output<0, false, false, false, false>) *ker_trans_output0_acc_;
 
   void (elx_conv_wino_t::*execute_opt_)(OutputType *, InputType *, WeightsType *, BiasType *);
 
