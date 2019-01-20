@@ -385,8 +385,6 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
 {
   // input:   ic3*, I2, ht*, hs*, wt*, T, ws, V
   // output:  oc3*, O2, ht*, wt*, T, V
-  MD5(InputType, ainput, input, this->ic3, this->I2, this->ih, this->iw, V);
-  MD5(OutputType, aoutput, output, this->oc3, this->O2, this->ht, this->ow, V);
   MD5(TweightsType, aweights, weights, this->kh, this->kw, this->oc3, this->ic3, this->O2 * this->I2 * V * V);
   MD3(BiasType, abias, bias, this->oc3, this->O2, V);
 
@@ -397,11 +395,56 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
   assert(this->T > this->lp);
   assert(this->Tr > this->rp);
 
-  iter_each (_oc3, this->oc3) {
-    iter_each (_ic3, this->ic3) {
-      int attr = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
-          ? set_attr(attr_, relu_idx) : attr_;
+  if (this->input_fmt == nhwc) {
+    MD3(InputType, ainput0, input, this->ih, this->iw, this->ic);
+    MD3(OutputType, aoutput0, output, this->ht, this->ow, this->oc);
 
+    iter_each (_oc3, this->oc3) {
+    iter_each (_ic3, this->ic3) {
+      if (_ic4 == 0 && _ic3 == 0) {
+        iter_each (_O2, this->O2) {
+          __m<V> s = this->with_bias ? *(__m<V> *)&md3(abias, _oc3, _O2, 0)
+                                     : _mm<V>::setzero_ps();
+          iter_each (_T, Tz) {
+            MD4(OutputType, aoutput1, &md3(aoutput0, _ht, ows0 + _T, 0), this->oc4,
+              this->oc3, this->O2, V);
+
+            if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value)
+              _mm<V>::store_ps(&md4(aoutput1, 0, _oc3, _O2, 0), s);
+            else
+              el_error("direct: d060: unimplemented");
+          }
+        }
+      }
+      int attr = attr_;
+      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+        if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+        if (this->with_relu) attr = set_attr(attr, relu_idx);
+      }
+      for (int _kh = khs; _kh < khe; ++_kh) {
+        auto _ih = this->hs * _ht + _kh - this->tp;
+        for (int _kw = 0; _kw < this->kw; ++_kw) {
+          auto _iws = this->ws * ows0 + _kw - this->lp;
+          while (_iws < 0) _iws += this->ws;
+          auto _ows = (_iws + this->lp - _kw) / this->ws;
+
+          MD4(InputType, ainput1, &md3(ainput0, _ih, _iws, 0), this->ic4,
+              this->ic3, this->I2, V);
+          MD4(OutputType, aoutput1, &md3(aoutput0, _ht, _ows, 0), this->oc4,
+              this->oc3, this->O2, V);
+          ker_gemm_[_wt][_kw](
+              *this, &md4(aoutput1, 0, _oc3, 0, 0), &md4(ainput1, 0, _ic3, 0, 0),
+              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
+              attr, 0, nullptr, nullptr, nullptr);
+        }
+      }
+    }}
+  } else {
+    MD5(InputType, ainput, input, this->ic3, this->I2, this->ih, this->iw, V);
+    MD5(OutputType, aoutput, output, this->oc3, this->O2, this->ht, this->ow, V);
+
+    iter_each (_oc3, this->oc3) {
+    iter_each (_ic3, this->ic3) {
       if (_ic4 == 0 && _ic3 == 0) {
         iter_each (_O2, this->O2) {
           __m<V> s = this->with_bias ? *(__m<V> *)&md3(abias, _oc3, _O2, 0)
@@ -414,7 +457,11 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           }
         }
       }
-
+      int attr = attr_;
+      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+        if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+        if (this->with_relu) attr = set_attr(attr, relu_idx);
+      }
       for (int _kh = khs; _kh < khe; ++_kh) {
         auto _ih = this->hs * _ht + _kh - this->tp;
         for (int _kw = 0; _kw < this->kw; ++_kw) {
@@ -427,7 +474,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
               attr, 0, nullptr, nullptr, nullptr);
         }
       }
-    }
+    }}
   }
 }
 
