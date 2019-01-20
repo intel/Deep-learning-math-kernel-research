@@ -630,6 +630,7 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
   __m<V> zero = _mm<V>::set1_ps(0.0);
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
 
+  // trans-weights
 #pragma omp for nowait collapse(8) schedule(static)
   iter_each (_oc4, oc4) {
   iter_each (_ic4, this->ic4) {
@@ -645,101 +646,27 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
     ker_trans_weights_(aout, *(Array *)in);
 
     if (I == ISA_SKX_AVX512 && std::is_same<TweightsType, float>::value) {
-      if (stream_wei_) {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-        iter_each (_iV, V) {
-          _mm<V>::stream_ps(&md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
-              _O1, _I2, _iVx, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
-        }}}
-      } else {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-        iter_each (_iV, V) {
-          _mm512_store_ps(&md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
-              _O1, _I2, _iVx, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
-        }}}
-      }
+      iter_each (_wA, A) {
+      iter_each (_hA, A) {
+      iter_each (_iV, V) {
+        _mm512_store_ps(&md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
+            _O1, _I2, _iVx, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
+      }}}
     } else {
       iter_each (_wA, A) {
       iter_each (_hA, A) {
       iter_each (_iV, V) {
 #pragma omp simd
         iter_each (_oV, V) {
-          md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iVx, _iV, _O, _oV)
-              = aout[_wA][_hA][_iV][_oV];
+          md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iVx, _iV,
+              _O, _oV) = aout[_wA][_hA][_iV][_oV];
         }
       }}}
     }
    }}}}}}}}
 #pragma omp barrier
 
-  // MD5(TscaleType, atweights_ci, tweights_ci_, oc4, this->oc3, this->O1, this->O, V);
-  if (this->tweights_preprocessed_) {
-#if 0
-#pragma omp for nowait collapse(4) schedule(static)
-    iter_each (_oc4, oc4) {
-    iter_each (_oc3, this->oc3) {
-    iter_each (_O1, this->O1) {
-    iter_each (_O, this->O) {
-      _mm512_store_ps(&md5(atweights_qt_scale, _oc4, _oc3, _O1, _O, 0),
-          *(__m<V> *)&md5(atweights_ci, _oc4, _oc3, _O1, _O, 0));
-    }}}}
-#pragma omp barrier
-#endif
-  } else {
-#pragma omp for nowait collapse(8) schedule(static)
-    iter_each (_oc4, oc4) {
-    iter_each (_ic4, this->ic4) {
-    iter_each (_oc3, this->oc3) {
-    iter_each (_ic3, this->ic3) {
-    iter_each (_wA, A) {
-    iter_each (_hA, A) {
-    iter_each (_O1, this->O1) {
-    iter_each (_O, this->O) {
-      __m<V> mmax_cur = _mm<V>::set1_ps(0.0);
-      iter_each (_I2, this->I2) {
-      iter_each (_iV, V) {
-      iter_each (_iVx, this->Vx) {
-        __m<V> mmax_abs;
-        TweightsType *max_abs = (TweightsType *)&mmax_abs;
-#pragma omp simd
-        iter_each (_oV, V) {
-          max_abs[_oV] =
-              md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iVx, _iV, _O, _oV) >= 0.0 ?
-              md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iVx, _iV, _O, _oV) :
-              -md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iVx, _iV, _O, _oV);
-        }
-        mmax_cur = _mm<V>::max_ps(mmax_cur, mmax_abs);
-        #if 0
-        if (this->tweights_preprocessed_) {
-          mmax_cur = _mm<V>::min_ps(
-              mmax_cur, *(__m<V> *)&md5(atweights_ci, _oc4, _oc3, _O1, _O, 0));
-        }
-        #endif
-      }}}
-
-      _mm512_store_ps(&md9(atweights_qt_scale, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _O, 0), mmax_cur);
-    }}}}}}}}
-#pragma omp barrier
-  }
-
-#ifdef DEBUG
-  if (omp_get_thread_num() == 0) {
-    iter_each (_oc4, oc4) {
-    iter_each (_ic4, this->ic4) {
-    iter_each (_oc3, this->oc3) {
-    iter_each (_ic3, this->ic3) {
-    iter_each (_wA, A) {
-    iter_each (_hA, A) {
-    iter_each (_O1, this->O1) {
-    iter_each (_O, this->O) {
-    iter_each (_oV, V) {
-      printf("max abs: %f\n", md9(atweights_qt_scale, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _O, _oV));
-    }}}}}}}}
-  }
-#endif
-
+  // abs-max
 #pragma omp for nowait collapse(8) schedule(static)
   iter_each (_oc4, oc4) {
   iter_each (_ic4, this->ic4) {
@@ -749,20 +676,29 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
   iter_each (_hA, A) {
   iter_each (_O1, this->O1) {
   iter_each (_O, this->O) {
-    __m<V> mmfactor = _mm<V>::set1_ps(0.0);
+    __m<V> mmax_cur = _mm<V>::set1_ps(0.0);
     iter_each (_I2, this->I2) {
     iter_each (_iV, V) {
     iter_each (_iVx, this->Vx) {
-      mmfactor = _mm<V>::add_ps(
-          *(__m<V> *)&md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
-           _O1, _I2, _iVx, _iV, _O, 0), mmfactor);
+      __m<V> mmax_abs;
+      TweightsType *max_abs = (TweightsType *)&mmax_abs;
+#pragma omp simd
+      iter_each (_oV, V) {
+        max_abs[_oV] =
+            md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iVx, _iV, _O, _oV) >= 0.0 ?
+            md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iVx, _iV, _O, _oV) :
+            -md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iVx, _iV, _O, _oV);
+      }
+      mmax_cur = _mm<V>::max_ps(mmax_cur, mmax_abs);
     }}}
-    _mm512_store_ps(&md9(atweights_qt_factor, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _O, 0), mmfactor);
+    _mm512_store_ps(&md9(atweights_qt_scale, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _O, 0), mmax_cur);
   }}}}}}}}
+#pragma omp barrier
 
   // I2 Vx V => I2 V Vx
   MD12(TweightsType, _atweights, tweights, oc4, this->ic4, this->oc3, this->ic3,
       A, A, this->O1, this->I2, V, this->Vx, this->O, V);
+  // quantization
 #pragma omp for nowait collapse(11) schedule(static)
   iter_each (_oc4, oc4) {
   iter_each (_ic4, this->ic4) {
@@ -776,28 +712,15 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
   iter_each (_O, this->O) {
   iter_each (_iVx, this->Vx) {
     __m<V> t0;
-    if (this->tweights_preprocessed_) {
-    #if 0
-      // saturate
-      t0 = _mm<V>::min_ps(
-          *(__m<V> *)&md12(_atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
-          _O1, _I2, _iV, _iVx, _O, 0),
-          *(__m<V> *)&md7(atweights_qt_scale, _oc4, _oc3, _wA, _hA, _O1, _O, 0));
-      // multi scal
-      t0 = _mm<V>::mul_ps(t0, mmscale);
-    #endif
-    } else {
-      // multi scal
-      t0 = _mm<V>::mul_ps(
-          *(__m<V> *)&md12(_atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
-          _O1, _I2, _iV, _iVx, _O, 0), mmscale);
-    }
-
-    t0 = _mm<V>::div_ps(
-        t0, *(__m<V> *)&md9(atweights_qt_scale, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _O, 0));
+    // multi scal
+    t0 = _mm<V>::mul_ps(*(__m<V> *)&md12(_atweights, _oc4, _ic4, _oc3, _ic3,
+                            _wA, _hA, _O1, _I2, _iV, _iVx, _O, 0), mmscale);
+    t0 = _mm<V>::div_ps(t0,
+        *(__m<V> *)&md9(
+            atweights_qt_scale, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _O, 0));
     // rounding
-    t0 = _mm<V>::roundscale_ps(t0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-
+    t0 = _mm<V>::roundscale_ps(
+        t0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
     // int8_t
     TweightsType *rounded = (TweightsType *)&t0;
 #pragma omp simd
@@ -809,9 +732,8 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
   }}}}}}}}}}}
 #pragma omp barrier
 
-#ifdef DEBUG
-  static bool debug = true;
-#pragma omp for nowait collapse(10) schedule(static)
+  // weights-acc
+#pragma omp for nowait collapse(8) schedule(static)
   iter_each (_oc4, oc4) {
   iter_each (_ic4, this->ic4) {
   iter_each (_oc3, this->oc3) {
@@ -819,23 +741,18 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
   iter_each (_wA, A) {
   iter_each (_hA, A) {
   iter_each (_O1, this->O1) {
-  iter_each (_I2, this->I2) {
-  iter_each (_iV, V) {
   iter_each (_O, this->O) {
-  iter_each (_iVx, this->Vx) {
-    if (omp_get_thread_num() == 24 && _iVx == 1 && debug) {
-      iter_each (_oV, V) {
-        printf("[%d][%d][%d][%d][%d][%d][%d][%d][%d][%d][%d][%d] %f * %f / %f = %d\n",
-            _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, _O, _iVx, _oV,
-            (float)md12(_atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, _iVx, _O, _oV), *(float *)&mmscale,
-            (float)md9(atweights_qt_scale, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _O, _oV),
-            (int)md12(atweights_s8, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, _O, _oV, _iVx));
-        debug = false;
-      }
-    }
-  }}}}}}}}}}}
-#endif
+  iter_each (_oV, V) {
+    int acc = 0;
+    iter_each (_I2, this->I2) {
+    iter_each (_iV, V) {
+    iter_each (_iVx, this->Vx) {
+      acc += md12(atweights_s8, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, _O, _oV, _iVx);
+    }}}
+    md9(atweights_qt_factor, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _O, _oV) = acc;
+  }}}}}}}}}
 
+  // weights-scale
 #pragma omp for nowait collapse(8) schedule(static)
   iter_each (_oc4, oc4) {
   iter_each (_ic4, this->ic4) {
@@ -1330,11 +1247,15 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
                 mmin[_wA][_hA][_V] : mmin[_wA][_hA][0];
           }
         }
-        mmax[_wA][_hA][0] = mmax[_wA][_hA][0] - mmin[_wA][_hA][0] + 0.000001;
-        md5(atinput_qt_scale, _ic3, _wA, _hA, 0, _T) =
-            mmax[_wA][_hA][0] * (1.0f / INT8GEMM_TIN_MIN_MAX_QTSCALE);
-        mmax[_wA][_hA][0] = INT8GEMM_TIN_MIN_MAX_QTSCALE / mmax[_wA][_hA][0];
-        md5(atinput_qt_scale, _ic3, _wA, _hA, 1, _T) = mmin[_wA][_hA][0];
+        float delta = mmax[_wA][_hA][0] - mmin[_wA][_hA][0] + 0.000001;
+        float S = delta / INT8GEMM_TIN_MIN_MAX_QTSCALE;
+        float repS = INT8GEMM_TIN_MIN_MAX_QTSCALE / delta;
+        float z = std::ceil(- mmin[_wA][_hA][0] * repS);
+        mmax[_wA][_hA][0] = repS;
+        mmin[_wA][_hA][0] = z;
+
+        md5(atinput_qt_scale, _ic3, _wA, _hA, 0, _T) = S;
+        md5(atinput_qt_scale, _ic3, _wA, _hA, 1, _T) = z;
       }}
 
       // quantization
@@ -1343,10 +1264,10 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
       iter_each (_wA, A) {
       iter_each (_hA, A) {
         // Min-Max quantization
-        __m<V> mdifff32 = _mm<V>::set1_ps(mmax[_wA][_hA][0]);
-        __m<V> mminf32 = _mm<V>::set1_ps(mmin[_wA][_hA][0]);
+        __m<V> mrepS = _mm<V>::set1_ps(mmax[_wA][_hA][0]);
+        __m<V> mz = _mm<V>::set1_ps(mmin[_wA][_hA][0]);
         __m<V> f = *(__m<V> *)&md5(atinput, _I2, _Vx, _wA, _hA, 0);
-        __m<V> mmresf32 = (f - mminf32) * mdifff32;
+        __m<V> mmresf32 = f * mrepS + mz;
         // convert to uint8
         __i<V> mmresu32 = _mm<V>::cvt_roundps_epu32(mmresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
         __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mmresu32);
@@ -1697,7 +1618,6 @@ Template_elx_conv_wino_t void Instance_elx_conv_wino_t::__trans_input_u8_blocked
   iter_each (_I2, this->I2) {
   iter_each (_Vx, this->Vx) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    MD7(uint8_t, atinput_u8, &md2(atinput2_u8, _t2, 0), A, A, this->ic3, this->I2, Tz, this->Vx, V);
     MD5(TscaleType, atinput_qt_scale, &md2(atinput_qt_scale2, _t2, 0), A, A, this->ic3, 2, Tz);
     MD5(TinputType, atinput5, &md2(atinput2, _t2, 0), this->ic3, this->I2, this->Vx, Tz, A * A * V);
     using Array = TrOpType[A][A][V];
@@ -1760,18 +1680,19 @@ Template_elx_conv_wino_t void Instance_elx_conv_wino_t::__trans_input_u8_blocked
         }
       }
 
-      auto diff = max - min + 0.000001;
-      md5(atinput_qt_scale, _wA, _hA, _ic3, 0, _T) =
-          diff * (1.0f / INT8GEMM_TIN_MIN_MAX_QTSCALE);
-      diff = INT8GEMM_TIN_MIN_MAX_QTSCALE / diff;
-      md5(atinput_qt_scale, _wA, _hA, _ic3, 1, _T) = min;
+      auto delta = max - min + 0.000001;
+      float S = delta / INT8GEMM_TIN_MIN_MAX_QTSCALE;
+      float repS = INT8GEMM_TIN_MIN_MAX_QTSCALE / delta;
+      float z = std::ceil(- min * repS);
+      md5(atinput_qt_scale, _wA, _hA, _ic3, 0, _T) = S;
+      md5(atinput_qt_scale, _wA, _hA, _ic3, 1, _T) = z;
 
-      __m<V> mdifff32 = _mm<V>::set1_ps(diff);
-      __m<V> mminf32 = _mm<V>::set1_ps(min);
+      __m<V> mrepS = _mm<V>::set1_ps(repS);
+      __m<V> mz = _mm<V>::set1_ps(z);
       iter_each (_I2, this->I2) {
       iter_each (_Vx, this->Vx) {
         __m<V> f = *(__m<V> *)&md7(atinput7, _ic3, _I2, _Vx, _T, _wA, _hA, 0);
-        __m<V> mmresf32 = (f - mminf32) * mdifff32;
+        __m<V> mmresf32 = f * mrepS + mz;
         __i<V> mmresu32 = _mm<V>::cvt_roundps_epu32(mmresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
         __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mmresu32);
         _mm_store_si128((__m128i *)&md7(atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);

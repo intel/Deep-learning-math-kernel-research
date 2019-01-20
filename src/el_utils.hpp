@@ -171,4 +171,10 @@ static inline uint16_t float_2_half(float value)
   return out;
 }
 
+static inline float mm_ceilf(float v) {
+  auto mv = _mm_set1_ps(v);
+  auto mr = _mm_ceil_ss(mv, mv);
+  return _mm_cvtss_f32(mr);
+}
+
 }

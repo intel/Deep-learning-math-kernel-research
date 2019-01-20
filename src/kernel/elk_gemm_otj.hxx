@@ -769,12 +769,13 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
     MD2(float, aweights_factor, &md3(aweights_factor3, _O1, _O0, 0), JO, V);
 
-    __m<V> coeffi = _mm<V>::broadcastss_ps(*(__m128 *)&src_scale[_T]);
-    coeffi = _mm<V>::mul_ps(*(__m<V> *)&md2(aweights_scale, _O, 0), coeffi);
-    __m<V> ffactor = _mm<V>::broadcastss_ps(*(__m128 *)&src_factor[_T]);
-    ffactor = _mm<V>::mul_ps(ffactor, *(__m<V> *)&md2(aweights_factor, _O, 0));
     __m<V> fout = _mm<V>::cvtepi32_ps(res);
-    fout = _mm<V>::fmadd_ps(fout, coeffi, ffactor);
+    auto z = _mm<V>::set1_ps(src_factor[_T]);
+    auto acc = *(__m<V> *)&md2(aweights_factor, _O, 0);
+    fout -= (z * acc);
+    auto Sa = _mm<V>::set1_ps(src_scale[_T]);
+    auto Sw = *(__m<V> *)&md2(aweights_scale, _O, 0);
+    fout = Sa * Sw * fout;
 
     // toutput lazy accumulation
     if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
