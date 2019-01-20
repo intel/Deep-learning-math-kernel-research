@@ -24,7 +24,7 @@ class convolution_winograd_kernel_base<UserTypes, TrOpType,
   constexpr static int A = 7;
   constexpr static int K = 3;
 
-  template <bool is_border> static inline
+  template <int input_format, bool is_border> static inline
   void __trans_input(elx_conv_t<UserTypes> &xc, TrOpType atinput[A][A][V],
       InputType *input, int hT_start, int hT_end, int wT_start, int wT_end);
 
@@ -52,7 +52,7 @@ class convolution_winograd_kernel_base<UserTypes, TrOpType,
   _mm<V>::store_ps(T(5, n), t5##n);
 
 template <typename UserTypes, typename TrOpType, int V>
-template <bool is_border>
+template <int input_format, bool is_border>
 inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 7, 3>::__trans_input(
       elx_conv_t<UserTypes> &xc, TrOpType atinput[A][A][V], InputType *input,
@@ -95,7 +95,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
   __m<V> z85_16 = _mm<V>::set_ps(IMM_BCAST16(85.0f / 16.0f));
 
   auto f_cb = [&](int _h, int _w) {
-    if (wT_end == -1) {
+    if (input_format == TKF_COMPACT) {
       MD3(InputType, ainput, input, A, A, V);
       if (std::is_same<InputType, float>::value)
         return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
@@ -103,7 +103,7 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
         auto f16 = _mm<V/2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
         return _mm<V>::cvtph_ps(f16);
       }
-    } else {
+    } else if (input_format == TKF_BLOCKED) {
       MD3(InputType, ainput, input, xc.ih, xc.iw, V);
       if (is_border
           && (_h < hT_start || _w < wT_start || _h > hT_end || _w > wT_end))
@@ -112,6 +112,20 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
         return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
       else {
         auto f16 = _mm<V/2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
+        return _mm<V>::cvtph_ps(f16);
+      }
+    } else {  // TKF_NHWC
+      MD3(InputType, ainput0, input, xc.ih, xc.iw, xc.ic);
+      // TODO: overflow on last V
+      MD2(InputType, ainput1, &md3(ainput0, _h, _w, 0), xc.ic4 * xc.ic3 * xc.I2,
+          V);
+      if (is_border &&
+          (_h < hT_start || _w < wT_start || _h > hT_end || _w > wT_end))
+        return z0;
+      else if (std::is_same<InputType, float>::value)
+        return _mm<V>::load_ps(&md2(ainput1, 0, 0));
+      else {
+        auto f16 = _mm<V / 2>::load_si256((__m256i *)&md2(ainput1, 0, 0));
         return _mm<V>::cvtph_ps(f16);
       }
     }

@@ -86,4 +86,26 @@
 #define MAX     _mm512_max_ps
 #define XOR     _mm512_xor_ps
 
+namespace euler {
+
+// Transform kernel format
+// C: compact
+//    Input: A * A * V
+//    Output: (A - K + 1) * (A - K + 1) * V
+// D: blocked
+//    Input: I2, ih, iw, V, Vx
+//    Output: O1, O, oh, ow, V
+// E: nchw
+//    Input: I2, V, ih, iw
+//    Output: O2, V, ih, iw
+// F: nhwc
+//    Input: ih, iw, I2, V
+//    Output: oh, ow, O1, O, V
+const int TKF_COMPACT = 0xC;
+const int TKF_BLOCKED = 0xD;
+const int TKF_NCHW = 0xE;
+const int TKF_NHWC = 0xF;
+
+}  // namespace euler
+
 #endif // __ELK_DEF_HPP__

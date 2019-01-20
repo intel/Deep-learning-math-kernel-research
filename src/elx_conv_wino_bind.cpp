@@ -10,15 +10,31 @@
 
 namespace euler {
 
-Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::bind_execute_functions()
-{
-  ker_trans_input_
-    = Instance_convolution_winograd_kernel::template trans_input<no>;
-  ker_trans_input0_
-    = Instance_convolution_winograd_kernel::template trans_input<is_border>;
-  ker_trans_weights_
-    = Instance_convolution_winograd_kernel::trans_weights;
+Template_elx_conv_wino_t void
+Instance_elx_conv_wino_t::bind_execute_functions() {
+  if (input_is_bfmt_ || input_as_bfmt_) {
+    ker_trans_input_ =
+        Instance_convolution_winograd_kernel::template trans_input<TKF_BLOCKED,
+                                                                   no>;
+    ker_trans_input0_ =
+        Instance_convolution_winograd_kernel::template trans_input<TKF_BLOCKED,
+                                                                   is_border>;
+  } else if (this->input_fmt == nhwc) {
+    ker_trans_input_ =
+        Instance_convolution_winograd_kernel::template trans_input<TKF_NHWC,
+                                                                   no>;
+    ker_trans_input0_ =
+        Instance_convolution_winograd_kernel::template trans_input<TKF_NHWC,
+                                                                   is_border>;
+  } else {  // nchw
+    ker_trans_input_ =
+        Instance_convolution_winograd_kernel::template trans_input<TKF_COMPACT,
+                                                                   no>;
+    ker_trans_input0_ =
+        Instance_convolution_winograd_kernel::template trans_input<TKF_COMPACT,
+                                                                   is_border>;
+  }
+  ker_trans_weights_ = Instance_convolution_winograd_kernel::trans_weights;
 
   // TODO: ker_trans_output_nobias_norelu_nosum (no fusion)
   // Fusion operation is done in related ker_trans_output_

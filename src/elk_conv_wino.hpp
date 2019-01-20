@@ -74,7 +74,7 @@ protected:
   static_assert(sizeof...(configs) == 4,
       "Template argument error! Please specify I, V, A, K...");
 
-  template <bool is_border>
+  template <int input_format, bool is_border>
   static inline void __trans_input(
       elx_conv_t<UserTypes> &xc,
       TrOpType atinput[A][A][V], InputType *input,
@@ -108,13 +108,13 @@ class convolution_winograd_kernel
 
   public:
   // Interfaces
-  template <bool is_border>
+  template <int input_format, bool is_border>
   static void trans_input(
       elx_conv_t<UserTypes> &xc,
       TrOpType atinput[A][A][V], InputType *input,
       int hA_start, int hA_end, int wA_start, int wA_end)
   {
-    super::template __trans_input<is_border>(
+    super::template __trans_input<input_format, is_border>(
         xc, atinput, input, hA_start, hA_end, wA_start, wA_end);
   }
 

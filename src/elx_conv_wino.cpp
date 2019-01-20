@@ -164,12 +164,12 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
     }
   }
 
-  input_is_bfmt_ = this->input_fmt == nchw ? false : true;
-  weights_is_bfmt_ = this->weights_fmt == oihw ? false : true;
-  output_is_bfmt_ = this->output_fmt == nchw ? false : true;
-  input_as_bfmt_ = !input_is_bfmt_ && this->input_as_blocked;
-  weights_as_bfmt_ = !weights_is_bfmt_ && this->weights_as_blocked;
-  output_as_bfmt_ = !output_is_bfmt_ && this->output_as_blocked;
+  input_is_bfmt_ = this->input_fmt == nChw16c; // nChw8c
+  weights_is_bfmt_ = this->weights_fmt == OIhw16i16o;
+  output_is_bfmt_ = this->output_fmt == nChw16c;
+  input_as_bfmt_ = this->input_fmt == nchw && this->input_as_blocked;
+  weights_as_bfmt_ = this->input_fmt == oihw && this->weights_as_blocked;
+  output_as_bfmt_ = this->output_fmt == nchw && this->output_as_blocked;
   is_bfmt_ = input_is_bfmt_ && weights_is_bfmt_ && output_is_bfmt_;
 
   if (this->ic4 > 1 && this->Ir != V * Vx) {
@@ -178,6 +178,9 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   if (this->oc4 > 1 && this->Or != V
       && (!output_as_bfmt_ || !weights_as_bfmt_)) {
     el_error("Unimplemented: oc4 > 1 for OC % V != 0");
+  }
+  if (this->input_fmt == nhwc && this->ic4 > 1) {
+    el_error("Unimplemented: ic4 > 1 for nhwc input");
   }
 
   if (input_as_bfmt_)
@@ -974,12 +977,10 @@ void Instance_elx_conv_wino_t::trans_weightsf(
 }
 
 Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::__trans_input_plain(
+void Instance_elx_conv_wino_t::__trans_input_nchw(
     TinputType * __restrict tinput, InputType * __restrict input, int _t2, int Tz)
 {
   // n, IC, ih, iw => t2 | wA, hA, ic3, I2, T, V
-  MD6(TinputType, atinput, tinput, A, A, this->ic3, this->I2, Tz, V);
-
   alignas(64) TrOpType aout[A][A][V];
   alignas(64) InputType ain[A][A][V];
   SET_EPI32(this->ih * this->iw)
@@ -1072,28 +1073,7 @@ void Instance_elx_conv_wino_t::__trans_input_plain(
 
     ker_trans_input_(*this, aout, (InputType *)ain, 0, 0, 0, -1);
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TinputType, float>::value) {
-      if (stream_in_) {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-          _mm<V>::stream_ps(&md6(atinput, _wA, _hA, _ic3, _I2, _T, 0),
-              *((__m<V> *)&aout[_wA][_hA][0]));
-        }}
-      } else {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-          _mm<V>::store_ps(&md6(atinput, _wA, _hA, _ic3, _I2, _T, 0),
-              *((__m<V> *)&aout[_wA][_hA][0]));
-        }}
-      }
-    } else {
-      iter_each (_wA, A) {
-      iter_each (_hA, A) {
-#pragma omp simd
-      iter_each (_V, V) {
-        md6(atinput, _wA, _hA, _ic3, _I2, _T, _V) = aout[_wA][_hA][_V];
-      }}}
-    }
+    __trans_input_post(tinput, aout, Tz, _ic3, _I2, _T);
   }}}
 }
 
@@ -1102,10 +1082,7 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
     TinputType * __restrict tinput, InputType * __restrict input, int _t2, int Tz)
 {
   // n, ic2, ih, iw, V => t2 | wA, hA, ic3, I2, T, V
-  MD7(InputType, ainput, input, this->n, this->ic4, this->ic3, this->I2,
-      this->ih, this->iw, V);
-  MD6(TinputType, atinput, tinput, A, A, this->ic3, this->I2, Tz, V);
-
+  MD7(InputType, ainput, input, this->n, this->ic4, this->ic3, this->I2, this->ih, this->iw, V);
   alignas(64) TrOpType aout[A][A][V];
 
   auto res = std::div(_t2 * this->T, this->nt);
@@ -1126,51 +1103,44 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
     else
       ker_trans_input0_(*this, aout, in,
           t2spati_o.t_, t2spati_o.d_, t2spati_o.l_, t2spati_o.r_);
+    __trans_input_post(tinput, aout, Tz, _ic3, _I2, _T);
 
     ++ t2spati_o;
+  }}}
+}
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
-        && std::is_same<TinputType, float>::value) {
-      if (stream_in_) {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-          _mm<V>::stream_ps(&md6(atinput, _wA, _hA, _ic3, _I2, _T, 0),
-              *((__m<V> *)&aout[_wA][_hA][0]));
-        }}
-      } else {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-          _mm<V>::store_ps(&md6(atinput, _wA, _hA, _ic3, _I2, _T, 0),
-              *((__m<V> *)&aout[_wA][_hA][0]));
-        }}
-      }
-    } else if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
-       && std::is_same<TinputType, float16>::value) {
-      if (stream_in_) {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-          auto fp16v = _mm<V>::cvtps_ph(*((__m<V> *)&aout[_wA][_hA][0]),
-              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V/2>::stream_si256(
-              (__m256i *)&md6(atinput, _wA, _hA, _ic3, _I2, _T, 0), fp16v);
-        }}
-      } else {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-          auto fp16v = _mm<V>::cvtps_ph(*((__m<V> *)&aout[_wA][_hA][0]),
-              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V/2>::store_si256(
-              (__m256i *)&md6(atinput, _wA, _hA, _ic3, _I2, _T, 0), fp16v);
-        }}
-      }
-    } else {
-      iter_each (_wA, A) {
-      iter_each (_hA, A) {
-#pragma omp simd
-      iter_each (_V, V) {
-        md6(atinput, _wA, _hA, _ic3, _I2, _T, _V) = aout[_wA][_hA][_V];
-      }}}
-    }
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__trans_input_nhwc(
+    TinputType * __restrict tinput, InputType * __restrict input, int _t2, int Tz)
+{
+  // n, ih, iw, ic2, V => t2 | wA, hA, ic3, I2, T, V
+  MD4(InputType, ainput0, input, this->n, this->ih, this->iw, this->ic);
+  alignas(64) TrOpType aout[A][A][V];
+
+  auto res = std::div(_t2 * this->T, this->nt);
+  auto _n = res.quot;
+  auto _t_off = res.rem;
+
+  iter_each (_ic3, this->ic3) {
+  iter_each (_I2, this->I2) {
+  input_tile_iter<A, K> t2spati_o(_n, _t_off, this->ht, this->wt,
+      this->ih, this->iw, this->tp, this->lp);
+  iter_each (_T, Tz) {
+    auto _n = t2spati_o.n_;
+    auto _ih = t2spati_o.anchor_t_;
+    auto _iw = t2spati_o.anchor_l_;
+
+    MD4(InputType, ainput1, &md4(ainput0, _n, _ih, _iw, 0), this->ic4, this->ic3,
+        this->I2, V);
+    InputType *in = &md4(ainput1, 0, _ic3, _I2, 0);
+    if (!t2spati_o.is_border())
+      ker_trans_input_(*this, aout, in, 0, A - 1, 0, A - 1);
+    else
+      ker_trans_input0_(*this, aout, in,
+          t2spati_o.t_, t2spati_o.d_, t2spati_o.l_, t2spati_o.r_);
+    __trans_input_post(tinput, aout, Tz, _ic3, _I2, _T);
+
+    ++ t2spati_o;
   }}}
 }
 
@@ -1285,8 +1255,10 @@ void Instance_elx_conv_wino_t::trans_input(
 {
   if (input_is_bfmt_ || input_as_bfmt_)
     __trans_input_blocked(tinput, input, _t2, Tz);
+  else if (this->input_fmt == nhwc)
+    __trans_input_nhwc(tinput, input, _t2, Tz);
   else
-    __trans_input_plain(tinput, input, _t2, Tz);
+    __trans_input_nchw(tinput, input, _t2, Tz);
 }
 
 Template_elx_conv_wino_t
@@ -1301,14 +1273,63 @@ void Instance_elx_conv_wino_t::trans_input_u8(
     el_error("Unimplemented: plain format input for int8");
 }
 
+Template_elx_conv_wino_t void
+Instance_elx_conv_wino_t::__trans_input_post(TinputType *__restrict tinput,
+  TrOpType at[A][A][V], const int Tz, const int _ic3, const int _I2, const int _T) {
+  MD6(TinputType, atinput6, tinput, A, A, this->ic3, this->I2 * this->Vx, Tz, V);
+
+  if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
+      && std::is_same<TinputType, float>::value) {
+    if (stream_in_) {
+      iter_each (_wA, A) {
+      iter_each (_hA, A) {
+        _mm<V>::stream_ps(&md6(atinput6, _wA, _hA, _ic3, _I2, _T, 0),
+                       *((__m<V> *)&at[_wA][_hA][0]));
+      }}
+    } else {
+      iter_each (_wA, A) {
+      iter_each (_hA, A) {
+        _mm<V>::store_ps(&md6(atinput6, _wA, _hA, _ic3, _I2, _T, 0),
+                      *((__m<V> *)&at[_wA][_hA][0]));
+      }}
+    }
+  } else if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
+     && std::is_same<TinputType, float16>::value) {
+    if (stream_in_) {
+      iter_each (_wA, A) {
+      iter_each (_hA, A) {
+        auto fp16v = _mm<V>::cvtps_ph(*((__m<V> *)&at[_wA][_hA][0]),
+            _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        _mm<V/2>::stream_si256(
+            (__m256i *)&md6(atinput6, _wA, _hA, _ic3, _I2, _T, 0), fp16v);
+      }}
+    } else {
+      iter_each (_wA, A) {
+      iter_each (_hA, A) {
+        auto fp16v = _mm<V>::cvtps_ph(*((__m<V> *)&at[_wA][_hA][0]),
+            _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        _mm<V/2>::store_si256(
+            (__m256i *)&md6(atinput6, _wA, _hA, _ic3, _I2, _T, 0), fp16v);
+      }}
+    }
+  } else {
+    iter_each (_wA, A) {
+    iter_each (_hA, A) {
+#pragma omp simd
+    iter_each (_V, V) {
+      md6(atinput6, _wA, _hA, _ic3, _I2, _T, _V) = at[_wA][_hA][_V];
+    }}}
+  }
+}
+
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::__trans_input_blocked(
     TinputType * __restrict tinput, InputType * __restrict input)
 {
   // n, ic2, ih, iw, V => t2, wA, hA, ic3, I2, T, V
+  MD2(TinputType, atinput, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * this->Vx * V);
   MD7(InputType, ainput, input, this->n, this->ic4, this->ic3, this->I2 * this->Vx,
       this->ih, this->iw, V);
-  MD2(TinputType, atinput2, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * this->Vx * V);
 
   // ICC-19 bug, build crash in case of t2 first
 #pragma omp for nowait collapse(3)
@@ -1316,7 +1337,6 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
   iter_each (_I2, this->I2 * this->Vx) {
   iter_each (_t2, this->t2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    MD6(TinputType, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2 * this->Vx, Tz, V);
     alignas(64) TrOpType aout[A][A][V];
 
     iter_each (_T, Tz) {
@@ -1330,60 +1350,50 @@ void Instance_elx_conv_wino_t::__trans_input_blocked(
       else
         ker_trans_input0_(
             *this, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
-
-      if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
-          && std::is_same<TinputType, float>::value) {
-        if (stream_in_) {
-          iter_each (_wA, A) {
-          iter_each (_hA, A) {
-            _mm<V>::stream_ps(&md6(atinput6, _wA, _hA, _ic3, _I2, _T, 0),
-                           *((__m<V> *)&aout[_wA][_hA][0]));
-          }}
-        } else {
-          iter_each (_wA, A) {
-          iter_each (_hA, A) {
-            _mm<V>::store_ps(&md6(atinput6, _wA, _hA, _ic3, _I2, _T, 0),
-                          *((__m<V> *)&aout[_wA][_hA][0]));
-          }}
-        }
-      } else if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
-         && std::is_same<TinputType, float16>::value) {
-        if (stream_in_) {
-          iter_each (_wA, A) {
-          iter_each (_hA, A) {
-            auto fp16v = _mm<V>::cvtps_ph(*((__m<V> *)&aout[_wA][_hA][0]),
-                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V/2>::stream_si256(
-                (__m256i *)&md6(atinput6, _wA, _hA, _ic3, _I2, _T, 0), fp16v);
-          }}
-        } else {
-          iter_each (_wA, A) {
-          iter_each (_hA, A) {
-            auto fp16v = _mm<V>::cvtps_ph(*((__m<V> *)&aout[_wA][_hA][0]),
-                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V/2>::store_si256(
-                (__m256i *)&md6(atinput6, _wA, _hA, _ic3, _I2, _T, 0), fp16v);
-          }}
-        }
-      } else {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-#pragma omp simd
-        iter_each (_V, V) {
-          md6(atinput6, _wA, _hA, _ic3, _I2, _T, _V) = aout[_wA][_hA][_V];
-        }}}
-      }
+      __trans_input_post(&md2(atinput, _t2, 0), aout, Tz, _ic3, _I2, _T);
     }
   }}}
 }
 
 Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::__trans_input_plain(
+void Instance_elx_conv_wino_t::__trans_input_nhwc(
+    TinputType * __restrict tinput, InputType * __restrict input)
+{
+  // n, ih, iw, ic => t2, wA, hA, ic3, I2, T, V
+  MD2(TinputType, atinput, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * this->Vx * V);
+  MD4(InputType, ainput0, input, this->n, this->ih, this->iw, this->ic);
+
+  // ICC-19 bug, build crash in case of t2 first
+#pragma omp for nowait collapse(3)
+  iter_each (_ic3, this->ic3) {
+  iter_each (_I2, this->I2 * this->Vx) {
+  iter_each (_t2, this->t2) {
+    int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+    alignas(64) TrOpType aout[A][A][V];
+
+    iter_each (_T, Tz) {
+      int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
+      t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
+      MD4(InputType, ainput1, &md4(ainput0, _n, _ih, _iw, 0), this->ic4,
+          this->ic3, this->I2, V);
+      InputType *in = &md4(ainput1, 0, _ic3, _I2, 0);
+      if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
+          && _wA_end == A - 1)
+        ker_trans_input_(*this, aout, in, 0, A - 1, 0, A - 1);
+      else
+        ker_trans_input0_(
+            *this, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
+      __trans_input_post(&md2(atinput, _t2, 0), aout, Tz, _ic3, _I2, _T);
+    }
+  }}}
+}
+
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__trans_input_nchw(
     TinputType * __restrict tinput, InputType * __restrict input)
 {
   // n, ic2, ih, iw, V => t2, wA, hA, ic3, I2, T, V
-  MD2(TinputType, atinput2, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * V);
-
+  MD2(TinputType, atinput, tinput, this->t2, A * A * this->T * this->ic3 * this->I2 * this->Vx * V);
   SET_EPI32(this->ih * this->iw)
 
   auto readin_v = [&](int _t2, int _ic3, int _I2, int _T, InputType ain[A][A][V]) {
@@ -1471,7 +1481,6 @@ void Instance_elx_conv_wino_t::__trans_input_plain(
   iter_each (_ic3, this->ic3) {
   iter_each (_I2, this->I2) {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    MD6(TinputType, atinput6, &md2(atinput2, _t2, 0), A, A, this->ic3, this->I2, Tz, V);
     alignas(64) TrOpType aout[A][A][V];
     alignas(64) InputType ain[A][A][V];
 
@@ -1482,28 +1491,7 @@ void Instance_elx_conv_wino_t::__trans_input_plain(
         readin_v(_t2, _ic3, _I2, _T, ain);
       ker_trans_input_(*this, aout, (InputType *)ain, 0, 0, 0, -1);
 
-      if (I == ISA_SKX_AVX512 && std::is_same<TinputType, float>::value) {
-        if (stream_in_) {
-          iter_each (_wA, A) {
-          iter_each (_hA, A) {
-            _mm<V>::stream_ps(&md6(atinput6, _wA, _hA, _ic3, _I2, _T, 0),
-                *((__m<V> *)&aout[_wA][_hA][0]));
-          }}
-        } else {
-          iter_each (_wA, A) {
-          iter_each (_hA, A) {
-            _mm<V>::store_ps(&md6(atinput6, _wA, _hA, _ic3, _I2, _T, 0),
-                *((__m<V> *)&aout[_wA][_hA][0]));
-          }}
-        }
-      } else {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-#pragma omp simd
-        iter_each (_V, V) {
-          md6(atinput6, _wA, _hA, _ic3, _I2, _T, _V) = aout[_wA][_hA][_V];
-        }}}
-      }
+      __trans_input_post(&md2(atinput, _t2, 0), aout, Tz, _ic3, _I2, _T);
     }
   }}}
 }
@@ -1514,8 +1502,10 @@ void Instance_elx_conv_wino_t::trans_input(
 {
   if (input_is_bfmt_ || input_as_bfmt_)
     __trans_input_blocked(tinput, input);
+  else if (this->input_fmt == nhwc)
+    __trans_input_nhwc(tinput, input);
   else
-    __trans_input_plain(tinput, input);
+    __trans_input_nchw(tinput, input);
 }
 
 // tweights:     oc4 | oc3, ic3, A, A, O2, I2, V, V

@@ -27,24 +27,6 @@
 #include "kernel/elk_conv_wino_5x5_3x3_output.hxx"
 #include "kernel/elk_conv_wino_5x5_3x3_weights.hxx"
 
-#include "kernel/elk_conv_wino_2x2_3x3_input_gen.hxx"
-#include "kernel/elk_conv_wino_2x2_3x3_output_gen.hxx"
-#include "kernel/elk_conv_wino_2x2_3x3_weights_gen.hxx"
-
-#include "kernel/elk_conv_wino_3x3_3x3_input_gen.hxx"
-#include "kernel/elk_conv_wino_3x3_3x3_output_gen.hxx"
-#include "kernel/elk_conv_wino_3x3_3x3_weights_gen.hxx"
-
-#include "kernel/elk_conv_wino_4x4_3x3_input_gen.hxx"
-#include "kernel/elk_conv_wino_4x4_3x3_output_gen.hxx"
-#include "kernel/elk_conv_wino_4x4_3x3_weights_gen.hxx"
-
-#include "kernel/elk_conv_wino_5x5_3x3_input_gen.hxx"
-#include "kernel/elk_conv_wino_5x5_3x3_output_gen.hxx"
-#include "kernel/elk_conv_wino_5x5_3x3_weights_gen.hxx"
-
-//#include "kernel/elk_conv_wino_kernels.cosim.hxx"
-
 /*
   Winograd data types: (input,weights,output)
   +--------------+------+-----+-------------+--------------+--------------+--------+-----------+
@@ -310,11 +292,15 @@ private:
   void __execute_a173(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
 
-  inline void __trans_input_plain(TinputType *tinput, InputType *input, int _t2, int Tz);
+  inline void __trans_input_nchw(TinputType *tinput, InputType *input, int _t2, int Tz);
+  inline void __trans_input_nhwc(TinputType *tinput, InputType *input, int _t2, int Tz);
   inline void __trans_input_blocked(TinputType *tinput, InputType *input, int _t2, int Tz);
   void trans_input(TinputType *tinput, InputType *input, int _t2, int Tz);
 
-  inline void __trans_input_plain(TinputType *tinput, InputType *input);
+  inline void __trans_input_post(TinputType *__restrict tinput, TrOpType at[A][A][V],
+      const int Tz, const int _ic3, const int _I2, const int _T);
+  inline void __trans_input_nchw(TinputType *tinput, InputType *input);
+  inline void __trans_input_nhwc(TinputType *tinput, InputType *input);
   inline void __trans_input_blocked(TinputType *tinput, InputType *input);
   void trans_input(TinputType *tinput, InputType *input);
 
@@ -390,9 +376,9 @@ private:
   i8_ker_type *ker_i8_gemm0_;
 
   decltype(Instance_convolution_winograd_kernel
-      ::template trans_input<no>) *ker_trans_input_;
+      ::template trans_input<0, no>) *ker_trans_input_;
   decltype(Instance_convolution_winograd_kernel
-      ::template trans_input<no>) *ker_trans_input0_;
+      ::template trans_input<0, no>) *ker_trans_input0_;
   decltype(Instance_convolution_winograd_kernel
       ::trans_weights) *ker_trans_weights_;
   decltype(Instance_convolution_winograd_kernel
