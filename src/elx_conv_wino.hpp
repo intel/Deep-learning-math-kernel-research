@@ -292,17 +292,18 @@ private:
   void __execute_a173(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
 
-  inline void __trans_input_nchw(TinputType *tinput, InputType *input, int _t2, int Tz);
-  inline void __trans_input_nhwc(TinputType *tinput, InputType *input, int _t2, int Tz);
-  inline void __trans_input_blocked(TinputType *tinput, InputType *input, int _t2, int Tz);
-  void trans_input(TinputType *tinput, InputType *input, int _t2, int Tz);
-
   inline void __trans_input_post(TinputType *__restrict tinput, TrOpType at[A][A][V],
       const int Tz, const int _ic3, const int _I2, const int _T);
-  inline void __trans_input_nchw(TinputType *tinput, InputType *input);
-  inline void __trans_input_nhwc(TinputType *tinput, InputType *input);
-  inline void __trans_input_blocked(TinputType *tinput, InputType *input);
-  void trans_input(TinputType *tinput, InputType *input);
+
+  inline void __trans_input_nchw(TinputType *tinput, InputType *input, int Tz, int _t2, int _ic4);
+  inline void __trans_input_nhwc(TinputType *tinput, InputType *input, int Tz, int _t2, int _ic4);
+  inline void __trans_input_blocked(TinputType *tinput, InputType *input, int Tz, int _t2, int _ic4);
+  void trans_input(TinputType *tinput, InputType *input, int Tz, int _t2, int _ic4);
+
+  inline void __trans_input_nchw(TinputType *tinput, InputType *input, int _ic4);
+  inline void __trans_input_nhwc(TinputType *tinput, InputType *input, int _ic4);
+  inline void __trans_input_blocked(TinputType *tinput, InputType *input, int _ic4);
+  void trans_input(TinputType *tinput, InputType *input, int _ic4);
 
   inline void __trans_input_u8_blocked(
       TscaleType *tinput_qt_scale, uint8_t *__restrict tinput_u8,
@@ -316,24 +317,26 @@ private:
       TinputType *tinput, InputType *input);
 
   inline void __trans_output_nhwc(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int _t2, int Tz, int _ic4);
+      BiasType *bias, int Tz, int _t2, int _oc4, int _ic4);
   inline void __trans_output_nchw(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int _t2, int Tz, int _ic4);
+      BiasType *bias, int Tz, int _t2, int _oc4, int _ic4);
   inline void __trans_output_blocked(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int _t2, int Tz, int _ic4);
+      BiasType *bias, int Tz, int _t2, int _oc4, int _ic4);
   void trans_output(OutputType *output, ToutputType *toutput, BiasType *bias,
-      int _t2, int Tz, int _ic4 = -1);
+      int Tz, int _t2, int _oc4, int _ic4);
 
   inline void __trans_output_nhwc(OutputType *output, ToutputType *toutput,
-          BiasType *bias, int _ic4);
+      BiasType *bias, int _oc4, int _ic4);
   inline void __trans_output_nchw(OutputType *output, ToutputType *toutput,
-          BiasType *bias, int _ic4);
-  inline void __trans_output_blocked(OutputType *output, ToutputType *toutput, BiasType *bias, int _ic4);
-  void trans_output(OutputType *output, ToutputType *toutput, BiasType *bias, int _ic4 = -1);
+      BiasType *bias, int _oc4, int _ic4);
+  inline void __trans_output_blocked(OutputType *output, ToutputType *toutput,
+      BiasType *bias, int _oc4, int _ic4);
+  void trans_output(OutputType *output, ToutputType *toutput,
+      BiasType *bias, int _oc4, int _ic4);
 
   inline void __trans_weights_post(TweightsType *tweights, TrOpType at[A][A][V][V],
-    const int _oc4, const int _ic4, const int _oc3, const int _ic3, const int _O1,
-    const int _I2, const int _O);
+      const int _oc4, const int _ic4, const int _oc3, const int _ic3, const int _O1,
+      const int _I2, const int _O);
   inline void __trans_weights_oihw(TweightsType *tweights, WeightsType *weights, int oc4);
   inline void __trans_weights_hwio(TweightsType *tweights, WeightsType *weights, int oc4);
   inline void __trans_weights_blocked(TweightsType *tweights, WeightsType *weights, int oc4);
