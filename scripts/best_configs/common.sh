@@ -3,7 +3,8 @@
 function usage() {
 cat <<!
   -v   Validation on.
-  -p   Use plain format.
+  -p   Use nchw format.
+  -P   Use nhwc format.
   -r   ReLU fusion.
   -l   Repeated layer.
   -f   fp UserTypes
@@ -23,7 +24,7 @@ output_format=nChw16c
 tile_size=5
 
 OPTIND=1
-while getopts "vprsf:l:BATHh" opt; do
+while getopts "vpPrsf:l:BATHh" opt; do
   case $opt in
     v)
       v=1
@@ -32,6 +33,11 @@ while getopts "vprsf:l:BATHh" opt; do
       input_format=nchw
       weights_format=oihw
       output_format=nchw
+      ;;
+    P)
+      input_format=nhwc
+      weights_format=hwio
+      output_format=nhwc
       ;;
     r)
       r=1
