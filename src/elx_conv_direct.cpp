@@ -139,11 +139,8 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
     el_error("Unimplemented: fuse sum (plain format) and relu together");
   }
 
-  if (this->ic4 > 1 && this->Ir != V) {
-    el_error("Unimplemented: ic4 > 1 for IC % V != 0");
-  }
-  if (this->oc4 > 1 && this->Or != V) {
-    el_error("Unimplemented: oc4 > 1 for OC % V != 0");
+  if (this->Or != V && this->output_fmt == nhwc) {
+    el_error("Unimplemented: nhwc output with Or");
   }
 
   if (input_as_bfmt_)
