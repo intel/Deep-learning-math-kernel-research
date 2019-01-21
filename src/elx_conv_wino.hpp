@@ -331,7 +331,11 @@ private:
   inline void __trans_output_blocked(OutputType *output, ToutputType *toutput, BiasType *bias, int _ic4);
   void trans_output(OutputType *output, ToutputType *toutput, BiasType *bias, int _ic4 = -1);
 
-  inline void __trans_weights_plain(TweightsType *tweights, WeightsType *weights, int oc4);
+  inline void __trans_weights_post(TweightsType *tweights, TrOpType at[A][A][V][V],
+    const int _oc4, const int _ic4, const int _oc3, const int _ic3, const int _O1,
+    const int _I2, const int _O);
+  inline void __trans_weights_oihw(TweightsType *tweights, WeightsType *weights, int oc4);
+  inline void __trans_weights_hwio(TweightsType *tweights, WeightsType *weights, int oc4);
   inline void __trans_weights_blocked(TweightsType *tweights, WeightsType *weights, int oc4);
   void trans_weights(TweightsType *tweights, WeightsType *weights, int oc4 = 1);
 
@@ -340,7 +344,8 @@ private:
   void trans_weights_s8(TscaleType *tweights_qt_scale, TscaleType *tweights_factor,
       int8_t *tweights_s8, TweightsType *tweights, WeightsType *weights, int oc4);
 
-  inline void __trans_weightsf_plain(TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4);
+  inline void __trans_weightsf_oihw(TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4);
+  inline void __trans_weightsf_hwio(TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4);
   inline void __trans_weightsf_blocked(TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4);
   void trans_weightsf(TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4);
 

@@ -393,15 +393,72 @@ Instance_elx_conv_wino_t::~elx_conv_wino_t()
     __wA_end = (_wt < this->wt - 1) ? A - 1 : wA_end_;                       \
   } while (0)
 
+Template_elx_conv_wino_t void Instance_elx_conv_wino_t::__trans_weights_post(
+    TweightsType *tweights, TrOpType at[A][A][V][V], const int _oc4,
+    const int _ic4, const int _oc3, const int _ic3, const int _O1,
+    const int _I2, const int _O) {
+  MD9(TweightsType, atweights, tweights, this->oc3, this->ic3, A, A,
+      this->O1, this->I2, V, this->O, V);
+  if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
+      && std::is_same<TweightsType, float>::value) {
+    if (stream_wei_) {
+      iter_each (_wA, A) {
+      iter_each (_hA, A) {
+      iter_each (_iV, V) {
+        _mm<V>::stream_ps(&md9(atweights, _oc3, _ic3, _wA, _hA,
+            _O1, _I2, _iV, _O, 0), *((__m512 *)&at[_wA][_hA][_iV][0]));
+      }}}
+    } else {
+      iter_each (_wA, A) {
+      iter_each (_hA, A) {
+      iter_each (_iV, V) {
+        _mm512_store_ps(&md9(atweights, _oc3, _ic3, _wA, _hA,
+            _O1, _I2, _iV, _O, 0), *((__m512 *)&at[_wA][_hA][_iV][0]));
+      }}}
+    }
+  } else if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
+     && std::is_same<TweightsType, float16>::value) {
+    if (stream_wei_) {
+      iter_each (_wA, A) {
+      iter_each (_hA, A) {
+      iter_each (_iV, V) {
+        auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&at[_wA][_hA][_iV][0],
+            _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        _mm<V/2>::stream_si256((__m256i *)&md9(atweights, _oc3,
+                             _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
+
+      }}}
+    } else {
+      iter_each (_wA, A) {
+      iter_each (_hA, A) {
+      iter_each (_iV, V) {
+        auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&at[_wA][_hA][_iV][0],
+            _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        _mm<V/2>::store_si256((__m256i *)&md9(atweights, _oc3,
+                             _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
+      }}}
+    }
+  } else {
+    iter_each (_wA, A) {
+    iter_each (_hA, A) {
+    iter_each (_iV, V) {
+#pragma omp simd
+    iter_each (_oV, V) {
+      md9(atweights, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, _O, _oV)
+          = at[_wA][_hA][_iV][_oV];
+    }}}}
+  }
+}
+
 Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::__trans_weights_plain(
+void Instance_elx_conv_wino_t::__trans_weights_oihw(
     TweightsType * __restrict tweights, WeightsType * __restrict weights, int oc4)
 {
   // oc2, ic2, hK, wK, V, V => oc4, ic4, oc3, ic3, wA, hA, O2, I2, V, V
   MD11(WeightsType, aweights_v, weights, oc4, this->oc3, this->O1, this->O, V,
       this->ic4, this->ic3, this->I2, V, K, K);
-  MD11(TweightsType, atweights, tweights, oc4, this->ic4, this->oc3, this->ic3,
-      A, A, this->O1, this->I2, V, this->O, V);
+  MD3(TweightsType, atweights, tweights, this->oc4, this->ic4,
+      this->oc3 * this->ic3 * A * A * this->O2 * this->I2 * V * V);
 
   SET_EPI32(this->ic * this->kh * this->kw)
 
@@ -485,56 +542,8 @@ void Instance_elx_conv_wino_t::__trans_weights_plain(
           ain, &md11(aweights_v, _oc4, _oc3, _O1, _O, 0, _ic4, _ic3, _I2, 0, 0, 0));
 
     ker_trans_weights_(aout, ain);
-
-    if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
-        && std::is_same<TweightsType, float>::value) {
-      if (stream_wei_) {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-        iter_each (_iV, V) {
-          _mm<V>::stream_ps(&md11(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
-              _O1, _I2, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
-        }}}
-      } else {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-        iter_each (_iV, V) {
-          _mm512_store_ps(&md11(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
-              _O1, _I2, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
-        }}}
-      }
-    } else if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
-       && std::is_same<TweightsType, float16>::value) {
-      if (stream_wei_) {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-        iter_each (_iV, V) {
-          auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&aout[_wA][_hA][_iV][0],
-              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V/2>::stream_si256((__m256i *)&md11(atweights, _oc4, _ic4, _oc3,
-                               _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
-
-        }}}
-      } else {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-        iter_each (_iV, V) {
-          auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&aout[_wA][_hA][_iV][0],
-              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V/2>::store_si256((__m256i *)&md11(atweights, _oc4, _ic4, _oc3,
-                               _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
-        }}}
-      }
-    } else {
-      iter_each (_wA, A) {
-      iter_each (_hA, A) {
-      iter_each (_iV, V) {
-#pragma omp simd
-      iter_each (_oV, V) {
-        md11(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, _O, _oV)
-            = aout[_wA][_hA][_iV][_oV];
-      }}}}
-    }
+    __trans_weights_post(&md3(atweights, _oc4, _ic4, 0), aout, _oc4, _ic4, _oc3,
+                         _ic3, _O1, _I2, _O);
   }}}}}}}
 }
 
@@ -543,10 +552,10 @@ void Instance_elx_conv_wino_t::__trans_weights_blocked(
     TweightsType *tweights, WeightsType *weights, int oc4)
 {
   // oc2, ic2, hK, wK, V, V => oc4, ic4, oc3, ic3, wA, hA, O2, I2, V, V
-  MD11(WeightsType, aweights, weights, oc4, this->oc3, this->O1, this->O,
-      this->ic4, this->ic3, this->I2 * this->Vx, K, K, V, V);
-  MD11(TweightsType, atweights, tweights, oc4, this->ic4, this->oc3, this->ic3,
-      A, A, this->O1, this->I2 * this->Vx, V, this->O, V);
+  MD8(WeightsType, aweights, weights, oc4, this->oc3, this->O1, this->O,
+      this->ic4, this->ic3, this->I2 * this->Vx, K * K * V * V);
+  MD3(TweightsType, atweights, tweights, this->oc4, this->ic4,
+      this->oc3 * this->ic3 * A * A * this->O2 * this->I2 * V * V);
 
 #pragma omp for nowait collapse(7) schedule(static)
   iter_each (_oc4, oc4) {
@@ -557,59 +566,69 @@ void Instance_elx_conv_wino_t::__trans_weights_blocked(
   iter_each (_I2, this->I2 * this->Vx) {
   iter_each (_O, this->O) {
     alignas(64) TrOpType aout[A][A][V][V];
-    WeightsType *in = &md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, 0, 0, 0, 0);
+    WeightsType *in = &md8(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, 0);
     using Array = WeightsType[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
+    __trans_weights_post(&md3(atweights, _oc4, _ic4, 0), aout, _oc4, _ic4, _oc3,
+                         _ic3, _O1, _I2, _O);
+  }}}}}}}
+}
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
-        && std::is_same<TweightsType, float>::value) {
-      if (stream_wei_) {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-        iter_each (_iV, V) {
-          _mm<V>::stream_ps(&md11(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
-              _O1, _I2, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
-        }}}
-      } else {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-        iter_each (_iV, V) {
-          _mm512_store_ps(&md11(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
-              _O1, _I2, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
-        }}}
-      }
-    } else if (I == ISA_SKX_AVX512 && std::is_same<TrOpType, float>::value
-       && std::is_same<TweightsType, float16>::value) {
-      if (stream_wei_) {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-        iter_each (_iV, V) {
-          auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&aout[_wA][_hA][_iV][0],
-              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V/2>::stream_si256((__m256i *)&md11(atweights, _oc4, _ic4, _oc3,
-                               _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__trans_weights_hwio(
+    TweightsType *tweights, WeightsType *weights, int oc4)
+{
+  auto readin = [&](WeightsType ain[K][K][V][V], WeightsType *wei,
+                    int _oc4, int _oc3, int _O1, int _O,
+                    int _ic4, int _ic3, int _I2, bool is_Ir, bool is_Or) {
+    MD4(WeightsType, aweights0, wei, K, K, this->ic, this->oc);
+    int iV = is_Ir ? this->Ir : V;
 
-        }}}
+    iter_each (_hK, K) {
+    iter_each (_wK, K) {
+    iter_each (_iV, iV) {
+      MD5(WeightsType, aweights1, &md4(aweights0, _hK, _wK, 0, 0), this->ic4,
+          this->ic3, this->I2, V, this->oc);
+      MD5(WeightsType, aweights2, &md5(aweights1, _ic4, _ic3, _I2, _iV, 0),
+          this->oc4, this->oc3, this->O1, this->O, V);
+      if (is_Or) {
+        iter_each (_oV, this->Or)
+          ain[_hK][_wK][_iV][_oV] = md5(aweights2, _oc4, _oc3, _O1, _O, _oV);
       } else {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-        iter_each (_iV, V) {
-          auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&aout[_wA][_hA][_iV][0],
-              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V/2>::store_si256((__m256i *)&md11(atweights, _oc4, _ic4, _oc3,
-                               _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
-        }}}
-      }
-    } else {
-      iter_each (_wA, A) {
-      iter_each (_hA, A) {
-      iter_each (_iV, V) {
+        if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+          auto t = *(__m<V>*)&md5(aweights2, _oc4, _oc3, _O1, _O, 0);
+          _mm<V>::store_ps(ain[_hK][_wK][_iV], t);
+        } else {
 #pragma omp simd
-        iter_each (_oV, V)
-          md11(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, _O, _oV)
-              = aout[_wA][_hA][_iV][_oV];
-      }}}
-    }
+          iter_each (_oV, V)
+            ain[_hK][_wK][_iV][_oV] = md5(aweights2, _oc4, _oc3, _O1, _O, _oV);
+        }
+      }
+    }}}
+  };
+
+  MD3(TweightsType, atweights, tweights, this->oc4, this->ic4,
+      this->oc3 * this->ic3 * A * A * this->O2 * this->I2 * V * V);
+#pragma omp for nowait collapse(7) schedule(static)
+  iter_each (_oc4, oc4) {
+  iter_each (_ic4, this->ic4) {
+  iter_each (_oc3, this->oc3) {
+  iter_each (_ic3, this->ic3) {
+  iter_each (_O1, this->O1) {
+  iter_each (_I2, this->I2) {
+  iter_each (_O, this->O) {
+    bool is_Ir = this->Ir != V && _ic4 == this->ic4 - 1
+        && _ic3 == this->ic3 - 1 && _I2 == this->I2 - 1;
+    bool is_Or = this->Or != V && _oc4 == this->oc4 - 1
+        && _oc3 == this->oc3 - 1 && _O1 == this->O1 - 1
+        && _O == this->O - 1;
+    alignas(64) WeightsType ain[K][K][V][V];
+    alignas(64) TrOpType aout[A][A][V][V];
+
+    readin(ain, weights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, is_Ir, is_Or);
+    ker_trans_weights_(aout, ain);
+    __trans_weights_post(&md3(atweights, _oc4, _ic4, 0), aout, _oc4, _ic4, _oc3,
+                         _ic3, _O1, _I2, _O);
   }}}}}}}
 }
 
@@ -784,8 +803,10 @@ void Instance_elx_conv_wino_t::trans_weights(
 {
   if (weights_is_bfmt_ || weights_as_bfmt_)
     __trans_weights_blocked(tweights, weights, oc4);
+  else if (this->weights_fmt == hwio)
+    __trans_weights_hwio(tweights, weights, oc4);
   else
-    __trans_weights_plain(tweights, weights, oc4);
+    __trans_weights_oihw(tweights, weights, oc4);
 }
 
 Template_elx_conv_wino_t
@@ -801,13 +822,11 @@ void Instance_elx_conv_wino_t::trans_weights_s8(
 }
 
 Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::__trans_weightsf_plain(
+void Instance_elx_conv_wino_t::__trans_weightsf_oihw(
     TweightsType * __restrict tweights, WeightsType * __restrict weights, int _ic4, int _oc4)
 {
   MD11(WeightsType, aweights_v, weights, oc4, this->oc3, this->O1, this->O, V,
       this->ic4, this->ic3, this->I2, V, K, K);
-  MD9(TweightsType, atweights, tweights, this->oc3, this->ic3, A, A,
-      this->O1, this->I2, V, this->O, V);
 
   SET_EPI32(this->ic * this->kh * this->kw)
 
@@ -888,33 +907,59 @@ void Instance_elx_conv_wino_t::__trans_weightsf_plain(
           ain, &md11(aweights_v, _oc4, _oc3, _O1, _O, 0, _ic4, _ic3, _I2, 0, 0, 0));
 
     ker_trans_weights_(aout, ain);
+    __trans_weights_post(tweights, aout, _oc4, _ic4, _oc3, _ic3, _O1, _I2, _O);
+  }}}}}
+}
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TweightsType, float>::value) {
-      if (stream_wei_) {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-        iter_each (_iV, V) {
-          _mm<V>::stream_ps(&md9(atweights, _oc3, _ic3, _wA, _hA,
-              _O1, _I2, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
-        }}}
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::__trans_weightsf_hwio(
+    TweightsType * __restrict tweights, WeightsType * __restrict weights, int _ic4, int _oc4)
+{
+  auto readin = [&](WeightsType ain[K][K][V][V], WeightsType *wei,
+                    int _oc4, int _oc3, int _O1, int _O,
+                    int _ic4, int _ic3, int _I2, bool is_Ir, bool is_Or) {
+    MD4(WeightsType, aweights0, wei, K, K, this->ic, this->oc);
+    int iV = is_Ir ? this->Ir : V;
+
+    iter_each (_hK, K) {
+    iter_each (_wK, K) {
+    iter_each (_iV, iV) {
+      MD5(WeightsType, aweights1, &md4(aweights0, _hK, _wK, 0, 0), this->ic4,
+          this->ic3, this->I2, V, this->oc);
+      MD5(WeightsType, aweights2, &md5(aweights1, _ic4, _ic3, _I2, _iV, 0),
+          this->oc4, this->oc3, this->O1, this->O, V);
+      if (is_Or) {
+        iter_each (_oV, this->Or)
+          ain[_hK][_wK][_iV][_oV] = md5(aweights2, _oc4, _oc3, _O1, _O, _oV);
       } else {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-        iter_each (_iV, V) {
-          _mm512_store_ps(&md9(atweights, _oc3, _ic3, _wA, _hA,
-              _O1, _I2, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
-        }}}
-      }
-    } else {
-      iter_each (_wA, A) {
-      iter_each (_hA, A) {
-      iter_each (_iV, V) {
+        if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+          auto t = *(__m<V>*)&md5(aweights2, _oc4, _oc3, _O1, _O, 0);
+          _mm<V>::store_ps(ain[_hK][_wK][_iV], t);
+        } else {
 #pragma omp simd
-      iter_each (_oV, V) {
-        md9(atweights, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, _O, _oV)
-            = aout[_wA][_hA][_iV][_oV];
-      }}}}
-    }
+          iter_each (_oV, V)
+            ain[_hK][_wK][_iV][_oV] = md5(aweights2, _oc4, _oc3, _O1, _O, _oV);
+        }
+      }
+    }}}
+  };
+
+  iter_each (_oc3, this->oc3) {
+  iter_each (_ic3, this->ic3) {
+  iter_each (_O1, this->O1) {
+  iter_each (_I2, this->I2) {
+  iter_each (_O, this->O) {
+    bool is_Ir = this->Ir != V && _ic4 == this->ic4 - 1
+        && _ic3 == this->ic3 - 1 && _I2 == this->I2 - 1;
+    bool is_Or = this->Or != V && _oc4 == this->oc4 - 1
+        && _oc3 == this->oc3 - 1 && _O1 == this->O1 - 1
+        && _O == this->O - 1;
+    alignas(64) WeightsType ain[K][K][V][V];
+    alignas(64) TrOpType aout[A][A][V][V];
+
+    readin(ain, weights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, is_Ir, is_Or);
+    ker_trans_weights_(aout, ain);
+    __trans_weights_post(tweights, aout, _oc4, _ic4, _oc3, _ic3, _O1, _I2, _O);
   }}}}}
 }
 
@@ -924,8 +969,6 @@ void Instance_elx_conv_wino_t::__trans_weightsf_blocked(
 {
   MD11(WeightsType, aweights, weights, oc4, this->oc3, this->O1, this->O,
       this->ic4, this->ic3, this->I2, K, K, V, V);
-  MD9(TweightsType, atweights, tweights, this->oc3, this->ic3, A, A,
-      this->O1, this->I2, V, this->O, V);
 
   iter_each (_oc3, this->oc3) {
   iter_each (_ic3, this->ic3) {
@@ -936,33 +979,7 @@ void Instance_elx_conv_wino_t::__trans_weightsf_blocked(
     WeightsType *in = &md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, 0, 0, 0, 0);
     using Array = WeightsType[K][K][V][V];
     ker_trans_weights_(aout, *(Array *)in);
-
-    if (I == ISA_SKX_AVX512 && std::is_same<TweightsType, float>::value) {
-      if (stream_wei_) {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-        iter_each (_iV, V) {
-          _mm<V>::stream_ps(&md9(atweights, _oc3, _ic3, _wA, _hA,
-              _O1, _I2, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
-        }}}
-      } else {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-        iter_each (_iV, V) {
-          _mm512_store_ps(&md9(atweights, _oc3, _ic3, _wA, _hA,
-              _O1, _I2, _iV, _O, 0), *((__m512 *)&aout[_wA][_hA][_iV][0]));
-        }}}
-      }
-    } else {
-      iter_each (_wA, A) {
-      iter_each (_hA, A) {
-      iter_each (_iV, V) {
-#pragma omp simd
-        iter_each (_oV, V)
-          md9(atweights, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, _O, _oV)
-              = aout[_wA][_hA][_iV][_oV];
-      }}}
-    }
+    __trans_weights_post(tweights, aout, _oc4, _ic4, _oc3, _ic3, _O1, _I2, _O);
   }}}}};
 }
 
@@ -972,8 +989,10 @@ void Instance_elx_conv_wino_t::trans_weightsf(
 {
   if (weights_is_bfmt_ || weights_as_bfmt_)
     __trans_weightsf_blocked(tweights, weights, _ic4, _oc4);
+  else if (this->weights_fmt == hwio)
+    __trans_weightsf_hwio(tweights, weights, _ic4, _oc4);
   else
-    __trans_weightsf_plain(tweights, weights, _ic4, _oc4);
+    __trans_weightsf_oihw(tweights, weights, _ic4, _oc4);
 }
 
 Template_elx_conv_wino_t
