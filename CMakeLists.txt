@@ -7,7 +7,7 @@ project(Euler CXX C)
 option(WITH_TEST "Build with test cases" ON)
 cmake_dependent_option(WITH_GTEST
   "Build with gtest/unit tests if WITH_TEST is ON" ON "WITH_TEST" OFF)
-option(WITH_GK "Build with generic kernel and unit tests" ON)
+option(WITH_GK "Build with generic kernel and unit tests" OFF)
 option(WITH_VNNI "With CLX VNNI support" OFF)
 
 set(EULER_VERSION_MAJOR 0)
