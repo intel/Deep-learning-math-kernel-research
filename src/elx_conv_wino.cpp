@@ -24,7 +24,7 @@ const unsigned DUP_O   = 0x2;
 const unsigned DUP_W   = 0x8;
 
 const float INT8GEMM_TWT_QTSCALE = 127.0;
-const float INT8GEMM_TIN_MIN_MAX_QTSCALE = 127.0;
+const float INT8GEMM_TIN_MIN_MAX_QTSCALE = 255.0;
 
 Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
     eld_conv_t<UserTypes> &dc)
@@ -246,7 +246,11 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
     break;
   case 0xa161:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
+  #ifdef ONLINE_GLOBAL_SCALING
+    tinput_size = this->IC * A * A * this->T * mthr_ * sizeof(TinputType);
+  #else
     tinput_size = A * A * this->I2 * this->Vx * V * mthr_ * sizeof(TinputType);
+  #endif
     toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
     tinput_u8_size = A * A * this->IC * mthr_ * this->T * sizeof(uint8_t);
     tinput_qt_scale_size = mthr_ * 2 * this->ic3 * this->T * A * A * sizeof(TscaleType);
@@ -748,7 +752,7 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
 #pragma omp barrier
 
   // weights-acc
-#pragma omp for nowait collapse(8) schedule(static)
+#pragma omp for nowait collapse(9) schedule(static)
   iter_each (_oc4, oc4) {
   iter_each (_ic4, this->ic4) {
   iter_each (_oc3, this->oc3) {
@@ -1130,13 +1134,78 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
   MD8(InputType, ainput, input, this->n,
       this->ic4, this->ic3, this->I2, this->Vx, this->ih, this->iw, V);
   // 4i,V temporarily here for store AVX instruction
-  MD5(TinputType, atinput, tinput, this->I2, this->Vx, A, A, V);
   MD7(uint8_t, atinput_u8, tinput_u8, A, A, this->ic3, this->I2, Tz, this->Vx, V);
   MD5(TscaleType, atinput_qt_scale, tinput_qt_scale, this->ic3, A, A, 2, Tz);
 
   auto res = std::div(_t2 * this->T, this->nt);
   auto _n = res.quot;
   auto _t_off = res.rem;
+
+#ifdef ONLINE_GLOBAL_SCALING
+  MD7(TinputType, atinput, tinput, this->ic3, this->I2, this->Vx, Tz, A, A, V);
+  auto mmin = _mm<V>::set1_ps(FLT_MAX);
+  auto mmax = _mm<V>::set1_ps(-FLT_MAX);
+
+  iter_each(_ic3, this->ic3) {
+  iter_each (_I2, this->I2) {
+  iter_each (_Vx, this->Vx) {
+    input_tile_iter<A, K> t2spati_o(_n, _t_off, this->ht, this->wt, this->ih,
+                                    this->iw, this->tp, this->lp);
+    iter_each (_T, Tz) {
+      auto _ih = t2spati_o.anchor_t_;
+      auto _iw = t2spati_o.anchor_l_;
+
+      MD3(TinputType, aout, &md7(atinput, _ic3, _I2, _Vx, _T, 0, 0, 0), A, A, V);
+      using Array = TrOpType[A][A][V];
+      InputType *in = &md8(ainput, t2spati_o.n_, 0, _ic3, _I2, _Vx, _ih, _iw, 0);
+      if (!t2spati_o.is_border())
+        ker_trans_input_(*this, *(Array *)&md3(aout, 0, 0, 0), in, 0, A - 1, 0, A - 1);
+      else
+        ker_trans_input0_(*this, *(Array *)&md3(aout, 0, 0, 0), in,
+            t2spati_o.t_, t2spati_o.d_, t2spati_o.l_, t2spati_o.r_);
+
+      ++ t2spati_o;
+
+      iter_each (_wA, A) {
+      iter_each (_hA, A) {
+        mmin = _mm<V>::min_ps(mmin, *(__m<V> *)&md3(aout, _wA, _hA, 0));
+        mmax = _mm<V>::max_ps(mmax, *(__m<V> *)&md3(aout, _wA, _hA, 0));
+      }}
+    }
+  }}}
+
+  TinputType min = _mm<V>::reduce_min_ps(mmin);
+  TinputType max = _mm<V>::reduce_max_ps(mmax);
+
+  TinputType delta = max - min + 0.000001;
+  TinputType S = delta / INT8GEMM_TIN_MIN_MAX_QTSCALE;
+  TinputType repS = INT8GEMM_TIN_MIN_MAX_QTSCALE / delta;
+  TinputType z = std::ceil(-min * repS);
+
+  iter_each(_T, Tz) {
+    md5(atinput_qt_scale, 0, 0, 0, 0, _T) = S;
+    md5(atinput_qt_scale, 0, 0, 0, 1, _T) = z;
+  }
+
+  iter_each (_ic3, this->ic3) {
+  iter_each (_I2, this->I2) {
+  iter_each (_Vx, this->Vx) {
+  iter_each (_T, Tz) {
+  iter_each (_wA, A) {
+  iter_each (_hA, A) {
+    // Min-Max quantization
+    __m<V> mrepS = _mm<V>::set1_ps(repS);
+    __m<V> mz = _mm<V>::set1_ps(z);
+    __m<V> a = *(__m<V> *)&md7(atinput, _ic3, _I2, _Vx, _T, _wA, _hA, 0);
+    __m<V> mmresf32 = a * mrepS + mz;
+    // convert to uint8
+    __i<V> mmresu32 = _mm<V>::cvt_roundps_epu32(mmresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
+    __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mmresu32);
+    // store
+    _mm_store_si128((__m128i *)&md7(atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);
+  }}}}}}
+#else
+  MD5(TinputType, atinput, tinput, this->I2, this->Vx, A, A, V);
 
   iter_each(_ic3, this->ic3) {
     input_tile_iter<A, K> t2spati_o(_n, _t_off, this->ht, this->wt, this->ih,
@@ -1224,6 +1293,7 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
       ++ t2spati_o;
     }
   }
+#endif
 }
 
 Template_elx_conv_wino_t void Instance_elx_conv_wino_t::trans_input(
@@ -1663,8 +1733,13 @@ void Instance_elx_conv_wino_t::gemm(
           &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
           &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
           nullptr, attr,
+      #ifdef ONLINE_GLOBAL_SCALING
+          &md5(asrc_scale, 0, 0, 0, 0, 0),
+          &md5(asrc_scale, 0, 0, 0, 1, 0),
+      #else
           &md5(asrc_scale, _ic3, _wA, _hA, 0, 0),
           &md5(asrc_scale, _ic3, _wA, _hA, 1, 0),
+      #endif
           &md6(aweights_scale, _oc3, _ic3, _wA, _hA, 0, 0),
           &md6(aweights_factor, _oc3, _ic3, _wA, _hA, 0, 0));
     }
@@ -1680,8 +1755,13 @@ void Instance_elx_conv_wino_t::gemm(
           &md6(atinput, _wA, _hA, this->ic3 - 1, 0, 0, 0),
           &md5(atweights, _oc3, this->ic3 - 1, _wA, _hA, 0),
           nullptr, attr,
+      #ifdef ONLINE_GLOBAL_SCALING
+          &md5(asrc_scale, 0, 0, 0, 0, 0),
+          &md5(asrc_scale, 0, 0, 0, 1, 0),
+      #else
           &md5(asrc_scale, this->ic3 - 1, _wA, _hA, 0, 0),
           &md5(asrc_scale, this->ic3 - 1, _wA, _hA, 1, 0),
+      #endif
           &md6(aweights_scale, _oc3, this->ic3 - 1, _wA, _hA, 0, 0),
           &md6(aweights_factor, _oc3, this->ic3 - 1, _wA, _hA, 0, 0));
     }

@@ -7,6 +7,8 @@
 
 namespace euler {
 
+#define ONLINE_GLOBAL_SCALING
+
 // nChw16c input     : n, ic2, ih, iw, V
 // nChw16c output    : n, oc2, oh, ow, V
 // OIhw16i16o weights: oc2, ic2, kh, kw, V, V
