@@ -74,6 +74,14 @@ struct elx_conv_params_t {
   // threading
   int nthreads;
   int execution_mode;
+
+  // quantizaiton calibration coefficients
+  float quantization_calibration_min;
+  float quantization_calibration_max;
+  float qt_repS;
+  float qt_S;
+  float qt_z;
+  bool quantization_calibration;
 };
 
 template <typename UserTypes> struct elx_conv_t : elx_conv_params_t {

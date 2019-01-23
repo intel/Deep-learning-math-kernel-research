@@ -164,6 +164,8 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
     }
   }
 
+  prepare_quantization_calibration();
+
   input_is_bfmt_ = this->input_fmt == nChw16c; // nChw8c
   weights_is_bfmt_ = this->weights_fmt == OIhw16i16o;
   output_is_bfmt_ = this->output_fmt == nChw16c;
@@ -303,6 +305,11 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
       + binput_size_ + bweights_size_ + boutput_size_ + tinput_u8_size_
       + tinput_qt_scale_size_ + tinput_qt_factor_size_ + tinput_max_abs_size_;
 
+  if (this->quantization_calibration) {
+    workspace_size += tinput_qt_scale_size_;
+    scratch_size -= tinput_qt_scale_size_;
+  }
+
   if (xopt_ == 0xa079 || xopt_ == 0xa07b) {
     scratch_size += tweights_size_;
     workspace_size = 0;
@@ -337,7 +344,12 @@ void Instance_elx_conv_wino_t::set_trans_buffers()
     tweights_qt_scale_ = (TscaleType *)((char *)tweights_ + tweights_size_);
     tweights_qt_factor_ = (TscaleType *)((char *)tweights_qt_scale_ + tweights_qt_scale_size_);
     tweights_ci_ = (TscaleType *)((char *)tweights_qt_factor_ + tweights_qt_factor_size_);
-    tweights_s8_ = (int8_t *)((char *)tweights_ci_ + tweights_ci_size_);
+    if (this->quantization_calibration) {
+      tinput_qt_scale_ = (TscaleType *)((char *)tweights_ci_ + tweights_ci_size_);
+      tweights_s8_ = (int8_t *)((char *)tinput_qt_scale_ + tinput_qt_scale_size_);
+    } else {
+      tweights_s8_ = (int8_t *)((char *)tweights_ci_ + tweights_ci_size_);
+    }
   } else {
     tweights_ = (TweightsType *)galloc::get();
     tinput_ = (TinputType *)((char *)tweights_ + tweights_size_);
@@ -346,10 +358,33 @@ void Instance_elx_conv_wino_t::set_trans_buffers()
   binput_ = (InputType *)((char *)toutput_ + toutput_size_);
   bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
   boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);
-  tinput_qt_scale_ = (TscaleType *)((char *)boutput_ + boutput_size_);
-  tinput_qt_factor_ = (TscaleType *)((char *)tinput_qt_scale_ + tinput_qt_scale_size_);
+  tinput_qt_factor_ = (TscaleType *)((char *)boutput_ + boutput_size_);
   tinput_max_abs_ = (TscaleType *)((char *)tinput_qt_factor_ + tinput_qt_factor_size_);
-  tinput_u8_ = (uint8_t *)((char *)tinput_max_abs_ + tinput_max_abs_size_);
+  if (this->quantization_calibration) {
+    tinput_u8_ = (uint8_t *)((char *)tinput_max_abs_ + tinput_max_abs_size_);
+  } else {
+    tinput_qt_scale_ = (TscaleType *)((char *)tinput_max_abs_ + tinput_max_abs_size_);
+    tinput_u8_ = (uint8_t *)((char *)tinput_qt_scale_ + tinput_qt_scale_size_);
+  }
+}
+
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::prepare_quantization_calibration()
+{
+  if (this->quantization_calibration_min != EL_NO_CALI &&
+      this->quantization_calibration_max != EL_NO_CALI) {
+    TinputType delta = (TinputType)(this->quantization_calibration_max -
+        this->quantization_calibration_min + 0.000001);
+    this->qt_S = delta / INT8GEMM_TIN_MIN_MAX_QTSCALE;
+    this->qt_repS = INT8GEMM_TIN_MIN_MAX_QTSCALE / delta;
+    this->qt_z =
+        std::ceil((TinputType)(-this->quantization_calibration_min) * this->qt_repS);
+    this->quantization_calibration = true;
+    printf("quantization_calibration_min %f quantization_calibration_max %f\n",
+        this->quantization_calibration_min, this->quantization_calibration_max);
+  } else {
+    this->quantization_calibration = false;
+  }
 }
 
 Template_elx_conv_wino_t
@@ -1140,6 +1175,49 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
   auto res = std::div(_t2 * this->T, this->nt);
   auto _n = res.quot;
   auto _t_off = res.rem;
+
+  if (this->quantization_calibration) {
+    __m<V> mrepS = _mm<V>::set1_ps(this->qt_repS);
+    __m<V> mz = _mm<V>::set1_ps(this->qt_z);
+    alignas(64) TrOpType aout[A][A][V];
+
+    iter_each(_ic3, this->ic3) {
+    iter_each (_I2, this->I2) {
+    iter_each (_Vx, this->Vx) {
+      input_tile_iter<A, K> t2spati_o(_n, _t_off, this->ht, this->wt, this->ih,
+                                      this->iw, this->tp, this->lp);
+      iter_each (_T, Tz) {
+        auto _ih = t2spati_o.anchor_t_;
+        auto _iw = t2spati_o.anchor_l_;
+
+        InputType *in = &md8(ainput, t2spati_o.n_, 0, _ic3, _I2, _Vx, _ih, _iw, 0);
+        if (!t2spati_o.is_border())
+          ker_trans_input_(*this, aout, in, 0, A - 1, 0, A - 1);
+        else
+          ker_trans_input0_(*this, aout, in,
+              t2spati_o.t_, t2spati_o.d_, t2spati_o.l_, t2spati_o.r_);
+
+        ++ t2spati_o;
+
+        iter_each (_wA, A) {
+        iter_each (_hA, A) {
+          // Min-Max quantization
+          __m<V> a = *(__m<V> *)&aout[_wA][_hA][0];
+          __m<V> mmresf32 = a * mrepS + mz;
+          // convert to uint8
+          __i<V> mmresu32 = _mm<V>::cvt_roundps_epu32(
+              mmresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
+          __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mmresu32);
+          // store
+          _mm_store_si128((__m128i *)&md7(atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);
+
+          md5(atinput_qt_scale, _ic3, _wA, _hA, 0, _T) = this->qt_S;
+          md5(atinput_qt_scale, _ic3, _wA, _hA, 1, _T) = this->qt_z;
+        }}
+      }
+    }}}
+    return;
+  }
 
 #ifdef ONLINE_GLOBAL_SCALING
   MD7(TinputType, atinput, tinput, this->ic3, this->I2, this->Vx, Tz, A, A, V);

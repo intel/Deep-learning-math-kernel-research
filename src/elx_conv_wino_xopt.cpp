@@ -385,7 +385,7 @@ void Instance_elx_conv_wino_t::__execute_a161(
   MD2(int8_t, atweights_s8, tweights_s8_, this->oc4,
       A * A * this->IC * this->oc3 * this->O2 * V);
   MD2(TscaleType, atinput_qt_scale, tinput_qt_scale_,
-      mthr_, this->ic3 * this->A * this->A * 2 * this->T);
+      mthr_, this->ic3 * A * A * 2 * this->T);
   MD2(TscaleType, atweights_qt_scale, tweights_qt_scale_,
       this->oc4, this->oc3 * this->ic3 * this->O2 * V * A * A);
   MD2(TscaleType, aweights_qt_factor, tweights_qt_factor_,
@@ -397,6 +397,18 @@ void Instance_elx_conv_wino_t::__execute_a161(
       trans_weights_s8(tweights_qt_scale_, tweights_qt_factor_,
           tweights_s8_, tweights_, weights, this->oc4);
 #pragma omp barrier
+      if (this->quantization_calibration) {
+        MD5(TscaleType, atinput_qt_scale5,
+            &md2(atinput_qt_scale, omp_get_thread_num(), 0),
+            this->ic3, A, A, 2, this->T);
+        iter_each(_ic3, this->ic3) {
+        iter_each(_wA, A) {
+        iter_each(_hA, A) {
+        iter_each(_T, this->T) {
+          md5(atinput_qt_scale5, _ic3, _wA, _hA, 0, _T) = this->qt_S;
+          md5(atinput_qt_scale5, _ic3, _wA, _hA, 1, _T) = this->qt_z;
+        }}}}
+      }
     }
 
     auto t2_history = -1;

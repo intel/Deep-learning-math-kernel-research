@@ -2,6 +2,7 @@
 #define __EULER_HPP__
 
 #include <stddef.h>
+#include <float.h>
 #include <tuple>
 
 namespace euler {
@@ -74,6 +75,8 @@ enum fp_modes {
   FP16O
 };
 
+#define EL_NO_CALI (FLT_MAX)
+
 template<typename UserTypes> struct elx_conv_t;
 
 // Convolution desc
@@ -128,6 +131,10 @@ template<typename UserTypes> struct eld_conv_t {
     struct { int weights, input, output; } streaming_hint;
     // Use blocked format internally for plain format
     struct { bool input, weights, output; } format_as_blocked;
+
+    // quantization calibration coefficients
+    float quantization_calibration_min;
+    float quantization_calibration_max;
 
     // Defaults
     eld_conv_t();

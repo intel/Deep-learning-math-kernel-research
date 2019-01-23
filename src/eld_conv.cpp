@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <assert.h>
+#include <float.h>
 #include "euler.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
@@ -32,6 +33,8 @@ template <typename UserTypes> eld_conv_t<UserTypes>::eld_conv_t()
   partition = { 1, 1 };
   streaming_hint = { 0, 0, 0 };
   format_as_blocked = { false, false, false };
+  quantization_calibration_min = EL_NO_CALI;
+  quantization_calibration_max = EL_NO_CALI;
 }
 
 template <typename UserTypes> eld_conv_t<UserTypes>::~eld_conv_t()
