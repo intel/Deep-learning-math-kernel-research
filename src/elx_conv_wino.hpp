@@ -578,16 +578,6 @@ public:
   int n_, t_, l_, d_, r_;
 };
 
-#ifdef WITH_GK
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 4, 3, 16, ISA_GENERIC>;
-//template class elx_conv_wino_t<float, float, 4, 3, 16, ISA_COSIM_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 5, 3, 16, ISA_GENERIC>;
-//template class elx_conv_wino_t<float, float, 5, 3, 16, ISA_COSIM_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 6, 3, 16, ISA_GENERIC>;
-//template class elx_conv_wino_t<float, float, 6, 3, 16, ISA_COSIM_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 7, 3, 16, ISA_GENERIC>;
-//template class elx_conv_wino_t<float, float, 7, 3, 16, ISA_COSIM_AVX512>;
-#endif
 // fp32-f32f32f32 / fp32-u8s8f32
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 4, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 5, 3, 16, ISA_SKX_AVX512>;
