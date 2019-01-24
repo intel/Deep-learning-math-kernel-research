@@ -1357,37 +1357,66 @@ Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::gemm_f061(ToutputType *output,
     TinputType *input, TweightsType *weights, BiasType *bias, int _t2, int Tz)
 {
-  MD2(TinputType, ainput, input, this->ic3, this->I2 * Tz * V);
-  MD2(ToutputType, aoutput, output, this->oc3, this->O2 * Tz * V);
   MD3(TweightsType, aweights, weights, this->oc3, this->ic3,
       this->O2 * this->I2 * V * V);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
 
   auto ker_gemm = (_t2 == this->t2 - 1) ? ker_gemm_I_O_Tr_ : ker_gemm_I_O_T_;
 
-  iter_each (_ic3, this->ic3 - 1) {
-    int attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
-    iter_each (_oc3, this->oc3) {
+  if (this->input_fmt == nhwc) {
+    MD2(TinputType, ainput, input, this->ic3, this->I2 * V);
+    MD2(ToutputType, aoutput, output, this->oc3, this->O2 * V);
+    iter_each (_ic3, this->ic3 - 1) {
+      int attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+      iter_each (_oc3, this->oc3) {
+        ker_gemm(
+            *this,
+            &md2(aoutput, _oc3, 0),
+            &md2(ainput, _ic3, 0),
+            &md3(aweights, _oc3, _ic3, 0),
+            &md2(abias, _oc3, 0),
+            attr, 0, nullptr, nullptr, nullptr);
+      }
+    }
+    int attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
+    if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+    if (this->with_relu) attr = set_attr(attr, relu_idx);
+    iter_each(_oc3, this->oc3) {
       ker_gemm(
           *this,
           &md2(aoutput, _oc3, 0),
-          &md2(ainput, _ic3, 0),
-          &md3(aweights, _oc3, _ic3, 0),
+          &md2(ainput, this->ic3 - 1, 0),
+          &md3(aweights, _oc3, this->ic3 - 1, 0),
           &md2(abias, _oc3, 0),
           attr, 0, nullptr, nullptr, nullptr);
     }
-  }
-  int attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
-  if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
-  if (this->with_relu) attr = set_attr(attr, relu_idx);
-  iter_each(_oc3, this->oc3) {
-    ker_gemm(
-        *this,
-        &md2(aoutput, _oc3, 0),
-        &md2(ainput, this->ic3 - 1, 0),
-        &md3(aweights, _oc3, this->ic3 - 1, 0),
-        &md2(abias, _oc3, 0),
-        attr, 0, nullptr, nullptr, nullptr);
+  } else { // nchw
+    MD2(TinputType, ainput, input, this->ic3, this->I2 * Tz * V);
+    MD2(ToutputType, aoutput, output, this->oc3, this->O2 * Tz * V);
+    iter_each (_ic3, this->ic3 - 1) {
+      int attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+      iter_each (_oc3, this->oc3) {
+        ker_gemm(
+            *this,
+            &md2(aoutput, _oc3, 0),
+            &md2(ainput, _ic3, 0),
+            &md3(aweights, _oc3, _ic3, 0),
+            &md2(abias, _oc3, 0),
+            attr, 0, nullptr, nullptr, nullptr);
+      }
+    }
+    int attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
+    if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+    if (this->with_relu) attr = set_attr(attr, relu_idx);
+    iter_each(_oc3, this->oc3) {
+      ker_gemm(
+          *this,
+          &md2(aoutput, _oc3, 0),
+          &md2(ainput, this->ic3 - 1, 0),
+          &md3(aweights, _oc3, this->ic3 - 1, 0),
+          &md2(abias, _oc3, 0),
+          attr, 0, nullptr, nullptr, nullptr);
+    }
   }
 }
 
