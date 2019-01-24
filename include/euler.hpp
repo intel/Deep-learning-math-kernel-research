@@ -135,6 +135,7 @@ template<typename UserTypes> struct eld_conv_t {
     // quantization calibration coefficients
     // A_fp32 = scale * (A_quant - z)
     struct { float scale, z; } input_quant, output_quant, wino_tinput_quant;
+    bool online_sampling_hp;
 
     // Defaults
     eld_conv_t();

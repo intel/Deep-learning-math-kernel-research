@@ -36,6 +36,7 @@ template <typename UserTypes> eld_conv_t<UserTypes>::eld_conv_t()
   input_quant = {EL_NO_CALI, EL_NO_CALI};
   output_quant = {EL_NO_CALI, EL_NO_CALI};
   wino_tinput_quant = {EL_NO_CALI, EL_NO_CALI};
+  online_sampling_hp = false;
 }
 
 template <typename UserTypes> eld_conv_t<UserTypes>::~eld_conv_t()

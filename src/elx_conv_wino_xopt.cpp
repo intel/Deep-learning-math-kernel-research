@@ -370,11 +370,8 @@ void Instance_elx_conv_wino_t::__execute_a161(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-#ifdef ONLINE_GLOBAL_SCALING
-  MD2(TinputType, atinput2, tinput_, mthr_, A * A * this->IC * this->T);
-#else
-  MD2(TinputType, atinput2, tinput_, mthr_, A * A * this->I2 * this->Vx * V);
-#endif
+  MD2(TinputType, atinput2, tinput_, mthr_, this->online_sampling_hp ?
+      A * A * this->I2 * this->Vx * V : A * A * this->IC * this->T);
   MD2(ToutputType, atoutput2, toutput_, mthr_,
       A * A * this->T * this->oc3 * this->O2 * V);
 

@@ -67,6 +67,7 @@ elx_conv_t<UserTypes>::elx_conv_t(eld_conv_t<UserTypes> &dc)
   this->input_qt_z = dc.input_quant.z;
   this->output_qt_S = dc.output_quant.scale;
   this->output_qt_z = dc.output_quant.z;
+  this->online_sampling_hp = dc.online_sampling_hp;
 }
 
 template <typename UserTypes>
