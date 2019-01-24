@@ -1163,7 +1163,7 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
       this->ic4, this->ic3, this->I2, this->Vx, this->ih, this->iw, V);
   // 4i,V temporarily here for store AVX instruction
   MD7(uint8_t, atinput_u8, tinput_u8, A, A, this->ic3, this->I2, Tz, this->Vx, V);
-  MD5(TscaleType, atinput_qt_scale, tinput_qt_scale, this->ic3, A, A, 2, Tz);
+  MD5(TscaleType, atinput_qt_scale, tinput_qt_scale, this->ic3, A, A, 2, this->T);
 
   auto res = std::div(_t2 * this->T, this->nt);
   auto _n = res.quot;
@@ -1203,9 +1203,6 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
           __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mmresu32);
           // store
           _mm_store_si128((__m128i *)&md7(atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);
-
-          md5(atinput_qt_scale, _ic3, _wA, _hA, 0, _T) = this->wino_tinput_qt_S;
-          md5(atinput_qt_scale, _ic3, _wA, _hA, 1, _T) = this->wino_tinput_qt_z;
         }}
       }
     }}}
@@ -1787,7 +1784,7 @@ void Instance_elx_conv_wino_t::gemm(
       this->O2 * this->I2 * V * V * this->Vx);
   MD6(TscaleType, aweights_scale, weights_scale, this->oc3, this->ic3, A, A, this->O2, V);
   MD6(TscaleType, aweights_factor, weights_factor, this->oc3, this->ic3, A, A, this->O2, V);
-  MD5(TscaleType, asrc_scale, src_scale, this->ic3,  A, A, 2, Tz);
+  MD5(TscaleType, asrc_scale, src_scale, this->ic3,  A, A, 2, this->T);
 
   iter_each (_wA, A) {
   iter_each (_hA, A) {
