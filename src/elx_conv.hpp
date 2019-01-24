@@ -76,12 +76,14 @@ struct elx_conv_params_t {
   int execution_mode;
 
   // quantizaiton calibration coefficients
-  float quantization_calibration_min;
-  float quantization_calibration_max;
-  float qt_repS;
-  float qt_S;
-  float qt_z;
-  bool quantization_calibration;
+  float wino_tinput_qt_S;
+  float wino_tinput_qt_z;
+  bool wino_tinput_qt_cali;
+
+  float input_qt_S;
+  float input_qt_z;
+  float output_qt_S;
+  float output_qt_z;
 };
 
 template <typename UserTypes> struct elx_conv_t : elx_conv_params_t {

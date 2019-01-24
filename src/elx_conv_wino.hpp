@@ -369,7 +369,7 @@ private:
 
   void set_trans_buffers();
   int prepare_execute_opt();
-  void prepare_quantization_calibration();
+  void prepare_wino_tinput_quant_cali();
   void bind_execute_functions();
 
   using i8_ker_type = typename std::conditional<

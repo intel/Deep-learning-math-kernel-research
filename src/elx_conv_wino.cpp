@@ -164,7 +164,7 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
     }
   }
 
-  prepare_quantization_calibration();
+  prepare_wino_tinput_quant_cali();
 
   input_is_bfmt_ = this->input_fmt == nChw16c; // nChw8c
   weights_is_bfmt_ = this->weights_fmt == OIhw16i16o;
@@ -305,7 +305,7 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
       + binput_size_ + bweights_size_ + boutput_size_ + tinput_u8_size_
       + tinput_qt_scale_size_ + tinput_qt_factor_size_ + tinput_max_abs_size_;
 
-  if (this->quantization_calibration) {
+  if (this->wino_tinput_qt_cali) {
     workspace_size += tinput_qt_scale_size_;
     scratch_size -= tinput_qt_scale_size_;
   }
@@ -344,7 +344,7 @@ void Instance_elx_conv_wino_t::set_trans_buffers()
     tweights_qt_scale_ = (TscaleType *)((char *)tweights_ + tweights_size_);
     tweights_qt_factor_ = (TscaleType *)((char *)tweights_qt_scale_ + tweights_qt_scale_size_);
     tweights_ci_ = (TscaleType *)((char *)tweights_qt_factor_ + tweights_qt_factor_size_);
-    if (this->quantization_calibration) {
+    if (this->wino_tinput_qt_cali) {
       tinput_qt_scale_ = (TscaleType *)((char *)tweights_ci_ + tweights_ci_size_);
       tweights_s8_ = (int8_t *)((char *)tinput_qt_scale_ + tinput_qt_scale_size_);
     } else {
@@ -360,7 +360,7 @@ void Instance_elx_conv_wino_t::set_trans_buffers()
   boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);
   tinput_qt_factor_ = (TscaleType *)((char *)boutput_ + boutput_size_);
   tinput_max_abs_ = (TscaleType *)((char *)tinput_qt_factor_ + tinput_qt_factor_size_);
-  if (this->quantization_calibration) {
+  if (this->wino_tinput_qt_cali) {
     tinput_u8_ = (uint8_t *)((char *)tinput_max_abs_ + tinput_max_abs_size_);
   } else {
     tinput_qt_scale_ = (TscaleType *)((char *)tinput_max_abs_ + tinput_max_abs_size_);
@@ -369,21 +369,15 @@ void Instance_elx_conv_wino_t::set_trans_buffers()
 }
 
 Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::prepare_quantization_calibration()
+void Instance_elx_conv_wino_t::prepare_wino_tinput_quant_cali()
 {
-  if (this->quantization_calibration_min != EL_NO_CALI &&
-      this->quantization_calibration_max != EL_NO_CALI) {
-    TinputType delta = (TinputType)(this->quantization_calibration_max -
-        this->quantization_calibration_min + 0.000001);
-    this->qt_S = delta / INT8GEMM_TIN_MIN_MAX_QTSCALE;
-    this->qt_repS = INT8GEMM_TIN_MIN_MAX_QTSCALE / delta;
-    this->qt_z =
-        std::ceil((TinputType)(-this->quantization_calibration_min) * this->qt_repS);
-    this->quantization_calibration = true;
-    printf("quantization_calibration_min %f quantization_calibration_max %f\n",
-        this->quantization_calibration_min, this->quantization_calibration_max);
+  if (this->wino_tinput_qt_S != EL_NO_CALI &&
+      this->wino_tinput_qt_z != EL_NO_CALI) {
+    this->wino_tinput_qt_cali = true;
+    printf("wino_tinput_qt_S %f wino_tinput_qt_z %d\n",
+        this->wino_tinput_qt_S, (int)this->wino_tinput_qt_z);
   } else {
-    this->quantization_calibration = false;
+    this->wino_tinput_qt_cali = false;
   }
 }
 
@@ -1176,9 +1170,9 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
   auto _n = res.quot;
   auto _t_off = res.rem;
 
-  if (this->quantization_calibration) {
-    __m<V> mrepS = _mm<V>::set1_ps(this->qt_repS);
-    __m<V> mz = _mm<V>::set1_ps(this->qt_z);
+  if (this->wino_tinput_qt_cali) {
+    __m<V> mrepS = _mm<V>::set1_ps(1 / this->wino_tinput_qt_S);
+    __m<V> mz = _mm<V>::set1_ps(this->wino_tinput_qt_z);
     alignas(64) TrOpType aout[A][A][V];
 
     iter_each(_ic3, this->ic3) {
@@ -1211,8 +1205,8 @@ void Instance_elx_conv_wino_t::__trans_input_u8_blocked(
           // store
           _mm_store_si128((__m128i *)&md7(atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);
 
-          md5(atinput_qt_scale, _ic3, _wA, _hA, 0, _T) = this->qt_S;
-          md5(atinput_qt_scale, _ic3, _wA, _hA, 1, _T) = this->qt_z;
+          md5(atinput_qt_scale, _ic3, _wA, _hA, 0, _T) = this->wino_tinput_qt_S;
+          md5(atinput_qt_scale, _ic3, _wA, _hA, 1, _T) = this->wino_tinput_qt_z;
         }}
       }
     }}}

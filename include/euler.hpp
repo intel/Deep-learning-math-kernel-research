@@ -133,8 +133,8 @@ template<typename UserTypes> struct eld_conv_t {
     struct { bool input, weights, output; } format_as_blocked;
 
     // quantization calibration coefficients
-    float quantization_calibration_min;
-    float quantization_calibration_max;
+    // A_fp32 = scale * (A_quant - z)
+    struct { float scale, z; } input_quant, output_quant, wino_tinput_quant;
 
     // Defaults
     eld_conv_t();

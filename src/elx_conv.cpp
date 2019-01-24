@@ -61,8 +61,12 @@ elx_conv_t<UserTypes>::elx_conv_t(eld_conv_t<UserTypes> &dc)
   this->weights_as_blocked = dc.format_as_blocked.weights;
   this->output_as_blocked = dc.format_as_blocked.output;
 
-  this->quantization_calibration_min = dc.quantization_calibration_min;
-  this->quantization_calibration_max = dc.quantization_calibration_max;
+  this->wino_tinput_qt_S = dc.wino_tinput_quant.scale;
+  this->wino_tinput_qt_z = dc.wino_tinput_quant.z;
+  this->input_qt_S = dc.input_quant.scale;
+  this->input_qt_z = dc.input_quant.z;
+  this->output_qt_S = dc.output_quant.scale;
+  this->output_qt_z = dc.output_quant.z;
 }
 
 template <typename UserTypes>
