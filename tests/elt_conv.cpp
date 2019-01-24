@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <float.h>
 #include <boost/program_options.hpp>
 #include "elt_utils.hpp"
 #include "elt_conv_utils.hpp"
@@ -38,6 +39,9 @@ bool tweights_preprocess = false;
 bool is_int8_lp = false;
 bool with_real_data = false;
 
+float tinput_cali_s = FLT_MAX;
+float tinput_cali_z = FLT_MAX;
+
 template <typename ConvType>
 static inline ConvType create_conv_desc(void) {
   ConvType desc;
@@ -67,6 +71,8 @@ static inline ConvType create_conv_desc(void) {
       = { streaming_weights, streaming_input, streaming_output };
   desc.format_as_blocked
       = { input_as_blocked, weights_as_blocked, output_as_blocked };
+  desc.wino_tinput_quant.scale = tinput_cali_s;
+  desc.wino_tinput_quant.z = tinput_cali_z;
   return desc;
 }
 
@@ -353,6 +359,8 @@ int parse_cmd_options(int argc, char **argv) {
     ("f16c-opt", po::value<bool>(&f16c_opt), "on|off. With half-precision opt, Default: off")
     ("fp-mode", po::value<int>(&fp_mode), "fp16 UserTypes, Default: FP32")
     ("with-ip-sum", po::value<bool>(&with_ip_sum), "on|off. With inplace sum, Default: off")
+    ("tinput-cali-s", po::value<float>(&tinput_cali_s), "calibration scale for tinput quantization, Default: 0")
+    ("tinput-cali-z", po::value<float>(&tinput_cali_z), "calibration zero for tinput quantization, Default: 0")
     ("input-data-file", po::value<std::string>(), "Input data file(nchw)")
     ("weights-data-file", po::value<std::string>(), "Weights data file(oihw)")
     ("bias-data-file", po::value<std::string>(), "Bias data file");
@@ -501,6 +509,11 @@ int parse_cmd_options(int argc, char **argv) {
       input_as_blocked, weights_as_blocked, output_as_blocked);
   printf("double_buffering: %d, output_as_input=%d\n", double_buffering, output_as_input);
   printf("tweights_preprocess: %d\n", tweights_preprocess);
+  if (tinput_cali_s == 0 && tinput_cali_z == 0) {
+    tinput_cali_s = FLT_MAX;
+    tinput_cali_z = FLT_MAX;
+  }
+  printf("tinput calibration scale: %f zero: %f\n", tinput_cali_s, tinput_cali_z);
 
   if (mb <= 0 || ic <= 0 || ih <= 0 || iw <= 0 || oc <= 0 || oh <= 0
       || ow <= 0 || kh <= 0 || kw <= 0) {
