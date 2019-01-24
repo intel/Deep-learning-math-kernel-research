@@ -160,11 +160,7 @@ Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::__execute_a061(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
-  MD2(InputType, ainput, input, this->t3, this->ic * this->ih * this->iw);
-  MD2(OutputType, aoutput, output, this->t3, this->oc * this->oh * this->ow);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-
-  MD2(ToutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
   MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
       this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
 
@@ -172,8 +168,36 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
     trans_weights(tweights_, weights);
   }
 
-  if (this->oc4 == 1) {
+  if (this->input_fmt == nhwc) {
+    MD5(InputType, ainput0, input, this->t3, this->ht, this->hs, this->iw, this->ic);
+    MD4(OutputType, aoutput0, output, this->t3, this->ht, this->ow, this->oc);
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+#pragma omp for nowait collapse(4)
+    iter_each (_t3, this->t3) {
+    iter_each (_oc4, this->oc4) {
+    iter_each (_ht, this->ht) {
+    iter_each (_wt, this->wt) {
+      MD4(InputType, ainput1, &md5(ainput0, _t3, _ht, 0, 0, 0), this->wt,
+          this->T, this->ws, this->ic);
+      MD2(InputType, ainput2, &md4(ainput1, _wt, 0, 0, 0), this->ic4,
+          this->ic3 * this->I2 * V);
+      MD3(OutputType, aoutput1, &md4(aoutput0, _t3, _ht, 0, 0), this->wt,
+          this->T, this->oc);
+      MD2(OutputType, aoutput2, &md3(aoutput1, _wt, 0, 0), this->oc4,
+          this->oc3 * this->O2 * V);
+
+      gemm_a061(
+          &md2(aoutput2, _oc4, 0),
+          &md2(ainput2, 0, 0),
+          &md3(atweights, _oc4, 0, 0),
+          &md2(abias, _oc4, 0),
+          0);
+    }}}}
+  } else if (this->oc4 == 1) { // nchw
+    MD2(InputType, ainput, input, this->t3, this->ic * this->ih * this->iw);
     MD2(TinputType, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
+    MD2(OutputType, aoutput, output, this->t3, this->oc * this->oh * this->ow);
+    MD2(ToutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
 #pragma omp for nowait collapse(4)
     iter_each (_t3, this->t3) {
@@ -181,25 +205,28 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
     iter_each (_ht, this->ht) {
     iter_each (_wt, this->wt) {
       size_t ithr = omp_get_thread_num();
-      trans_input(
-          &md2(atinput, ithr, 0),
-          &md2(ainput, _t3, 0),
-          _ht, _wt);
-      gemm_a061(
-          &md2(atoutput, ithr, 0),
-          &md2(atinput, ithr, 0),
-          &md3(atweights, _oc4, 0, 0),
-          &md2(abias, _oc4, 0),
-          0);
-      trans_output(
-          &md2(aoutput, _t3, 0),
-          &md2(atoutput, ithr, 0),
-          _oc4, _ht, _wt);
+        trans_input(
+            &md2(atinput, ithr, 0),
+            &md2(ainput, _t3, 0),
+            _ht, _wt);
+        gemm_a061(
+            &md2(atoutput, ithr, 0),
+            &md2(atinput, ithr, 0),
+            &md3(atweights, _oc4, 0, 0),
+            &md2(abias, _oc4, 0),
+            0);
+        trans_output(
+            &md2(aoutput, _t3, 0),
+            &md2(atoutput, ithr, 0),
+            _oc4, _ht, _wt);
     }}}}
-  } else {
+  } else { // nchw
+    MD2(InputType, ainput, input, this->t3, this->ic * this->ih * this->iw);
     MD4(TinputType, atinput, tinput_, mthr_, this->ht, this->wt,
         this->ic3 * this->I2 * this->T * V);
     MD3(unsigned char, atinput_msk, tinput_msk_, mthr_, this->ht, this->wt);
+    MD2(OutputType, aoutput, output, this->t3, this->oc * this->oh * this->ow);
+    MD2(ToutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
     int t3_history = -1;
 #pragma omp parallel num_threads(mthr_) proc_bind(close) firstprivate(t3_history)
 #pragma omp for nowait collapse(4)

@@ -20,7 +20,14 @@ Instance_elx_conv_direct_1x1_t::bind_execute_functions()
       gemm_kernel_binder::kgemm<TarrayTypes> **func) {
     switch (xopt_) {
     case (0xa061):
-      BIND_KERNEL(1, GKF_CCC)
+      if (this->input_fmt == nhwc) {
+        if (this->ws == 1)
+          BIND_KERNEL(1, GKF_FCF)
+        else if (this->ws == 2)
+          BIND_KERNEL(2, GKF_FCF)
+      } else {
+        BIND_KERNEL(1, GKF_CCC)
+      }
       break;
     case (0xf061):
       BIND_KERNEL(1, GKF_CCC)

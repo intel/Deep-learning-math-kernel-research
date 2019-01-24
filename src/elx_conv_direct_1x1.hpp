@@ -40,7 +40,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t<UserTypes> {
   void __execute_b061(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
   void __execute_c060(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
 
-  inline void __trans_input_plain(TinputType *tinput, InputType *input, int _ht, int _wt);
+  inline void __trans_input_nchw(TinputType *tinput, InputType *input, int _ht, int _wt);
   inline void __trans_input_blocked(TinputType *tinput, InputType *input, int _ht, int _wt);
   void trans_input(TinputType *tinput, InputType *input, int _ht, int _wt);
 
@@ -51,7 +51,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t<UserTypes> {
   inline void __trans_input_blocked2(TinputType *tinput, InputType *input, int _t2, int Tz);
   void trans_input2(TinputType *tinput, InputType *input, int _t2, int Tz);
 
-  inline void __trans_output_plain(OutputType *output, ToutputType *toutput, int _oc4, int _ht, int _wt);
+  inline void __trans_output_nchw(OutputType *output, ToutputType *toutput, int _oc4, int _ht, int _wt);
   inline void __trans_output_blocked(OutputType *output, ToutputType *toutput, int _oc4, int _ht, int _wt);
   void trans_output(OutputType *output, ToutputType *toutput, int _oc4, int _ht, int _wt);
 
@@ -59,7 +59,8 @@ class elx_conv_direct_1x1_t : public elx_conv_t<UserTypes> {
   inline void __trans_output_blocked2(OutputType *output, ToutputType *toutput, int _oc4, int _t2, int Tz);
   void trans_output2(OutputType *output, ToutputType *toutput, int _oc4, int _t2, int Tz);
 
-  inline void __trans_weights_plain(TweightsType *tweights, WeightsType *weights);
+  inline void __trans_weights_oihw(TweightsType *tweights, WeightsType *weights);
+  inline void __trans_weights_hwio(TweightsType *tweights, WeightsType *weights);
   inline void __trans_weights_blocked(TweightsType *tweights, WeightsType *weights);
   void trans_weights(TweightsType *tweights, WeightsType *weights);
 

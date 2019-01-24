@@ -136,12 +136,12 @@ int  Instance_elx_conv_direct_1x1_t::prepare_execute_opt()
   stream_out_ = this->streaming_output
       ? (this->streaming_output == STORE_STREAMING) : false;
 
-  input_is_bfmt_ = this->input_fmt == nchw ? false : true;
-  weights_is_bfmt_ = this->weights_fmt == oihw ? false : true;
-  output_is_bfmt_ = this->output_fmt == nchw ? false : true;
-  input_as_bfmt_ = !input_is_bfmt_ && this->input_as_blocked;
-  weights_as_bfmt_ = !weights_is_bfmt_ && this->weights_as_blocked;
-  output_as_bfmt_ = !output_is_bfmt_ && this->output_as_blocked;
+  input_is_bfmt_ = this->input_fmt == nChw16c; // nChw8c
+  weights_is_bfmt_ = this->weights_fmt == OIhw16i16o;
+  output_is_bfmt_ = this->output_fmt == nChw16c;
+  input_as_bfmt_ = this->input_fmt == nchw && this->input_as_blocked;
+  weights_as_bfmt_ = this->input_fmt == oihw && this->weights_as_blocked;
+  output_as_bfmt_ = this->output_fmt == nchw && this->output_as_blocked;
   is_bfmt_ = input_is_bfmt_ && weights_is_bfmt_ && output_is_bfmt_;
 
   if (this->with_ip_sum && this->with_relu && !output_is_bfmt_) {
@@ -457,7 +457,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_blocked(
 }
 
 Template_elx_conv_direct_1x1_t
-void Instance_elx_conv_direct_1x1_t::__trans_weights_plain(
+void Instance_elx_conv_direct_1x1_t::__trans_weights_oihw(
     TweightsType *tweights, WeightsType *weights)
 {
   // oc4, (oc3, oc3r), (O2, O2r), V, ic4, ic3, I2, V ->
@@ -583,13 +583,102 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_plain(
 }
 
 Template_elx_conv_direct_1x1_t
+void Instance_elx_conv_direct_1x1_t::__trans_weights_hwio(
+    TweightsType *tweights, WeightsType *weights)
+{
+  MD8(TweightsType, atweights, tweights, this->oc4, this->ic4, this->oc3,
+      this->ic3, this->I2, V, this->O2, V);
+  MD8(WeightsType, aweights, weights, this->ic4, this->ic3, this->I2, V,
+      this->oc4, this->oc3, this->O2, V);
+  if (this->Ir == V && this->Or == V) {
+#pragma omp parallel
+#pragma omp for nowait collapse(5) schedule(static)
+    iter_each (_oc4, this->oc4) {
+    iter_each (_ic4, this->ic4) {
+    iter_each (_oc3, this->oc3) {
+    iter_each (_ic3, this->ic3) {
+    iter_each (_I2, this->I2) {
+      iter_each (_iV, V) {
+      iter_each (_O2, this->O2) {
+        if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+          auto t = *(__m<V> *)&md8(aweights, _ic4, _ic3, _I2, _iV, _oc4, _oc3, _O2, 0);
+          if (std::is_same<TweightsType, float>::value) {
+            _mm<V>::store_ps(
+                &md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2, 0), t);
+          } else { // fp32 -> fp16
+            auto fp16v = _mm<V>::cvtps_ph(t, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            _mm<V/2>::store_si256(
+                (__i<V/2> *)&md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2, 0), fp16v);
+          }
+        } else {
+#pragma omp simd
+          iter_each (_oV, V) {
+            md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2, _oV)
+                = md8(aweights, _ic4, _ic3, _I2, _iV, _oc4, _oc3, _O2, _oV);
+          }
+        }
+      }}
+    }}}}}
+  } else {
+    auto readin = [&](TweightsType *atwei, int _oc2, int _ic2, int _iV, bool is_Or) {
+      assert(fp_mode == euler::FP32 || !f16c_opt);
+      MD2(WeightsType, aweights2, weights, this->ic, this->oc);
+      if (is_Or) {
+#pragma omp simd
+        iter_each (_oV, this->Or) {
+          atwei[_oV] = md2(aweights2, _ic2 * V + _iV, _oc2 * V + _oV);
+        }
+      } else {
+        if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+          __m<V> t = _mm<V>::load_ps(&md2(aweights2, _ic2 * V + _iV, _oc2 * V));
+          if (std::is_same<TweightsType, float>::value) {
+            _mm<V>::store_ps(atwei, t);
+          } else { // fp32 -> fp16
+            auto fp16v = _mm<V>::cvtps_ph(t, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            _mm<V/2>::store_si256((__i<V/2> *)atwei, fp16v);
+          }
+        } else {
+#pragma omp simd
+          iter_each (_oV, this->Or) {
+            atwei[_oV] = md2(aweights2, _ic2 * V + _iV, _oc2 * V + _oV);
+          }
+        }
+      }
+    };
+
+#pragma omp parallel
+#pragma omp for nowait collapse(5) schedule(static)
+    iter_each (_oc4, this->oc4) {
+    iter_each (_ic4, this->ic4) {
+    iter_each (_oc3, this->oc3) {
+    iter_each (_ic3, this->ic3) {
+    iter_each (_I2, this->I2) {
+      int _ic2 = _ic4 * this->ic3 * this->I2 + _ic3 * this->I2 + _I2;
+      int iV = (this->Ir != V && _ic4 == this->ic4 - 1
+          && _ic3 == this->ic3 - 1 && _I2 == this->I2 - 1)
+          ? this->Ir : V;
+      iter_each (_iV, iV) {
+      iter_each (_O2, this->O2) {
+        int _oc2 = _oc4 * this->oc3 * this->O2 + _oc3 * this->O2 + _O2;
+        bool is_Or = this->Or != V && _oc4 == this->oc4 - 1
+            && _oc3 == this->oc3 - 1 && _O2 == this->O2 - 1;
+        readin(&md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2, 0),
+            _oc2, _ic2, _iV, is_Or);
+      }}
+    }}}}}
+  }
+}
+
+Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::trans_weights(
     TweightsType *tweights, WeightsType *weights)
 {
   if (weights_is_bfmt_ || weights_as_bfmt_)
     __trans_weights_blocked(tweights, weights);
+  else if (this->weights_fmt == hwio)
+    __trans_weights_hwio(tweights, weights);
   else
-    __trans_weights_plain(tweights, weights);
+    __trans_weights_oihw(tweights, weights);
 }
 
 Template_elx_conv_direct_1x1_t
@@ -737,7 +826,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_pad_input_plain(
 }
 
 Template_elx_conv_direct_1x1_t
-void Instance_elx_conv_direct_1x1_t::__trans_input_plain(
+void Instance_elx_conv_direct_1x1_t::__trans_input_nchw(
     TinputType *tinput, InputType *input, int _ht, int _wt)
 {
   // ic3, I2, V, ht, hs, wt, T, ws -> ht, wt | ic3, I2, T, V
@@ -799,7 +888,7 @@ void Instance_elx_conv_direct_1x1_t::trans_input(
     if (input_is_bfmt_ || input_as_bfmt_)
       __trans_input_blocked(tinput, input, _ht, _wt);
     else
-      __trans_input_plain(tinput, input, _ht, _wt);
+      __trans_input_nchw(tinput, input, _ht, _wt);
   } else {
     if (input_is_bfmt_ || input_as_bfmt_)
       __trans_pad_input_blocked(tinput, input, _ht, _wt);
@@ -845,7 +934,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_blocked(
 }
 
 Template_elx_conv_direct_1x1_t
-void Instance_elx_conv_direct_1x1_t::__trans_output_plain(
+void Instance_elx_conv_direct_1x1_t::__trans_output_nchw(
     OutputType *output, ToutputType *toutput, int _oc4, int _ht, int _wt)
 {
   // oc3, O2, T, V => n, oc4 | oc3, O2, V, ht, wt, T
@@ -930,7 +1019,7 @@ void Instance_elx_conv_direct_1x1_t::trans_output(
   if (output_is_bfmt_ || output_as_bfmt_)
     __trans_output_blocked(output, toutput, _oc4, _ht, _wt);
   else
-    __trans_output_plain(output, toutput, _oc4, _ht, _wt);
+    __trans_output_nchw(output, toutput, _oc4, _ht, _wt);
 }
 
 Template_elx_conv_direct_1x1_t
@@ -1150,45 +1239,82 @@ void Instance_elx_conv_direct_1x1_t::gemm_a061(ToutputType *output,
     TinputType *input, TweightsType *weights, BiasType *bias, int _ic4)
 {
   // weights: oc3*, ic3*, O2, I2, V, V
-  // input:   ic3*, I2, T, V
-  // output:  oc3*, O2, T, V
-  MD2(TinputType, ainput, input, this->ic3, this->I2 * this->T * V);
-  MD2(ToutputType, aoutput, output, this->oc3, this->O2 * this->T * V);
+  // input:   ic3*, I2, [T], V
+  // output:  oc3*, O2, [T], V
   MD3(TweightsType, aweights, weights, this->oc3, this->ic3,
       this->O2 * this->I2 * V * V);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
 
-  iter_each (_ic3, this->ic3 - 1) {
+  if (this->input_fmt == nhwc) {
+    MD2(TinputType, ainput, input, this->ic3, this->I2 * V);
+    MD2(ToutputType, aoutput, output, this->oc3, this->O2 * V);
+    iter_each (_ic3, this->ic3 - 1) {
+      int attr
+          = _ic4 == 0 && _ic3 == 0
+          ? set_attr(attr_, r_output_idx)
+          : attr_;
+      iter_each (_oc3, this->oc3) {
+        ker_gemm_I_O_T_(
+            *this,
+            &md2(aoutput, _oc3, 0),
+            &md2(ainput, _ic3, 0),
+            &md3(aweights, _oc3, _ic3, 0),
+            &md2(abias, _oc3, 0),
+            attr, 0, nullptr, nullptr, nullptr);
+      }
+    }
     int attr
-        = _ic4 == 0 && _ic3 == 0
+        = _ic4 == 0 && this->ic3 == 1
         ? set_attr(attr_, r_output_idx)
         : attr_;
+    if (_ic4 == this->ic4 - 1) {
+      if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+      if (this->with_relu) attr = set_attr(attr, relu_idx);
+    }
     iter_each (_oc3, this->oc3) {
       ker_gemm_I_O_T_(
           *this,
           &md2(aoutput, _oc3, 0),
-          &md2(ainput, _ic3, 0),
-          &md3(aweights, _oc3, _ic3, 0),
+          &md2(ainput, this->ic3 - 1, 0),
+          &md3(aweights, _oc3, this->ic3 - 1, 0),
           &md2(abias, _oc3, 0),
           attr, 0, nullptr, nullptr, nullptr);
     }
-  }
-  int attr
-      = _ic4 == 0 && this->ic3 == 1
-      ? set_attr(attr_, r_output_idx)
-      : attr_;
-  if (_ic4 == this->ic4 - 1) {
-    if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
-    if (this->with_relu) attr = set_attr(attr, relu_idx);
-  }
-  iter_each (_oc3, this->oc3) {
-    ker_gemm_I_O_T_(
-        *this,
-        &md2(aoutput, _oc3, 0),
-        &md2(ainput, this->ic3 - 1, 0),
-        &md3(aweights, _oc3, this->ic3 - 1, 0),
-        &md2(abias, _oc3, 0),
-        attr, 0, nullptr, nullptr, nullptr);
+  } else { // nchw
+    MD2(TinputType, ainput, input, this->ic3, this->I2 * this->T * V);
+    MD2(ToutputType, aoutput, output, this->oc3, this->O2 * this->T * V);
+    iter_each (_ic3, this->ic3 - 1) {
+      int attr
+          = _ic4 == 0 && _ic3 == 0
+          ? set_attr(attr_, r_output_idx)
+          : attr_;
+      iter_each (_oc3, this->oc3) {
+        ker_gemm_I_O_T_(
+            *this,
+            &md2(aoutput, _oc3, 0),
+            &md2(ainput, _ic3, 0),
+            &md3(aweights, _oc3, _ic3, 0),
+            &md2(abias, _oc3, 0),
+            attr, 0, nullptr, nullptr, nullptr);
+      }
+    }
+    int attr
+        = _ic4 == 0 && this->ic3 == 1
+        ? set_attr(attr_, r_output_idx)
+        : attr_;
+    if (_ic4 == this->ic4 - 1) {
+      if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+      if (this->with_relu) attr = set_attr(attr, relu_idx);
+    }
+    iter_each (_oc3, this->oc3) {
+      ker_gemm_I_O_T_(
+          *this,
+          &md2(aoutput, _oc3, 0),
+          &md2(ainput, this->ic3 - 1, 0),
+          &md3(aweights, _oc3, this->ic3 - 1, 0),
+          &md2(abias, _oc3, 0),
+          attr, 0, nullptr, nullptr, nullptr);
+    }
   }
 }
 
