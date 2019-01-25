@@ -47,7 +47,6 @@ Template_elx_conv_direct_t class elx_conv_direct_t
   void gemm_d060(OutputType *toutput, InputType *tinput, TweightsType *tweights,
       BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
 
-  void set_trans_buffers();
   int prepare_execute_opt();
   void bind_execute_functions();
 
@@ -62,36 +61,13 @@ Template_elx_conv_direct_t class elx_conv_direct_t
   bool is_first_run_;
   bool inference_acc_;
 
-  bool stream_in_;
-  bool stream_out_;
-  bool stream_wei_;
-
-  bool is_bfmt_;
-  bool input_is_bfmt_;
-  bool weights_is_bfmt_;
-  bool output_is_bfmt_;
-  bool input_as_bfmt_;
-  bool weights_as_bfmt_;
-  bool output_as_bfmt_;
-
+  size_t tweights_size_;
   TweightsType *tweights_;
-  TinputType *tinput_;
-  ToutputType *toutput_;
-  unsigned char *tinput_msk_;
-  InputType *binput_; // blocked input
-  WeightsType *bweights_;
-  OutputType *boutput_;
-
   unsigned int xopt_;
   int attr_;
   int mthr_;
-  size_t tweights_size_;
-  size_t tinput_size_;
-  size_t toutput_size_;
-  size_t binput_size_;
-  size_t bweights_size_;
-  size_t boutput_size_;
   void *scratch_;
+  void *workspace_;
 };
 
 // fp32-f32f32f32

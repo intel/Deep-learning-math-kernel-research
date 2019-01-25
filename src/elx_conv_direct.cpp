@@ -1,4 +1,3 @@
-#include <string.h>
 #include "el_intrin.hpp"
 #include "el_utils.hpp"
 #include "elx_conv_direct.hpp"
@@ -117,25 +116,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t<UserTypes> &dc)
 Template_elx_conv_direct_t
 int Instance_elx_conv_direct_t::prepare_execute_opt()
 {
-  size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
-  size_t binput_size = 0, bweights_size = 0, boutput_size = 0;
-
-  stream_in_ = this->streaming_input
-      ? (this->streaming_input == STORE_STREAMING) : false;
-  stream_wei_ = this->streaming_weights
-      ? (this->streaming_weights == STORE_STREAMING) : false;
-  stream_out_ = this->streaming_output
-      ? (this->streaming_output == STORE_STREAMING) : false;
-
-  input_is_bfmt_ = this->input_fmt == nchw ? false : true;
-  weights_is_bfmt_ = this->weights_fmt == oihw ? false : true;
-  output_is_bfmt_ = this->output_fmt == nchw ? false : true;
-  input_as_bfmt_ = !input_is_bfmt_ && this->input_as_blocked;
-  weights_as_bfmt_ = !weights_is_bfmt_ && this->weights_as_blocked;
-  output_as_bfmt_ = !output_is_bfmt_ && this->output_as_blocked;
-  is_bfmt_ = input_is_bfmt_ && weights_is_bfmt_ && output_is_bfmt_;
-
-  if (this->with_ip_sum && this->with_relu && !output_is_bfmt_) {
+  if (this->with_ip_sum && this->with_relu && !this->output_fmt != nChw16c) {
     el_error("Unimplemented: fuse sum (plain format) and relu together");
   }
 
@@ -143,25 +124,11 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
     el_error("Unimplemented: nhwc output with Or");
   }
 
-  if (input_as_bfmt_)
-    binput_size = this->n * this->IC * this->ih * this->iw * sizeof(InputType);
-  if (weights_as_bfmt_)
-    bweights_size = this->OC * this->IC  * sizeof(WeightsType);
-  if (output_as_bfmt_)
-    boutput_size = this->n * this->OC * this->oh * this->ow * sizeof(OutputType);
-
   tweights_ = nullptr;
-  tinput_ = nullptr;
-  toutput_ = nullptr;
-  tinput_msk_ = nullptr;
-  binput_ = nullptr;
-  bweights_ = nullptr;
-  boutput_ = nullptr;
-
   switch (xopt_) {
   case 0xa060:
   case 0xd060:
-    tweights_size = this->kh * this->kw * this->IC * this->OC * sizeof(TweightsType);
+    tweights_size_ = this->kh * this->kw * this->IC * this->OC * sizeof(TweightsType);
     break;
   default:
     el_error("Unknown xopt!");
@@ -169,53 +136,26 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
     break;
   }
 
-  const size_t align = PAGE_SIZE;
 #define WEIGHTS_MAX_PRELOAD 4
-  if (tweights_size > 0)
-    tweights_size += WEIGHTS_MAX_PRELOAD * V;
-
-  tweights_size_ = tweights_size > 0 ? alignup(tweights_size, align) : 0;
-  tinput_size_ = tinput_size > 0 ? alignup(tinput_size, align) : 0;
-  toutput_size_ = toutput_size > 0 ? alignup(toutput_size, align) : 0;
-  binput_size_ = binput_size > 0 ? alignup(binput_size, align) : 0;
-  bweights_size_ = bweights_size > 0 ? alignup(bweights_size, align) : 0;
-  boutput_size_ = boutput_size > 0 ? alignup(boutput_size, align) : 0;
+  if (tweights_size_ > 0)
+    tweights_size_ += WEIGHTS_MAX_PRELOAD * V;
 
   scratch_ = nullptr;
   size_t workspace_size = tweights_size_;
-  size_t scratch_size = tinput_size_ + tweights_size_ + toutput_size_
-      + binput_size_ + bweights_size_ + boutput_size_;
   // TODO: user provided buffer
-  if (scratch_size != 0)
-    scratch_ = galloc::acquire(scratch_size);
+  if (workspace_size != 0) {
+    MEMALIGN64(&workspace_, workspace_size);
+    tweights_ = (TweightsType *)workspace_;
+  }
 
-  set_trans_buffers();
-
-  // dbg
-  printf("nthreads=%d, mthr_=%d\n", this->nthreads, mthr_);
   return 0;
-}
-
-Template_elx_conv_direct_t
-void Instance_elx_conv_direct_t::set_trans_buffers()
-{
-  tinput_ = (TinputType *)galloc::get();
-  tweights_ = (TweightsType *)((char *)tinput_ + tinput_size_);
-  toutput_ = (ToutputType *)((char *)tweights_ + tweights_size_);
-  binput_ = (InputType *)((char *)toutput_ + toutput_size_);
-  bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
-  boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);
 }
 
 Template_elx_conv_direct_t
 Instance_elx_conv_direct_t::~elx_conv_direct_t()
 {
-  if (tinput_msk_ != nullptr) {
-    free(tinput_msk_);
-    tinput_msk_ = nullptr;
-  }
-
-  galloc::release();
+  if (workspace_ != nullptr)
+    free(workspace_);
 }
 
 // weights (hwio): kh, kw, ic, oc
