@@ -306,14 +306,14 @@ private:
   void trans_input(TinputType *tinput, InputType *input, int _ic4);
 
   inline void __trans_input_u8_blocked(
-      TscaleType *tinput_qt_scale, uint8_t *__restrict tinput_u8,
+      TscaleType *tinput_quant_scale, uint8_t *__restrict tinput_u8,
       TinputType *__restrict tinput, InputType *__restrict input, int _t2, int Tz);
-  void trans_input_u8(TscaleType *tinput_qt_scale, uint8_t *__restrict tinput_u8,
+  void trans_input_u8(TscaleType *tinput_quant_scale, uint8_t *__restrict tinput_u8,
       TinputType *__restrict tinput, InputType *__restrict input, int _t2, int Tz);
 
-  void __trans_input_u8_blocked(TscaleType *tinput_qt_scale, uint8_t *tinput_u8,
+  void __trans_input_u8_blocked(TscaleType *tinput_quant_scale, uint8_t *tinput_u8,
       TinputType *tinput, InputType *input);
-  void trans_input_u8(TscaleType *tinput_qt_scale, uint8_t *tinput_u8,
+  void trans_input_u8(TscaleType *tinput_quant_scale, uint8_t *tinput_u8,
       TinputType *tinput, InputType *input);
 
   inline void __trans_output_nhwc(OutputType *output, ToutputType *toutput,
@@ -342,9 +342,9 @@ private:
   inline void __trans_weights_blocked(TweightsType *tweights, WeightsType *weights, int oc4);
   void trans_weights(TweightsType *tweights, WeightsType *weights, int oc4 = 1);
 
-  inline void __trans_weights_s8_blocked(TscaleType *tweights_qt_scale, TscaleType *tweights_factor,
+  inline void __trans_weights_s8_blocked(TscaleType *tweights_quant_scale, TscaleType *tweights_factor,
       int8_t *tweights_s8, TweightsType *tweights, WeightsType *weights, int oc4);
-  void trans_weights_s8(TscaleType *tweights_qt_scale, TscaleType *tweights_factor,
+  void trans_weights_s8(TscaleType *tweights_quant_scale, TscaleType *tweights_factor,
       int8_t *tweights_s8, TweightsType *tweights, WeightsType *weights, int oc4);
 
   inline void __trans_weightsf_oihw(TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4);
@@ -369,7 +369,7 @@ private:
 
   void set_trans_buffers();
   int prepare_execute_opt();
-  void prepare_wino_tinput_quant_cali();
+  void prepare_wino_tinput_quant();
   void bind_execute_functions();
 
   using i8_ker_type = typename std::conditional<
@@ -428,12 +428,12 @@ private:
   size_t bweights_size_;
   size_t boutput_size_;
   size_t tinput_u8_size_;
-  size_t tinput_qt_scale_size_;
-  size_t tinput_qt_factor_size_;
+  size_t tinput_quant_scale_size_;
+  size_t tinput_quant_factor_size_;
   size_t tinput_max_abs_size_;
   size_t tweights_s8_size_;
-  size_t tweights_qt_scale_size_;
-  size_t tweights_qt_factor_size_;
+  size_t tweights_quant_scale_size_;
+  size_t tweights_quant_factor_size_;
   size_t tweights_ci_size_;
   void *workspace_;
   void *scratch_;
@@ -445,12 +445,12 @@ private:
   WeightsType *bweights_;
   OutputType *boutput_;
   uint8_t *tinput_u8_;
-  TscaleType *tinput_qt_scale_;
-  TscaleType *tinput_qt_factor_;
+  TscaleType *tinput_quant_scale_;
+  TscaleType *tinput_quant_factor_;
   TscaleType *tinput_max_abs_;
   int8_t *tweights_s8_;
-  TscaleType *tweights_qt_scale_;
-  TscaleType *tweights_qt_factor_;
+  TscaleType *tweights_quant_scale_;
+  TscaleType *tweights_quant_factor_;
   TscaleType *tweights_ci_;
 
   int hOA_end_;

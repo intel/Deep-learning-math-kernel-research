@@ -332,14 +332,14 @@ void Instance_elx_conv_wino_t::__execute_a133(
   MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
       A * A * this->ic3 * this->I2 * this->Vx * V * this->oc3 * this->O2 * V);
 
-  MD3(TscaleType, atweights_qt_scale, tweights_qt_scale_,
+  MD3(TscaleType, atweights_quant_scale, tweights_quant_scale_,
       this->oc4, this->ic4, this->oc3 * this->ic3 * this->O2 * V * A * A);
-  MD3(TscaleType, aweights_qt_factor, tweights_qt_factor_,
+  MD3(TscaleType, aweights_quant_factor, tweights_quant_factor_,
       this->oc4, this->ic4, this->oc3 * this->ic3 * this->O2 * V * A * A);
 
   if (is_first_run_) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
-    trans_weights_s8(tweights_qt_scale_, tweights_qt_factor_,
+    trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
         tweights_s8_, tweights_, weights, this->oc4);
   }
 
@@ -349,13 +349,13 @@ void Instance_elx_conv_wino_t::__execute_a133(
     iter_each(_ic4, this->ic4) {
     iter_each(_oc4, this->oc4) {
       if (_ic4 != last_ic4) {
-        trans_input_u8(tinput_qt_scale_, tinput_u8_, tinput_, input);
+        trans_input_u8(tinput_quant_scale_, tinput_u8_, tinput_, input);
         last_ic4 = _ic4;
       }
 #pragma omp barrier
       gemm_non_acc(toutput_, tinput_u8_, &md3(atweights_s8, _oc4, _ic4, 0),
-          tinput_qt_scale_, tinput_qt_factor_, &md3(atweights_qt_scale, _ic4, _oc4, 0),
-          &md3(aweights_qt_factor, _ic4, _oc4, 0), _ic4);
+          tinput_quant_scale_, tinput_quant_factor_, &md3(atweights_quant_scale, _ic4, _oc4, 0),
+          &md3(aweights_quant_factor, _ic4, _oc4, 0), _ic4);
 #pragma omp barrier
       trans_output(output, toutput_, &md2(abias, _oc4, 0), _oc4, _ic4);
     }}
@@ -370,7 +370,7 @@ void Instance_elx_conv_wino_t::__execute_a161(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(TinputType, atinput2, tinput_, mthr_, this->online_sampling_hp ?
+  MD2(TinputType, atinput2, tinput_, mthr_, this->sampling_kind == FINE ?
       A * A * this->I2 * this->Vx * V : A * A * this->IC * this->T);
   MD2(ToutputType, atoutput2, toutput_, mthr_,
       A * A * this->T * this->oc3 * this->O2 * V);
@@ -381,29 +381,29 @@ void Instance_elx_conv_wino_t::__execute_a161(
       A * A * this->T * this->IC);
   MD2(int8_t, atweights_s8, tweights_s8_, this->oc4,
       A * A * this->IC * this->oc3 * this->O2 * V);
-  MD2(TscaleType, atinput_qt_scale, tinput_qt_scale_,
+  MD2(TscaleType, atinput_quant_scale, tinput_quant_scale_,
       mthr_, this->ic3 * A * A * 2 * this->T);
-  MD2(TscaleType, atweights_qt_scale, tweights_qt_scale_,
+  MD2(TscaleType, atweights_quant_scale, tweights_quant_scale_,
       this->oc4, this->oc3 * this->ic3 * this->O2 * V * A * A);
-  MD2(TscaleType, aweights_qt_factor, tweights_qt_factor_,
+  MD2(TscaleType, aweights_quant_factor, tweights_quant_factor_,
       this->oc4, this->oc3 * this->ic3 * this->O2 * V * A * A);
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
     if (is_first_run_) {
-      trans_weights_s8(tweights_qt_scale_, tweights_qt_factor_,
+      trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
           tweights_s8_, tweights_, weights, this->oc4);
 #pragma omp barrier
-      if (this->wino_tinput_qt_cali) {
-        MD5(TscaleType, atinput_qt_scale5,
-            &md2(atinput_qt_scale, omp_get_thread_num(), 0),
+      if (this->sampling_kind == CALIBRATED) {
+        MD5(TscaleType, atinput_quant_scale5,
+            &md2(atinput_quant_scale, omp_get_thread_num(), 0),
             this->ic3, A, A, 2, this->T);
         iter_each(_ic3, this->ic3) {
         iter_each(_wA, A) {
         iter_each(_hA, A) {
         iter_each(_T, this->T) {
-          md5(atinput_qt_scale5, _ic3, _wA, _hA, 0, _T) = this->wino_tinput_qt_S;
-          md5(atinput_qt_scale5, _ic3, _wA, _hA, 1, _T) = this->wino_tinput_qt_z;
+          md5(atinput_quant_scale5, _ic3, _wA, _hA, 0, _T) = this->wino_tinput_quant_S;
+          md5(atinput_quant_scale5, _ic3, _wA, _hA, 1, _T) = this->wino_tinput_quant_z;
         }}}}
       }
     }
@@ -421,14 +421,14 @@ void Instance_elx_conv_wino_t::__execute_a161(
                               : (ToutputType *)&md2(atinput2, ithr, 0);
 
       if (t2_history != _t2) {
-        trans_input_u8(&md2(atinput_qt_scale, ithr, 0),
+        trans_input_u8(&md2(atinput_quant_scale, ithr, 0),
             &md2(atinput2_u8, ithr, 0), (TinputType *)tbuf, input, _t2, Tz);
         t2_history = _t2;
       }
       gemm(tbuf, &md2(atinput2_u8, ithr, 0),
           &md2(atweights_s8, _oc4, 0), _t2, Tz,
-          &md2(atinput_qt_scale, ithr, 0),
-          &md2(atweights_qt_scale, _oc4, 0), &md2(aweights_qt_factor, _oc4, 0));
+          &md2(atinput_quant_scale, ithr, 0),
+          &md2(atweights_quant_scale, _oc4, 0), &md2(aweights_quant_factor, _oc4, 0));
       trans_output(output, tbuf, &md2(abias, _oc4, 0), Tz, _t2, _oc4, 0);
     }}
   }
@@ -455,16 +455,16 @@ void Instance_elx_conv_wino_t::__execute_a173(
   MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
       A * A * this->ic3 * this->I2 * this->Vx * V * this->oc3 * this->O2 * V);
 
-  MD2(TscaleType, atinput_qt_scale, tinput_qt_scale_,
+  MD2(TscaleType, atinput_quant_scale, tinput_quant_scale_,
       mthr_, this->ic3 * this->A * this->A * 2 * this->T);
-  MD3(TscaleType, atweights_qt_scale, tweights_qt_scale_, this->oc4,
+  MD3(TscaleType, atweights_quant_scale, tweights_quant_scale_, this->oc4,
       this->ic4, this->oc3 * this->ic3 * this->O2 * V * A * A);
-  MD3(TscaleType, aweights_qt_factor, tweights_qt_factor_,
+  MD3(TscaleType, aweights_quant_factor, tweights_quant_factor_,
       this->oc4, this->ic4, this->oc3 * this->ic3 * this->O2 * V * A * A);
 
   if (is_first_run_) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
-    trans_weights_s8(tweights_qt_scale_, tweights_qt_factor_,
+    trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
         tweights_s8_, tweights_, weights, this->oc4);
   }
 
@@ -479,7 +479,7 @@ void Instance_elx_conv_wino_t::__execute_a173(
 
       if (last_ic4 != _ic4 || last_t2 != _t2) {
         trans_input_u8(
-            &md2(atinput_qt_scale, ithr, 0),
+            &md2(atinput_quant_scale, ithr, 0),
             &md2(atinput2_u8, ithr, 0), &md2(atinput2, ithr, 0),
             &md3(ainput, 0, _ic4, 0), _t2, Tz);
         last_t2 = _t2;
@@ -487,9 +487,9 @@ void Instance_elx_conv_wino_t::__execute_a173(
       }
       gemm_non_acc(&md2(atoutput2, ithr, 0), &md2(atinput2_u8, ithr, 0),
           &md3(atweights_s8, _oc4, _ic4, 0), _t2, Tz,
-          &md2(atinput_qt_scale, ithr, 0),
-          &md3(atweights_qt_scale, _oc4, _ic4, 0),
-          &md3(aweights_qt_factor, _oc4, _ic4, 0),
+          &md2(atinput_quant_scale, ithr, 0),
+          &md3(atweights_quant_scale, _oc4, _ic4, 0),
+          &md3(aweights_quant_factor, _oc4, _ic4, 0),
           _ic4);
       trans_output(output, &md2(atoutput2, ithr, 0),
           &md2(abias, _oc4, 0), Tz, _t2, _oc4, _ic4);

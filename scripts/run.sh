@@ -36,7 +36,7 @@ function conv_test() {
   input_as_blocked=0; weights_as_blocked=0; output_as_blocked=0
   with_ip_sum=0; f16c_opt=0; fp_mode=0
   input_file=""; weights_file=""; bias_file=""
-  tinput_cali_s=0; tinput_cali_z=0
+  sampling_kind=2; tinput_cali_s=0; tinput_cali_z=0
 
   OPTIND=1
   while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:f:l:B:A:T:a:-:" opt; do
@@ -164,6 +164,10 @@ function conv_test() {
             ;;
           bias-data-file=*) bias_file=${OPTARG#*=}
             ;;
+          sampling-kind) sampling_kind="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          sampling-kind=*) sampling_kind=${OPTARG#*=}
+            ;;
           tinput-cali-s) tinput_cali_s="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
             ;;
           tinput-cali-s=*) tinput_cali_s=${OPTARG#*=}
@@ -202,6 +206,7 @@ function conv_test() {
     --with-ip-sum=$with_ip_sum \
     --f16c-opt=$f16c_opt \
     --fp-mode=$fp_mode \
+    --sampling-kind=$sampling_kind \
     --tinput-cali-s=$tinput_cali_s \
     --tinput-cali-z=$tinput_cali_z \
     $input_file_opt \

@@ -39,6 +39,7 @@ bool tweights_preprocess = false;
 bool is_int8_lp = false;
 bool with_real_data = false;
 
+euler::sampling_kind_t sampling_kind = euler::CALIBRATED;
 float tinput_cali_s = FLT_MAX;
 float tinput_cali_z = FLT_MAX;
 
@@ -71,6 +72,7 @@ static inline ConvType create_conv_desc(void) {
       = { streaming_weights, streaming_input, streaming_output };
   desc.format_as_blocked
       = { input_as_blocked, weights_as_blocked, output_as_blocked };
+  desc.sampling_kind = sampling_kind;
   desc.wino_tinput_quant.scale = tinput_cali_s;
   desc.wino_tinput_quant.z = tinput_cali_z;
   return desc;
@@ -359,6 +361,7 @@ int parse_cmd_options(int argc, char **argv) {
     ("f16c-opt", po::value<bool>(&f16c_opt), "on|off. With half-precision opt, Default: off")
     ("fp-mode", po::value<int>(&fp_mode), "fp16 UserTypes, Default: FP32")
     ("with-ip-sum", po::value<bool>(&with_ip_sum), "on|off. With inplace sum, Default: off")
+    ("sampling-kind", po::value<int>((int *)&sampling_kind), "sampling kind 0: FINE, 1: COARSE, 2: CALIBRATED, Default: 2")
     ("tinput-cali-s", po::value<float>(&tinput_cali_s), "calibration scale for tinput quantization, Default: 0")
     ("tinput-cali-z", po::value<float>(&tinput_cali_z), "calibration zero for tinput quantization, Default: 0")
     ("input-data-file", po::value<std::string>(), "Input data file(nchw)")
@@ -509,11 +512,19 @@ int parse_cmd_options(int argc, char **argv) {
       input_as_blocked, weights_as_blocked, output_as_blocked);
   printf("double_buffering: %d, output_as_input=%d\n", double_buffering, output_as_input);
   printf("tweights_preprocess: %d\n", tweights_preprocess);
-  if (tinput_cali_s == 0 && tinput_cali_z == 0) {
-    tinput_cali_s = FLT_MAX;
-    tinput_cali_z = FLT_MAX;
+  // TODO: support tinput quantization only so far
+  if (sampling_kind == euler::CALIBRATED &&
+      tinput_cali_s == 0.0 && tinput_cali_z == 0.0) {
+    tinput_cali_s = 1.0;
+    tinput_cali_z = 1.0;
+    printf("sampling-kind<CALIBRATED> tinput calibration scale: %f <dummy> zero: %f <dummy>\n", tinput_cali_s, tinput_cali_z);
+  } else if (sampling_kind == euler::CALIBRATED) {
+    printf("sampling-kind<CALIBRATED> tinput calibration scale: %f zero: %f\n", tinput_cali_s, tinput_cali_z);
+  } else if (sampling_kind == euler::COARSE) {
+    printf("sampling-kind<COARSES>\n");
+  } else if (sampling_kind == euler::FINE) {
+    printf("sampling-kind<FINE>\n");
   }
-  printf("tinput calibration scale: %f zero: %f\n", tinput_cali_s, tinput_cali_z);
 
   if (mb <= 0 || ic <= 0 || ih <= 0 || iw <= 0 || oc <= 0 || oh <= 0
       || ow <= 0 || kh <= 0 || kw <= 0) {

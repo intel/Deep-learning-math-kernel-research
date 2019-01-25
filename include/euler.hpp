@@ -75,6 +75,12 @@ enum fp_modes {
   FP16O
 };
 
+typedef enum {
+  FINE = 0,
+  COARSE,
+  CALIBRATED,
+} sampling_kind_t;
+
 #define EL_NO_CALI (FLT_MAX)
 
 template<typename UserTypes> struct elx_conv_t;
@@ -135,7 +141,7 @@ template<typename UserTypes> struct eld_conv_t {
     // quantization calibration coefficients
     // A_fp32 = scale * (A_quant - z)
     struct { float scale, z; } input_quant, output_quant, wino_tinput_quant;
-    bool online_sampling_hp;
+    sampling_kind_t sampling_kind;
 
     // Defaults
     eld_conv_t();

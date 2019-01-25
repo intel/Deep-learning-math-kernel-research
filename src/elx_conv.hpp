@@ -73,21 +73,17 @@ struct elx_conv_params_t {
   int nthreads;
   int execution_mode;
 
-  // accuracy priority:
-  // - online sampling in high precision mode (sampling locally)
-  // - online sampling in low precision mode (sampling globally)
-  // - offline sampling calibration
-  //
   // calibration coefficients
-  float wino_tinput_qt_S;
-  float wino_tinput_qt_z;
-  bool wino_tinput_qt_cali;
-  float input_qt_S;
-  float input_qt_z;
-  float output_qt_S;
-  float output_qt_z;
-  // online sampling mode
-  bool online_sampling_hp;
+  float wino_tinput_quant_S;
+  float wino_tinput_quant_z;
+  float wino_tinput_quant_repS;
+  float input_quant_S;
+  float input_quant_z;
+  float input_quant_repS;
+  float output_quant_S;
+  float output_quant_z;
+  float output_quant_repS;
+  sampling_kind_t sampling_kind;
 };
 
 template <typename UserTypes> struct elx_conv_t : elx_conv_params_t {
