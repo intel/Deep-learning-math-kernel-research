@@ -45,6 +45,8 @@ struct elx_conv_params_t {
   int hs, ws;
   // dilation
   int hd, wd;
+  // Or masks
+  unsigned int ormask;
 
   // formats
   int input_fmt;

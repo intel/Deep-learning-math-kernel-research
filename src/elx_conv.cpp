@@ -68,6 +68,8 @@ elx_conv_t<UserTypes>::elx_conv_t(eld_conv_t<UserTypes> &dc)
   this->output_quant_S = dc.output_quant.scale;
   this->output_quant_z = dc.output_quant.z;
   this->sampling_kind = dc.sampling_kind;
+
+  this->ormask = (unsigned int)-1;
 }
 
 template <typename UserTypes>

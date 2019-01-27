@@ -70,6 +70,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t<UserTypes> &dc)
 
   this->Ir = this->ic % V ? this->ic % V : V;
   this->Or = this->oc % V ? this->oc % V : V;
+  this->ormask = (1 << this->Or) - 1;
 
   // oc4, (oc3, oc3r), (O2, O2r)
   this->oc34 = (this->oc2 + this->O2 - 1) / this->O2;
@@ -120,9 +121,11 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
     el_error("Unimplemented: fuse sum (plain format) and relu together");
   }
 
+/*
   if (this->Or != V && this->output_fmt == nhwc) {
     el_error("Unimplemented: nhwc output with Or");
   }
+*/
 
   tweights_ = nullptr;
   switch (xopt_) {
@@ -220,8 +223,10 @@ void Instance_elx_conv_direct_t::trans_weights_to_compact(
       iter_each (_oc3, this->oc3) {
       iter_each (_O1, this->O1) {
         // handling ic/oc != 16x
-        auto O = (this->Or == V) ? this->O : this->O - 1;
-        auto Or = this->Or == V ? 0 : this->Or;
+        bool is_Or = this->Or != V && _oc4 == this->oc4 - 1
+            && _oc3 == this->oc3 - 1 && _O1 == this->O1 - 1;
+        auto O = is_Or ? this->O - 1: this->O;
+        auto Or = is_Or ? this->Or : 0;
         MD5(WeightsType, aweights1, &md4(aweights0, _kh, _kw, 0, 0), this->ic4,
             this->ic3, this->I2, V, this->oc);
         MD5(WeightsType, aweights2, &md5(aweights1, _ic4, _ic3, _I2, _iV, 0),
@@ -338,25 +343,30 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
 
     iter_each (_oc3, this->oc3) {
     iter_each (_ic3, this->ic3) {
+      bool oc3_has_Or
+          = this->Or != V && _oc4 == this->oc4 - 1 && _oc3 == this->oc3 - 1;
       if (_ic4 == 0 && _ic3 == 0) {
         iter_each (_O2, this->O2) {
+          bool O2_has_Or = oc3_has_Or && (_O2 == this->O2 - 1);
           __m<V> s = this->with_bias ? *(__m<V> *)&md3(abias, _oc3, _O2, 0)
                                      : _mm<V>::setzero_ps();
-          iter_each (_T, Tz) {
-            MD4(OutputType, aoutput1, &md3(aoutput0, _ht, ows0 + _T, 0), this->oc4,
-              this->oc3, this->O2, V);
-
-            if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value)
-              _mm<V>::store_ps(&md4(aoutput1, 0, _oc3, _O2, 0), s);
-            else
-              el_error("direct: d060: unimplemented");
-          }
+          if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value) {
+            __mmask16 k = _mm512_int2mask(O2_has_Or ? this->ormask : 0xFFFF);
+            iter_each (_T, Tz) {
+              MD4(OutputType, aoutput1, &md3(aoutput0, _ht, ows0 + _T, 0),
+                  this->oc4, this->oc3, this->O2, V);
+              _mm512_mask_store_ps(&md4(aoutput1, 0, _oc3, _O2, 0), k, s);
+            }
+          } else el_error("direct: d060: unimplemented");
         }
       }
       int attr = attr_;
       if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
         if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
         if (this->with_relu) attr = set_attr(attr, relu_idx);
+      }
+      if (oc3_has_Or) {
+        attr = set_attr(attr, has_Or_idx);
       }
       for (int _kh = khs; _kh < khe; ++_kh) {
         auto _ih = this->hs * _ht + _kh - this->tp;
