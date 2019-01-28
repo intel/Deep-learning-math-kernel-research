@@ -339,15 +339,33 @@ void Instance_elx_conv_wino_t::__execute_a133(
 
   if (is_first_run_) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
-    trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
-        tweights_s8_, tweights_, weights, this->oc4);
+    {
+      trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
+          tweights_s8_, tweights_, weights, this->oc4);
+
+      if (this->sampling_kind == CALIBRATED) {
+        MD6(TscaleType, atinput_quant_scale6, tinput_quant_scale_,
+            this->t2, A, A, this->ic3, 2, this->T);
+#pragma omp for nowait collapse(5)
+        iter_each (_t2, this->t2) {
+        iter_each (_wA, A) {
+        iter_each (_hA, A) {
+        iter_each (_ic3, this->ic3) {
+        iter_each (_T, this->T) {
+          md6(atinput_quant_scale6, _t2, _wA, _hA, _ic3, 0, _T) =
+              this->wino_tinput_quant_S;
+          md6(atinput_quant_scale6, _t2, _wA, _hA, _ic3, 1, _T) =
+              this->wino_tinput_quant_z;
+        }}}}}
+      }
+    }
   }
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
     int last_ic4 = -1;
-    iter_each(_ic4, this->ic4) {
-    iter_each(_oc4, this->oc4) {
+    iter_each (_ic4, this->ic4) {
+    iter_each (_oc4, this->oc4) {
       if (_ic4 != last_ic4) {
         trans_input_u8(tinput_quant_scale_, tinput_u8_, tinput_, input);
         last_ic4 = _ic4;
@@ -398,12 +416,14 @@ void Instance_elx_conv_wino_t::__execute_a161(
         MD5(TscaleType, atinput_quant_scale5,
             &md2(atinput_quant_scale, omp_get_thread_num(), 0),
             this->ic3, A, A, 2, this->T);
-        iter_each(_ic3, this->ic3) {
-        iter_each(_wA, A) {
-        iter_each(_hA, A) {
-        iter_each(_T, this->T) {
-          md5(atinput_quant_scale5, _ic3, _wA, _hA, 0, _T) = this->wino_tinput_quant_S;
-          md5(atinput_quant_scale5, _ic3, _wA, _hA, 1, _T) = this->wino_tinput_quant_z;
+        iter_each (_ic3, this->ic3) {
+        iter_each (_wA, A) {
+        iter_each (_hA, A) {
+        iter_each (_T, this->T) {
+          md5(atinput_quant_scale5, _ic3, _wA, _hA, 0, _T) =
+              this->wino_tinput_quant_S;
+          md5(atinput_quant_scale5, _ic3, _wA, _hA, 1, _T) =
+              this->wino_tinput_quant_z;
         }}}}
       }
     }
