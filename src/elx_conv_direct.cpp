@@ -121,12 +121,6 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
     el_error("Unimplemented: fuse sum (plain format) and relu together");
   }
 
-/*
-  if (this->Or != V && this->output_fmt == nhwc) {
-    el_error("Unimplemented: nhwc output with Or");
-  }
-*/
-
   tweights_ = nullptr;
   switch (xopt_) {
   case 0xa060:
@@ -144,11 +138,16 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
     tweights_size_ += WEIGHTS_MAX_PRELOAD * V;
 
   scratch_ = nullptr;
+  workspace_ = nullptr;
   size_t workspace_size = tweights_size_;
   // TODO: user provided buffer
   if (workspace_size != 0) {
+#if 0 // TODO
     MEMALIGN64(&workspace_, workspace_size);
     tweights_ = (TweightsType *)workspace_;
+#else
+    tweights_ = (TweightsType *)galloc::acquire(workspace_size);
+#endif
   }
 
   return 0;
