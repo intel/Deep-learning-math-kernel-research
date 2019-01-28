@@ -297,6 +297,9 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
         if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
         if (this->with_relu) attr = set_attr(attr, relu_idx);
       }
+      if (this->Or != V && _oc4 == this->oc4 - 1 && _oc3 == this->oc3 - 1) {
+        attr = set_attr(attr, has_Or_idx);
+      }
       ker_conv(*this, &md2(aoutput, _oc3, 0),
           &md2(ainput, _ic3, 0), &md4(aweights, 0, _oc3, _ic3, 0),
           &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
