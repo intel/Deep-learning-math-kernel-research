@@ -77,13 +77,13 @@ protected:
 
   template <int input_format, bool is_border>
   static inline void __trans_input(
-      elx_conv_t<UserTypes> &xc,
+      elx_conv_t &xc,
       TrOpType atinput[A][A][V], InputType *input,
       int hT_start, int hT_end, int wT_start, int wT_end);
 
   template <int ...conditions>
   static inline void __trans_output(
-      elx_conv_t<UserTypes> &xc,
+      elx_conv_t &xc,
       OutputType *output, TrOpType atoutput[A][A][V],
       BiasType *bias, int hOA_end, int wOA_end);
 
@@ -111,7 +111,7 @@ class convolution_winograd_kernel
   // Interfaces
   template <int input_format, bool is_border>
   static void trans_input(
-      elx_conv_t<UserTypes> &xc,
+      elx_conv_t &xc,
       TrOpType atinput[A][A][V], InputType *input,
       int hA_start, int hA_end, int wA_start, int wA_end)
   {
@@ -121,7 +121,7 @@ class convolution_winograd_kernel
 
   template <int ...conditions>
   static void trans_output(
-      elx_conv_t<UserTypes>& xc,
+      elx_conv_t &xc,
       OutputType* output, TrOpType atoutput[A][A][V],
       BiasType *bias, int hOA_end, int wOA_end) {
     super::template __trans_output<conditions...>(

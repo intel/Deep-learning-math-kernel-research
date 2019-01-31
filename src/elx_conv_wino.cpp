@@ -27,8 +27,8 @@ const float INT8GEMM_TWT_QTSCALE = 127.0;
 const float INT8GEMM_TIN_MIN_MAX_QTSCALE = 255.0;
 
 Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
-    eld_conv_t<UserTypes> &dc)
-    : elx_conv_t<UserTypes>(dc)
+    eld_conv_t &dc)
+    : elx_conv_t(dc)
 {
   // TODO: error when V!=16 && fmt=OIhw16i16o
   xopt_ = this->execution_mode;
@@ -37,11 +37,9 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
   this->IC = ALIGNUP(this->ic, V * this->Vx);
   this->OC = ALIGNUP(this->oc, V);
 
-  this->V = V;
   this->ic2 = this->IC / V;
   this->oc2 = this->OC / V;
 
-  this->A = A;
   this->ht = (this->oh + A - K) / (A - K + 1);
   this->wt = (this->ow + A - K) / (A - K + 1);
   this->nt = this->ht * this->wt;
@@ -91,8 +89,6 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
 
   this->t2 = (this->t + this->T - 1) / this->T;
 
-  this->tweights_preprocessed_ = false;
-
   prepare_execute_opt();
   bind_execute_functions();
 
@@ -100,19 +96,19 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
   printf("############################################################\n");
   printf("T=%d, Tr=%d, t2=%d, t=%d\n", this->T, this->Tr, this->t2, this->t);
   printf("V=%d, Ir=%d, Vx=%d, I2=%d, ic3=%d, ic4=%d, IC=%d\n",
-      this->V, this->Ir, this->Vx, this->I2, this->ic3, this->ic4, this->IC);
+      V, this->Ir, this->Vx, this->I2, this->ic3, this->ic4, this->IC);
   printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), oc3=%d, oc4=%d, OC=%d\n",
-      this->V, this->Or, this->O2, this->O, this->O1, this->oc3, this->oc4, this->OC);
+      V, this->Or, this->O2, this->O, this->O1, this->oc3, this->oc4, this->OC);
 
 #ifdef DEBUG
-  if (this->Vx * this->V * this->I2 * this->ic3 * this->ic4 != this->IC) {
+  if (this->Vx * V * this->I2 * this->ic3 * this->ic4 != this->IC) {
     el_warn("Vx * V * I2 * ic3 * ic4 != this->IC\n Force ic4 = IC / (Vx * V * I2 * ic3)");
-    this->ic4 = this->IC / (this->Vx * this->V * this->I2 * this->ic3);
+    this->ic4 = this->IC / (this->Vx * V * this->I2 * this->ic3);
   }
 
-  if (this->V * this->O2 * this->oc3 * this->oc4 != this->OC) {
+  if (V * this->O2 * this->oc3 * this->oc4 != this->OC) {
     el_warn("V * O2 * oc3 * oc4 != this->OC\n Force oc4 = OC / (V * O2 * oc3)");
-    this->oc4 = this->OC / (this->V * this->O2 * this->oc3);
+    this->oc4 = this->OC / (V * this->O2 * this->oc3);
   }
 #else
   if ((xopt_ == 0xa073 || xopt_ == 0xa07b || this->with_ip_sum)
@@ -120,11 +116,11 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
     el_error("Unimplemented: fuse sum (plain format) and relu together");
   }
 
-  if (this->Vx * this->V * this->I2 * this->ic3 * this->ic4 != this->IC) {
+  if (this->Vx * V * this->I2 * this->ic3 * this->ic4 != this->IC) {
     el_error("Vx * V * I2 * ic3 * ic4 != this->IC\n)");
   }
 
-  if (this->V * this->O2 * this->oc3 * this->oc4 != this->OC) {
+  if (V * this->O2 * this->oc3 * this->oc4 != this->OC) {
     el_error("V * O2 * oc3 * oc4 != this->OC\n)");
   }
 #endif
@@ -675,7 +671,7 @@ void Instance_elx_conv_wino_t::__trans_weights_s8_blocked(
   MD9(TscaleType, atweights_quant_scale, tweights_quant_scale, oc4, this->ic4, this->oc3, this->ic3, A, A,
       this->O1, this->O, V);
   MD9(TscaleType, atweights_quant_factor, tweights_quant_factor, oc4, this->ic4, this->oc3, this->ic3, A, A,
-      this->O1, this->O, this->V);
+      this->O1, this->O, V);
 
   __m<V> zero = _mm<V>::set1_ps(0.0);
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
@@ -2218,7 +2214,7 @@ void Instance_elx_conv_wino_t::__trans_output_nchw(
     int _n, _oh, _ow, _hOA_end, _wOA_end;
     t2spato(_t2, _T, _n, _oh, _ow, _hOA_end, _wOA_end);
     MD6(OutputType, aoutput1, &md2(aoutput0, _n, 0), this->oc4, this->oc3,
-        this->O2, this->V, this->oh, this->ow);
+        this->O2, V, this->oh, this->ow);
 
     for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
       for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
@@ -2611,91 +2607,6 @@ void Instance_elx_conv_wino_t::trans_output(
     __trans_output_nhwc(output, toutput, bias, _oc4, _ic4);
   else
     __trans_output_nchw(output, toutput, bias, _oc4, _ic4);
-}
-
-Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::prepare_tweights(
-    WeightsType * __restrict weights) {
-  trans_weights(tweights_, weights, this->oc4);
-  MD5(ToutputType, atweights_ci, tweights_ci_,
-      this->oc4, this->oc3, this->O1, this->O, V);
-
-  // confident interval
-  if (weights_is_bfmt_ || weights_as_bfmt_) {
-    MD12(ToutputType, atweights, tweights_, this->oc4, this->ic4, this->oc3, this->ic3,
-        A, A, this->O1, this->I2, this->Vx, V, this->O, V);
-    __m<V> mmblk
-        = _mm<V>::set1_ps(this->ic4 * this->ic3 * A * A * this->I2 * this->Vx * V);
-
-#pragma omp for nowait collapse(4) schedule(static)
-    iter_each (_oc4, this->oc4) {
-    iter_each (_oc3, this->oc3) {
-    iter_each (_O1, this->O1) {
-    iter_each (_O, this->O) {
-      __m<V> mmsum = _mm<V>::set1_ps(0.0);
-      iter_each (_ic4, this->ic4) {
-      iter_each (_ic3, this->ic3) {
-      iter_each (_wA, A) {
-      iter_each (_hA, A) {
-      iter_each (_I2, this->I2) {
-      iter_each (_iVx, this->Vx) {
-      iter_each (_iV, V) {
-        mmsum = _mm<V>::add_ps(
-            *(__m<V> *)&md12(atweights, _oc4, _ic4, _oc3, _ic3,
-                             _wA, _hA, _O1, _I2, _iVx, _iV, _O, 0), mmsum);
-      }}}}}}}
-      // avarage
-      __m<V> mmavg = _mm<V>::div_ps(mmsum, mmblk);
-      // standard deviation
-      __m<V> mmsd = _mm<V>::set1_ps(0.0);
-      iter_each (_ic4, this->ic4) {
-      iter_each (_ic3, this->ic3) {
-      iter_each (_wA, A) {
-      iter_each (_hA, A) {
-      iter_each (_I2, this->I2) {
-      iter_each (_iVx, this->Vx) {
-      iter_each (_iV, V) {
-        __m<V> mmdiff;
-        mmdiff = _mm<V>::sub_ps(
-            *(__m<V> *)&md12(atweights, _oc4, _ic4, _oc3, _ic3, _wA, _hA,
-                             _O1, _I2, _iVx, _iV, _O, 0), mmavg);
-        mmsd = _mm<V>::add_ps(_mm<V>::mul_ps(mmdiff, mmdiff), mmsd);
-      }}}}}}}
-      mmsd = _mm<V>::div_ps(mmsd, mmblk);
-      mmsd = _mm<V>::sqrt_ps(mmsd);
-
-      // upper
-      // 90% => 1.645
-      // 95% => 1.960
-      // 99% => 2.576
-      __m<V> ci_coef = _mm<V>::set1_ps(2.576);
-      __m<V> mmupper = _mm<V>::add_ps(mmavg, _mm<V>::mul_ps(mmsd, ci_coef));
-      _mm<V>::store_ps(&md5(atweights_ci, _oc4, _oc3, _O1, _O, 0), mmupper);
-    }}}}
-  } else {
-    // TODO:
-  }
-
-#ifdef DEBUG
-  printf("Confident Interval upper +++++\n");
-  iter_each (_oc4, this->oc4) {
-  iter_each (_oc3, this->oc3) {
-  iter_each (_O1, this->O1) {
-  iter_each (_O, this->O) {
-  iter_each (_oV, V) {
-    printf("upper %f\n", md5(atweights_ci, _oc4, _oc3, _O1, _O, _oV));
-  }}}}}
-  printf("Confident Interval upper -----\n\n");
-#endif
-
-  this->tweights_preprocessed_ = true;
-  return;
-}
-
-Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::preprocess(WeightsType * __restrict weights) {
-  if (this->execution_mode  == 0xa161)
-    prepare_tweights(weights);
 }
 
 } // namespace euler

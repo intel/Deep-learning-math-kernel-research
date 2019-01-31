@@ -60,18 +60,18 @@ namespace euler {
 
 template <typename UserTypes, typename TarrayTypes, typename TrOpType,
          const int A, const int K, const int V, const int I>
-class elx_conv_wino_t : public elx_conv_t<UserTypes> {
+class elx_conv_wino_t : public elx_conv_t {
 public:
   // Configurable parameters
-  using elx_conv_t<UserTypes>::IC;
-  using elx_conv_t<UserTypes>::OC;
-  using elx_conv_t<UserTypes>::T;
-  using elx_conv_t<UserTypes>::I2;
-  using elx_conv_t<UserTypes>::O2;
-  using elx_conv_t<UserTypes>::oc4;
-  using elx_conv_t<UserTypes>::ic3;
-  using elx_conv_t<UserTypes>::oc3;
-  using elx_conv_t<UserTypes>::Vx;
+  using elx_conv_t::IC;
+  using elx_conv_t::OC;
+  using elx_conv_t::T;
+  using elx_conv_t::I2;
+  using elx_conv_t::O2;
+  using elx_conv_t::oc4;
+  using elx_conv_t::ic3;
+  using elx_conv_t::oc3;
+  using elx_conv_t::Vx;
   using InputType = typename UserTypes::InputType;
   using WeightsType = typename UserTypes::WeightsType;
   using OutputType = typename UserTypes::OutputType;
@@ -91,13 +91,10 @@ public:
   constexpr static bool no = false;
 
 public:
-  elx_conv_wino_t(eld_conv_t<UserTypes> &dc);
+  elx_conv_wino_t(eld_conv_t &dc);
   virtual ~elx_conv_wino_t();
 
-  virtual void execute(OutputType *output, InputType *input,
-      WeightsType *weights, BiasType *bias);
-
-  virtual void preprocess(WeightsType *weights);
+  virtual void execute(void *output, void *input, void *weights, void *bias);
 
   class exe_plan {
   public:
@@ -365,8 +362,6 @@ private:
       TscaleType *src_scale, TscaleType *src_factor, TscaleType *weights_scale,
       TscaleType *weights_factor, int _ic4 = 0);
 
-  void prepare_tweights(WeightsType * __restrict weights);
-
   void set_trans_buffers();
   int prepare_execute_opt();
   void prepare_wino_tinput_quant();
@@ -418,7 +413,6 @@ private:
   bool input_as_bfmt_;
   bool weights_as_bfmt_;
   bool output_as_bfmt_;
-  bool tweights_preprocessed_;
   int attr_;
   int mthr_;
   size_t tweights_size_;

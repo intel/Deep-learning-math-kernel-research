@@ -87,13 +87,13 @@ namespace euler {
 
 // template <const bool is_border_, const bool with_bias>
 // Params:
-//   elx_conv_t<float> &xc,
+//   elx_conv_t &xc,
 //   float *output, float atoutput[A][A][V], float *bias,
 //   int _hOA_end, int _wOA_end
 template <typename UserTypes, typename TrOpType, int V>
 template <int... conditions>
 inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
-    ISA_SKX_AVX512, V, 7, 3>::__trans_output(elx_conv_t<UserTypes> &xc,
+    ISA_SKX_AVX512, V, 7, 3>::__trans_output(elx_conv_t &xc,
     OutputType *output, TrOpType atoutput[A][A][V], BiasType *bias,
     int hOA_end, int wOA_end)
 {

@@ -39,15 +39,16 @@ public:
     desc_.execution_mode = 0xa061;
     desc_.prop_kind = euler::forward_inference;
     desc_.tile_size = A;
+    // TODO: refactor the templated class
+    desc_.data_type = {
+        euler::euler_f32, euler::euler_f32, euler::euler_f32, euler:euler_f32 };
 
     p_xc_.reset(new euler::elx_conv_wino_t<
         euler::ConvTypes<InputType, WeightsType, OutputType, BiasType>,
         euler::ConvImplTypes<TarrayType, TarrayType, TarrayType, TarrayType, TarrayType>, float, A, K, V, I>(
         desc_));
   }
-  euler::eld_conv_t<
-      euler::ConvTypes<InputType, WeightsType, OutputType, BiasType>>
-      desc_;
+  euler::eld_conv_t desc_;
   std::unique_ptr<euler::elx_conv_wino_t<
       euler::ConvTypes<InputType, WeightsType, OutputType, BiasType>,
       euler::ConvImplTypes<TarrayType, TarrayType, TarrayType, TarrayType, TarrayType>, float, A, K, V, I>>

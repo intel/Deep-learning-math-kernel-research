@@ -20,7 +20,7 @@ using ::testing::Bool;
 using ::testing::Combine;
 
 template <typename F>
-int ref_elk_gemm(elx_conv_t<F> &xc, F *output, F *input, F *weights,
+int ref_elk_gemm(elx_conv_t &xc, F *output, F *input, F *weights,
                  bool zero_out);
 
 template <typename Type, const int T, const int A, const int V, const int I>
@@ -30,7 +30,7 @@ void test_elk_gemm(bool perf, bool show_diff, int execution_mode,
   int ic = 64, ih = 224, iw = 224, oc = 64, oh = 224, ow = 224, kh = 3, kw = 3;
   int ph = 1, pw = 1;
 
-  eld_conv_t<Type> desc;
+  eld_conv_t desc;
   desc.dims = {{mb, ic, ih, iw}, {oc, ic, kh, kw}, {mb, oc, oh, ow}, {oc}};
   desc.formats = {input_format, weights_format, output_format};
 
@@ -41,6 +41,8 @@ void test_elk_gemm(bool perf, bool show_diff, int execution_mode,
   desc.execution_mode = execution_mode;
   desc.prop_kind = forward_inference;
   desc.tile_size = A;
+  desc.data_type = {
+      euler::euler_f32, euler::euler_f32, euler::euler_f32, euler::euler_f32 };
   elx_conv_wino_t<Type, A, 3, V, I> xc(desc);
   xc.T = T;
 

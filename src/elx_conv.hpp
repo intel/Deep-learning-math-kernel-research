@@ -28,11 +28,11 @@ struct elx_conv_params_t {
   // dimensions in tiles: tiles per (image, line, column)
   int nt, ht, wt;
   // pack size
-  int V;
+  // int V;
   // int8 gemm
   int Vx;
   // tile-size
-  int A;
+  // int A;
   // register working set
   int T;
   // padding (IC/OC) & tailing dimensions: Ir, Or, Tr
@@ -88,25 +88,14 @@ struct elx_conv_params_t {
   sampling_kind_t sampling_kind;
 };
 
-template <typename UserTypes> struct elx_conv_t : elx_conv_params_t {
-  public:
-  using InputType = typename UserTypes::InputType;
-  using WeightsType = typename UserTypes::WeightsType;
-  using OutputType = typename UserTypes::OutputType;
-  using BiasType = typename UserTypes::BiasType;
+struct elx_conv_t : elx_conv_params_t {
+public:
+  elx_conv_t(eld_conv_t &dc);
 
-  elx_conv_t(eld_conv_t<UserTypes> &dc);
+  virtual void execute(
+      void *output, void *input, void *weights, void *bias) = 0;
   virtual ~elx_conv_t() {}
-
-  virtual void execute(OutputType *output, InputType *input,
-      WeightsType *weights, BiasType *bias) = 0;
-
-  virtual void preprocess(WeightsType *weights) { return; }
 };
-
-template struct elx_conv_t<conv::FP32>;
-template struct elx_conv_t<conv::FP16>;
-template struct elx_conv_t<conv::FP16O>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_HPP__

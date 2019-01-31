@@ -38,7 +38,9 @@ void test_elk_trans_output(bool perf, bool show_diff, int execution_mode,
   int ic = 64, ih = 224, iw = 224, oc = 64, oh = 224, ow = 224, kh = 3, kw = 3;
   int ph = 1, pw = 1;
 
-  eld_conv_t<UserTypes> desc;
+  eld_conv_t desc;
+  desc.data_type = {
+      euler::euler_f32, euler::euler_f32, euler::euler_f32, euler:euler_f32 };
   desc.dims = {{mb, ic, ih, iw},
                {oc, ic, kh, kw},
                {mb, oc, oh, ow},

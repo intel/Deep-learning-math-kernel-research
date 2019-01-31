@@ -11,7 +11,7 @@
 
 namespace euler {
 
-template <typename UserTypes> eld_conv_t<UserTypes>::eld_conv_t()
+eld_conv_t::eld_conv_t()
 {
   pads = { 1, 1, 1, 1 };
   strides = { 1, 1 };
@@ -39,14 +39,14 @@ template <typename UserTypes> eld_conv_t<UserTypes>::eld_conv_t()
   sampling_kind = FINE;
 }
 
-template <typename UserTypes> eld_conv_t<UserTypes>::~eld_conv_t()
+eld_conv_t::~eld_conv_t()
 {
   if (xc != nullptr) {
     delete xc;
   }
 }
 
-template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
+int eld_conv_t::setup()
 {
   // Dimensions
   if (dims.input.c != dims.weights.i || dims.input.n != dims.output.n
@@ -80,6 +80,52 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
   sizes.weights = dims.weights.h * dims.weights.w;
   sizes.output = dims.output.n * dims.output.h * dims.output.w;
 
+  enum {
+    user_type_f32 = 0,
+    user_type_f16,
+    user_type_f16o,
+    user_type_u8s8f32f32,
+    user_type_u8s8u8f32,
+    user_type_u8s8s8f32,
+  };
+
+  // Analyze data type pattern
+  int user_type;
+  if (data_type.input == euler_f32 &&
+      data_type.weights == euler_f32 &&
+      data_type.output == euler_f32 &&
+      data_type.bias == euler_f32) {
+    user_type = user_type_f32;
+  } else if (data_type.input == euler_f16 &&
+      data_type.weights == euler_f16 &&
+      data_type.output == euler_f16 &&
+      data_type.bias == euler_f16) {
+    user_type = user_type_f16;
+  } else if (data_type.input == euler_f32 &&
+      data_type.weights == euler_f32 &&
+      data_type.output == euler_f16 &&
+      data_type.bias == euler_f32) {
+    user_type = user_type_f16o;
+  } else if (data_type.input == euler_u8 &&
+      data_type.weights == euler_s8 &&
+      data_type.output == euler_f32 &&
+      data_type.bias == euler_f32) {
+    user_type = user_type_u8s8f32f32;
+  } else if (data_type.input == euler_u8 &&
+      data_type.weights == euler_s8 &&
+      data_type.output == euler_u8 &&
+      data_type.bias == euler_f32) {
+    user_type = user_type_u8s8u8f32;
+  } else if (data_type.input == euler_u8 &&
+      data_type.weights == euler_s8 &&
+      data_type.output == euler_s8 &&
+      data_type.bias == euler_f32) {
+    user_type = user_type_u8s8s8f32;
+  } else {
+    el_error("Unsupported data type");
+    return ELX_GENERAL_ERROR;
+  }
+
   sizes.input *= (formats.input == fmt_blocked_data) ? IC : ic;
   sizes.weights
       *= (formats.weights == fmt_blocked_weights) ? OC * IC : oc * ic;
@@ -87,13 +133,23 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
   sizes.output *= (formats.output == fmt_blocked_data) ? OC : oc;
   sizes.bias = (formats.output == fmt_blocked_data) ? OC : oc;
 
-  byte_sizes.input = sizeof(InputType) * sizes.input;
-  byte_sizes.weights = sizeof(WeightsType) * sizes.weights;
-  byte_sizes.output = sizeof(OutputType) * sizes.output;
-  byte_sizes.bias = sizeof(BiasType) * sizes.bias;
+  auto get_elem_size = [](data_type_t dtype) -> size_t {
+    switch (dtype) {
+    case euler_f32: return sizeof(float);
+    case euler_f16: return sizeof(short);
+    case euler_u8:
+    case euler_s8: return sizeof(uint8_t);
+    default: return 0;
+    }
+  };
+
+  byte_sizes.input = get_elem_size(data_type.input) * sizes.input;
+  byte_sizes.weights = get_elem_size(data_type.weights) * sizes.weights;
+  byte_sizes.output = get_elem_size(data_type.output) * sizes.output;
+  byte_sizes.bias = get_elem_size(data_type.bias) * sizes.bias;
 
   // Validate padding
-  int oh = (dims.input.h + pads.t + pads.b - dims.weights.h) / strides.h + 1; 
+  int oh = (dims.input.h + pads.t + pads.b - dims.weights.h) / strides.h + 1;
   int ow = (dims.input.w + pads.l + pads.r - dims.weights.w) / strides.w + 1;
   if (oh != dims.output.h || ow != dims.output.w) {
     el_error("Padding parameter error");
@@ -126,10 +182,10 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
 
   // Direct
   if (algorithm == CONV_DIRECT) {
-    if (std::is_same<UserTypes, conv::FP32>::value)
-      xc = new elx_conv_direct_t<UserTypes, conv_impl::FP32, 16, ISA_SKX_AVX512>(*this);
-    else if (std::is_same<UserTypes, conv::FP16O>::value)
-      xc = new elx_conv_direct_t<UserTypes, conv_impl::FP32_F16o, 16, ISA_SKX_AVX512>(*this);
+    if (user_type == user_type_f32)
+      xc = new elx_conv_direct_t<conv::FP32, conv_impl::FP32, 16, ISA_SKX_AVX512>(*this);
+    else if (user_type == user_type_f16o)
+      xc = new elx_conv_direct_t<conv::FP16O, conv_impl::FP32_F16o, 16, ISA_SKX_AVX512>(*this);
     else
       el_error("TODO: FP16 UserTypes for DIRECT.");
   } else if (algorithm == CONV_DIRECT_1X1) {
@@ -137,11 +193,11 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
       el_error("Algorithm CONV_DIRECT_1X1 not supported for this shape.");
       return ELD_GENERAL_ERROR;
     }
-    if (std::is_same<UserTypes, conv::FP32>::value) {
+    if (user_type == user_type_f32) {
       if (f16c_opt)
-        xc = new elx_conv_direct_1x1_t<UserTypes, conv_impl::FP32_F16w, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_direct_1x1_t<conv::FP32, conv_impl::FP32_F16w, 16, ISA_SKX_AVX512>(*this);
       else
-        xc = new elx_conv_direct_1x1_t<UserTypes, conv_impl::FP32, 16, ISA_SKX_AVX512>(*this);
+        xc = new elx_conv_direct_1x1_t<conv::FP32, conv_impl::FP32, 16, ISA_SKX_AVX512>(*this);
     } else
       el_error("TODO: FP16 UserTypes for DIRECT 1x1.");
   } else if (algorithm == CONV_WINOGRAD) {
@@ -157,130 +213,59 @@ template <typename UserTypes> int eld_conv_t<UserTypes>::setup()
       // TODO: auto-select tile_size
       el_error("TODO: implement tile size auto-selection");
     } else {
+      #define NO_F53_CASE(UT, TT) \
+        case 7: break
+
+      #define F53_CASE(UT, TT) \
+        case 7: \
+          xc = new elx_conv_wino_t<UT, TT, float, 7, 3, 16, \
+              ISA_SKX_AVX512>(*this); \
+          break
+
+      #define create_conv_wino(UT, TT, prefix) \
+        switch (tile_size) { \
+        case 4: \
+          xc = new elx_conv_wino_t<UT, TT, float, 4, 3, 16, \
+              ISA_SKX_AVX512>(*this); \
+          break; \
+        case 5: \
+          xc = new elx_conv_wino_t<UT, TT, float, 5, 3, 16, \
+              ISA_SKX_AVX512>(*this); \
+          break; \
+        case 6: \
+          xc = new elx_conv_wino_t<UT, TT, float, 6, 3, 16, \
+              ISA_SKX_AVX512>(*this); \
+          break; \
+        prefix##_CASE(UT, TT); \
+        default: \
+          el_error("Unimplemented tile size"); \
+          break; \
+        }
+
       // TODO: forward, backward_data, backward_weights
       if (((execution_mode & 0xF00) != 0x100)
-          && std::is_same<UserTypes, conv::FP16>::value) {
-
-        using TarrayTypes = conv_impl::FP32_F16wob;
-        switch (tile_size) {
-        case 4:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 5:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 5, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 6:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 6, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 7:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 7, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        default:
-          el_error("Unimplemented tile size");
-          break;
-        }
+          && user_type == user_type_f16) {
+        create_conv_wino(conv::FP16, conv_impl::FP32_F16wob, F53);
       } else if (((execution_mode & 0xF00) != 0x100) && f16c_opt
-          && std::is_same<UserTypes, conv::FP32>::value) {
-        using TarrayTypes = conv_impl::FP32_F16wo;
-        switch (tile_size) {
-        case 4:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 5:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 5, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 6:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 6, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 7:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 7, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        default:
-          el_error("Unimplemented tile size");
-          break;
-        }
+          && user_type == user_type_f32) {
+        create_conv_wino(conv::FP32, conv_impl::FP32_F16wo, F53);
       } else if ((execution_mode & 0xF00) == 0x100 && f16c_opt
-          && std::is_same<UserTypes, conv::FP32>::value) {
-        using TarrayTypes = conv_impl::FP32_F16o;
-        switch (tile_size) {
-        case 4:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 5:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 5, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 6:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 6, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        default:
-          el_error("Unimplemented tile size");
-          break;
-        }
+          && user_type == user_type_f32) {
+        create_conv_wino(conv::FP32, conv_impl::FP32_F16o, NO_F53);
       } else if ((execution_mode & 0xF00) == 0x100
-          && std::is_same<UserTypes, conv::FP16>::value) {
-        using TarrayTypes = conv_impl::FP32_F16b;
-        switch (tile_size) {
-        case 4:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 5:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 5, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 6:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 6, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        default:
-          el_error("Unimplemented tile size");
-          break;
-        }
-      } else if (!std::is_same<UserTypes, conv::FP16O>::value) {
-        using TarrayTypes = conv_impl::FP32;
-        switch (tile_size) {
-        case 4:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 4, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 5:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 5, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 6:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 6, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        case 7:
-          xc = new elx_conv_wino_t<UserTypes, TarrayTypes, float, 7, 3, 16,
-              ISA_SKX_AVX512>(*this);
-          break;
-        default:
-          el_error("Unimplemented tile size");
-          break;
-        }
+          && user_type == user_type_f16) {
+        create_conv_wino(conv::FP16, conv_impl::FP32_F16b, NO_F53);
+      } else if (user_type == user_type_f32) {
+        create_conv_wino(conv::FP32, conv_impl::FP32, F53);
+      } else {
+        // TODO: U8xxxx
+        el_error("Unimplemented UserType for Winograd Convolution");
+        return ELD_UNIMPLEMENTED;
       }
     }
   }
 
   return ELD_OK;
-}
-
-template <typename UserTypes>
-void eld_conv_t<UserTypes>::preprocess(WeightsType *weights)
-{
-  this->xc->preprocess(weights);
 }
 
 }  // namespace euler

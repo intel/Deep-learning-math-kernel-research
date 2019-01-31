@@ -23,11 +23,11 @@ class convolution_winograd_kernel_base<UserTypes, TrOpType,
   constexpr static int K = 3;
 
   template <int input_format, bool is_border> static inline
-  void __trans_input(elx_conv_t<UserTypes> &xc, TrOpType atinput[A][A][V],
+  void __trans_input(elx_conv_t &xc, TrOpType atinput[A][A][V],
       InputType *input, int hT_start, int hT_end, int wT_start, int wT_end);
 
   template <int ...conditions>
-  static inline void __trans_output(elx_conv_t<UserTypes> &xc, OutputType *output,
+  static inline void __trans_output(elx_conv_t &xc, OutputType *output,
       TrOpType atoutput[A][A][V], BiasType *bias, int hOA_end, int wOA_end);
 
   static inline void __trans_weights(
@@ -38,7 +38,7 @@ template <typename UserTypes, typename TrOpType, int V>
 template <int input_format, bool is_border>
 inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     ISA_SKX_AVX512, V, 6, 3>::__trans_input(
-      elx_conv_t<UserTypes> &xc, TrOpType atinput[A][A][V], InputType *input,
+      elx_conv_t &xc, TrOpType atinput[A][A][V], InputType *input,
       int hT_start, int hT_end, int wT_start, int wT_end)
 {
   auto f_cb = [&](int _h, int _w) {

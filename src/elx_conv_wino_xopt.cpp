@@ -476,7 +476,7 @@ void Instance_elx_conv_wino_t::__execute_a173(
       A * A * this->ic3 * this->I2 * this->Vx * V * this->oc3 * this->O2 * V);
 
   MD2(TscaleType, atinput_quant_scale, tinput_quant_scale_,
-      mthr_, this->ic3 * this->A * this->A * 2 * this->T);
+      mthr_, this->ic3 * A * A * 2 * this->T);
   MD3(TscaleType, atweights_quant_scale, tweights_quant_scale_, this->oc4,
       this->ic4, this->oc3 * this->ic3 * this->O2 * V * A * A);
   MD3(TscaleType, aweights_quant_factor, tweights_quant_factor_,
@@ -522,21 +522,22 @@ void Instance_elx_conv_wino_t::__execute_a173(
 
 Template_elx_conv_wino_t
 void Instance_elx_conv_wino_t::execute(
-    OutputType * __restrict output, InputType * __restrict input,
-    WeightsType * __restrict weights, BiasType * __restrict bias)
+    void * __restrict output, void * __restrict input,
+    void * __restrict weights, void * __restrict bias)
 {
   set_trans_buffers();
 
   if (is_bfmt_)
-    return (this->*execute_opt_)(output, input, weights, bias);
+    return (this->*execute_opt_)((OutputType *)output,
+        (InputType *)input, (WeightsType *)weights, (BiasType *)bias);
   else {
-    InputType *in = input;
-    WeightsType *wei = weights;
-    OutputType *out = output_as_bfmt_ ? boutput_ : output;
+    InputType *in = (InputType *)input;
+    WeightsType *wei = (WeightsType *)weights;
+    OutputType *out = output_as_bfmt_ ? boutput_ : (OutputType *)output;
 
     if (input_as_bfmt_) {
       MD5(InputType, abinput, binput_, this->n, this->ic2, this->ih, this->iw, V);
-      MD4(InputType, ainput, input, this->n, this->ic, this->ih, this->iw);
+      MD4(InputType, ainput, (InputType *)input, this->n, this->ic, this->ih, this->iw);
 
 #pragma omp parallel for collapse(3)
       iter_each (_n, this->n) {
@@ -556,7 +557,7 @@ void Instance_elx_conv_wino_t::execute(
     if (weights_as_bfmt_) {
       MD6(WeightsType, abweights, bweights_, this->oc2, this->ic2,
           this->kh, this->kw, V, V);
-      MD4(WeightsType, aweights, weights, this->oc, this->ic, this->kh, this->kw);
+      MD4(WeightsType, aweights, (WeightsType *)weights, this->oc, this->ic, this->kh, this->kw);
 
 #pragma omp parallel for collapse(3)
       iter_each (_oc2, this->oc2) {
@@ -577,11 +578,12 @@ void Instance_elx_conv_wino_t::execute(
 
     // TODO: padding bias
 
-    (this->*execute_opt_)(out, in, wei, bias);
+    (this->*execute_opt_)((OutputType *)out,
+        (InputType *)in, (WeightsType *)wei, (BiasType *)bias);
 
     if (output_as_bfmt_) {
       MD5(OutputType, aboutput, boutput_, this->n, this->oc2, this->oh, this->ow, V);
-      MD4(OutputType, aoutput, output, this->n, this->oc, this->oh, this->ow);
+      MD4(OutputType, aoutput, (OutputType *)output, this->n, this->oc, this->oh, this->ow);
 
 #pragma omp parallel for collapse(3)
       iter_each (_n, this->n) {

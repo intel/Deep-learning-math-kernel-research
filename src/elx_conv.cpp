@@ -7,8 +7,7 @@
 
 namespace euler {
 
-template <typename UserTypes>
-elx_conv_t<UserTypes>::elx_conv_t(eld_conv_t<UserTypes> &dc)
+elx_conv_t::elx_conv_t(eld_conv_t &dc)
 {
   this->n = dc.dims.input.n;
   this->ic = dc.dims.input.c;
@@ -72,14 +71,9 @@ elx_conv_t<UserTypes>::elx_conv_t(eld_conv_t<UserTypes> &dc)
   this->ormask = (unsigned int)-1;
 }
 
-template <typename UserTypes>
-int elx_conv(eld_conv_t<UserTypes> &desc,
-    typename UserTypes::OutputType *output,
-    typename UserTypes::InputType *input,
-    typename UserTypes::WeightsType *weights,
-    typename UserTypes::BiasType *bias)
+int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *bias)
 {
-  elx_conv_t<UserTypes> &xc = *desc.xc;
+  elx_conv_t &xc = *desc.xc;
 
   // Sanity check
   if (input == nullptr || weights == nullptr || output == nullptr
@@ -92,12 +86,4 @@ int elx_conv(eld_conv_t<UserTypes> &desc,
   return ELX_OK;
 }
 
-template int elx_conv<conv::FP32>(
-    eld_conv_t<conv::FP32> &, float *, float *, float *, float *);
-
-template int elx_conv<conv::FP16>(
-    eld_conv_t<conv::FP16> &, short *, short *, short *, short *);
-
-template int elx_conv<conv::FP16O>(
-    eld_conv_t<conv::FP16O> &, short *, float *, float *, float *);
 }  // namespace euler

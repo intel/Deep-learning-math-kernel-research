@@ -43,9 +43,29 @@ euler::sampling_kind_t sampling_kind = euler::CALIBRATED;
 float tinput_cali_s = FLT_MAX;
 float tinput_cali_z = FLT_MAX;
 
+typedef enum USER_DTYPE {
+  FP32 = 0,
+  FP16,
+  FP16O
+} user_data_type_t;
+
 template <typename ConvType>
-static inline ConvType create_conv_desc(void) {
+static inline ConvType create_conv_desc(user_data_type_t dtype) {
   ConvType desc;
+  switch (dtype) {
+  case USER_DTYPE::FP32: desc.data_type = {
+      euler::euler_f32, euler::euler_f32, euler::euler_f32, euler::euler_f32 };
+    break;
+  case USER_DTYPE::FP16: desc.data_type = {
+      euler::euler_f16, euler::euler_f16, euler::euler_f16, euler::euler_f16 };
+    break;
+  case USER_DTYPE::FP16O: desc.data_type = {
+      euler::euler_f32, euler::euler_f32, euler::euler_f16, euler::euler_f32 };
+    break;
+  default:
+    test::error("Fail: Unsupported user data type ...\n");
+    break;
+  }
   desc.dims = {{ mb, ic, ih, iw },
                { oc, ic, kh, kw },
                { mb, oc, oh, ow },
@@ -78,11 +98,11 @@ static inline ConvType create_conv_desc(void) {
   return desc;
 }
 
-template <typename ConvType, typename T, typename O>
-static inline void conv_execute(eld_conv_t<ConvType> convs[],
+template <typename T, typename O>
+static inline void conv_execute(eld_conv_t convs[],
     T **input, T **weights, O **output, T **bias, int C) {
   for (auto c = 0; c < C; ++c) {
-    eld_conv_t<ConvType> &_convs = convs[c];
+    eld_conv_t &_convs = convs[c];
     T *_weights = weights[c], *_bias = bias[c], *_input = input[c];
     O *_output = output[c];
 
@@ -100,15 +120,15 @@ static inline void conv_execute(eld_conv_t<ConvType> convs[],
       }
     }
 
-    if (ELX_OK != elx_conv<ConvType>(_convs, _output, _input, _weights, _bias)) {
+    if (ELX_OK != elx_conv(_convs, _output, _input, _weights, _bias)) {
       test::error("Fail: Convolution execution error!\n");
     }
   }
 }
 
-template <typename ConvType, typename T, typename O>
-static inline void conv_bench(eld_conv_t<ConvType> convs[],
-    eld_conv_t<conv::FP32> &desc0, T **input, T **weights,
+template <typename T, typename O>
+static inline void conv_bench(eld_conv_t convs[],
+    eld_conv_t &desc0, T **input, T **weights,
     O **output, T **bias, int C) {
   auto num_ops = test::cal_ops(desc0);
   auto N = validate_results ? 1 : test::cal_iterations(num_ops);
@@ -116,7 +136,7 @@ static inline void conv_bench(eld_conv_t<ConvType> convs[],
   test::timer timer;
   for (auto n = 0; n < N / C; ++n) {
     for (auto c = 0; c < C; ++c) {
-      eld_conv_t<ConvType> &_convs = convs[c];
+      eld_conv_t &_convs = convs[c];
       T *_weights = weights[c], *_bias = bias[c], *_input = input[c];
       O *_output = output[c];
 
@@ -137,7 +157,7 @@ static inline void conv_bench(eld_conv_t<ConvType> convs[],
 
       timer.start();
       if (ELX_OK
-          != elx_conv<ConvType>(_convs, _output, _input, _weights, _bias)) {
+          != elx_conv(_convs, _output, _input, _weights, _bias)) {
         test::error("Fail: Convolution execution error!\n");
       }
       timer.stop();
@@ -154,14 +174,14 @@ int main(int argc, char **argv)
     return 0;
 
   // 1, create convolution desc
-  auto desc0 = create_conv_desc<eld_conv_t<conv::FP32>>();
-  auto desc1 = create_conv_desc<eld_conv_t<conv::FP16>>();
-  auto desc2 = create_conv_desc<eld_conv_t<conv::FP16O>>();
+  auto desc0 = create_conv_desc<eld_conv_t>(USER_DTYPE::FP32);
+  auto desc1 = create_conv_desc<eld_conv_t>(USER_DTYPE::FP16);
+  auto desc2 = create_conv_desc<eld_conv_t>(USER_DTYPE::FP16O);
 
   // 2. setup convolution
-  eld_conv_t<conv::FP32> convs0[RL_MAX];
-  eld_conv_t<conv::FP16> convs1[RL_MAX];
-  eld_conv_t<conv::FP16O> convs2[RL_MAX];
+  eld_conv_t convs0[RL_MAX];
+  eld_conv_t convs1[RL_MAX];
+  eld_conv_t convs2[RL_MAX];
 
   const auto C = validate_results ?
       1 : repeated_layer <= RL_MAX ? repeated_layer : RL_MAX;

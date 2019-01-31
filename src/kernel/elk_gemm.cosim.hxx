@@ -11,7 +11,7 @@ public:
   using target = gemm_kernel_base<Type, ISA_SKX_AVX512, V, T>;
   using cosim = gemm_kernel_base<Type, ISA_GENERIC, V, T>;
 
-  static void inline __gemm(elx_conv_t<Type> &xc, Type *toutput, Type *tinput
+  static void inline __gemm(elx_conv_t &xc, Type *toutput, Type *tinput
       , Type *tweights, bool zero_out) {
     Type *dup_toutput = new Type [xc.O2 * T * V];
     std::memcpy(dup_toutput, toutput, xc.O2 * T * V * sizeof(Type));
@@ -23,7 +23,7 @@ public:
     delete [] dup_toutput;
   }
 
-  static void inline __gemm_tail(elx_conv_t<Type> &xc, Type *toutput,
+  static void inline __gemm_tail(elx_conv_t &xc, Type *toutput,
       Type *tinput, Type *tweights, bool zero_out) {
     Type *dup_toutput = new Type [xc.O2 * T * V];
     std::memcpy(dup_toutput, toutput, xc.O2 * T * V * sizeof(Type));

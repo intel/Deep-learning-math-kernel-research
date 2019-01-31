@@ -13,7 +13,7 @@ namespace euler {
 namespace test {
 
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  void prepare_conv_data(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &desc,
+  void prepare_conv_data(eld_conv_t &desc,
       InputType **input, WeightsType **weights, OutputType **output,
       BiasType **bias, short **input1, short **weights1, short **output1,
       short **bias1, const char *input_file, const char *weights_file, const char *bias_file,
@@ -25,22 +25,22 @@ namespace test {
       bool validate_results = false);
 
   template <typename OutputType>
-  int __compare_conv_results_nchw(eld_conv_t<conv::FP32> &, OutputType *out,
+  int __compare_conv_results_nchw(eld_conv_t &, OutputType *out,
       float *ref, int fp_mode);
 
   template <typename OutputType>
-  int __compare_conv_results_nhwc(eld_conv_t<conv::FP32> &, OutputType *out,
+  int __compare_conv_results_nhwc(eld_conv_t &, OutputType *out,
       float *ref, int fp_mode);
 
   template <typename OutputType>
-  int __compare_conv_results_blocked(eld_conv_t<conv::FP32> &, OutputType *out,
+  int __compare_conv_results_blocked(eld_conv_t &, OutputType *out,
       float *ref, int fp_mode);
 
   template <typename OutputType>
-  int compare_conv_results(eld_conv_t<conv::FP32> &, OutputType *out, float *ref,
+  int compare_conv_results(eld_conv_t &, OutputType *out, float *ref,
       int fp_mode);
 
-  size_t cal_ops(eld_conv_t<conv::FP32> &desc);
+  size_t cal_ops(eld_conv_t &desc);
   int cal_iterations(size_t num_ops);
 
   template <typename Type, const int dst_fmt, const int src_fmt,
@@ -81,11 +81,11 @@ namespace test {
   };
 
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  int ref_convolution2d(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &desc,
+  int ref_convolution2d(eld_conv_t &desc,
       OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
 
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  int ref_convolution2d_block16(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &desc,
+  int ref_convolution2d_block16(eld_conv_t &desc,
       OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
 
 }

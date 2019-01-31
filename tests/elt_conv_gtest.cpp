@@ -56,7 +56,9 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
   printf("with_bias:%d, with_relu:%d \n", with_bias, with_relu);
 
   // 1, create convolution desc
-  eld_conv_t<conv::FP32> desc;
+  eld_conv_t desc;
+  desc.data_type = {
+      euler::euler_f32, euler::euler_f32, euler::euler_f32, euler::euler_f32 };
   desc.dims = {{mb, ic, ih, iw},
                {oc, ic, kh, kw},
                {mb, oc, oh, ow},

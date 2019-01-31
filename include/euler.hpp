@@ -20,28 +20,31 @@ namespace conv {
   using FP32 = ConvTypes<float, float, float, float>;
   using FP16 = ConvTypes<short, short, short, short>;
   using FP16O = ConvTypes<float, float, short, float>;
+  using U8S8F32F32 = ConvTypes<uint8_t, int8_t, float, float>;
+  using U8S8U8F32 = ConvTypes<uint8_t, int8_t, uint8_t, float>;
+  using U8S8S8F32 = ConvTypes<uint8_t, int8_t, int8_t, float>;
 };
 
 // Convolution algorithm
 enum {
-    CONV_AUTO = 0,
-    CONV_DIRECT_1X1 = 1,
-    CONV_DIRECT = 2,
-    CONV_WINOGRAD = 3
+  CONV_AUTO = 0,
+  CONV_DIRECT_1X1 = 1,
+  CONV_DIRECT = 2,
+  CONV_WINOGRAD = 3
 };
 
 // Desc setup error
 enum {
-    ELD_OK = 0,
-    ELD_UNIMPLEMENTED = 1,
-    ELD_GENERAL_ERROR = 2
+  ELD_OK = 0,
+  ELD_UNIMPLEMENTED = 1,
+  ELD_GENERAL_ERROR = 2
 };
 
 // Execution error
 enum {
-    ELX_OK = 0,
-    ELX_UNIMPLEMENTED = 1,
-    ELX_GENERAL_ERROR = 2
+  ELX_OK = 0,
+  ELX_UNIMPLEMENTED = 1,
+  ELX_GENERAL_ERROR = 2
 };
 
 // Streaming hint
@@ -51,22 +54,30 @@ enum {
   STORE_STREAMING = 2
 };
 
+typedef enum {
+  euler_unknown = 0,
+  euler_f32,
+  euler_f16,
+  euler_u8,
+  euler_s8
+} data_type_t;
+
 // Data formats
 enum formats{
-    nchw,
-    nhwc,
-    nChw16c,
-    oihw,
-    hwio,
-    OIhw16i16o
+  nchw,
+  nhwc,
+  nChw16c,
+  oihw,
+  hwio,
+  OIhw16i16o
 };
 
 // Propagation kind
 enum prop_kinds {
-    forward_training,
-    forward_inference,
-    backward_data,
-    backward_weights
+  forward_training,
+  forward_inference,
+  backward_data,
+  backward_weights
 };
 
 enum fp_modes {
@@ -78,97 +89,84 @@ enum fp_modes {
 typedef enum {
   FINE = 0,
   COARSE,
-  CALIBRATED,
+  CALIBRATED
 } sampling_kind_t;
 
 #define EL_NO_CALI (FLT_MAX)
 
-template<typename UserTypes> struct elx_conv_t;
+struct elx_conv_t;
 
 // Convolution desc
-template<typename UserTypes> struct eld_conv_t {
+struct eld_conv_t {
+  // Conv parameters
+  struct {
+    struct { int n, c, h, w; } input;
+    struct { int o, i, h, w; } weights;
+    struct { int n, c, h, w; } output;
+    struct { int c;          } bias;
+  } dims;
+  struct { int l, r, t, b; } pads;
+  struct { int h, w; } strides;
+  struct { int h, w; } dilations;
 
-    using InputType = typename UserTypes::InputType;
-    using WeightsType = typename UserTypes::WeightsType;
-    using OutputType = typename UserTypes::OutputType;
-    using BiasType = typename UserTypes::BiasType;
+  // Data Type
+  struct { data_type_t input, weights, output, bias; } data_type;
 
-    // Conv parameters
-    struct {
-        struct { int n, c, h, w; } input;
-        struct { int o, i, h, w; } weights;
-        struct { int n, c, h, w; } output;
-        struct { int c;          } bias;
-    } dims;
-    struct { int l, r, t, b; } pads;
-    struct { int h, w; } strides;
-    struct { int h, w; } dilations;
+  // Data layout supported:
+  // - plain: nchw, oihw, nchw
+  // - blocked: nChw16c, OIhw16i16o, nChw16c
+  struct { int input, weights, output; } formats;
 
-    // Data layout supported:
-    // - plain: nchw, oihw, nchw
-    // - blocked: nChw16c, OIhw16i16o, nChw16c
-    struct { int input, weights, output; } formats;
+  // propagation kind
+  int prop_kind;
+  int fp_mode;
 
-    // propagation kind
-    int prop_kind;
-    int fp_mode;
+  // Algorithm
+  int algorithm; // CONV_DIRECT | CONV_WINOGRAD
+  int tile_size; // for Winograd only
 
-    // Algorithm
-    int algorithm; // CONV_DIRECT | CONV_WINOGRAD
-    int tile_size; // for Winograd only
+  bool with_relu;
+  bool with_bias;
+  bool with_ip_sum;
+  bool with_op_sum;
+  bool f16c_opt;
+  bool is_inference;
 
-    bool with_relu;
-    bool with_bias;
-    bool with_ip_sum;
-    bool with_op_sum;
-    bool f16c_opt;
-    bool is_inference;
+  // Performance:
+  // Number of thread teams, number of threads per team
+  int nthreads;
+  // Execution mode
+  int execution_mode;
+  // Flatting/Blocking/Partition
+  struct { int o, t; } flatting;
+  struct { int i, o; } blocking;
+  struct { int i, o; } partition;
+  // Streaming hint: STORE_DEFAULT | STORE_NORMAL | STORE_STREAMING
+  struct { int weights, input, output; } streaming_hint;
+  // Use blocked format internally for plain format
+  struct { bool input, weights, output; } format_as_blocked;
 
-    // Performance:
-    // Number of thread teams, number of threads per team
-    int nthreads;
-    // Execution mode
-    int execution_mode;
-    // Flatting/Blocking/Partition
-    struct { int o, t; } flatting;
-    struct { int i, o; } blocking;
-    struct { int i, o; } partition;
-    // Streaming hint: STORE_DEFAULT | STORE_NORMAL | STORE_STREAMING
-    struct { int weights, input, output; } streaming_hint;
-    // Use blocked format internally for plain format
-    struct { bool input, weights, output; } format_as_blocked;
+  // quantization calibration coefficients
+  // A_fp32 = scale * (A_quant - z)
+  struct { float scale, z; } input_quant, output_quant, wino_tinput_quant;
+  sampling_kind_t sampling_kind;
 
-    // quantization calibration coefficients
-    // A_fp32 = scale * (A_quant - z)
-    struct { float scale, z; } input_quant, output_quant, wino_tinput_quant;
-    sampling_kind_t sampling_kind;
+  // Defaults
+  eld_conv_t();
+  ~eld_conv_t();
+  int setup();
 
-    // Defaults
-    eld_conv_t();
-    ~eld_conv_t();
-    int setup();
-    void preprocess(WeightsType *weights);
-    void clflush();
+  // Auto computed by setup()
+  struct { size_t input, weights, output, bias; } byte_sizes;
+  struct { size_t input, weights, output, bias; } sizes;
 
-    // Auto computed by setup()
-    struct { size_t input, weights, output, bias; } byte_sizes;
-    struct { size_t input, weights, output, bias; } sizes;
-
-    // Internal data used by elx
-    elx_conv_t<UserTypes> *xc;
+  // Internal data used by elx
+  elx_conv_t *xc;
 };
 
-template struct eld_conv_t<conv::FP32>;
-template struct eld_conv_t<conv::FP16>;
-template struct eld_conv_t<conv::FP16O>;
-
 // Convolution execution
-template <typename UserTypes>
-int elx_conv(eld_conv_t<UserTypes> &desc,
-    typename UserTypes::OutputType *output,
-    typename UserTypes::InputType *input,
-    typename UserTypes::WeightsType *weights,
-    typename UserTypes::BiasType *bias);
+int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *bias);
+
 }
 
 #endif // __EULER_HPP__

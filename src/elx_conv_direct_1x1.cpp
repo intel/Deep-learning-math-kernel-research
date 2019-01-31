@@ -10,8 +10,8 @@
 namespace euler {
 
 Template_elx_conv_direct_1x1_t
-Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t<UserTypes> &dc)
-    : elx_conv_t<UserTypes>(dc)
+Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t &dc)
+    : elx_conv_t(dc)
 {
   // user input
   xopt_ = this->execution_mode;
@@ -29,7 +29,6 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t<UserTypes> &dc)
   this->oc4 = this->oc4 == 0 ? 1 : this->oc4;
   this->ic4 = this->ic4 == 0 ? 1 : this->ic4;
 
-  this->V = V;
   this->ic2 = this->IC / V;
   this->oc2 = this->OC / V;
 
@@ -117,9 +116,9 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t<UserTypes> &dc)
   printf("T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d\n",
       this->T, this->Tr, this->t2, this->ht, this->wt, this->t);
   printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic4=%d, IC=%d\n",
-      this->V, this->Ir, this->I2, this->ic3, this->ic4, this->IC);
+      V, this->Ir, this->I2, this->ic3, this->ic4, this->IC);
   printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), oc3=%d, oc4=%d, O2r=%d, oc3r=%d, OC=%d\n",
-      this->V, this->Or, this->O2, this->O, this->O1,
+      V, this->Or, this->O2, this->O, this->O1,
       this->oc3, this->oc4, this->O2r, this->oc3r, this->OC);
 }
 

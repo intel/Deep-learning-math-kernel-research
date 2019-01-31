@@ -13,7 +13,7 @@ namespace euler {
 namespace test {
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
   void prepare_conv_data(
-      eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &,
+      eld_conv_t &,
       InputType **, WeightsType **, OutputType **, BiasType **,
       short **, short **, short **, short **, bool, bool)
   {
@@ -29,7 +29,7 @@ namespace test {
 
   template <typename InputType, typename WeightsType, typename OutputType,
       typename BiasType>
-  void load_conv_data(eld_conv_t<conv::FP32> &desc, InputType *input,
+  void load_conv_data(eld_conv_t &desc, InputType *input,
       WeightsType *weights, BiasType *bias, const char *input_file,
       const char *weights_file, const char *bias_file)
   {
@@ -67,7 +67,7 @@ namespace test {
 
   __thread unsigned int seed;
   template <>
-  void prepare_conv_data<float>(eld_conv_t<conv::FP32> &desc,
+  void prepare_conv_data<float>(eld_conv_t &desc,
       float **input, float **weights, float **output, float **bias, short **input1,
       short **weights1, short **output1, short **bias1,
       const char *input_file, const char *weights_file, const char *bias_file,
@@ -296,7 +296,7 @@ namespace test {
   }
 
   template <typename OutputType>
-  int compare_conv_results(eld_conv_t<conv::FP32> &desc, OutputType *out,
+  int compare_conv_results(eld_conv_t &desc, OutputType *out,
       float *ref, int fp_mode)
   {
     if (desc.formats.output == nchw)
@@ -308,14 +308,14 @@ namespace test {
   }
 
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  int __compare_conv_results_nchw(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &,
+  int __compare_conv_results_nchw(eld_conv_t &,
       OutputType *, OutputType *, int fp_mode)
   {
     return -1;
   }
 
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  int __compare_conv_results_nhwc(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &,
+  int __compare_conv_results_nhwc(eld_conv_t &,
       OutputType *, OutputType *, int fp_mode)
   {
     return -1;
@@ -323,7 +323,7 @@ namespace test {
 
   template <typename OutputType>
   int __compare_conv_results_blocked(
-      eld_conv_t<conv::FP32> &desc, OutputType *out, float *ref, int fp_mode)
+      eld_conv_t &desc, OutputType *out, float *ref, int fp_mode)
   {
     const int V = 16;
     auto dims = desc.dims.output;
@@ -388,7 +388,7 @@ namespace test {
 
   template <typename OutputType>
   int __compare_conv_results_nchw(
-      eld_conv_t<conv::FP32> &desc, OutputType *out, float *ref, int fp_mode)
+      eld_conv_t &desc, OutputType *out, float *ref, int fp_mode)
   {
     auto dims = desc.dims.output;
     MD4(OutputType, aout, out, dims.n, dims.c, dims.h, dims.w);
@@ -445,7 +445,7 @@ namespace test {
 
   template <typename OutputType>
   int __compare_conv_results_nhwc(
-      eld_conv_t<conv::FP32> &desc, OutputType *out, float *ref, int fp_mode)
+      eld_conv_t &desc, OutputType *out, float *ref, int fp_mode)
   {
     auto dims = desc.dims.output;
     MD4(OutputType, aout, out, dims.n, dims.h, dims.w, dims.c);
@@ -500,7 +500,7 @@ namespace test {
     return 0;
   }
 
-  size_t cal_ops(eld_conv_t<conv::FP32> &desc)
+  size_t cal_ops(eld_conv_t &desc)
   {
     size_t num_ops = 0;
 
@@ -710,7 +710,7 @@ namespace test {
   }
 
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  int ref_convolution2d(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &desc,
+  int ref_convolution2d(eld_conv_t &desc,
       OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias)
   {
@@ -815,7 +815,7 @@ namespace test {
   }
 
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  int ref_convolution2d_block16(eld_conv_t<ConvTypes<InputType, WeightsType, OutputType, BiasType>> &desc,
+  int ref_convolution2d_block16(eld_conv_t &desc,
       OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
   {
     int n = desc.dims.input.n;
@@ -899,16 +899,16 @@ namespace test {
   }
 
   template int compare_conv_results<float>(
-      eld_conv_t<conv::FP32> &, float *, float *, int);
+      eld_conv_t &, float *, float *, int);
 
   template int compare_conv_results<short>(
-      eld_conv_t<conv::FP32> &, short *, float *, int);
+      eld_conv_t &, short *, float *, int);
 
   template int ref_convolution2d<float, float, float, float>(
-      eld_conv_t<conv::FP32> &, float *, float *, float *, float *);
+      eld_conv_t &, float *, float *, float *, float *);
 
   template int ref_convolution2d_block16<float, float, float, float>(
-      eld_conv_t<conv::FP32> &, float *, float *, float *, float *);
+      eld_conv_t &, float *, float *, float *, float *);
 
 }
 }

@@ -368,30 +368,32 @@ void Instance_elx_conv_direct_1x1_t::__execute_f061(
 
 Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::execute(
-    OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
+    void *output, void *input, void *weights, void *bias)
 {
   set_trans_buffers();
 
   if (is_bfmt_)
-    (this->*execute_opt_)(output, input, weights, bias);
+    (this->*execute_opt_)((OutputType *)output,
+        (InputType *)input, (WeightsType *)weights, (BiasType *)bias);
   else {
-    InputType *in = input_as_bfmt_ ? binput_ : input;
-    WeightsType *wei = weights_as_bfmt_ ? bweights_ : weights;
-    OutputType *out = output_as_bfmt_ ? boutput_ : output;
+    InputType *in = input_as_bfmt_ ? binput_ : (InputType *)input;
+    WeightsType *wei = weights_as_bfmt_ ? bweights_ : (WeightsType *)weights;
+    OutputType *out = output_as_bfmt_ ? boutput_ : (OutputType *)output;
 
     if (input_as_bfmt_) {
-      trans_input_2_blocked(in, input);
+      trans_input_2_blocked(in, (InputType *)input);
     }
 
     if (weights_as_bfmt_) {
-      trans_weights_2_blocked(wei, weights);
+      trans_weights_2_blocked(wei, (WeightsType *)weights);
     }
 
     // TODO: padding bias
-    (this->*execute_opt_)(out, in, wei, bias);
+    (this->*execute_opt_)((OutputType *)out,
+        (InputType *)in, (WeightsType *)wei, (BiasType *)bias);
 
     if (output_as_bfmt_) {
-      trans_output_2_plain(output, out);
+      trans_output_2_plain((OutputType *)output, out);
     }
   }
 }

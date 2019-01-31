@@ -15,8 +15,7 @@ namespace euler {
 #define Instance_elx_conv_direct_t                                             \
   elx_conv_direct_t<UserTypes, TarrayTypes, V, I>
 
-Template_elx_conv_direct_t class elx_conv_direct_t
-    : public elx_conv_t<UserTypes> {
+Template_elx_conv_direct_t class elx_conv_direct_t : public elx_conv_t {
   using InputType = typename UserTypes::InputType;
   using WeightsType = typename UserTypes::WeightsType;
   using OutputType = typename UserTypes::OutputType;
@@ -28,11 +27,10 @@ Template_elx_conv_direct_t class elx_conv_direct_t
   using ToutputType = typename TarrayTypes::OutputType;
 
   public:
-  elx_conv_direct_t(eld_conv_t<UserTypes> &dc);
+  elx_conv_direct_t(eld_conv_t &dc);
   virtual ~elx_conv_direct_t();
 
-  virtual void execute(OutputType *output, InputType *input,
-      WeightsType *weights, BiasType *bias);
+  virtual void execute(void *output, void *input, void *weights, void *bias);
 
   private:
   void __execute_a060(OutputType *output, InputType *input,

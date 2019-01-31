@@ -18,7 +18,7 @@ protected:
       convolution_winograd_kernel_base<Type, Ktype, ISA_GENERIC, V, A, K>;
 
   template <bool is_border> static inline
-  void __trans_input(elx_conv_t<float> &xc, float atinput[A][A][V],
+  void __trans_input(elx_conv_t &xc, float atinput[A][A][V],
       float *input, int hT_start, int hT_end, int wT_start,
       int wT_end) {
     alignas(64) Type dup_atinput[A][A][V];
@@ -33,7 +33,7 @@ protected:
   }
 
   template <bool ...conditions>
-  static inline void __trans_output(elx_conv_t<float> &xc, Type *output,
+  static inline void __trans_output(elx_conv_t &xc, Type *output,
       Type atoutput[A][A][V], Type *bias, int hOA_end, int wOA_end) {
     auto *dup_output = new Type [xc.oh * xc.ow * V];
     std::memcpy(dup_output, output, sizeof(Type) * xc.oh * xc.ow * V);
