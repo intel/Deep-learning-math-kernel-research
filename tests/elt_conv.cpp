@@ -303,12 +303,14 @@ int main(int argc, char **argv)
             convs0[0], ref_output, input[0], weights[0], bias[0]))
       printf("Fail: Convolution ref execution error!\n");
     if (fp_mode == euler::FP32) {
-      if (test::compare_conv_results(convs0[0], output[0], ref_output, fp_mode))
+      if (test::compare_conv_results(
+            convs0[0], output[0], ref_output, fp_mode, is_int8_lp, with_real_data))
         printf("Fail: Convolution results not correct!\n");
       else
         printf("Convolution Pass!\n");
     } else {
-      if (test::compare_conv_results(convs0[0], output1[0], ref_output, fp_mode))
+      if (test::compare_conv_results(
+            convs0[0], output1[0], ref_output, fp_mode, is_int8_lp, with_real_data))
         printf("Fail: Convolution results not correct!\n");
       else
         printf("Convolution Pass!\n");

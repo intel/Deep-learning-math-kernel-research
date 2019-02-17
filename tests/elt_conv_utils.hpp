@@ -26,19 +26,19 @@ namespace test {
 
   template <typename OutputType>
   int __compare_conv_results_nchw(eld_conv_t &, OutputType *out,
-      float *ref, int fp_mode);
+      float *ref, int fp_mode, double acc);
 
   template <typename OutputType>
   int __compare_conv_results_nhwc(eld_conv_t &, OutputType *out,
-      float *ref, int fp_mode);
+      float *ref, int fp_mode, double acc);
 
   template <typename OutputType>
   int __compare_conv_results_blocked(eld_conv_t &, OutputType *out,
-      float *ref, int fp_mode);
+      float *ref, int fp_mode, double acc);
 
   template <typename OutputType>
   int compare_conv_results(eld_conv_t &, OutputType *out, float *ref,
-      int fp_mode);
+      int fp_mode, bool is_int8_lp = false, bool with_real_data = false);
 
   size_t cal_ops(eld_conv_t &desc);
   int cal_iterations(size_t num_ops);

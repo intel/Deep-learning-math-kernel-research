@@ -7,18 +7,8 @@
 #include "elt_conv_utils.hpp"
 #include "el_intrin.hpp"
 
-extern bool is_int8_lp, with_real_data;
-
 namespace euler {
 namespace test {
-  template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  void prepare_conv_data(
-      eld_conv_t &,
-      InputType **, WeightsType **, OutputType **, BiasType **,
-      short **, short **, short **, short **, bool, bool)
-  {
-  }
-
   void read_blob_data(void *buffer, const char *filename, size_t size) {
     std::ifstream input_file (filename, std::ios::in | std::ios::binary);
     if (input_file) {
@@ -297,33 +287,22 @@ namespace test {
 
   template <typename OutputType>
   int compare_conv_results(eld_conv_t &desc, OutputType *out,
-      float *ref, int fp_mode)
+      float *ref, int fp_mode, bool is_int8_lp, bool with_real_data)
   {
-    if (desc.formats.output == nchw)
-      return __compare_conv_results_nchw(desc, out, ref, fp_mode);
-    else if (desc.formats.output == nhwc)
-      return __compare_conv_results_nhwc(desc, out, ref, fp_mode);
-    else
-      return __compare_conv_results_blocked(desc, out, ref, fp_mode);
-  }
-
-  template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  int __compare_conv_results_nchw(eld_conv_t &,
-      OutputType *, OutputType *, int fp_mode)
-  {
-    return -1;
-  }
-
-  template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  int __compare_conv_results_nhwc(eld_conv_t &,
-      OutputType *, OutputType *, int fp_mode)
-  {
-    return -1;
+    double acc = is_int8_lp ? (with_real_data ? 1e-1 : 1e-2) : 1e-5;
+    if (desc.formats.output == nhwc) {
+     acc = desc.with_relu ? 1.0 : 1e-5;
+     return __compare_conv_results_nhwc(desc, out, ref, fp_mode, acc);
+    } else if (desc.formats.output == nchw) {
+     return __compare_conv_results_nchw(desc, out, ref, fp_mode, acc);
+    } else {
+      return __compare_conv_results_blocked(desc, out, ref, fp_mode, acc);
+    }
   }
 
   template <typename OutputType>
   int __compare_conv_results_blocked(
-      eld_conv_t &desc, OutputType *out, float *ref, int fp_mode)
+      eld_conv_t &desc, OutputType *out, float *ref, int fp_mode, double acc)
   {
     const int V = 16;
     auto dims = desc.dims.output;
@@ -335,7 +314,6 @@ namespace test {
 
 #define MAX_PRINT_ERRORS (20)
     size_t errors = 0;
-    double acc = is_int8_lp ? (with_real_data ? 1e-1 : 1e-2) : 1e-5;
 
 #pragma omp parallel for collapse(3)
     iter_each (_n, dims.n) {
@@ -388,7 +366,7 @@ namespace test {
 
   template <typename OutputType>
   int __compare_conv_results_nchw(
-      eld_conv_t &desc, OutputType *out, float *ref, int fp_mode)
+      eld_conv_t &desc, OutputType *out, float *ref, int fp_mode, double acc)
   {
     auto dims = desc.dims.output;
     MD4(OutputType, aout, out, dims.n, dims.c, dims.h, dims.w);
@@ -396,7 +374,6 @@ namespace test {
 
 #define MAX_PRINT_ERRORS (20)
     size_t errors = 0;
-    double acc = is_int8_lp ? (with_real_data ? 1e-1 : 1e-2) : 1e-5;
 
 #pragma omp parallel for collapse(3)
     iter_each (_n, dims.n) {
@@ -445,7 +422,7 @@ namespace test {
 
   template <typename OutputType>
   int __compare_conv_results_nhwc(
-      eld_conv_t &desc, OutputType *out, float *ref, int fp_mode)
+      eld_conv_t &desc, OutputType *out, float *ref, int fp_mode, double acc)
   {
     auto dims = desc.dims.output;
     MD4(OutputType, aout, out, dims.n, dims.h, dims.w, dims.c);
@@ -453,7 +430,6 @@ namespace test {
 
 #define MAX_PRINT_ERRORS (20)
     size_t errors = 0;
-    double acc = desc.with_relu ? 1.0 : 1e-5;
 
 #pragma omp parallel for collapse(3)
     iter_each (_n, dims.n) {
@@ -899,10 +875,10 @@ namespace test {
   }
 
   template int compare_conv_results<float>(
-      eld_conv_t &, float *, float *, int);
+      eld_conv_t &, float *, float *, int, bool, bool);
 
   template int compare_conv_results<short>(
-      eld_conv_t &, short *, float *, int);
+      eld_conv_t &, short *, float *, int, bool, bool);
 
   template int ref_convolution2d<float, float, float, float>(
       eld_conv_t &, float *, float *, float *, float *);
