@@ -1,65 +1,39 @@
 #ifndef __ELX_CONV_WINO_HPP__
 #define __ELX_CONV_WINO_HPP__
 
-#include <tuple>
-#include <iostream>
-
+#include "euler.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
-#include "euler.hpp"
-#include "elk_conv_wino.hpp"
-#include "kernel/elk_gemm_otj_binder.hxx"
-
-#include "kernel/elk_conv_wino_2x2_3x3_input.hxx"
-#include "kernel/elk_conv_wino_2x2_3x3_output.hxx"
-#include "kernel/elk_conv_wino_2x2_3x3_weights.hxx"
-
-#include "kernel/elk_conv_wino_3x3_3x3_input.hxx"
-#include "kernel/elk_conv_wino_3x3_3x3_output.hxx"
-#include "kernel/elk_conv_wino_3x3_3x3_weights.hxx"
-
-#include "kernel/elk_conv_wino_4x4_3x3_input.hxx"
-#include "kernel/elk_conv_wino_4x4_3x3_output.hxx"
-#include "kernel/elk_conv_wino_4x4_3x3_weights.hxx"
-
-#include "kernel/elk_conv_wino_5x5_3x3_input.hxx"
-#include "kernel/elk_conv_wino_5x5_3x3_output.hxx"
-#include "kernel/elk_conv_wino_5x5_3x3_weights.hxx"
+#include "elx_conv_wino_gemm.hpp"
+#include "elx_conv_wino_trans_input.hpp"
+#include "elx_conv_wino_trans_output.hpp"
+#include "elx_conv_wino_trans_weights.hpp"
 
 /*
   Winograd data types: (input,weights,output)
-  +--------------+------+-----+-------------+--------------+--------------+--------+-----------+
-  |Name          |XOPT  |F16C |UserTypes    |TarrayTypes   |GarrayTypes   |TrOpType|GemmOpTypes|
-  +--------------+------+-----+-------------+--------------+--------------+--------+-----------+
-  |int8          |TBD   |false|u8,fp32,u8/s8|fp32          |u8,s8,fp32    |fp32    |u8,s8,int32|
-  |bf16          |TBD   |false|bf16         |bf16          |bf16          |bf16    |bf16       |
-  |fp16-int8     |A161… |true |fp16         |fp32          |u8,s8,fp32    |fp32    |u8,s8,int32|
-  |fp16          |A061… |true |fp16         |fp32,fp16,fp16|fp32,fp16,fp16|fp32    |fp32       |
-  |fp32-int8     |A161… |false|fp32         |fp32          |u8,s8,fp32    |fp32    |u8,s8,int32|
-  |fp32-f16c     |A061… |true |fp32         |fp32,fp16,fp16|fp32,fp16,fp16|fp32    |fp32       |
-  |fp32          |A061… |false|fp32         |fp32          |fp32          |fp32    |fp32       |
-  +--------------+------+-----+-------------+--------------+--------------+--------+-----------+
+  +--------------+------+-----+-------------+--------------+-----------+
+  |Name          |XOPT  |F16C |UserTypes    |TarrayTypes   |GemmOpTypes|
+  +--------------+------+-----+-------------+--------------+-----------+
+  |bf16          |TBD   |false|bf16         |bf16          |bf16       |
+  |fp16          |A061… |true |fp16         |fp32,fp16,fp16|fp32       |
+  |fp32-f16c     |A061… |true |fp32         |fp32,fp16,fp16|fp32       |
+  |fp32          |A061… |false|fp32         |fp32          |fp32       |
+  +--------------+------+-----+-------------+--------------+-----------+
 
-  * Non-INT8 mode, unquantized TarrayTypes equals to GarrayTypes.
-  * INT8 mode, input/weights type of TarrayTypes equals to TrOpType, output type
-    of TarrayTypes equals to output of GarrayTypes.
+  * Non-INT8 mode, GarrayTypes equals to TarrayTypes.
 */
 
 namespace euler {
 
 #define Template_elx_conv_wino_t                                               \
-  template <typename UserTypes, typename TarrayTypes, typename TrOpType,       \
+  template <typename UserTypes, typename TarrayTypes,                          \
       const int A, const int K, const int V, const int I>
 
 #define Instance_elx_conv_wino_t                                               \
-  elx_conv_wino_t<UserTypes, TarrayTypes, TrOpType, A, K, V, I>
+  elx_conv_wino_t<UserTypes, TarrayTypes, A, K, V, I>
 
-#define Instance_convolution_winograd_kernel                                   \
-  convolution_winograd_kernel<UserTypes, TrOpType, I, V, A, K>
-
-template <typename UserTypes, typename TarrayTypes, typename TrOpType,
-         const int A, const int K, const int V, const int I>
+Template_elx_conv_wino_t
 class elx_conv_wino_t : public elx_conv_t {
 public:
   // Configurable parameters
@@ -77,13 +51,14 @@ public:
   using OutputType = typename UserTypes::OutputType;
   using BiasType = typename UserTypes::BiasType;
 
+  using TrOpType = float;
+
   // t-buffer type
   using TinputType = typename TarrayTypes::InputType;
   using TweightsType = typename TarrayTypes::WeightsType;
   using ToutputType = typename TarrayTypes::OutputType;
   using TscaleType = typename TarrayTypes::ScaleType;
 
-  constexpr static size_t elem_sz = sizeof(WeightsType);
   constexpr static bool is_border = true;
   constexpr static bool has_bias = true;
   constexpr static bool has_relu = true;
@@ -95,177 +70,6 @@ public:
   virtual ~elx_conv_wino_t();
 
   virtual void execute(void *output, void *input, void *weights, void *bias);
-
-  class exe_plan {
-  public:
-    exe_plan(int tiles, int IC, int OC):
-      tiles_(tiles), tb_(tiles), ocd_(1), icb_(IC/V), ocb_(OC/V),
-      weights_total(A * A * IC * OC * elem_sz), mode_(0xa061) {
-    }
-
-    inline bool bifurcate_oc() {
-      if ((ocb_ & 0x1) == 0) {
-        ocb_ /= 2;
-        ocd_ *= 2;
-        return true;
-      }
-      return false;
-    }
-
-    inline bool threading_fit(int num_cpu, int num_socket, std::size_t l2) {
-      constexpr int reg_max = 32;
-      /* double L3 effect, L2/L3 effect.
-       * We still don't have clear boundaries between these */
-      const int reg_min = (weights_total < (l2/2))?
-        (13 - 1)/num_socket +1:
-        (15 - 1)/num_socket +1;
-
-      int n = 1;
-
-      if ( tiles_ > reg_min * (num_cpu -1) + 1 ) {
-        do { /* need something exponential */
-          tb_ = (tiles_ - 1) / (n ++ * num_cpu) + 1;
-        } while (tb_ > reg_max);
-      } else {
-        tb_ = (tiles_ * ocd_ - 1) / num_cpu + 1;
-        while (tb_ < reg_min) {
-          if (!bifurcate_oc())
-            break;
-          tb_ = (tiles_ * ocd_ - 1) / num_cpu + 1;
-        }
-      }
-
-      return tb_ >= reg_min && tb_ < reg_max;
-    }
-
-    // Guarantees outputs L2 reside, then hiding output transform
-    //
-    inline bool l2_fit(std::size_t cache_sz) {
-      while(gemm_output_reuse_set() > cache_sz) {
-        if (!bifurcate_oc())
-          break;
-      }
-
-      return gemm_output_reuse_set() < cache_sz;
-    }
-
-    // Is this necessary??? Don't know if it help.
-    // Guarantees inputs L1 reside
-    //
-    inline bool l1_fit(std::size_t cache_sz) {
-      while(gemm_input_reuse_set() > cache_sz) {
-        if ( (icb_ & 0x1) == 0 )
-          icb_ /= 2;
-        else
-          break;
-      }
-
-      return (gemm_input_reuse_set() < cache_sz);
-    }
-
-    inline bool fit(int num_cpu, int num_socket, std::size_t l2, std::size_t l1) {
-      if (!(threading_fit(num_cpu, num_socket, l2) && l2_fit(l2) && l1_fit(l1))) {
-        mode_ = 0xa000;
-        // A000 execution tuning
-      }
-
-      return true;
-    }
-
-    // queries
-    inline std::size_t input_unit() const {
-      return elem_sz * tb_ * V;
-    }
-
-    inline std::size_t weights_unit() const {
-      return elem_sz * V * V;
-    }
-
-    inline std::size_t output_unit() const {
-      return elem_sz * tb_ * V;
-    }
-
-    inline std::size_t gemmker_input_footprint() const {
-      return input_unit() * icb_;
-    }
-
-    inline std::size_t gemmker_weights_footprint() const {
-      return weights_unit() * icb_;
-    }
-
-    inline std::size_t gemmker_output_footprint() const {
-      return output_unit();
-    }
-
-    inline std::size_t gemm_input_reuse_set() const {
-      return gemmker_input_footprint() +
-        gemmker_weights_footprint() + gemmker_output_footprint();
-    }
-
-    inline std::size_t trans_output_footprint() const {
-      return elem_sz * K * K * ocb_ * V * tb_;
-    }
-
-    inline std::size_t gemm_output_reuse_set() const {
-      auto wtile_sz = elem_sz * A * A * icb_ * ocb_ * V * V;
-      return wtile_sz + (gemmker_input_footprint() +
-        gemmker_output_footprint() * ocb_) * A * A +
-        trans_output_footprint();
-    }
-
-    void dump() const {
-      std::cout<<"tb="<<tb_<<", icb_="<<icb_<<", ocb_"
-        <<ocb_<<", ocd_="<<ocd_<<std::endl;
-      std::cout<<"Input footprint: "<<gemm_input_reuse_set()<<std::endl;
-      std::cout<<"Total footprint: "<<gemm_output_reuse_set()<<std::endl;
-    }
-
-    const int tiles_;
-    int tb_, ocd_, icb_, ocb_;
-    std::size_t weights_total;
-    unsigned int mode_;
-  };
-
-  exe_plan execute_plan(int num_cpu, int num_socket, std::size_t l2, std::size_t l1) {
-    exe_plan plan(this->t, this->IC, this->OC);
-    plan.fit(num_cpu, num_socket, l2, l1);
-    return plan;
-  }
-
-  inline std::size_t input_unit() const {
-    return elem_sz * this->T * V;
-  }
-
-  inline std::size_t weights_unit() const {
-    return elem_sz * V * V;
-  }
-
-  inline std::size_t output_unit() const {
-    return elem_sz * this->T * V;
-  }
-
-  inline std::size_t gemmker_input_footprint() const {
-    return input_unit() * this->I2;
-  }
-
-  inline std::size_t gemmker_weights_footprint() const {
-    return weights_unit() * this->I2;
-  }
-
-  inline std::size_t gemmker_output_footprint() const {
-    return output_unit();
-  }
-
-  inline std::size_t gemm_input_reuse_set() const {
-    return gemmker_input_footprint() +
-      gemmker_weights_footprint() + gemmker_output_footprint();
-  }
-
-  inline std::size_t gemm_output_reuse_set() const {
-    auto wtile_sz = elem_sz * A * A * IC * OC;
-    return wtile_sz/oc4 + (gemmker_input_footprint() +
-      gemmker_output_footprint() * this->O2) * A * A;
-  }
 
 private:
   void __execute_a000(OutputType *output, InputType *input,
@@ -282,130 +86,28 @@ private:
       WeightsType *weights, BiasType *bias);
   void __execute_a07b(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
-  void __execute_a133(OutputType *output, InputType *input,
-      WeightsType *weights, BiasType *bias);
-  void __execute_a161(OutputType *output, InputType *input,
-      WeightsType *weights, BiasType *bias);
-  void __execute_a173(OutputType *output, InputType *input,
-      WeightsType *weights, BiasType *bias);
-
-  inline void __trans_input_post(TinputType *__restrict tinput, TrOpType at[A][A][V],
-      const int Tz, const int _ic3, const int _I2, const int _T);
-
-  inline void __trans_input_nchw(TinputType *tinput, InputType *input, int Tz, int _t2, int _ic4);
-  inline void __trans_input_nhwc(TinputType *tinput, InputType *input, int Tz, int _t2, int _ic4);
-  inline void __trans_input_blocked(TinputType *tinput, InputType *input, int Tz, int _t2, int _ic4);
-  void trans_input(TinputType *tinput, InputType *input, int Tz, int _t2, int _ic4);
-
-  inline void __trans_input_nchw(TinputType *tinput, InputType *input, int _ic4);
-  inline void __trans_input_nhwc(TinputType *tinput, InputType *input, int _ic4);
-  inline void __trans_input_blocked(TinputType *tinput, InputType *input, int _ic4);
-  void trans_input(TinputType *tinput, InputType *input, int _ic4);
-
-  inline void __trans_input_u8_blocked(
-      TscaleType *tinput_quant_scale, uint8_t *__restrict tinput_u8,
-      TinputType *__restrict tinput, InputType *__restrict input, int _t2, int Tz);
-  void trans_input_u8(TscaleType *tinput_quant_scale, uint8_t *__restrict tinput_u8,
-      TinputType *__restrict tinput, InputType *__restrict input, int _t2, int Tz);
-
-  void __trans_input_u8_blocked(TscaleType *tinput_quant_scale, uint8_t *tinput_u8,
-      TinputType *tinput, InputType *input);
-  void trans_input_u8(TscaleType *tinput_quant_scale, uint8_t *tinput_u8,
-      TinputType *tinput, InputType *input);
-
-  inline void __trans_output_nhwc(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int Tz, int _t2, int _oc4, int _ic4);
-  inline void __trans_output_nchw(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int Tz, int _t2, int _oc4, int _ic4);
-  inline void __trans_output_blocked(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int Tz, int _t2, int _oc4, int _ic4);
-  void trans_output(OutputType *output, ToutputType *toutput, BiasType *bias,
-      int Tz, int _t2, int _oc4, int _ic4);
-
-  inline void __trans_output_nhwc(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int _oc4, int _ic4);
-  inline void __trans_output_nchw(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int _oc4, int _ic4);
-  inline void __trans_output_blocked(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int _oc4, int _ic4);
-  void trans_output(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int _oc4, int _ic4);
-
-  inline void __trans_weights_post(TweightsType *tweights, TrOpType at[A][A][V][V],
-      const int _oc4, const int _ic4, const int _oc3, const int _ic3, const int _O1,
-      const int _I2, const int _O);
-  inline void __trans_weights_oihw(TweightsType *tweights, WeightsType *weights, int oc4);
-  inline void __trans_weights_hwio(TweightsType *tweights, WeightsType *weights, int oc4);
-  inline void __trans_weights_blocked(TweightsType *tweights, WeightsType *weights, int oc4);
-  void trans_weights(TweightsType *tweights, WeightsType *weights, int oc4 = 1);
-
-  inline void __trans_weights_s8_blocked(TscaleType *tweights_quant_scale, TscaleType *tweights_factor,
-      int8_t *tweights_s8, TweightsType *tweights, WeightsType *weights, int oc4);
-  void trans_weights_s8(TscaleType *tweights_quant_scale, TscaleType *tweights_factor,
-      int8_t *tweights_s8, TweightsType *tweights, WeightsType *weights, int oc4);
-
-  inline void __trans_weightsf_oihw(TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4);
-  inline void __trans_weightsf_hwio(TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4);
-  inline void __trans_weightsf_blocked(TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4);
-  void trans_weightsf(TweightsType *tweights, WeightsType *weights, int _ic4, int _oc4);
-
-  void gemm(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _t2, int Tz, int _ic4 = 0);
-  void gemm_non_acc(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _t2, int Tz, int _ic4);
-  void gemm(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _ic4 = 0);
-  void gemm_non_acc(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _ic4 = 0);
-  void gemm(ToutputType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
-      TscaleType *src_scale, TscaleType *weights_scale,
-      TscaleType *weights_factor, int _ic4 = 0);
-  void gemm_non_acc(ToutputType *toutput, uint8_t *tinput, int8_t *tweights, int _t2, int Tz,
-      TscaleType *src_scale, TscaleType *weights_scale, TscaleType *weights_factor, int _ic4 = 0);
-  void gemm_non_acc(ToutputType *toutput, uint8_t *tinput, int8_t *tweights,
-      TscaleType *src_scale, TscaleType *src_factor, TscaleType *weights_scale,
-      TscaleType *weights_factor, int _ic4 = 0);
 
   void set_trans_buffers();
   int prepare_execute_opt();
-  void prepare_wino_tinput_quant();
   void bind_execute_functions();
 
-  using i8_ker_type = typename std::conditional<
-      std::is_same<TarrayTypes, conv_impl::FP32>::value,
-      gemm_kernel_binder::kgemm<conv_impl::INT8_F32>,
-      typename std::conditional<
-      std::is_same<TarrayTypes, conv_impl::FP32_F16b>::value,
-      gemm_kernel_binder::kgemm<conv_impl::INT8_F16b>,
-      gemm_kernel_binder::kgemm<conv_impl::INT8_F16o>>::type>::type;
+  void (elx_conv_wino_t::*execute_opt_)(
+      OutputType *, InputType *, WeightsType *, BiasType *);
 
-  using ker_type = typename gemm_kernel_binder::kgemm<TarrayTypes>;
+  elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
+    trans_input;
 
-  ker_type *ker_gemm_;
-  ker_type *ker_gemm0_;
+  elx_conv_wino_trans_weights_t<TweightsType, WeightsType, I, A, K, V>
+    trans_weights;
 
-  i8_ker_type *ker_i8_gemm_;
-  i8_ker_type *ker_i8_gemm0_;
+  elx_conv_wino_gemm_t<TarrayTypes, A, V, I> gemm;
 
-  decltype(Instance_convolution_winograd_kernel
-      ::template trans_input<0, no>) *ker_trans_input_;
-  decltype(Instance_convolution_winograd_kernel
-      ::template trans_input<0, no>) *ker_trans_input0_;
-  decltype(Instance_convolution_winograd_kernel
-      ::trans_weights) *ker_trans_weights_;
-  decltype(Instance_convolution_winograd_kernel
-      ::template trans_output<0, false, false, false, false>) *ker_trans_output_;
-  decltype(Instance_convolution_winograd_kernel
-      ::template trans_output<0, false, false, false, false>) *ker_trans_output0_;
-  decltype(Instance_convolution_winograd_kernel
-      ::template trans_output<0, false, false, false, false>) *ker_trans_output_acc_;
-  decltype(Instance_convolution_winograd_kernel
-      ::template trans_output<0, false, false, false, false>) *ker_trans_output0_acc_;
-
-  void (elx_conv_wino_t::*execute_opt_)(OutputType *, InputType *, WeightsType *, BiasType *);
+  elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K, V>
+    trans_output;
 
   unsigned int xopt_;
   bool is_first_run_;
   bool inference_acc_;
-  bool stream_in_;
-  bool stream_out_;
-  bool stream_wei_;
   bool is_bfmt_;
   bool input_is_bfmt_;
   bool weights_is_bfmt_;
@@ -413,7 +115,6 @@ private:
   bool input_as_bfmt_;
   bool weights_as_bfmt_;
   bool output_as_bfmt_;
-  int attr_;
   int mthr_;
   size_t tweights_size_;
   size_t tinput_size_;
@@ -421,14 +122,6 @@ private:
   size_t binput_size_;
   size_t bweights_size_;
   size_t boutput_size_;
-  size_t tinput_u8_size_;
-  size_t tinput_quant_scale_size_;
-  size_t tinput_quant_factor_size_;
-  size_t tinput_max_abs_size_;
-  size_t tweights_s8_size_;
-  size_t tweights_quant_scale_size_;
-  size_t tweights_quant_factor_size_;
-  size_t tweights_ci_size_;
   void *workspace_;
   void *scratch_;
 
@@ -438,168 +131,27 @@ private:
   InputType *binput_; // blocked input
   WeightsType *bweights_;
   OutputType *boutput_;
-  uint8_t *tinput_u8_;
-  TscaleType *tinput_quant_scale_;
-  TscaleType *tinput_quant_factor_;
-  TscaleType *tinput_max_abs_;
-  int8_t *tweights_s8_;
-  TscaleType *tweights_quant_scale_;
-  TscaleType *tweights_quant_factor_;
-  TscaleType *tweights_ci_;
-
-  int hOA_end_;
-  int wOA_end_;
-  int hA_end_;
-  int wA_end_;
-
-#define MAX_THREAD_TEAMS (8)
-  // tasks allocation per thread team
-  struct { int start; int end; } ttm_[MAX_THREAD_TEAMS];
 };
 
-// Three stage indexing, width, hight, image
-template <int A, int K>
-class input_tile_iter {
-  constexpr static int output_line = A - K +1;
-public:
-  input_tile_iter(int n_init, int t_init, int ht, int wt, int h, int w, int tp, int lp)
-    : ht_(ht), wt_(wt), tp_(tp), lp_(lp),
-    hA_end_(h + tp - (ht -1) * output_line -1),
-    wA_end_(w + lp - (wt -1) * output_line -1),
-    tile_h_(t_init / wt),
-    tile_w_(t_init % wt),
-    anchor_t_(tile_h_ * output_line - tp),
-    anchor_l_(tile_w_ * output_line - lp),
-    n_(n_init),
-    t_ (tile_h_ > 0 ? 0 : tp),
-    l_ (tile_w_ > 0 ? 0 : lp),
-    d_ (tile_h_ < ht -1 ? A -1 : hA_end_),
-    r_ (tile_w_ < wt -1 ? A -1 : wA_end_) {}
+// fp32-f32f32f32
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, 4, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, 6, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, 7, 3, 16, ISA_SKX_AVX512>;
 
-  inline input_tile_iter &operator ++() {
-    if ( ++ tile_w_ < wt_) {
-      anchor_l_ += output_line;
-    } else {
-      tile_w_ = 0;
-      anchor_l_ = -lp_;
-      if ( ++ tile_h_ < ht_ ) {
-        anchor_t_ += output_line;
-      } else {
-        n_ += 1;
-        tile_h_ = 0;
-        anchor_t_ = -tp_;
-      }
-      t_ = tile_h_ > 0 ? 0 : tp_;
-      d_ = tile_h_ < ht_ - 1 ? A -1 : hA_end_;
-    }
+// fp32-f16f16f16
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16iwo, 4, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16iwo, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16iwo, 6, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16iwo, 7, 3, 16, ISA_SKX_AVX512>;
 
-    l_ = tile_w_ > 0 ? 0 : lp_;
-    r_ = tile_w_ < wt_ - 1 ? A -1 : wA_end_;
-    return *this;
-  }
-
-  inline bool is_border() const {
-    return !(t_ == 0 && l_ == 0 && d_ == A-1 && r_ == A -1);
-  }
-
-protected:
-  int ht_, wt_, tp_, lp_;
-
-public:
-  int hA_end_, wA_end_;
-  int tile_h_, tile_w_;
-  int anchor_t_, anchor_l_;
-  int n_, t_, l_, d_, r_;
-};
-
-template <int A, int K>
-class output_tile_iter {
-  constexpr static int output_line = A - K +1;
-public:
-  output_tile_iter(int n_init, int t_init, int ht, int wt, int oh, int ow)
-    : ht_(ht), wt_(wt),
-    h_end_(oh - (ht -1) * output_line -1),
-    w_end_(ow - (wt -1) * output_line -1),
-    tile_h_(t_init / wt),
-    tile_w_(t_init % wt),
-    n_(n_init),
-    t_(tile_h_ * output_line),
-    l_(tile_w_ * output_line),
-    d_ (tile_h_ < ht -1 ? A -K : h_end_),
-    r_ (tile_w_ < wt -1 ? A -K : w_end_) {}
-
-  inline output_tile_iter &operator ++() {
-    if ( ++ tile_w_ < wt_) {
-      l_ += output_line;
-    } else {
-      tile_w_ = 0;
-      l_ = 0;
-      if ( ++ tile_h_ < ht_ )
-        t_ += output_line;
-      else {
-        tile_h_ = 0;
-        t_ = 0;
-        n_ += 1;
-      }
-      d_ = tile_h_ < ht_ - 1 ? A -K : h_end_;
-    }
-
-    r_ = tile_w_ < wt_ - 1 ? A -K : w_end_;
-    return *this;
-  }
-
-  inline void reset(int t = 0) {
-    auto res = std::div(t, wt_);
-    tile_h_ = res.quot;
-    tile_w_ = res.rem;
-
-    t_ = tile_h_ * output_line;
-    l_ = tile_w_ * output_line;
-
-    d_ = tile_h_ < ht_ -1 ? A -K : h_end_;
-    r_ = tile_w_ < wt_ -1 ? A -K : w_end_;
-  }
-
-  inline bool is_border() const {
-    return r_ < A - K || d_ < A - K;
-  }
-
-protected:
-  int ht_, wt_;
-
-public:
-  int h_end_, w_end_;
-  int tile_h_, tile_w_;
-  int n_, t_, l_, d_, r_;
-};
-
-// fp32-f32f32f32 / fp32-u8s8f32
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 4, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 5, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 6, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, float, 7, 3, 16, ISA_SKX_AVX512>;
-
-// fp32-u8s8f16
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16o, float, 4, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16o, float, 5, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16o, float, 6, 3, 16, ISA_SKX_AVX512>;
-
-// fp32-f32f16f16
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16wo, float, 4, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16wo, float, 5, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16wo, float, 6, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16wo, float, 7, 3, 16, ISA_SKX_AVX512>;
-
-// fp16-u8s8f32
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16b, float, 4, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16b, float, 5, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16b, float, 6, 3, 16, ISA_SKX_AVX512>;
-
+#ifdef ENABLE_USER_FP16
 // fp16-f32f16f16
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, float, 4, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, float, 5, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, float, 6, 3, 16, ISA_SKX_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, float, 7, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, 4, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, 6, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, 7, 3, 16, ISA_SKX_AVX512>;
+#endif
 
 }  // namespace euler
 #endif  // __ELX_CONV_WINO_HPP__

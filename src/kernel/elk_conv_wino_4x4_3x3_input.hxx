@@ -1,82 +1,56 @@
 #pragma once
-#include <assert.h>
 #include "el_intrin.hpp"
-#include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elk_def.hpp"
-#include "elx_conv.hpp"
 #include "elk_conv_wino.hpp"
 
 namespace euler {
-template <typename UserTypes, typename TrOpType, int v>
-class convolution_winograd_kernel_base<UserTypes, TrOpType,
-    ISA_SKX_AVX512, v, 6, 3> {
-  protected:
-  using InputType = typename UserTypes::InputType;
-  using WeightsType = typename UserTypes::WeightsType;
-  using OutputType = typename UserTypes::OutputType;
-  using BiasType = typename UserTypes::BiasType;
 
-  constexpr static int V = v;
-  constexpr static int I = ISA_SKX_AVX512;
+template <typename InputType, int format, bool is_border,
+    int V>
+struct elk_conv_wino_trans_input<float, InputType, format, is_border,
+    ISA_SKX_AVX512, 6, V> {
   constexpr static int A = 6;
-  constexpr static int K = 3;
 
-  template <int input_format, bool is_border> static inline
-  void __trans_input(elx_conv_t &xc, TrOpType atinput[A][A][V],
-      InputType *input, int hT_start, int hT_end, int wT_start, int wT_end);
-
-  template <int ...conditions>
-  static inline void __trans_output(elx_conv_t &xc, OutputType *output,
-      TrOpType atoutput[A][A][V], BiasType *bias, int hOA_end, int wOA_end);
-
-  static inline void __trans_weights(
-      TrOpType atweights[A][A][V][V], WeightsType aweights[K][K][V][V]);
-};
-
-template <typename UserTypes, typename TrOpType, int V>
-template <int input_format, bool is_border>
-inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
-    ISA_SKX_AVX512, V, 6, 3>::__trans_input(
-      elx_conv_t &xc, TrOpType atinput[A][A][V], InputType *input,
-      int hT_start, int hT_end, int wT_start, int wT_end)
-{
-  auto f_cb = [&](int _h, int _w) {
-    if (input_format == TKF_COMPACT) {
-      MD3(InputType, ainput, input, A, A, V);
-      if (std::is_same<InputType, float>::value)
-        return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
-      else {
-        auto f16 = _mm<V/2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
-        return _mm<V>::cvtph_ps(f16);
+  static void execute(elx_conv_params_t &xc, float atinput[A][A][V],
+      InputType *input, int hA_start, int hA_end, int wA_start, int wA_end)
+  {
+    auto f_cb = [&](int _h, int _w) {
+      if (format == TKF_COMPACT) {
+        MD3(InputType, ainput, input, A, A, V);
+        if (std::is_same<InputType, float>::value)
+          return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
+        else {
+          auto f16 = _mm<V / 2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
+          return _mm<V>::cvtph_ps(f16);
+        }
+      } else if (format == TKF_BLOCKED) {
+        MD3(InputType, ainput, input, xc.ih, xc.iw, V);
+        if (is_border
+            && (_h < hA_start || _w < wA_start || _h > hA_end || _w > wA_end)) {
+          return _mm<V>::setzero_ps();
+        } else if (std::is_same<InputType, float>::value)
+          return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
+        else {
+          auto f16 = _mm<V / 2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
+          return _mm<V>::cvtph_ps(f16);
+        }
+      } else { // TKF_NHWC
+        MD3(InputType, ainput0, input, xc.ih, xc.iw, xc.ic);
+        // TODO: overflow on last V
+        MD2(InputType, ainput1, &md3(ainput0, _h, _w, 0),
+            xc.ic4 * xc.ic3 * xc.I2, V);
+        if (is_border
+            && (_h < hA_start || _w < wA_start || _h > hA_end || _w > wA_end))
+          return _mm<V>::setzero_ps();
+        else if (std::is_same<InputType, float>::value)
+          return _mm<V>::load_ps(&md2(ainput1, 0, 0));
+        else {
+          auto f16 = _mm<V / 2>::load_si256((__m256i *)&md2(ainput1, 0, 0));
+          return _mm<V>::cvtph_ps(f16);
+        }
       }
-    } else if (input_format == TKF_BLOCKED) {
-      MD3(InputType, ainput, input, xc.ih, xc.iw, V);
-      if (is_border
-          && (_h < hT_start || _w < wT_start || _h > hT_end || _w > wT_end)) {
-        return _mm<V>::setzero_ps();
-      } else if (std::is_same<InputType, float>::value)
-        return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
-      else {
-        auto f16 = _mm<V/2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
-        return _mm<V>::cvtph_ps(f16);
-      }
-    } else {  // TKF_NHWC
-      MD3(InputType, ainput0, input, xc.ih, xc.iw, xc.ic);
-      // TODO: overflow on last V
-      MD2(InputType, ainput1, &md3(ainput0, _h, _w, 0), xc.ic4 * xc.ic3 * xc.I2,
-          V);
-      if (is_border &&
-          (_h < hT_start || _w < wT_start || _h > hT_end || _w > wT_end))
-        return _mm<V>::setzero_ps();
-      else if (std::is_same<InputType, float>::value)
-        return _mm<V>::load_ps(&md2(ainput1, 0, 0));
-      else {
-        auto f16 = _mm<V / 2>::load_si256((__m256i *)&md2(ainput1, 0, 0));
-        return _mm<V>::cvtph_ps(f16);
-      }
-    }
-  };
+    };
 
 #undef F
 #undef T
@@ -87,15 +61,15 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
 #define F(_h, _w) f_cb(_h, _w)
 #define T(h, w) atinput[w][h]
 #define f(m, n) f##m##n
-#define OP(m,n) f(m, n) = F(m, n)
+#define OP(m, n) f(m, n) = F(m, n)
 #define ISTORE(i, j) _mm<V>::store_ps(T(i, j), t##i##j);
 
-  auto z0 = _mm<V>::set1_ps(-2.25f);
-  auto z1 = _mm<V>::set1_ps(-0.390625f);
-  auto z2 = _mm<V>::set1_ps(0.87890625f);
-  auto z3 = _mm<V>::set1_ps(-2.640625f);
-  auto z4 = _mm<V>::set1_ps(0.625f);
-  auto z5 = _mm<V>::set1_ps(1.5f);
+    auto z0 = _mm<V>::set1_ps(-2.25f);
+    auto z1 = _mm<V>::set1_ps(-0.390625f);
+    auto z2 = _mm<V>::set1_ps(0.87890625f);
+    auto z3 = _mm<V>::set1_ps(-2.640625f);
+    auto z4 = _mm<V>::set1_ps(0.625f);
+    auto z5 = _mm<V>::set1_ps(1.5f);
 
     auto f00 = F(0, 0);
     auto f01 = F(0, 1);
@@ -242,12 +216,12 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     t4 = f0 * z2 + f4;
     t5 = f1 * z2 + f5;
 
-    *(__m<V>*)T(0, 0) = f2 * z3 + t4;
-    *(__m<V>*)T(0, 1) = t1 * z4 + t0;
-    *(__m<V>*)T(0, 2) = t0 - t1 * z4;
-    *(__m<V>*)T(0, 3) = t3 * z5 + t2;
-    *(__m<V>*)T(0, 4) = t2 - t3 * z5;
-    *(__m<V>*)T(0, 5) = f3 * z3 + t5;
+    *(__m<V> *)T(0, 0) = f2 * z3 + t4;
+    *(__m<V> *)T(0, 1) = t1 * z4 + t0;
+    *(__m<V> *)T(0, 2) = t0 - t1 * z4;
+    *(__m<V> *)T(0, 3) = t3 * z5 + t2;
+    *(__m<V> *)T(0, 4) = t2 - t3 * z5;
+    *(__m<V> *)T(0, 5) = f3 * z3 + t5;
 
     f0 = m10;
     f1 = m11;
@@ -263,12 +237,12 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     t4 = f0 * z2 + f4;
     t5 = f1 * z2 + f5;
 
-    *(__m<V>*)T(1, 0) = f2 * z3 + t4;
-    *(__m<V>*)T(1, 1) = t1 * z4 + t0;
-    *(__m<V>*)T(1, 2) = t0 - t1 * z4;
-    *(__m<V>*)T(1, 3) = t3 * z5 + t2;
-    *(__m<V>*)T(1, 4) = t2 - t3 * z5;
-    *(__m<V>*)T(1, 5) = f3 * z3 + t5;
+    *(__m<V> *)T(1, 0) = f2 * z3 + t4;
+    *(__m<V> *)T(1, 1) = t1 * z4 + t0;
+    *(__m<V> *)T(1, 2) = t0 - t1 * z4;
+    *(__m<V> *)T(1, 3) = t3 * z5 + t2;
+    *(__m<V> *)T(1, 4) = t2 - t3 * z5;
+    *(__m<V> *)T(1, 5) = f3 * z3 + t5;
 
     f0 = m20;
     f1 = m21;
@@ -284,12 +258,12 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     t4 = f0 * z2 + f4;
     t5 = f1 * z2 + f5;
 
-    *(__m<V>*)T(2, 0) = f2 * z3 + t4;
-    *(__m<V>*)T(2, 1) = t1 * z4 + t0;
-    *(__m<V>*)T(2, 2) = t0 - t1 * z4;
-    *(__m<V>*)T(2, 3) = t3 * z5 + t2;
-    *(__m<V>*)T(2, 4) = t2 - t3 * z5;
-    *(__m<V>*)T(2, 5) = f3 * z3 + t5;
+    *(__m<V> *)T(2, 0) = f2 * z3 + t4;
+    *(__m<V> *)T(2, 1) = t1 * z4 + t0;
+    *(__m<V> *)T(2, 2) = t0 - t1 * z4;
+    *(__m<V> *)T(2, 3) = t3 * z5 + t2;
+    *(__m<V> *)T(2, 4) = t2 - t3 * z5;
+    *(__m<V> *)T(2, 5) = f3 * z3 + t5;
 
     f0 = m30;
     f1 = m31;
@@ -305,12 +279,12 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     t4 = f0 * z2 + f4;
     t5 = f1 * z2 + f5;
 
-    *(__m<V>*)T(3, 0) = f2 * z3 + t4;
-    *(__m<V>*)T(3, 1) = t1 * z4 + t0;
-    *(__m<V>*)T(3, 2) = t0 - t1 * z4;
-    *(__m<V>*)T(3, 3) = t3 * z5 + t2;
-    *(__m<V>*)T(3, 4) = t2 - t3 * z5;
-    *(__m<V>*)T(3, 5) = f3 * z3 + t5;
+    *(__m<V> *)T(3, 0) = f2 * z3 + t4;
+    *(__m<V> *)T(3, 1) = t1 * z4 + t0;
+    *(__m<V> *)T(3, 2) = t0 - t1 * z4;
+    *(__m<V> *)T(3, 3) = t3 * z5 + t2;
+    *(__m<V> *)T(3, 4) = t2 - t3 * z5;
+    *(__m<V> *)T(3, 5) = f3 * z3 + t5;
 
     f0 = m40;
     f1 = m41;
@@ -326,12 +300,12 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     t4 = f0 * z2 + f4;
     t5 = f1 * z2 + f5;
 
-    *(__m<V>*)T(4, 0) = f2 * z3 + t4;
-    *(__m<V>*)T(4, 1) = t1 * z4 + t0;
-    *(__m<V>*)T(4, 2) = t0 - t1 * z4;
-    *(__m<V>*)T(4, 3) = t3 * z5 + t2;
-    *(__m<V>*)T(4, 4) = t2 - t3 * z5;
-    *(__m<V>*)T(4, 5) = f3 * z3 + t5;
+    *(__m<V> *)T(4, 0) = f2 * z3 + t4;
+    *(__m<V> *)T(4, 1) = t1 * z4 + t0;
+    *(__m<V> *)T(4, 2) = t0 - t1 * z4;
+    *(__m<V> *)T(4, 3) = t3 * z5 + t2;
+    *(__m<V> *)T(4, 4) = t2 - t3 * z5;
+    *(__m<V> *)T(4, 5) = f3 * z3 + t5;
 
     f0 = m50;
     f1 = m51;
@@ -347,12 +321,14 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
     t4 = f0 * z2 + f4;
     t5 = f1 * z2 + f5;
 
-    *(__m<V>*)T(5, 0) = f2 * z3 + t4;
-    *(__m<V>*)T(5, 1) = t1 * z4 + t0;
-    *(__m<V>*)T(5, 2) = t0 - t1 * z4;
-    *(__m<V>*)T(5, 3) = t3 * z5 + t2;
-    *(__m<V>*)T(5, 4) = t2 - t3 * z5;
-    *(__m<V>*)T(5, 5) = f3 * z3 + t5;
-}
+    *(__m<V> *)T(5, 0) = f2 * z3 + t4;
+    *(__m<V> *)T(5, 1) = t1 * z4 + t0;
+    *(__m<V> *)T(5, 2) = t0 - t1 * z4;
+    *(__m<V> *)T(5, 3) = t3 * z5 + t2;
+    *(__m<V> *)T(5, 4) = t2 - t3 * z5;
+    *(__m<V> *)T(5, 5) = f3 * z3 + t5;
+  }
 
-}
+}; // elk_conv_wino_trans_input
+
+} // euler

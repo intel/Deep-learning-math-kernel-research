@@ -1,11 +1,10 @@
 #ifndef __ELX_CONV_DIRECT_1X1_HPP__
 #define __ELX_CONV_DIRECT_1X1_HPP__
 
+#include "euler.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
-#include "euler.hpp"
-#include "elk_conv_wino.hpp"
 #include "kernel/elk_gemm_otj_binder.hxx"
 
 namespace euler {

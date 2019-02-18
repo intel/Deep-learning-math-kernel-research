@@ -1,6 +1,14 @@
 #ifndef __ELK_DEF_HPP__
 #define __ELK_DEF_HPP__
 
+#include <boost/preprocessor/repetition/repeat.hpp>
+#include <boost/preprocessor/repetition/repeat_from_to.hpp>
+#include <boost/preprocessor/seq/for_each_product.hpp>
+#include <boost/preprocessor/seq/to_tuple.hpp>
+#include <boost/preprocessor/seq/for_each.hpp>
+#include <boost/preprocessor/seq/elem.hpp>
+#include <boost/preprocessor/tuple/elem.hpp>
+
 #define USE_AVX512 512
 #define USE_AVX2   256
 
@@ -105,6 +113,32 @@ const int TKF_COMPACT = 0xC;
 const int TKF_BLOCKED = 0xD;
 const int TKF_NCHW = 0xE;
 const int TKF_NHWC = 0xF;
+
+// GEMM kernel format
+// Input - weights - output
+// C: compact
+//    Input: I2, T, S, V, Vx
+//    Weights: O1, I2, V, O, V, Vx
+//    Output: O1, O, T, V
+//    factor: O1, O, V
+//    weights_scale: O1, O, V
+// D: blocked
+//    Input: I2, ih, iw, V, Vx
+//    Weights: O1, O, ic2, V, V, Vx
+//    Output: O1, O, oh, ow, V
+//    factor: O1, O, V
+//    weights_scale: O1, O, V
+// E: nchw
+//    Input: I2, V, ih, iw
+// F: nhwc
+//    Input: ih, iw, I2, V
+//    Output: oh, ow, O1, O, V
+const int GKF_CCC = 0xccc;
+const int GKF_CCD = 0xccd;
+const int GKF_DCD = 0xdcd;
+const int GKF_DDD = 0xddd;
+const int GKF_ECD = 0xecd;
+const int GKF_FCF = 0xfcf;
 
 }  // namespace euler
 

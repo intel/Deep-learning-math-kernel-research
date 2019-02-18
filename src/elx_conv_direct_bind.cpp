@@ -1,12 +1,4 @@
-#include <string.h>
-#include "el_intrin.hpp"
-#include "el_utils.hpp"
 #include "elx_conv_direct.hpp"
-#include "el_def.hpp"
-#include "el_utils.hpp"
-#include "elk_conv_wino.hpp"
-#include "elx_conv.hpp"
-#include "euler.hpp"
 
 namespace euler {
 
@@ -18,11 +10,11 @@ Instance_elx_conv_direct_t::bind_execute_functions()
 
 #define BIND_CONV_KERNEL(S, F, K)                                              \
   if (K == 3) {                                                                \
-    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S, F, 3>(O, T, func);       \
+    conv_kernel_binder::bind<TarrayTypes, V, 1, I, S, F, 3>(O, T, func);       \
   } else if (K == 5) {                                                         \
-    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S, F, 5>(O, T, func);       \
+    conv_kernel_binder::bind<TarrayTypes, V, 1, I, S, F, 5>(O, T, func);       \
   } else if (K == 7) {                                                         \
-    gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S, F, 7>(O, T, func);       \
+    conv_kernel_binder::bind<TarrayTypes, V, 1, I, S, F, 7>(O, T, func);       \
   }
 
   auto bind_gemm_kernel = [&](int O, int T,
@@ -50,7 +42,7 @@ Instance_elx_conv_direct_t::bind_execute_functions()
   };
 
   auto bind_conv_kernel = [&](int O, int T,
-      gemm_kernel_binder::kconv<TarrayTypes> **func, int K) {
+      conv_kernel_binder::kconv<TarrayTypes> **func, int K) {
     switch (xopt_) {
     case (0xa060):
       if (this->input_fmt == nchw) {

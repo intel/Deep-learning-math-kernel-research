@@ -197,6 +197,10 @@ template <> struct _mm<16> {
   static inline __m256i cvtepi32_epi16(__m512i a) noexcept {
     return _mm512_cvtepi32_epi16(a);
   }
+  static inline __i<V/2> cvt_f32_b16(__i<V> x) {
+    x = _mm512_bsrli_epi128(x, 2);
+    return _mm512_cvtepi32_epi16(x);
+  }
 };
 #else
 /* ICC Bug! */

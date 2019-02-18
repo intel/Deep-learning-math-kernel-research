@@ -1,12 +1,5 @@
 #include <string.h>
-#include "el_intrin.hpp"
-#include "el_utils.hpp"
 #include "elx_conv_direct_1x1.hpp"
-#include "el_def.hpp"
-#include "el_utils.hpp"
-#include "elk_conv_wino.hpp"
-#include "elx_conv.hpp"
-#include "euler.hpp"
 
 // XOPT
 // kernel options:

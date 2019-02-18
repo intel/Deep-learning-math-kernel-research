@@ -1,14 +1,18 @@
-#include "elx_conv_wino.hpp"
+#include "elx_conv_wino_lp.hpp"
 
 namespace euler {
 
-Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
+const float INT8GEMM_TWT_QTSCALE = 127.0;
+const float INT8GEMM_TIN_MIN_MAX_QTSCALE = 255.0;
+
+Template_elx_conv_wino_lp_t Instance_elx_conv_wino_lp_t::elx_conv_wino_lp_t(
     eld_conv_t &dc)
-    : elx_conv_t(dc) {
+    : elx_conv_t(dc)
+{
   // TODO: error when V!=16 && fmt=OIhw16i16o
   xopt_ = this->execution_mode;
 
-  this->Vx = 1;
+  this->Vx = 4;
   this->IC = ALIGNUP(this->ic, V * this->Vx);
   this->OC = ALIGNUP(this->oc, V);
 
@@ -34,6 +38,9 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
       : (V * this->Vx);
   this->Or = this->oc % V ? this->oc % V : V;
 
+  if (this->Vx == 4 && this->Ir != (V * this->Vx))
+    el_error("ic / 64 != 0 is not implement while doing int8 gemm");
+
   is_first_run_ = true;
   inference_acc_ = false;
   mthr_ = omp_get_max_threads();
@@ -55,9 +62,9 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
 
   prepare_execute_opt();
   bind_execute_functions();
-  trans_input.setup(this);
-  trans_weights.setup(this);
-  gemm.setup(this);
+  trans_input_u8.setup(this);
+  trans_weights_s8.setup(this);
+  u8s8_gemm.setup(this);
   trans_output.setup(this);
 
   // dbg
@@ -94,11 +101,16 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
 #endif
 }
 
-Template_elx_conv_wino_t
-int Instance_elx_conv_wino_t::prepare_execute_opt()
+Template_elx_conv_wino_lp_t
+int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
 {
   size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
   size_t binput_size = 0, bweights_size = 0, boutput_size = 0;
+  size_t tinput_u8_size = 0, tinput_quant_scale_size = 0,
+      tinput_quant_factor_size = 0, tinput_max_abs_size = 0, tweights_s8_size = 0,
+      tweights_quant_scale_size = 0, tweights_quant_factor_size = 0, tweights_ci_size = 0;
+
+  prepare_wino_tinput_quant();
 
   if (xopt_ & FUS_O) {
     this->oc3 /= this->oc4;
@@ -140,42 +152,49 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   binput_ = nullptr;
   bweights_ = nullptr;
   boutput_ = nullptr;
+  tinput_u8_ = nullptr;
+  tinput_quant_scale_ = nullptr;
+  tinput_quant_factor_ = nullptr;
+  tinput_max_abs_ = nullptr;
+  tweights_s8_ = nullptr;
+  tweights_quant_scale_ = nullptr;
+  tweights_quant_factor_ = nullptr;
+  tweights_ci_ = nullptr;
 
   switch (xopt_) {
-  case 0xa000:
+  case 0xa133:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
-    tinput_size = A * A * this->IC * this->t * sizeof(TinputType);
-    toutput_size = A * A * this->OC * this->t * sizeof(ToutputType);
-    break;
-  case 0xa033:
-    tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
-    tinput_size = A * A * this->ic3 * this->I2 * V * this->t * sizeof(TinputType);
+    tinput_size = A * A * (this->IC / this->ic4) * this->t * sizeof(InputType);
     toutput_size = A * A * (this->OC / this->oc4) * this->t * sizeof(ToutputType);
+    tinput_u8_size = A * A * (this->IC / this->ic4) * this->t * sizeof(uint8_t);
+    tinput_quant_scale_size = this->t * this->ic3 * 2 * A * A * sizeof(TscaleType);
+    tweights_s8_size = tweights_size / sizeof(TweightsType);
+    tweights_quant_scale_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType);
+    tweights_quant_factor_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType);
     break;
-  case 0xa061:
+  case 0xa161:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
-    tinput_size = A * A * this->IC * this->T * mthr_ * sizeof(TinputType);
+    if (this->sampling_kind == COARSE)
+      tinput_size = this->IC * A * A * this->T * mthr_ * sizeof(TinputType);
+    else
+      tinput_size = A * A * this->I2 * this->Vx * V * mthr_ * sizeof(TinputType);
     toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
+    tinput_u8_size = A * A * this->IC * mthr_ * this->T * sizeof(uint8_t);
+    tinput_quant_scale_size = mthr_ * 2 * this->ic3 * this->T * A * A * sizeof(TscaleType);
+    tweights_s8_size = tweights_size / sizeof(TweightsType);
+    tweights_quant_scale_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType);
+    tweights_quant_factor_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType); // * this->ic4
+    tweights_ci_size = this->OC * sizeof(TscaleType);
     break;
-  case 0xa071:
+  case 0xa173:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
-    tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_ * sizeof(TinputType);
-    toutput_size = A * A * this->OC * this->t * sizeof(ToutputType);
-    break;
-  case 0xa073:
-    tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
-    tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_ * sizeof(TinputType);
+    tinput_size = A * A * (this->IC / this->ic4) * mthr_ * sizeof(TinputType);
     toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
-    break;
-  case 0xa079:
-    tweights_size = A * A * (this->IC / this->ic4) * (this->OC / this->oc4) * mthr_ * sizeof(TweightsType);
-    tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_ * sizeof(TinputType);
-    toutput_size = A * A * this->OC * this->t * sizeof(ToutputType);
-    break;
-  case 0xa07b:
-    tweights_size = A * A * (this->IC / this->ic4) * (this->OC / this->oc4) * mthr_ * sizeof(TweightsType);
-    tinput_size = A * A * (this->IC / this->ic4) * this->T * mthr_ * sizeof(TinputType);
-    toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
+    tinput_u8_size = A * A * (this->IC / this->ic4) * mthr_ * this->T * sizeof(uint8_t);
+    tinput_quant_scale_size = mthr_ * 2 * this->ic3 * this->T * A * A * sizeof(TscaleType);
+    tweights_s8_size = tweights_size / sizeof(TweightsType);
+    tweights_quant_scale_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType);
+    tweights_quant_factor_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType);
     break;
   default:
       el_error("Config error!");
@@ -195,11 +214,26 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   binput_size_ = binput_size > 0 ? alignup(binput_size, align) : 0;
   bweights_size_ = bweights_size > 0 ? alignup(bweights_size, align) : 0;
   boutput_size_ = boutput_size > 0 ? alignup(boutput_size, align) : 0;
+  tinput_u8_size_ = tinput_u8_size > 0 ? alignup(tinput_u8_size, align) : 0;
+  tinput_quant_scale_size_ = tinput_quant_scale_size > 0 ? alignup(tinput_quant_scale_size, align) : 0;
+  tinput_quant_factor_size_ = tinput_quant_factor_size > 0 ? alignup(tinput_quant_factor_size, align) : 0;
+  tinput_max_abs_size_ = tinput_max_abs_size > 0 ? alignup(tinput_max_abs_size, align) : 0;
+  tweights_s8_size_ = tweights_s8_size > 0 ? alignup(tweights_s8_size, align) : 0;
+  tweights_quant_scale_size_ = tweights_quant_scale_size > 0 ? alignup(tweights_quant_scale_size, align) : 0;
+  tweights_quant_factor_size_ = tweights_quant_factor_size > 0 ? alignup(tweights_quant_factor_size, align) : 0;
+  tweights_ci_size_ = tweights_ci_size > 0 ? alignup(tweights_ci_size, align) : 0;
 
   workspace_ = nullptr, scratch_ = nullptr;
-  size_t workspace_size = tweights_size_;
+  size_t workspace_size = tweights_size_ + tweights_s8_size_
+      + tweights_quant_scale_size_ + tweights_quant_factor_size_ + tweights_ci_size_;
   size_t scratch_size = tinput_size_ + toutput_size_
-      + binput_size_ + bweights_size_ + boutput_size_;
+      + binput_size_ + bweights_size_ + boutput_size_ + tinput_u8_size_
+      + tinput_quant_scale_size_ + tinput_quant_factor_size_ + tinput_max_abs_size_;
+
+  if (this->sampling_kind == CALIBRATED) {
+    workspace_size += tinput_quant_scale_size_;
+    scratch_size -= tinput_quant_scale_size_;
+  }
 
   if (xopt_ == 0xa079 || xopt_ == 0xa07b) {
     scratch_size += tweights_size_;
@@ -213,15 +247,28 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
 
   // dbg
   printf("nthreads=%d, mthr_=%d\n", this->nthreads, mthr_);
+  printf("sampling_kind = %d\n", this->sampling_kind);
+  printf("wino_tinput_quant_S = %f\n", this->wino_tinput_quant_S);
+  printf("wino_tinput_quant_z = %d\n", (int)this->wino_tinput_quant_z);
   return 0;
 }
 
-Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::set_trans_buffers()
+Template_elx_conv_wino_lp_t
+void Instance_elx_conv_wino_lp_t::set_trans_buffers()
 {
   if (workspace_ != nullptr) {
     tweights_ = (TweightsType *)workspace_;
     tinput_ = (TinputType *)galloc::get();
+    // int8gemm supported in weights reuse case only.
+    tweights_quant_scale_ = (TscaleType *)((char *)tweights_ + tweights_size_);
+    tweights_quant_factor_ = (TscaleType *)((char *)tweights_quant_scale_ + tweights_quant_scale_size_);
+    tweights_ci_ = (TscaleType *)((char *)tweights_quant_factor_ + tweights_quant_factor_size_);
+    if (this->sampling_kind == CALIBRATED) {
+      tinput_quant_scale_ = (TscaleType *)((char *)tweights_ci_ + tweights_ci_size_);
+      tweights_s8_ = (int8_t *)((char *)tinput_quant_scale_ + tinput_quant_scale_size_);
+    } else {
+      tweights_s8_ = (int8_t *)((char *)tweights_ci_ + tweights_ci_size_);
+    }
   } else {
     tweights_ = (TweightsType *)galloc::get();
     tinput_ = (TinputType *)((char *)tweights_ + tweights_size_);
@@ -230,10 +277,31 @@ void Instance_elx_conv_wino_t::set_trans_buffers()
   binput_ = (InputType *)((char *)toutput_ + toutput_size_);
   bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
   boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);
+  tinput_quant_factor_ = (TscaleType *)((char *)boutput_ + boutput_size_);
+  tinput_max_abs_ = (TscaleType *)((char *)tinput_quant_factor_ + tinput_quant_factor_size_);
+  if (this->sampling_kind == CALIBRATED) {
+    tinput_u8_ = (uint8_t *)((char *)tinput_max_abs_ + tinput_max_abs_size_);
+  } else {
+    tinput_quant_scale_ = (TscaleType *)((char *)tinput_max_abs_ + tinput_max_abs_size_);
+    tinput_u8_ = (uint8_t *)((char *)tinput_quant_scale_ + tinput_quant_scale_size_);
+  }
 }
 
-Template_elx_conv_wino_t
-Instance_elx_conv_wino_t::~elx_conv_wino_t()
+Template_elx_conv_wino_lp_t
+void Instance_elx_conv_wino_lp_t::prepare_wino_tinput_quant()
+{
+  if (this->sampling_kind == CALIBRATED) {
+    if (this->wino_tinput_quant_S == EL_NO_CALI ||
+        this->wino_tinput_quant_z == EL_NO_CALI) {
+      this->sampling_kind = FINE;
+      return;
+    }
+    this->wino_tinput_quant_repS = 1 / this->wino_tinput_quant_S;
+  }
+}
+
+Template_elx_conv_wino_lp_t
+Instance_elx_conv_wino_lp_t::~elx_conv_wino_lp_t()
 {
   if (workspace_ != nullptr)
     ::free(workspace_);

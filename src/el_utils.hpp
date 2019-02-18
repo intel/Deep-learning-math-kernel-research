@@ -171,5 +171,4 @@ static inline uint16_t float_2_half(float value)
 
   return out;
 }
-
 }

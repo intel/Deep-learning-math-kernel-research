@@ -6,6 +6,7 @@
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
 #include "elx_conv_wino.hpp"
+#include "elx_conv_wino_lp.hpp"
 #include "elx_conv_direct_1x1.hpp"
 #include "elx_conv_direct.hpp"
 
@@ -184,8 +185,10 @@ int eld_conv_t::setup()
   if (algorithm == CONV_DIRECT) {
     if (user_type == user_type_f32)
       xc = new elx_conv_direct_t<conv::FP32, conv_impl::FP32, 16, ISA_SKX_AVX512>(*this);
+#ifdef ENABLE_USER_FP16
     else if (user_type == user_type_f16o)
       xc = new elx_conv_direct_t<conv::FP16O, conv_impl::FP32_F16o, 16, ISA_SKX_AVX512>(*this);
+#endif
     else
       el_error("TODO: FP16 UserTypes for DIRECT.");
   } else if (algorithm == CONV_DIRECT_1X1) {
@@ -213,54 +216,56 @@ int eld_conv_t::setup()
       // TODO: auto-select tile_size
       el_error("TODO: implement tile size auto-selection");
     } else {
-      #define NO_F53_CASE(UT, TT) \
+      #define NO_F53_CASE(UT, TT, type) \
         case 7: break
 
-      #define F53_CASE(UT, TT) \
+      #define F53_CASE(UT, TT, type) \
         case 7: \
-          xc = new elx_conv_wino_t<UT, TT, float, 7, 3, 16, \
+          xc = new elx_conv_##type##_t<UT, TT, 7, 3, 16, \
               ISA_SKX_AVX512>(*this); \
           break
 
-      #define create_conv_wino(UT, TT, prefix) \
+      #define create_conv_wino(UT, TT, prefix, type) \
         switch (tile_size) { \
         case 4: \
-          xc = new elx_conv_wino_t<UT, TT, float, 4, 3, 16, \
+          xc = new elx_conv_##type##_t<UT, TT, 4, 3, 16, \
               ISA_SKX_AVX512>(*this); \
           break; \
         case 5: \
-          xc = new elx_conv_wino_t<UT, TT, float, 5, 3, 16, \
+          xc = new elx_conv_##type##_t<UT, TT, 5, 3, 16, \
               ISA_SKX_AVX512>(*this); \
           break; \
         case 6: \
-          xc = new elx_conv_wino_t<UT, TT, float, 6, 3, 16, \
+          xc = new elx_conv_##type##_t<UT, TT, 6, 3, 16, \
               ISA_SKX_AVX512>(*this); \
           break; \
-        prefix##_CASE(UT, TT); \
+        prefix##_CASE(UT, TT, type); \
         default: \
           el_error("Unimplemented tile size"); \
           break; \
         }
 
       // TODO: forward, backward_data, backward_weights
-      if (((execution_mode & 0xF00) != 0x100)
-          && user_type == user_type_f16) {
-        create_conv_wino(conv::FP16, conv_impl::FP32_F16wob, F53);
-      } else if (((execution_mode & 0xF00) != 0x100) && f16c_opt
-          && user_type == user_type_f32) {
-        create_conv_wino(conv::FP32, conv_impl::FP32_F16wo, F53);
-      } else if ((execution_mode & 0xF00) == 0x100 && f16c_opt
-          && user_type == user_type_f32) {
-        create_conv_wino(conv::FP32, conv_impl::FP32_F16o, NO_F53);
-      } else if ((execution_mode & 0xF00) == 0x100
-          && user_type == user_type_f16) {
-        create_conv_wino(conv::FP16, conv_impl::FP32_F16b, NO_F53);
-      } else if (user_type == user_type_f32) {
-        create_conv_wino(conv::FP32, conv_impl::FP32, F53);
+      if ((execution_mode & 0xF00) != 0x100) {
+        if (f16c_opt && user_type == user_type_f32) {
+          create_conv_wino(conv::FP32, conv_impl::FP32_F16iwo, F53, wino);
+#ifdef ENABLE_USER_FP16
+        } else if (user_type == user_type_f16) {
+          create_conv_wino(conv::FP16, conv_impl::FP32_F16wob, F53, wino);
+#endif
+        } else if (user_type != user_type_f16o) {
+          create_conv_wino(conv::FP32, conv_impl::FP32, F53, wino);
+        }
       } else {
-        // TODO: U8xxxx
-        el_error("Unimplemented UserType for Winograd Convolution");
-        return ELD_UNIMPLEMENTED;
+        if (f16c_opt && user_type == user_type_f32) {
+          create_conv_wino(conv::FP32, conv_impl::INT8_F16o, NO_F53, wino_lp);
+#ifdef ENABLE_USER_FP16
+        } else if (user_type == user_type_f16) {
+          create_conv_wino(conv::FP16, conv_impl::INT8_F16b, NO_F53, wino_lp);
+#endif
+        } else if (user_type != user_type_f16o) {
+          create_conv_wino(conv::FP32, conv_impl::INT8_F32, F53, wino_lp);
+        }
       }
     }
   }

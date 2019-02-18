@@ -61,3 +61,5 @@ GEMM kernel (2018-8-23): Done
 - Apply new gemm kernel to conv1x1
 - Apply new gemm kernel to Winograd
 - Perf tuning for Winograd: xopt-A072
+
+- Refactoring elx_conv_wino_t

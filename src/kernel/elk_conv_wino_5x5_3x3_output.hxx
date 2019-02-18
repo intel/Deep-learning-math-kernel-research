@@ -1,12 +1,9 @@
 #pragma once
-#include <assert.h>
 #include <x86intrin.h>
+#include "el_intrin.hpp"
 #include "elk_def.hpp"
-#include "el_def.hpp"
 #include "el_utils.hpp"
-#include "elx_conv.hpp"
 #include "elk_conv_wino.hpp"
-#include "elk_conv_wino_5x5_3x3_input.hxx"
 
 namespace euler {
 #undef FUSE_BIAS
@@ -85,106 +82,100 @@ namespace euler {
     p4##n = MAX(p4##n, zero);                                                  \
   STORE(4, n)
 
-// template <const bool is_border_, const bool with_bias>
-// Params:
-//   elx_conv_t &xc,
-//   float *output, float atoutput[A][A][V], float *bias,
-//   int _hOA_end, int _wOA_end
-template <typename UserTypes, typename TrOpType, int V>
-template <int... conditions>
-inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
-    ISA_SKX_AVX512, V, 7, 3>::__trans_output(elx_conv_t &xc,
-    OutputType *output, TrOpType atoutput[A][A][V], BiasType *bias,
-    int hOA_end, int wOA_end)
-{
-  ENABLE_AVX512F();
-  constexpr int output_format = cd_traits<conditions...>::output_format;
-  constexpr bool is_border = cd_traits<conditions...>::is_border;
-  constexpr bool with_bias = cd_traits<conditions...>::with_bias;
-  constexpr bool with_relu = cd_traits<conditions...>::with_relu;
-  constexpr bool with_ip_sum = cd_traits<conditions...>::with_ip_sum;
-  bool fuse_ip_sum = with_ip_sum && (wOA_end != -1);
-  bool fuse_bias = with_bias && (bias != nullptr);
-  bool fuse_relu = with_relu && (bias != nullptr);
+template <typename OutputType, typename BiasType,
+    int format, bool is_border, bool with_bias, bool with_relu,
+    bool with_ip_sum, int V>
+struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
+    is_border, with_bias, with_relu, with_ip_sum, ISA_SKX_AVX512, 7, 3, V> {
+  constexpr static int A = 7;
+  constexpr static int K = 3;
 
-  alignas(64) OutputType dummy[16];
-  auto p_cb = [&](int _h, int _w) {
-    if (output_format == TKF_COMPACT) {
-      MD3(OutputType, aoutput, output, A - K + 1, A - K + 1, V);
-      return &md3(aoutput, _h, _w, 0);
-    } else if (output_format == TKF_BLOCKED) {
-      MD3(OutputType, aoutput, output, xc.oh, xc.ow, V);
-      if (is_border && (_h > hOA_end || _w > wOA_end))
-        return dummy;
-      else
+  static void execute(elx_conv_params_t &xc, OutputType *output,
+      float atoutput[A][A][V], BiasType *bias, int hOA_end, int wOA_end)
+  {
+    ENABLE_AVX512F();
+    bool fuse_ip_sum = with_ip_sum && (wOA_end != -1);
+    bool fuse_bias = with_bias && (bias != nullptr);
+    bool fuse_relu = with_relu && (bias != nullptr);
+
+    alignas(64) OutputType dummy[16];
+    auto p_cb = [&](int _h, int _w) {
+      if (format == TKF_COMPACT) {
+        MD3(OutputType, aoutput, output, A - K + 1, A - K + 1, V);
         return &md3(aoutput, _h, _w, 0);
-    } else {
-      MD3(OutputType, aoutput, output, xc.oh, xc.ow, xc.oc);
-      if (is_border && (_h > hOA_end || _w > wOA_end))
-        return dummy;
-      else
-        return &md3(aoutput, _h, _w, 0);
-    }
-  };
+      } else if (format == TKF_BLOCKED) {
+        MD3(OutputType, aoutput, output, xc.oh, xc.ow, V);
+        if (is_border && (_h > hOA_end || _w > wOA_end))
+          return dummy;
+        else
+          return &md3(aoutput, _h, _w, 0);
+      } else {
+        MD3(OutputType, aoutput, output, xc.oh, xc.ow, xc.oc);
+        if (is_border && (_h > hOA_end || _w > wOA_end))
+          return dummy;
+        else
+          return &md3(aoutput, _h, _w, 0);
+      }
+    };
 
 #undef P
 #undef T
 #define T(_h, _w) atoutput[_w][_h]
 #define P(_h, _w) p_cb(_h, _w)
 
-  __m<V> c0, c1, c2, c3, c4, c5, zero;
+    __m<V> c0, c1, c2, c3, c4, c5, zero;
 
-  __m<V> z2 = _mm<V>::set_ps(IMM_BCAST16(2.0f));
-  __m<V> z4 = _mm<V>::set_ps(IMM_BCAST16(4.0f));
-  __m<V> z8 = _mm<V>::set_ps(IMM_BCAST16(8.0f));
-  __m<V> z16 = _mm<V>::set_ps(IMM_BCAST16(16.0f));
-  __m<V> z1_2 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 2.0f));
-  __m<V> z1_4 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 4.0f));
-  __m<V> z1_8 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 8.0f));
-  __m<V> z1_16 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 16.0f));
+    __m<V> z2 = _mm<V>::set_ps(IMM_BCAST16(2.0f));
+    __m<V> z4 = _mm<V>::set_ps(IMM_BCAST16(4.0f));
+    __m<V> z8 = _mm<V>::set_ps(IMM_BCAST16(8.0f));
+    __m<V> z16 = _mm<V>::set_ps(IMM_BCAST16(16.0f));
+    __m<V> z1_2 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 2.0f));
+    __m<V> z1_4 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 4.0f));
+    __m<V> z1_8 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 8.0f));
+    __m<V> z1_16 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 16.0f));
 
 #undef t
 #undef OP
 #define t(m, n) t##m##n
 #define OP(m,n) __m<V> t(m,n) = _mm<V>::load_ps(T(m, n))
-  MATRIX_DEF(7, 6);
+    MATRIX_DEF(7, 6);
 
-  BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_0, nil)
-  AVX512_CALCULATE_O(0);
-  p40 = ADD(ADD(ADD(ADD(ADD(ADD(p40, t60), t61),
-      t62), t63), t64), t65);
-  AVX512_ADD_B(0)
+    BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_0, nil)
+    AVX512_CALCULATE_O(0);
+    p40 = ADD(ADD(ADD(ADD(ADD(ADD(p40, t60), t61), t62), t63), t64), t65);
+    AVX512_ADD_B(0)
 
-  BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_1, nil)
-  AVX512_CALCULATE_O(1);
-  p41 = ADD(p41, FMADD(z2, SUB(t62, t63),
-      FMADD(z1_2, SUB(t64, t65), SUB(t60, t61))));
-  AVX512_ADD_B(1)
+    BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_1, nil)
+    AVX512_CALCULATE_O(1);
+    p41 = ADD(p41,
+        FMADD(z2, SUB(t62, t63), FMADD(z1_2, SUB(t64, t65), SUB(t60, t61))));
+    AVX512_ADD_B(1)
 
-  BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_2, nil)
-  AVX512_CALCULATE_O(2);
-  p42 = ADD(p42, FMADD(z4, ADD(t62, t63),
-      FMADD(z1_4, ADD(t64, t65), ADD(t60, t61))));
-  AVX512_ADD_B(2)
+    BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_2, nil)
+    AVX512_CALCULATE_O(2);
+    p42 = ADD(p42,
+        FMADD(z4, ADD(t62, t63), FMADD(z1_4, ADD(t64, t65), ADD(t60, t61))));
+    AVX512_ADD_B(2)
 
-  BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_3, nil)
-  AVX512_CALCULATE_O(3);
-  p43 = ADD(p43, FMADD(z8, SUB(t62, t63),
-      FMADD(z1_8, SUB(t64, t65), SUB(t60, t61))));
-  AVX512_ADD_B(3)
+    BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_3, nil)
+    AVX512_CALCULATE_O(3);
+    p43 = ADD(p43,
+        FMADD(z8, SUB(t62, t63), FMADD(z1_8, SUB(t64, t65), SUB(t60, t61))));
+    AVX512_ADD_B(3)
 
-  __m<V> t06 = _mm<V>::load_ps(T(0, 6));
-  __m<V> t16 = _mm<V>::load_ps(T(1, 6));
-  __m<V> t26 = _mm<V>::load_ps(T(2, 6));
-  __m<V> t36 = _mm<V>::load_ps(T(3, 6));
-  __m<V> t46 = _mm<V>::load_ps(T(4, 6));
-  __m<V> t56 = _mm<V>::load_ps(T(5, 6));
-  __m<V> t66 = _mm<V>::load_ps(T(6, 6));
-  BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_4, nil)
-  AVX512_CALCULATE_O(4);
-  p44 = ADD(p44, FMADD(z16, ADD(t62, t63), FMADD(z1_16,
-      ADD(t64, t65), ADD(ADD(t60, t61), t66))));
-  AVX512_ADD_B(4)
-}
-
+    __m<V> t06 = _mm<V>::load_ps(T(0, 6));
+    __m<V> t16 = _mm<V>::load_ps(T(1, 6));
+    __m<V> t26 = _mm<V>::load_ps(T(2, 6));
+    __m<V> t36 = _mm<V>::load_ps(T(3, 6));
+    __m<V> t46 = _mm<V>::load_ps(T(4, 6));
+    __m<V> t56 = _mm<V>::load_ps(T(5, 6));
+    __m<V> t66 = _mm<V>::load_ps(T(6, 6));
+    BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_4, nil)
+    AVX512_CALCULATE_O(4);
+    p44 = ADD(p44,
+        FMADD(z16, ADD(t62, t63),
+            FMADD(z1_16, ADD(t64, t65), ADD(ADD(t60, t61), t66))));
+    AVX512_ADD_B(4)
+  }
+}; // elk_conv_wino_trans_output
 } // namespace euler

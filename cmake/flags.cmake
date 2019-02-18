@@ -19,6 +19,10 @@ else ()
   set(__opt_flags "-O2 -DNDEBUG")
 endif ()
 
+if (ENABLE_USER_FP16)
+  list(APPEND __opt_flags "-DENABLE_USER_FP16")
+endif()
+
 if (WITH_GK)
   list(APPEND __opt_flags "-DWITH_GK")
 endif()

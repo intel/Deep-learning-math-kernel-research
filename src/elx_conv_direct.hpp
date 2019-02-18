@@ -1,11 +1,12 @@
 #ifndef __ELX_CONV_DIRECT_HPP__
 #define __ELX_CONV_DIRECT_HPP__
 
+#include "euler.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
-#include "euler.hpp"
 #include "kernel/elk_gemm_otj_binder.hxx"
+#include "kernel/elk_conv_otj_binder.hxx"
 
 namespace euler {
 
@@ -50,8 +51,8 @@ Template_elx_conv_direct_t class elx_conv_direct_t : public elx_conv_t {
 
   // TODO: optimize it
   gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_[64][8];
-  gemm_kernel_binder::kconv<TarrayTypes> *ker_conv_;
-  gemm_kernel_binder::kconv<TarrayTypes> *ker_conv_Tr_;
+  conv_kernel_binder::kconv<TarrayTypes> *ker_conv_;
+  conv_kernel_binder::kconv<TarrayTypes> *ker_conv_Tr_;
 
   void (elx_conv_direct_t::*execute_opt_)(
       OutputType *, InputType *, WeightsType *, BiasType *);
@@ -71,8 +72,10 @@ Template_elx_conv_direct_t class elx_conv_direct_t : public elx_conv_t {
 // fp32-f32f32f32
 template class elx_conv_direct_t<conv::FP32, conv_impl::FP32, 16, ISA_SKX_AVX512>;
 
+#ifdef ENABLE_USER_FP16
 // fp16o-f32f32f16
 template class elx_conv_direct_t<conv::FP16O, conv_impl::FP32_F16o, 16, ISA_SKX_AVX512>;
+#endif
 
 } // namespace euler
 #endif // __ELX_CONV_DIRECT_HPP__

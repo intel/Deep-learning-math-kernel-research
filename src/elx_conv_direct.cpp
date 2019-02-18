@@ -1,10 +1,7 @@
 #include "el_intrin.hpp"
+#include "el_stl.hpp"
 #include "el_utils.hpp"
 #include "elx_conv_direct.hpp"
-#include "el_def.hpp"
-#include "el_utils.hpp"
-#include "elx_conv.hpp"
-#include "euler.hpp"
 
 namespace euler {
 
@@ -116,7 +113,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
 Template_elx_conv_direct_t
 int Instance_elx_conv_direct_t::prepare_execute_opt()
 {
-  if (this->with_ip_sum && this->with_relu && !this->output_fmt != nChw16c) {
+  if (this->with_ip_sum && this->with_relu && this->output_fmt != nChw16c) {
     el_error("Unimplemented: fuse sum (plain format) and relu together");
   }
 

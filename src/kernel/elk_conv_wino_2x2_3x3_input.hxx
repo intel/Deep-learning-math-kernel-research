@@ -1,97 +1,68 @@
 #pragma once
-#include <assert.h>
 #include <x86intrin.h>
+#include "el_intrin.hpp"
 #include "elk_def.hpp"
-#include "el_def.hpp"
 #include "el_utils.hpp"
-#include "elx_conv.hpp"
 #include "elk_conv_wino.hpp"
 
 namespace euler {
 
-template <typename UserTypes, typename TrOpType, int v>
-class convolution_winograd_kernel_base<UserTypes, TrOpType,
-    ISA_SKX_AVX512, v, 4, 3> {
-  protected:
-  using InputType = typename UserTypes::InputType;
-  using WeightsType = typename UserTypes::WeightsType;
-  using OutputType = typename UserTypes::OutputType;
-  using BiasType = typename UserTypes::BiasType;
-
-  constexpr static int I = ISA_SKX_AVX512;
-  constexpr static int V = v;
+template <typename InputType, int format, bool is_border,
+    int V>
+struct elk_conv_wino_trans_input<float, InputType, format, is_border,
+    ISA_SKX_AVX512, 4, V> {
   constexpr static int A = 4;
-  constexpr static int K = 3;
 
-  template <int input_format, bool is_border> static inline
-  void __trans_input(elx_conv_t &xc, TrOpType atinput[A][A][V],
-      InputType *input, int hT_start, int hT_end, int wT_start, int wT_end);
+  static void execute(elx_conv_params_t &xc, float atinput[A][A][V],
+      InputType *input, int hA_start, int hA_end, int wA_start, int wA_end)
+  {
+    ENABLE_AVX512F();
 
-  template <int ...conditions>
-  static inline void __trans_output(elx_conv_t &xc, OutputType *output,
-      TrOpType atoutput[A][A][V], BiasType *bias, int hOA_end, int wOA_end);
+    // Inputs
+    __m<V> f00, f01, f02, f03, f10, f11, f12, f13, f20, f21, f22, f23, f30, f31,
+        f32, f33;
+    // Cache
+    __m<V> c1, c2;
+    // Outputs
+    __m<V> t00, t01, t02, t03, t10, t11, t12, t13, t20, t21, t22, t23, t30, t31,
+        t32, t33;
 
-  static inline void __trans_weights(
-      TrOpType atweights[A][A][V][V], WeightsType aweights[K][K][V][V]);
-};
-
-
-template <typename UserTypes, typename TrOpType, int V>
-template <int input_format, bool is_border>
-inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
-    ISA_SKX_AVX512, V, 4, 3>::__trans_input(
-      elx_conv_t &xc, TrOpType atinput[A][A][V], InputType *input,
-      int hT_start, int hT_end, int wT_start, int wT_end)
-{
-  ENABLE_AVX512F();
-
-  // Inputs
-  __m<V> f00, f01, f02, f03, f10, f11, f12, f13, f20, f21, f22, f23,
-      f30, f31, f32, f33;
-  // Cache
-  __m<V> c1, c2;
-  // Outputs
-  __m<V> t00, t01, t02, t03, t10, t11, t12, t13, t20, t21, t22, t23,
-      t30, t31, t32, t33;
-
-  __m<V> z0 = _mm<V>::setzero_ps();
-  auto f_cb = [&](int _h, int _w) {
-    if (input_format == TKF_COMPACT) {// TODO: wT_end == -1
-      MD3(InputType, ainput, input, A, A, V);
-      if (std::is_same<InputType, float>::value)
-        return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
-      else {
-        auto f16 = _mm<V/2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
-        return _mm<V>::cvtph_ps(f16);
+    auto f_cb = [&](int _h, int _w) {
+      if (format == TKF_COMPACT) {
+        MD3(InputType, ainput, input, A, A, V);
+        if (std::is_same<InputType, float>::value)
+          return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
+        else {
+          auto f16 = _mm<V / 2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
+          return _mm<V>::cvtph_ps(f16);
+        }
+      } else if (format == TKF_BLOCKED) {
+        MD3(InputType, ainput, input, xc.ih, xc.iw, V);
+        if (is_border
+            && (_h < hA_start || _w < wA_start || _h > hA_end || _w > wA_end))
+          return _mm<V>::setzero_ps();
+        else if (std::is_same<InputType, float>::value)
+          return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
+        else {
+          auto f16 = _mm<V / 2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
+          return _mm<V>::cvtph_ps(f16);
+        }
+      } else { // TKF_NHWC
+        MD3(InputType, ainput0, input, xc.ih, xc.iw, xc.ic);
+        // TODO: overflow on last V
+        MD2(InputType, ainput1, &md3(ainput0, _h, _w, 0),
+            xc.ic4 * xc.ic3 * xc.I2, V);
+        if (is_border
+            && (_h < hA_start || _w < wA_start || _h > hA_end || _w > wA_end))
+          return _mm<V>::setzero_ps();
+        else if (std::is_same<InputType, float>::value)
+          return _mm<V>::load_ps(&md2(ainput1, 0, 0));
+        else {
+          auto f16 = _mm<V / 2>::load_si256((__m256i *)&md2(ainput1, 0, 0));
+          return _mm<V>::cvtph_ps(f16);
+        }
       }
-    } else if (input_format == TKF_BLOCKED) {
-      MD3(InputType, ainput, input, xc.ih, xc.iw, V);
-      if (is_border
-          && (_h < hT_start || _w < wT_start || _h > hT_end
-                 || _w > wT_end))
-        return z0;
-      else if (std::is_same<InputType, float>::value)
-        return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
-      else {
-        auto f16 = _mm<V/2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
-        return _mm<V>::cvtph_ps(f16);
-      }
-    } else { // TKF_NHWC
-      MD3(InputType, ainput0, input, xc.ih, xc.iw, xc.ic);
-      // TODO: overflow on last V
-      MD2(InputType, ainput1, &md3(ainput0, _h, _w, 0), xc.ic4 * xc.ic3 * xc.I2, V);
-      if (is_border
-          && (_h < hT_start || _w < wT_start || _h > hT_end
-                 || _w > wT_end))
-        return z0;
-      else if (std::is_same<InputType, float>::value)
-        return _mm<V>::load_ps(&md2(ainput1, 0, 0));
-      else {
-        auto f16 = _mm<V/2>::load_si256((__m256i *)&md2(ainput1, 0, 0));
-        return _mm<V>::cvtph_ps(f16);
-      }
-    }
-  };
+    };
 
 #undef F
 #undef C
@@ -149,6 +120,8 @@ inline void convolution_winograd_kernel_base<UserTypes, TrOpType,
    _mm<V>::store_ps(T(2, 3), t23);
    t33 = ADD(SUB(c1, f31), f33);
    _mm<V>::store_ps(T(3, 3), t33);
-}
+} // execute
+
+}; // elk_conv_wino_trans_input
 
 }//namespace euler

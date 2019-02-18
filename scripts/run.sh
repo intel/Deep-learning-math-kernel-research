@@ -39,7 +39,7 @@ function conv_test() {
   sampling_kind=2; tinput_cali_s=0; tinput_cali_z=0
 
   OPTIND=1
-  while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:f:l:B:A:T:a:-:" opt; do
+  while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:f:l:B:A:a:-:" opt; do
     case "$opt" in
       n) n=$OPTARG ;;
       i) i=$OPTARG ;;
@@ -61,7 +61,6 @@ function conv_test() {
       l) l=$OPTARG ;;
       B) B=$OPTARG ;;
       A) A=$OPTARG ;;
-      T) T=$OPTARG ;;
       -)
         case "${OPTARG}" in
           alg) a="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
@@ -190,7 +189,7 @@ function conv_test() {
   set -v
   eval $OMP_ENV $ROOT_DIR/$build_dir/tests/elt_conv \
     -n$n -i$i -o$o -h$h -w$w -H$H -W$W -k$k -K$K -p$p -P$P -s$s -S$S \
-    -b$b -r$r -v$v -a$a -l$l -B$B -A$A -T$T \
+    -b$b -r$r -v$v -a$a -l$l -B$B -A$A \
     --flt-o=$flt_o --flt-t=$flt_t --blk-i=$blk_i --blk-o=$blk_o \
     --pat-i=$pat_i --pat-o=$pat_o --tile-size=$tile_size \
     --nthreads=$nthreads --execution-mode=$execution_mode \
