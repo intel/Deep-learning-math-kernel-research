@@ -216,10 +216,10 @@ int eld_conv_t::setup()
       // TODO: auto-select tile_size
       el_error("TODO: implement tile size auto-selection");
     } else {
-      #define NO_F53_CASE(UT, TT, type) \
+      #define F_5_3_OFF_CASE(UT, TT, type) \
         case 7: break
 
-      #define F53_CASE(UT, TT, type) \
+      #define F_5_3_ON_CASE(UT, TT, type) \
         case 7: \
           xc = new elx_conv_##type##_t<UT, TT, 7, 3, 16, \
               ISA_SKX_AVX512>(*this); \
@@ -248,23 +248,23 @@ int eld_conv_t::setup()
       // TODO: forward, backward_data, backward_weights
       if ((execution_mode & 0xF00) != 0x100) {
         if (f16c_opt && user_type == user_type_f32) {
-          create_conv_wino(conv::FP32, conv_impl::FP32_F16iwo, F53, wino);
+          create_conv_wino(conv::FP32, conv_impl::FP32_F16iwo, F_5_3_ON, wino);
 #ifdef ENABLE_USER_FP16
         } else if (user_type == user_type_f16) {
-          create_conv_wino(conv::FP16, conv_impl::FP32_F16wob, F53, wino);
+          create_conv_wino(conv::FP16, conv_impl::FP32_F16wob, F_5_3_ON, wino);
 #endif
         } else if (user_type != user_type_f16o) {
-          create_conv_wino(conv::FP32, conv_impl::FP32, F53, wino);
+          create_conv_wino(conv::FP32, conv_impl::FP32, F_5_3_ON, wino);
         }
       } else {
         if (f16c_opt && user_type == user_type_f32) {
-          create_conv_wino(conv::FP32, conv_impl::INT8_F16o, NO_F53, wino_lp);
+          create_conv_wino(conv::FP32, conv_impl::INT8_F16o, F_5_3_OFF, wino_lp);
 #ifdef ENABLE_USER_FP16
         } else if (user_type == user_type_f16) {
-          create_conv_wino(conv::FP16, conv_impl::INT8_F16b, NO_F53, wino_lp);
+          create_conv_wino(conv::FP16, conv_impl::INT8_F16b, F_5_3_OFF, wino_lp);
 #endif
         } else if (user_type != user_type_f16o) {
-          create_conv_wino(conv::FP32, conv_impl::INT8_F32, F53, wino_lp);
+          create_conv_wino(conv::FP32, conv_impl::INT8_F32, F_5_3_ON, wino_lp);
         }
       }
     }
