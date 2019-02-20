@@ -11,6 +11,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
 {
   // user input
   xopt_ = this->execution_mode;
+  mthr_ = omp_get_max_threads();
 
   this->Vx = 1;
   this->IC = ALIGNUP(this->ic, V);
@@ -88,10 +89,10 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
     el_error("IC blocking error");
   }
 
+  nb_task_ = this->t3 * this->oc4 * this->ht * this->wt;
   attr_ = 0x0;
   is_first_run_ = true;
   inference_acc_ = false;
-  mthr_ = omp_get_max_threads();
   inference_acc_ = this->prop_kind == forward_inference;
 
   attr_ = this->with_bias ? set_attr(attr_, bias_idx) : attr_;
@@ -138,7 +139,7 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
   size_t workspace_size = tweights_size_;
   // TODO: user provided buffer
   if (workspace_size != 0) {
-#if 0 // TODO
+#if 1 // TODO
     MEMALIGN64(&workspace_, workspace_size);
     tweights_ = (TweightsType *)workspace_;
 #else
