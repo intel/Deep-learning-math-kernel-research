@@ -112,6 +112,8 @@ struct galloc {
     auto &cnt_ = ref_cnt();
     if (--cnt_ == 0 && ptr_ != nullptr) {
       ::free(ptr_);
+      auto &sz_ = sz();
+      sz_ = 0;
       ptr_ = nullptr;
     }
   }
