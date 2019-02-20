@@ -7,48 +7,79 @@
 
 namespace euler {
 
-template <typename InputType, int format, bool is_border,
-    int V>
+template <typename InputType, int format, bool is_border, int V>
 struct elk_conv_wino_trans_input<float, InputType, format, is_border,
     ISA_SKX_AVX512, 5, V> {
   constexpr static int A = 5;
 
   static void execute(elx_conv_params_t &xc, float atinput[A][A][V],
-      InputType *input, int hA_start, int hA_end, int wA_start, int wA_end)
-  {
+      InputType *input, int hA_start, int hA_end, int wA_start, int wA_end) {
+    __m<V> mS, mz;
+
+    if (std::is_same<InputType, uint8_t>::value) {
+      mS = _mm<V>::set1_ps(xc.input_quant_S);
+      mz = _mm<V>::set1_ps(xc.input_quant_z);
+    }
+
+#undef ldr_f32_impl
+#undef ldr_f16_impl
+#undef ldr_u8_impl
+
+#define ldr_f32_impl(addr) \
+  ({ \
+    _mm<V>::load_ps(addr); \
+  })
+
+#define ldr_f16_impl(addr) \
+  ({ \
+    __m256i f16 = _mm<V / 2>::load_si256((__m256i *)addr); \
+    _mm<V>::cvtph_ps(f16); \
+  })
+
+#define ldr_u8_impl(addr) \
+  ({ \
+    __i<V> isrcu8 = _mm512_cvtepu8_epi32(*(__m128i *)addr); \
+    __m<V> msrcu8 = _mm512_cvt_roundepi32_ps(isrcu8, \
+        _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC); \
+    (msrcu8 - mz) * mS; \
+  })
+
     auto f_cb = [&](int _h, int _w) {
       if (format == TKF_COMPACT) {
         MD3(InputType, ainput, input, A, A, V);
-        if (std::is_same<InputType, float>::value)
-          return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
-        else {
-          auto f16 = _mm<V / 2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
-          return _mm<V>::cvtph_ps(f16);
+        if (std::is_same<InputType, float>::value) {
+          return ldr_f32_impl(&md3(ainput, _h, _w, 0));
+        } else if (std::is_same<InputType, uint8_t>::value) {
+          return ldr_u8_impl(&md3(ainput, _h, _w, 0));
+        } else {
+          return ldr_f16_impl(&md3(ainput, _h, _w, 0));
         }
       } else if (format == TKF_BLOCKED) {
         MD3(InputType, ainput, input, xc.ih, xc.iw, V);
         if (is_border
-            && (_h < hA_start || _w < wA_start || _h > hA_end || _w > wA_end))
+            && (_h < hA_start || _w < wA_start || _h > hA_end || _w > wA_end)) {
           return _mm<V>::setzero_ps();
-        else if (std::is_same<InputType, float>::value)
-          return _mm<V>::load_ps(&md3(ainput, _h, _w, 0));
-        else {
-          auto f16 = _mm<V / 2>::load_si256((__m256i *)&md3(ainput, _h, _w, 0));
-          return _mm<V>::cvtph_ps(f16);
+        } else if (std::is_same<InputType, float>::value) {
+          return ldr_f32_impl(&md3(ainput, _h, _w, 0));
+        } else if (std::is_same<InputType, uint8_t>::value) {
+          return ldr_u8_impl(&md3(ainput, _h, _w, 0));
+        } else {
+          return ldr_f16_impl(&md3(ainput, _h, _w, 0));
         }
-      } else {
+      } else { // TKF_NHWC
         MD3(InputType, ainput0, input, xc.ih, xc.iw, xc.ic);
         // TODO: overflow on last V
         MD2(InputType, ainput1, &md3(ainput0, _h, _w, 0),
             xc.ic4 * xc.ic3 * xc.I2, V);
         if (is_border
-            && (_h < hA_start || _w < wA_start || _h > hA_end || _w > wA_end))
+            && (_h < hA_start || _w < wA_start || _h > hA_end || _w > wA_end)) {
           return _mm<V>::setzero_ps();
-        else if (std::is_same<InputType, float>::value)
-          return _mm<V>::load_ps(&md2(ainput1, 0, 0));
-        else {
-          auto f16 = _mm<V / 2>::load_si256((__m256i *)&md2(ainput1, 0, 0));
-          return _mm<V>::cvtph_ps(f16);
+        } else if (std::is_same<InputType, float>::value) {
+          return ldr_f32_impl(&md2(ainput1, 0, 0));
+        } else if (std::is_same<InputType, uint8_t>::value) {
+          return ldr_u8_impl(&md2(ainput1, 0, 0));
+        } else {
+          return ldr_f16_impl(&md2(ainput1, 0, 0));
         }
       }
     };
