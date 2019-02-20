@@ -59,7 +59,8 @@ typedef enum {
   euler_f32,
   euler_f16,
   euler_u8,
-  euler_s8
+  euler_s8,
+  euler_s32
 } data_type_t;
 
 // Data formats
