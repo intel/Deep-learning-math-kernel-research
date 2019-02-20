@@ -418,11 +418,11 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
         iter_each (_hA, A) {
           // Min-Max quantization
           __m<V> a = *(__m<V> *)&md3(aout3, _wA, _hA, 0);
-          __m<V> mmresf32 = a * mrepS + mz;
+          __m<V> mresf32 = a * mrepS + mz;
           // convert to uint8
-          __i<V> mmresu32 = _mm<V>::cvt_roundps_epu32(
-              mmresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
-          __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mmresu32);
+          __i<V> mresu32 = _mm<V>::cvt_roundps_epu32(
+              mresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
+          __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mresu32);
           // store
           _mm_store_si128((__m128i *)&md7(
               atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);
@@ -488,10 +488,10 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
       iter_each (_I2, xc->I2) {
       iter_each (_Vx, xc->Vx) {
         __m<V> f = *(__m<V> *)&md7(atinput7, _ic3, _I2, _Vx, _T, _wA, _hA, 0);
-        __m<V> mmresf32 = f * mrepS + mz;
-        __i<V> mmresu32 = _mm<V>::cvt_roundps_epu32(
-            mmresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
-        __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mmresu32);
+        __m<V> mresf32 = f * mrepS + mz;
+        __i<V> mresu32 = _mm<V>::cvt_roundps_epu32(
+            mresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
+        __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mresu32);
         _mm_store_si128((__m128i *)&md7(
             atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);
       }}
@@ -554,11 +554,11 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
         iter_each (_hA, A) {
           // Min-Max quantization
           __m<V> a = *(__m<V> *)&aout[_wA][_hA][0];
-          __m<V> mmresf32 = a * mrepS + mz;
+          __m<V> mresf32 = a * mrepS + mz;
           // convert to uint8
-          __i<V> mmresu32 = _mm<V>::cvt_roundps_epu32(
-              mmresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
-          __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mmresu32);
+          __i<V> mresu32 = _mm<V>::cvt_roundps_epu32(
+              mresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
+          __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mresu32);
           // store
           _mm_store_si128((__m128i *)&md7(atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);
         }}
@@ -621,10 +621,10 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
       __m<V> mrepS = _mm<V>::set1_ps(repS);
       __m<V> mz = _mm<V>::set1_ps(z);
       __m<V> a = *(__m<V> *)&md7(atinput, _ic3, _I2, _Vx, _T, _wA, _hA, 0);
-      __m<V> mmresf32 = a * mrepS + mz;
+      __m<V> mresf32 = a * mrepS + mz;
       // convert to uint8
-      __i<V> mmresu32 = _mm<V>::cvt_roundps_epu32(mmresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
-      __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mmresu32);
+      __i<V> mresu32 = _mm<V>::cvt_roundps_epu32(mresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
+      __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mresu32);
       // store
       _mm_store_si128((__m128i *)&md7(atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);
     }}}}}}
@@ -707,10 +707,10 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
           __m<V> mrepS = _mm<V>::set1_ps(mmax[_wA][_hA][0]);
           __m<V> mz = _mm<V>::set1_ps(mmin[_wA][_hA][0]);
           __m<V> f = *(__m<V> *)&md5(atinput, _I2, _Vx, _wA, _hA, 0);
-          __m<V> mmresf32 = f * mrepS + mz;
+          __m<V> mresf32 = f * mrepS + mz;
           // convert to uint8
-          __i<V> mmresu32 = _mm<V>::cvt_roundps_epu32(mmresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
-          __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mmresu32);
+          __i<V> mresu32 = _mm<V>::cvt_roundps_epu32(mresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
+          __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mresu32);
           // store
           _mm_store_si128((__m128i *)&md7(atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);
         }}}}
