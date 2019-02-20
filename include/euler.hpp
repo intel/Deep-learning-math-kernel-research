@@ -5,6 +5,8 @@
 #include <float.h>
 #include <tuple>
 
+#define EULER_API __attribute__ ((visibility ("default")))
+
 namespace euler {
 
 template <typename... Types> struct ConvTypes {
@@ -92,7 +94,7 @@ typedef enum {
 struct elx_conv_t;
 
 // Convolution desc
-struct eld_conv_t {
+struct EULER_API eld_conv_t {
   // Conv parameters
   struct {
     struct { int n, c, h, w; } input;
@@ -159,7 +161,7 @@ struct eld_conv_t {
 };
 
 // Convolution execution
-int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *bias);
+int EULER_API elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *bias);
 
 }
 
