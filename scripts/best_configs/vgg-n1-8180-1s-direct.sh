@@ -11,7 +11,7 @@ NSOCKETS=1 ./scripts/run.sh -c -i64 -h224 -o64 -H224 -n1 --blk-i=4 --blk-o=2 --f
 
 sleep 1
 # vgg19_conv2_1,
-NSOCKETS=1 ./scripts/run.sh -c -i64 -h112 -o128 -H112 -n1 --blk-i=4 --blk-o=2 --flt-o=2 --flt-t=14 -adirect --execution-mode=0xa060 --pat-o=2 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -i64 -h112 -o128 -H112 -n1 --blk-i=4 --blk-o=2 --flt-o=2 --flt-t=14 -adirect --execution-mode=0xa060 --pat-o=1 $COMMON
 
 sleep 1
 # vgg19_conv2_2,
