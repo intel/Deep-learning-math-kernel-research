@@ -182,7 +182,7 @@ inline void alloc_thread_task(int n, int mthr, int ithr, int &start, int &end)
   assert(n > 0);
   if (mthr <= 1) {
     start = 0;
-    end = n;
+    end = n - 1;
     return;
   }
 
