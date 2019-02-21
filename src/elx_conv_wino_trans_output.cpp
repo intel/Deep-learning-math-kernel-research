@@ -40,7 +40,7 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
 {
 #undef E
 #define E(format, border, bias, relu, sum)                                     \
-  elk_conv_wino_trans_output<OutputType, BiasType, TrOpType, format,           \
+  elk_conv_wino_trans_output<TrOpType, OutputType, BiasType, format,           \
       border, bias, relu, sum, I, A, K, V>::execute
   static const struct {
     decltype(ker_trans_output_) f1_;

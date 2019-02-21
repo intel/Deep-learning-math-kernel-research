@@ -149,6 +149,11 @@ template class elx_conv_wino_lp_t<conv::FP32, conv_impl::INT8_F32, 5, 3, 16, ISA
 template class elx_conv_wino_lp_t<conv::FP32, conv_impl::INT8_F32, 6, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_lp_t<conv::FP32, conv_impl::INT8_F32, 7, 3, 16, ISA_SKX_AVX512>;
 
+// u8f32u8f32-u8s8f32
+template class elx_conv_wino_lp_t<conv::U8F32U8F32, conv_impl::INT8_F32, 4, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_lp_t<conv::U8F32U8F32, conv_impl::INT8_F32, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_lp_t<conv::U8F32U8F32, conv_impl::INT8_F32, 6, 3, 16, ISA_SKX_AVX512>;
+
 // fp32-u8s8f16
 template class elx_conv_wino_lp_t<conv::FP32, conv_impl::INT8_F16o, 4, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_lp_t<conv::FP32, conv_impl::INT8_F16o, 5, 3, 16, ISA_SKX_AVX512>;

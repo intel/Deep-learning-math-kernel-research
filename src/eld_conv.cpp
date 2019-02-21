@@ -85,9 +85,9 @@ int eld_conv_t::setup()
     user_type_f32 = 0,
     user_type_f16,
     user_type_f16o,
-    user_type_u8s8f32f32,
-    user_type_u8s8u8f32,
-    user_type_u8s8s8f32,
+    user_type_u8f32f32f32,
+    user_type_u8f32u8f32,
+    user_type_u8f32s8f32,
   };
 
   // Analyze data type pattern
@@ -108,20 +108,20 @@ int eld_conv_t::setup()
       data_type.bias == euler_f32) {
     user_type = user_type_f16o;
   } else if (data_type.input == euler_u8 &&
-      data_type.weights == euler_s8 &&
+      data_type.weights == euler_f32 &&
       data_type.output == euler_f32 &&
       data_type.bias == euler_f32) {
-    user_type = user_type_u8s8f32f32;
+    user_type = user_type_u8f32f32f32;
   } else if (data_type.input == euler_u8 &&
-      data_type.weights == euler_s8 &&
+      data_type.weights == euler_f32 &&
       data_type.output == euler_u8 &&
       data_type.bias == euler_f32) {
-    user_type = user_type_u8s8u8f32;
+    user_type = user_type_u8f32u8f32;
   } else if (data_type.input == euler_u8 &&
-      data_type.weights == euler_s8 &&
+      data_type.weights == euler_f32 &&
       data_type.output == euler_s8 &&
       data_type.bias == euler_f32) {
-    user_type = user_type_u8s8s8f32;
+    user_type = user_type_u8f32s8f32;
   } else {
     el_error("Unsupported data type");
     return ELX_GENERAL_ERROR;
@@ -263,6 +263,8 @@ int eld_conv_t::setup()
         } else if (user_type == user_type_f16) {
           create_conv_wino(conv::FP16, conv_impl::INT8_F16b, F_5_3_OFF, wino_lp);
 #endif
+        } else if (user_type == user_type_u8f32u8f32) {
+          create_conv_wino(conv::U8F32U8F32, conv_impl::INT8_F32, F_5_3_OFF, wino_lp);
         } else if (user_type != user_type_f16o) {
           create_conv_wino(conv::FP32, conv_impl::INT8_F32, F_5_3_ON, wino_lp);
         }

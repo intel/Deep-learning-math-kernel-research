@@ -86,11 +86,6 @@ Template_elx_conv_wino_lp_t Instance_elx_conv_wino_lp_t::elx_conv_wino_lp_t(
     this->oc4 = this->OC / (V * this->O2 * this->oc3);
   }
 #else
-  if ((xopt_ == 0xa073 || xopt_ == 0xa07b || this->with_ip_sum)
-      && this->with_relu && !output_is_bfmt_) {
-    el_error("Unimplemented: fuse sum (plain format) and relu together");
-  }
-
   if (this->Vx * V * this->I2 * this->ic3 * this->ic4 != this->IC) {
     el_error("Vx * V * I2 * ic3 * ic4 != this->IC\n)");
   }
@@ -235,10 +230,6 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
     scratch_size -= tinput_quant_scale_size_;
   }
 
-  if (xopt_ == 0xa079 || xopt_ == 0xa07b) {
-    scratch_size += tweights_size_;
-    workspace_size = 0;
-  }
   // TODO: user provided buffer
   if (scratch_size != 0)
     scratch_ = galloc::acquire(scratch_size);
