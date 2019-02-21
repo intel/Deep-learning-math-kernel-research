@@ -85,9 +85,9 @@ int eld_conv_t::setup()
     user_type_f32 = 0,
     user_type_f16,
     user_type_f16o,
-    user_type_u8s8f32s32,
-    user_type_u8s8u8s32,
-    user_type_u8s8s8s32,
+    user_type_u8s8f32f32,
+    user_type_u8s8u8f32,
+    user_type_u8s8s8f32,
   };
 
   // Analyze data type pattern
@@ -110,18 +110,18 @@ int eld_conv_t::setup()
   } else if (data_type.input == euler_u8 &&
       data_type.weights == euler_s8 &&
       data_type.output == euler_f32 &&
-      data_type.bias == euler_s32) {
-    user_type = user_type_u8s8f32s32;
+      data_type.bias == euler_f32) {
+    user_type = user_type_u8s8f32f32;
   } else if (data_type.input == euler_u8 &&
       data_type.weights == euler_s8 &&
       data_type.output == euler_u8 &&
-      data_type.bias == euler_s32) {
-    user_type = user_type_u8s8u8s32;
+      data_type.bias == euler_f32) {
+    user_type = user_type_u8s8u8f32;
   } else if (data_type.input == euler_u8 &&
       data_type.weights == euler_s8 &&
       data_type.output == euler_s8 &&
-      data_type.bias == euler_s32) {
-    user_type = user_type_u8s8s8s32;
+      data_type.bias == euler_f32) {
+    user_type = user_type_u8s8s8f32;
   } else {
     el_error("Unsupported data type");
     return ELX_GENERAL_ERROR;
