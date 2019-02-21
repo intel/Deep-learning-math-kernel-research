@@ -593,7 +593,6 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_oihw(
 
     auto readin_r = [&](TweightsType *atwei, int _oc4, int _oc3, int _O2,
             int _ic4, int _ic3, int _I2, int _iV, bool is_Ir, bool is_Or) {
-      assert(fp_mode == euler::FP32 || !f16c_opt);
       MD2(WeightsType, aweights2, weights, this->oc, this->ic);
       int _oc2 = _oc4 * this->oc3 * this->O2 + _oc3 * this->O2 + _O2;
       int _ic2 = _ic4 * this->ic3 * this->I2 + _ic3 * this->I2 + _I2;
@@ -715,7 +714,6 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_hwio(
     }}}}}
   } else {
     auto readin = [&](TweightsType *atwei, int _oc2, int _ic2, int _iV, bool is_Or) {
-      assert(fp_mode == euler::FP32 || !f16c_opt);
       MD2(WeightsType, aweights2, weights, this->ic, this->oc);
       if (is_Or) {
 #pragma omp simd

@@ -55,8 +55,6 @@ struct elx_conv_params_t {
   // propagation kind
   int prop_kind;
 
-  int fp_mode;
-
   // relu, bias, sum
   bool with_relu, with_bias, with_ip_sum, with_op_sum, f16c_opt;
 

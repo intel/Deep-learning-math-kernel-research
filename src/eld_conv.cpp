@@ -25,7 +25,6 @@ eld_conv_t::eld_conv_t()
   with_ip_sum = false;
   with_op_sum = false;
   f16c_opt = false;
-  fp_mode = 0;
   xc = nullptr;
   nthreads = 0;
   execution_mode = 0;
