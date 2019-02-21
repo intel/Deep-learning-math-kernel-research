@@ -12,6 +12,7 @@ cat <<!
   -A   Output buffer bas input
   -s   Inplace sum.
   -H   Half precision opt.
+  -F   Use fine sampling for int8-gemm
   -h   This page.
 !
 }
@@ -21,9 +22,10 @@ input_format=nChw16c
 weights_format=OIhw16i16o
 output_format=nChw16c
 tile_size=5
+sampling_kind=0
 
 OPTIND=1
-while getopts "vpPrsf:l:BATHh" opt; do
+while getopts "vpPrsf:l:BATF:Hh" opt; do
   case $opt in
     v)
       v=1
@@ -59,6 +61,9 @@ while getopts "vpPrsf:l:BATHh" opt; do
     H)
       H=1
       ;;
+    F)
+      sampling_kind=$OPTARG
+      ;;
     h)
       usage
       ;;
@@ -69,7 +74,7 @@ while getopts "vpPrsf:l:BATHh" opt; do
 done
 shift $((OPTIND-1))
 
-COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format -r$r --with-ip-sum=$s -l$l -B$B -A$A --f16c-opt=$H --fp-mode=$f"
+COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format -r$r --with-ip-sum=$s -l$l -B$B -A$A --f16c-opt=$H --fp-mode=$f --sampling-kind=$sampling_kind"
 
 echo "Common option:" $COMMON
 echo
