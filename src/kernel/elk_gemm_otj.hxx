@@ -142,6 +142,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     return res;
   }
 
+  // Compiler warning when use #unroll(n), use #unroll as workaround
   template <int JO, int P>
   static inline __m<V> op_load_weights(elx_conv_params_t &xc,
       WeightsType *weights, const int _I2, const int _V, const int _P, const int _O)
@@ -152,9 +153,15 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       if (std::is_same<WeightsType, float>::value) {
         res = _mm<V>::load_ps(&md5(aweights5, _I2, _V, _P, _O, 0));
       } else {
-        auto fp16v = _mm<V / 2>::load_si256(
-            (__m256i *)&md5(aweights5, _I2, _V, _P, _O, 0));
-        res = _mm<V>::cvtph_ps(fp16v);
+        if (O == 2) { // bf16 type tinput
+          res = (_O == 0)
+              ? _mm<V>::load_ps(&md5(aweights5, _I2, _V, _P, 0, 0))
+              : _mm<V>::load_ps(&md5(aweights5, _I2, _V, _P, 0, 0) - 1);
+        } else {      // fp16 type tinput
+          auto fp16v = _mm<V / 2>::load_si256(
+              (__m256i *)&md5(aweights5, _I2, _V, _P, _O, 0));
+          res = _mm<V>::cvtph_ps(fp16v);
+        }
       }
     } else {
       MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
@@ -367,7 +374,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     for (int _I2 = 0; _I2 < I2; ++_I2) {
 #pragma nounroll
       for (int _V = 0; _V < V; ++_V) {
-        unroll_for (_O, JO)
+        unroll_auto (_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights, _I2, _V, 0, _O);
         unroll_for (_T, T) {
           __m<V> mmbcst = op_load_input<P>(xc, input, _I2, _V, 0, _T);
@@ -380,7 +387,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     if (Ir > 0) {
 #pragma nounroll
       for (int _V = 0; _V < xc.Ir; ++_V) {
-        unroll_for (_O, JO)
+        unroll_auto (_O, JO)
           mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights, xc.I2 - 1, _V, 0, _O);
         unroll_for (_T, T) {
           __m<V> mmbcst = op_load_input<1>(xc, input, xc.I2 - 1, _V, 0, _T);
@@ -425,7 +432,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     }
 
     // preload weights
-    unroll_for (_O, JO)
+    unroll_auto (_O, JO)
       mmwei[_O][0] = op_load_weights<JO, P>(xc, weights, 0, 0, 0, _O);
 
     __mmask16 k = _cvtu32_mask16(xc.ormask);
@@ -484,7 +491,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma nounroll
       for (int _V = 0; _V < V / P; ++_V) {
         // _P = 0
-        unroll_for (_O, JO)
+        unroll_auto (_O, JO)
           mmwei[_O][1] = op_load_weights<JO, P>(xc, weights, _I2, _V, 1, _O);
         unroll_for (_T, T) {
           __m<V> mmbcst = op_load_input<P>(xc, input, _I2, _V, 0, _T);
@@ -492,7 +499,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
             mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
         }
         // _P = 1
-        unroll_for (_O, JO)
+        unroll_auto (_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights, _I2, _V + 1, 0, _O);
         unroll_for (_T, T) {
           __m<V> mmbcst = op_load_input<P>(xc, input, _I2, _V, 1, _T);
@@ -505,7 +512,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     if (Ir > 0) {
 #pragma nounroll
       for (int _V = 0; _V < xc.Ir; ++_V) {
-        unroll_for (_O, JO)
+        unroll_auto (_O, JO)
           mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights, xc.I2 - 1, _V, 0, _O);
         unroll_for (_T, T) {
           __m<V> mmbcst = op_load_input<1>(xc, input, xc.I2 - 1, _V, 0, _T);
@@ -549,7 +556,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     }
 
     // preload weights
-    unroll_for (_O, JO) {
+    unroll_auto (_O, JO) {
       mmwei[_O][0] = op_load_weights<JO, P>(xc, weights, 0, 0, 0, _O);
       mmwei[_O][1] = op_load_weights<JO, P>(xc, weights, 0, 0, 1, _O);
     }
@@ -610,7 +617,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 #pragma nounroll
       for (int _V = 0; _V < V / P; ++_V) {
         // _P = 0
-        unroll_for (_O, JO)
+        unroll_auto (_O, JO)
           mmwei[_O][2] = op_load_weights<JO, P>(xc, weights, _I2, _V, 2, _O);
         unroll_for (_T, T) {
           __m<V> mmbcst = op_load_input<P>(xc, input, _I2, _V, 0, _T);
@@ -618,7 +625,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
             mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][0], mmbcst, mmout[_O][_T]);
         }
         // _P = 1
-        unroll_for (_O, JO)
+        unroll_auto (_O, JO)
           mmwei[_O][3] = op_load_weights<JO, P>(xc, weights, _I2, _V, 3, _O);
         unroll_for (_T, T) {
           __m<V> mmbcst = op_load_input<P>(xc, input, _I2, _V, 1, _T);
@@ -626,7 +633,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
             mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][1], mmbcst, mmout[_O][_T]);
         }
         // _P = 2
-        unroll_for (_O, JO)
+        unroll_auto (_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights, _I2, _V + 1, 0, _O);
         unroll_for (_T, T) {
           __m<V> mmbcst = op_load_input<P>(xc, input, _I2, _V, 2, _T);
@@ -634,7 +641,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
             mmout[_O][_T] = _mm<V>::fmadd_ps(mmwei[_O][2], mmbcst, mmout[_O][_T]);
         }
         // _P = 3
-        unroll_for (_O, JO)
+        unroll_auto (_O, JO)
           mmwei[_O][1] = op_load_weights<JO, P>(xc, weights, _I2, _V + 1, 1, _O);
         unroll_for (_T, T) {
           __m<V> mmbcst = op_load_input<P>(xc, input, _I2, _V, 3, _T);
@@ -647,7 +654,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     if (Ir > 0) {
 #pragma nounroll
       for (int _V = 0; _V < xc.Ir; ++_V) {
-        unroll_for (_O, JO)
+        unroll_auto (_O, JO)
           mmwei[_O][0] = op_load_weights<JO, 1>(xc, weights, xc.I2 - 1, _V, 0, _O);
         unroll_for (_T, T) {
           __m<V> mmbcst = op_load_input<1>(xc, input, xc.I2 - 1, _V, 0, _T);

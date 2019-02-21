@@ -44,6 +44,18 @@ template <> struct _mm<16> {
   static inline void stream_ps(void *adrs, __m<V> m) noexcept {
     _mm512_stream_ps((float *)adrs, m);
   }
+  static inline __i<V> load_si512(void const *a) noexcept {
+    return _mm512_load_si512(a);
+  }
+  static inline void store_si512(void *a, __i<V> b) noexcept {
+    return _mm512_store_si512(a, b);
+  }
+  static inline __i<V> stream_load_si512(void *a) noexcept {
+    return _mm512_stream_load_si512(a);
+  }
+  static inline void stream_si512(__i<V> *a, __i<V> b) noexcept {
+    return _mm512_stream_si512(a, b);
+  }
   static inline void i32scatter_ps(void *adrs, __i<V> vidx,
       __m<V> m, int scale) noexcept {
     switch (scale) {
@@ -75,6 +87,21 @@ template <> struct _mm<16> {
     }
 
     return _mm512_i32gather_ps(vidx, adrs, 1);
+  }
+  static inline __i<V> i32gather_epi32(__i<V> vidx, void *adrs, int scale)
+  noexcept {
+    switch (scale) {
+      case 1:
+        return _mm512_i32gather_epi32(vidx, adrs, 1);
+      case 2:
+        return _mm512_i32gather_epi32(vidx, adrs, 2);
+      case 4:
+        return _mm512_i32gather_epi32(vidx, adrs, 4);
+      case 8:
+        return _mm512_i32gather_epi32(vidx, adrs, 8);
+    }
+
+    return _mm512_i32gather_epi32(vidx, adrs, 1);
   }
   static inline __m<V> setzero_ps(void) noexcept {
     return _mm512_setzero_ps();
@@ -136,6 +163,12 @@ template <> struct _mm<16> {
   }
   static inline __m<V> xor_ps(__m<V> op1, __m<V> op2) noexcept {
     return _mm512_xor_ps(op1, op2);
+  }
+  static inline __i<V> and_epi32(__i<V> op1, __i<V> op2) noexcept {
+    return _mm512_and_epi32(op1, op2);
+  }
+  static inline __i<V> or_epi32(__i<V> op1, __i<V> op2) noexcept {
+    return _mm512_or_epi32(op1, op2);
   }
   static inline __m<V> broadcastss_ps(__m128 b) noexcept {
     return _mm512_broadcastss_ps(b);
@@ -208,6 +241,9 @@ template <> struct _mm<16> {
   }
   static inline __m256i cvtepi32_epi16(__m512i a) noexcept {
     return _mm512_cvtepi32_epi16(a);
+  }
+  static inline __i<V> bsrli_epi128(__i<V> x, int imm8) {
+    return _mm512_bsrli_epi128(x, imm8);
   }
   static inline __i<V/2> cvt_f32_b16(__i<V> x) {
     x = _mm512_bsrli_epi128(x, 2);

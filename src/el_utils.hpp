@@ -23,6 +23,8 @@ typedef short float16;
 
 #define iter_each(indx, lim) for (int indx = 0; indx < (lim); ++indx)
 #define revs_each(indx, lim) for (int indx = lim -1; indx >=0; -- indx)
+#define unroll_auto(indx, lim)                                                 \
+  _Pragma(STRINGIFY(unroll)) for (int indx = 0; indx < (lim); ++indx)
 #define unroll_for(indx, lim)                                                  \
   _Pragma(STRINGIFY(unroll(lim))) for (int indx = 0; indx < (lim); ++indx)
 #define unroll_from_to(indx, from, to)                                         \
@@ -108,13 +110,13 @@ struct galloc {
   }
 
   static void release() {
+    auto &sz_ = sz();
     auto &ptr_ = get();
     auto &cnt_ = ref_cnt();
     if (--cnt_ == 0 && ptr_ != nullptr) {
       ::free(ptr_);
-      auto &sz_ = sz();
-      sz_ = 0;
       ptr_ = nullptr;
+      sz_ = 0;
     }
   }
 };
