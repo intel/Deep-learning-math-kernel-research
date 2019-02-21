@@ -81,12 +81,6 @@ enum prop_kinds {
   backward_weights
 };
 
-enum fp_modes {
-  FP32,
-  FP16,
-  FP16O
-};
-
 typedef enum {
   FINE = 0,
   COARSE,
@@ -120,7 +114,6 @@ struct eld_conv_t {
 
   // propagation kind
   int prop_kind;
-  int fp_mode;
 
   // Algorithm
   int algorithm; // CONV_DIRECT | CONV_WINOGRAD

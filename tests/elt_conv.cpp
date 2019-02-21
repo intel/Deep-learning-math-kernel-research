@@ -78,7 +78,6 @@ static inline ConvType create_conv_desc(user_data_type_t dtype) {
   desc.with_relu = with_relu;
   desc.with_ip_sum = with_ip_sum;
   desc.f16c_opt = f16c_opt;
-  desc.fp_mode = fp_mode;
   desc.algorithm = alg;
   desc.tile_size = tile_size;
   desc.prop_kind = prop_kind;
@@ -195,7 +194,7 @@ int main(int argc, char **argv)
 
   bool reuse_inout = double_buffering || output_as_input;
 
-  if (fp_mode == euler::FP32) {
+  if (fp_mode == euler::test::FP32) {
     for (auto c = 0; c < C; ++c) {
       convs0[c] = desc0;
       if (convs0[c].setup() != ELD_OK) {
@@ -262,7 +261,7 @@ int main(int argc, char **argv)
       if (desc1.with_ip_sum)
         memcpy(ref_output, output[0], convs0[0].byte_sizes.output);
     }
-  } else if (fp_mode == euler::FP16O) {
+  } else if (fp_mode == euler::test::FP16O) {
     for (auto c = 0; c < C; ++c) {
       convs2[c] = desc2;
       if (convs2[c].setup() != ELD_OK) {
@@ -296,12 +295,12 @@ int main(int argc, char **argv)
   }
 
   // 3. execute convolution
-  if (fp_mode == euler::FP32)
+  if (fp_mode == euler::test::FP32)
     conv_execute(convs0, input, weights, output, bias, C);
 #ifdef ENABLE_USER_FP16
-  else if (fp_mode == euler::FP16)
+  else if (fp_mode == euler::test::FP16)
     conv_execute(convs1, input1, weights1, output1, bias1, C);
-  else if (fp_mode == euler::FP16O)
+  else if (fp_mode == euler::test::FP16O)
     conv_execute(convs2, input, weights, output1, bias, C);
 #endif
 
@@ -311,7 +310,7 @@ int main(int argc, char **argv)
     if (test::ref_convolution2d<float>(
             convs0[0], ref_output, input[0], weights[0], bias[0]))
       printf("Fail: Convolution ref execution error!\n");
-    if (fp_mode == euler::FP32) {
+    if (fp_mode == euler::test::FP32) {
       if (test::compare_conv_results(
             convs0[0], output[0], ref_output, fp_mode, is_int8_lp, with_real_data))
         printf("Fail: Convolution results not correct!\n");
@@ -327,12 +326,12 @@ int main(int argc, char **argv)
     free(ref_output);
   } else {
     // 5. bench
-    if (fp_mode == euler::FP32)
+    if (fp_mode == euler::test::FP32)
       conv_bench(convs0, desc0, input, weights, output, bias, C);
 #ifdef ENABLE_USER_FP16
-    else if (fp_mode == euler::FP16)
+    else if (fp_mode == euler::test::FP16)
       conv_bench(convs1, desc0, input1, weights1, output1, bias1, C);
-    else if (fp_mode == euler::FP16O)
+    else if (fp_mode == euler::test::FP16O)
       conv_bench(convs2, desc0, input, weights, output1, bias, C);
 #endif
   }

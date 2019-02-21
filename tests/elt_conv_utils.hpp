@@ -11,6 +11,11 @@
 
 namespace euler {
 namespace test {
+  enum fp_modes {
+    FP32,
+    FP16,
+    FP16O
+  };
 
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
   void prepare_conv_data(eld_conv_t &desc,
