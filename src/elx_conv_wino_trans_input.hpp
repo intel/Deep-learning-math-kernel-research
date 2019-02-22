@@ -22,6 +22,7 @@ public:
   virtual ~elx_conv_wino_trans_input_base() {}
   void setup(elx_conv_params_t *conv_xc) {
     xc = conv_xc;
+    mthr_ = xc->nthreads;
 
     stream_in_ = xc->streaming_input
         ? (xc->streaming_input == STORE_STREAMING)
@@ -69,6 +70,8 @@ protected:
 
   int hA_end_;
   int wA_end_;
+
+  int mthr_;
 };
 
 template <typename TinputType, typename InputType, int I, int A, int K, int V>
@@ -114,6 +117,7 @@ protected:
   using super::ker_trans_input_;
   using super::ker_trans_input0_;
   using super::stream_in_;
+  using super::mthr_;
 
   inline void __execute_nhwc(TinputType *__restrict t_input,
       InputType *__restrict input, int Tz, int _t2, int _ic4);
@@ -141,6 +145,7 @@ protected:
   using super::wA_end_;
   using super::input_is_bfmt_;
   using super::input_as_bfmt_;
+  using super::mthr_;
 
 public:
   elx_conv_wino_trans_input_t() {}

@@ -1,6 +1,7 @@
 #include <string.h>
 #include <float.h>
 #include "el_intrin.hpp"
+#include "el_parallel.hpp"
 #include "elx_conv_wino_trans_output.hpp"
 
 namespace euler {
@@ -11,6 +12,7 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
     V>::setup(elx_conv_params_t *conv_xc)
 {
   xc = conv_xc;
+  mthr_ = xc->nthreads;
   stream_out_ = xc->streaming_output
       ? (xc->streaming_output == STORE_STREAMING)
       : false;
@@ -363,13 +365,6 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
     V>::__execute_blocked(OutputType *output, ToutputType *toutput,
     BiasType *bias, int _oc4, int _ic4)
 {
-  // A, A, oc3, O2, T, V -> n, oc2, oh, ow, V
-  MD7(OutputType, aoutput, output, xc->n, xc->oc4, xc->oc3, xc->O2,
-      xc->oh, xc->ow, V);
-  MD2(ToutputType, atoutput2, toutput, xc->t2,
-      A * A * xc->T * xc->oc3 * xc->O2 * V);
-  MD3(BiasType, abias, bias, xc->oc3, xc->O2, V);
-
   auto ker_trans_output = (xc->with_ip_sum || _ic4 > 0)
       ? ker_trans_output_acc_
       : ker_trans_output_;
@@ -377,10 +372,16 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
       ? ker_trans_output0_acc_
       : ker_trans_output0_;
 
-#pragma omp for nowait collapse(3)
-  iter_each (_t2, xc->t2) {
-    iter_each (_oc3, xc->oc3) {
-      iter_each (_O2, xc->O2) {
+  int ithr = omp_get_thread_num();
+  thread_parallel_for<3>(mthr_, ithr,
+      [&](int _t2, int _oc3, int _O2) {
+        // A, A, oc3, O2, T, V -> n, oc2, oh, ow, V
+        MD7(OutputType, aoutput, output, xc->n, xc->oc4, xc->oc3, xc->O2,
+            xc->oh, xc->ow, V);
+        MD2(ToutputType, atoutput2, toutput, xc->t2,
+            A * A * xc->T * xc->oc3 * xc->O2 * V);
+        MD3(BiasType, abias, bias, xc->oc3, xc->O2, V);
+
         int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
         MD6(ToutputType, atoutput, &md2(atoutput2, _t2, 0), A, A, xc->oc3,
             xc->O2, Tz, V);
@@ -421,9 +422,7 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
                     : nullptr,
                 A - K, A - K);
         }
-      }
-    }
-  }
+      }, xc->t2, xc->oc3, xc->O2);
 }
 
 template <typename OutputType, typename BiasType, typename ToutputType, int I,
@@ -432,12 +431,6 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
     V>::__execute_nhwc(OutputType *output, ToutputType *toutput, BiasType *bias,
     int _oc4, int _ic4)
 {
-  // A, A, oc3, O2, T, V -> n, oh, ow, oc
-  MD4(OutputType, aoutput0, output, xc->n, xc->oh, xc->ow, xc->oc);
-  MD2(ToutputType, atoutput2, toutput, xc->t2,
-      A * A * xc->T * xc->oc3 * xc->O2 * V);
-  MD3(BiasType, abias, bias, xc->oc3, xc->O2, V);
-
   auto ker_trans_output = (xc->with_ip_sum || _ic4 > 0)
       ? ker_trans_output_acc_
       : ker_trans_output_;
@@ -445,10 +438,14 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
       ? ker_trans_output0_acc_
       : ker_trans_output0_;
 
-#pragma omp for nowait collapse(3)
-  iter_each (_t2, xc->t2) {
-    iter_each (_oc3, xc->oc3) {
-      iter_each (_O2, xc->O2) {
+  int ithr = omp_get_thread_num();
+  thread_parallel_for<3>(mthr_, ithr,
+      [&](int _t2, int _oc3, int _O2) {
+        // A, A, oc3, O2, T, V -> n, oh, ow, oc
+        MD4(OutputType, aoutput0, output, xc->n, xc->oh, xc->ow, xc->oc);
+        MD2(ToutputType, atoutput2, toutput, xc->t2,
+            A * A * xc->T * xc->oc3 * xc->O2 * V);
+        MD3(BiasType, abias, bias, xc->oc3, xc->O2, V);
         int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
         MD6(ToutputType, atoutput, &md2(atoutput2, _t2, 0), A, A, xc->oc3,
             xc->O2, Tz, V);
@@ -490,9 +487,7 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
                     : nullptr,
                 A - K, A - K);
         }
-      }
-    }
-  }
+      }, xc->t2, xc->oc3, xc->O2);
 }
 template <typename OutputType, typename BiasType, typename ToutputType, int I,
     int A, int K, int V>
@@ -501,10 +496,6 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
     ToutputType *__restrict toutput, BiasType *bias, int _oc4, int _ic4)
 {
   // A, A, oc3, O2, T, V -> n, OC, oh, ow
-  MD3(BiasType, abias, bias, xc->oc3, xc->O2, V);
-  MD2(ToutputType, atoutput2, toutput, xc->t2,
-      A * A * xc->T * xc->oc3 * xc->O2 * V);
-
   SET_EPI32(xc->oh * xc->ow)
 
   auto writeout = [&](OutputType aout[A - K + 1][A - K + 1][V], int _t2,
@@ -553,11 +544,12 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
     }
   };
 
-  // ICC-19 bug, build crash in case of t2 first
-#pragma omp for nowait collapse(3)
-  iter_each (_oc3, xc->oc3) {
-    iter_each (_O2, xc->O2) {
-      iter_each (_t2, xc->t2) {
+  int ithr = omp_get_thread_num();
+  thread_parallel_for<3>(mthr_, ithr,
+      [&](int _t2, int _oc3, int _O2) {
+        MD3(BiasType, abias, bias, xc->oc3, xc->O2, V);
+        MD2(ToutputType, atoutput2, toutput, xc->t2,
+            A * A * xc->T * xc->oc3 * xc->O2 * V);
         int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
         MD6(ToutputType, atoutput6, &md2(atoutput2, _t2, 0), A, A, xc->oc3,
             xc->O2, Tz, V);
@@ -585,13 +577,11 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
 
           ker_trans_output_(*xc, (OutputType *)aout, *(Array *)&In,
               (_ic4 == -1 || _ic4 == xc->ic4 - 1) ? &md3(abias, _oc3, _O2, 0)
-                                                    : nullptr,
+                                                  : nullptr,
               0, -1);
           writeout(aout, _t2, _oc3, _O2, _T, is_Or);
         }
-      }
-    }
-  }
+      }, xc->t2, xc->oc3, xc->O2);
 }
 
 template <typename OutputType, typename BiasType, typename ToutputType, int I,

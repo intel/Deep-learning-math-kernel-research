@@ -22,6 +22,7 @@ public:
   virtual ~elx_conv_wino_trans_weights_base() {}
   void setup(elx_conv_params_t *xc) {
     this->xc = xc;
+    mthr_ = xc->nthreads;
     stream_wei_ = xc->streaming_weights
         ? (xc->streaming_weights == STORE_STREAMING)
         : !(xc->execution_mode & FUS_MSK) ? true : false;
@@ -44,6 +45,7 @@ protected:
       op_type, WeightsType, I, A, K, V>::execute) *ker_trans_weights_;
 
   bool stream_wei_, weights_is_bfmt_, weights_as_bfmt_;
+  int mthr_;
 };
 
 template <typename TweightsType, typename WeightsType, int I, int A, int K, int V>
@@ -77,6 +79,7 @@ protected:
   using super::ker_trans_weights_;
   using super::weights_is_bfmt_;
   using super::weights_as_bfmt_;
+  using super::mthr_;
 
   inline void __execute_blocked(TweightsType *__restrict tweights,
       WeightsType *__restrict weights, int oc4);
@@ -116,6 +119,7 @@ protected:
   using super::stream_wei_;
   using super::weights_is_bfmt_;
   using super::weights_as_bfmt_;
+  using super::mthr_;
 
 public:
   elx_conv_wino_trans_weights_t() {}

@@ -2,6 +2,7 @@
 #include <string.h>
 #include <float.h>
 #include "el_intrin.hpp"
+#include "el_parallel.hpp"
 #include "elx_conv_wino_trans_input.hpp"
 
 namespace euler {
@@ -62,17 +63,13 @@ template <typename TinputType, typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
 ::__execute_blocked(TinputType *__restrict tinput,
     InputType *__restrict input, int _ic4) {
-  // n, ic2, ih, iw, V => t2, wA, hA, ic3, I2, T, V
-  MD2(TinputType, atinput, tinput, xc->t2,
-      A * A * xc->T * xc->ic3 * xc->I2 * xc->Vx * V);
-  MD7(InputType, ainput, input, xc->n, xc->ic4, xc->ic3,
-      xc->I2 * xc->Vx, xc->ih, xc->iw, V);
-
-  // ICC-19 bug, build crash in case of t2 first
-#pragma omp for nowait collapse(3)
-  iter_each (_ic3, xc->ic3) {
-  iter_each (_I2, xc->I2 * xc->Vx) {
-  iter_each (_t2, xc->t2) {
+  int ithr = omp_get_thread_num();
+  thread_parallel_for<3>(mthr_, ithr, [&](int _t2, int _ic3, int _I2) {
+    // n, ic2, ih, iw, V => t2, wA, hA, ic3, I2, T, V
+    MD2(TinputType, atinput, tinput, xc->t2,
+        A * A * xc->T * xc->ic3 * xc->I2 * xc->Vx * V);
+    MD7(InputType, ainput, input, xc->n, xc->ic4, xc->ic3,
+        xc->I2 * xc->Vx, xc->ih, xc->iw, V);
     int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
     alignas(64) op_type aout[A][A][V];
 
@@ -89,7 +86,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
             *xc, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
       __execute_post(&md2(atinput, _t2, 0), aout, Tz, _ic3, _I2, _T);
     }
-  }}}
+  }, xc->t2, xc->ic3, xc->I2 * xc->Vx);
 }
 
 template <typename TinputType, typename InputType, int I, int A, int K, int V>
@@ -144,16 +141,13 @@ template <typename TinputType, typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
 ::__execute_nhwc(TinputType *__restrict tinput,
     InputType *__restrict input, int _ic4) {
-  // n, ih, iw, ic => t2, wA, hA, ic3, I2, T, V
-  MD2(TinputType, atinput, tinput, xc->t2,
-      A * A * xc->T * xc->ic3 * xc->I2 * xc->Vx * V);
-  MD4(InputType, ainput0, input, xc->n, xc->ih, xc->iw, xc->ic);
 
-  // ICC-19 bug, build crash in case of t2 first
-#pragma omp for nowait collapse(3)
-  iter_each (_ic3, xc->ic3) {
-  iter_each (_I2, xc->I2 * xc->Vx) {
-  iter_each (_t2, xc->t2) {
+  int ithr = omp_get_thread_num();
+  thread_parallel_for<3>(mthr_, ithr, [&](int _t2, int _ic3, int _I2) {
+    // n, ih, iw, ic => t2, wA, hA, ic3, I2, T, V
+    MD2(TinputType, atinput, tinput, xc->t2,
+        A * A * xc->T * xc->ic3 * xc->I2 * xc->Vx * V);
+    MD4(InputType, ainput0, input, xc->n, xc->ih, xc->iw, xc->ic);
     int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
     alignas(64) op_type aout[A][A][V];
 
@@ -171,7 +165,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
             *xc, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
       __execute_post(&md2(atinput, _t2, 0), aout, Tz, _ic3, _I2, _T);
     }
-  }}}
+  }, xc->t2, xc->ic3, xc->I2 * xc->Vx);
 }
 
 template <typename TinputType, typename InputType, int I, int A, int K, int V>
@@ -213,8 +207,6 @@ template <typename TinputType, typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
 ::__execute_nchw(TinputType *__restrict tinput,
     InputType *__restrict input, int _ic4) {
-  // n, ic2, ih, iw, V => t2, wA, hA, ic3, I2, T, V
-  MD2(TinputType, atinput, tinput, xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * xc->Vx * V);
   SET_EPI32(xc->ih * xc->iw)
 
   auto readin = [&](InputType ain[A][A][V], int _t2, int _ic3, int _I2, int _T,
@@ -263,10 +255,10 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
     }
   };
 
-#pragma omp for nowait collapse(3)
-  iter_each (_t2, xc->t2) {
-  iter_each (_ic3, xc->ic3) {
-  iter_each(_I2, xc->I2) {
+  int ithr = omp_get_thread_num();
+  thread_parallel_for<3>(mthr_, ithr, [&](int _t2, int _ic3, int _I2) {
+    // n, ic2, ih, iw, V => t2, wA, hA, ic3, I2, T, V
+    MD2(TinputType, atinput, tinput, xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * xc->Vx * V);
     bool is_Ir = xc->Ir != V && _ic4 == xc->ic4 - 1 &&
          _ic3 == xc->ic3 - 1 && _I2 == xc->I2 - 1;
     int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
@@ -277,7 +269,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
       ker_trans_input_(*xc, aout, (InputType *)ain, 0, 0, 0, -1);
       __execute_post(&md2(atinput, _t2, 0), aout, Tz, _ic3, _I2, _T);
     }
-  }}}
+  }, xc->t2, xc->ic3, xc->I2);
 }
 
 template <typename TinputType, typename InputType, int I, int A, int K, int V>
@@ -375,23 +367,17 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input)
 {
-  MD2(uint8_t, atinput2_u8, tinput_u8,
-      xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * xc->Vx * V);
-  MD6(TscaleType, atinput_quant_scale, tinput_quant_scale,
-      xc->t2, A, A, xc->ic3, 2, xc->T);
-  MD2(TinputType, atinput2, tinput,
-      xc->t2, A * A * xc->ic3 * xc->I2 * xc->Vx * xc->T * V);
-  MD8(InputType, ainput, input,
-      xc->n, xc->ic4, xc->ic3, xc->I2, xc->Vx, xc->ih, xc->iw, V);
-
   __m<V> mrepS = _mm<V>::set1_ps(xc->wino_tinput_quant_repS);
   __m<V> mz = _mm<V>::set1_ps(xc->wino_tinput_quant_z);
 
-#pragma omp for nowait collapse(4)
-  iter_each (_t2, xc->t2) {
-  iter_each (_ic3, xc->ic3) {
-  iter_each (_I2, xc->I2) {
-  iter_each (_Vx, xc->Vx) {
+  int ithr = omp_get_thread_num();
+  thread_parallel_for<4>(mthr_, ithr, [&](int _t2, int _ic3, int _I2, int _Vx) {
+    MD2(uint8_t, atinput2_u8, tinput_u8,
+        xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * xc->Vx * V);
+    MD2(TinputType, atinput2, tinput,
+        xc->t2, A * A * xc->ic3 * xc->I2 * xc->Vx * xc->T * V);
+    MD8(InputType, ainput, input,
+        xc->n, xc->ic4, xc->ic3, xc->I2, xc->Vx, xc->ih, xc->iw, V);
     int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
     MD5(TinputType, atinput5, &md2(atinput2, _t2, 0),
         xc->ic3, xc->I2, xc->Vx, Tz, A * A * V);
@@ -429,17 +415,21 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
         }}
       }
     }
-  }}}}
+  }, xc->t2, xc->ic3, xc->I2, xc->Vx);
 
   if (xc->sampling_kind == CALIBRATED)
     return;
 
 #pragma omp barrier
-#pragma omp for nowait collapse(4)
-  iter_each (_t2, xc->t2) {
-  iter_each (_wA, A) {
-  iter_each (_hA, A) {
-  iter_each (_ic3, xc->ic3) {
+  thread_parallel_for<4>(mthr_, ithr, [&](int _t2, int _wA, int _hA, int _ic3) {
+    MD2(uint8_t, atinput2_u8, tinput_u8,
+        xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * xc->Vx * V);
+    MD6(TscaleType, atinput_quant_scale, tinput_quant_scale,
+        xc->t2, A, A, xc->ic3, 2, xc->T);
+    MD2(TinputType, atinput2, tinput,
+        xc->t2, A * A * xc->ic3 * xc->I2 * xc->Vx * xc->T * V);
+    MD8(InputType, ainput, input,
+        xc->n, xc->ic4, xc->ic3, xc->I2, xc->Vx, xc->ih, xc->iw, V);
     int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
     MD7(TinputType, atinput7, &md2(atinput2, _t2, 0),
         xc->ic3, xc->I2, xc->Vx, Tz, A, A, V);
@@ -496,7 +486,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
             atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);
       }}
     }
-  }}}}
+  }, xc->t2, A, A, xc->ic3);
 }
 
 template <typename InputType, int I, int A, int K, int V>

@@ -79,6 +79,8 @@ public:
   int wOA_end_;
   int hA_end_;
   int wA_end_;
+
+  int mthr_;
 };
 
 template <int A, int K>

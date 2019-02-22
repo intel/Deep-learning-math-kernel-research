@@ -1,3 +1,4 @@
+#include "el_parallel.hpp"
 #include "elx_conv_wino_gemm.hpp"
 
 namespace euler {
@@ -176,15 +177,12 @@ template <typename GarrayTypes, const int A, const int V, const int I>
 void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
     ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _ic4)
 {
-  MD2(TinputType, atinput2, tinput, xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * V);
-  MD2(ToutputType, atoutput2, toutput, xc->t2, A * A * xc->T * xc->oc3 * xc->O2 * V);
-  MD5(TweightsType, atweights, tweights, xc->oc3, xc->ic3, A, A, xc->O2 * xc->I2 * V * V);
+  int ithr = omp_get_thread_num();
+  thread_parallel_for<4>(mthr_, ithr, [&](int _wA, int _hA, int _oc3, int _t2) {
+    MD2(TinputType, atinput2, tinput, xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * V);
+    MD2(ToutputType, atoutput2, toutput, xc->t2, A * A * xc->T * xc->oc3 * xc->O2 * V);
+    MD5(TweightsType, atweights, tweights, xc->oc3, xc->ic3, A, A, xc->O2 * xc->I2 * V * V);
 
-#pragma omp for nowait collapse(4)
-  iter_each (_wA, A) {
-  iter_each (_hA, A) {
-  iter_each (_oc3, xc->oc3) {
-  iter_each (_t2, xc->t2) {
     int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
     auto ker_gemm = (_t2 == xc->t2 - 1) ? ker_gemm0_ : ker_gemm_;
     MD6(TinputType, atinput6, &md2(atinput2, _t2, 0), A, A, xc->ic3, xc->I2, Tz, V);
@@ -212,22 +210,19 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
           &md5(atweights, _oc3, xc->ic3 - 1, _wA, _hA, 0),
           nullptr, attr, 0, nullptr, nullptr, nullptr);
     }
-  }}}}
+  }, A, A, xc->oc3, xc->t2);
 }
 
 template <typename GarrayTypes, const int A, const int V, const int I>
 void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
     ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _ic4)
 {
-  MD2(TinputType, atinput2, tinput, xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * V);
-  MD2(ToutputType, atoutput2, toutput, xc->t2, A * A * xc->T * xc->oc3 * xc->O2 * V);
-  MD5(TweightsType, atweights, tweights, xc->oc3, xc->ic3, A, A, xc->O2 * xc->I2 * V * V);
+  int ithr = omp_get_thread_num();
+  thread_parallel_for<4>(mthr_, ithr, [&](int _wA, int _hA, int _oc3, int _t2) {
+    MD2(TinputType, atinput2, tinput, xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * V);
+    MD2(ToutputType, atoutput2, toutput, xc->t2, A * A * xc->T * xc->oc3 * xc->O2 * V);
+    MD5(TweightsType, atweights, tweights, xc->oc3, xc->ic3, A, A, xc->O2 * xc->I2 * V * V);
 
-#pragma omp for nowait collapse(4)
-  iter_each (_wA, A) {
-  iter_each (_hA, A) {
-  iter_each (_oc3, xc->oc3) {
-  iter_each (_t2, xc->t2) {
     int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
     auto ker_gemm = (_t2 == xc->t2 - 1) ? ker_gemm0_ : ker_gemm_;
     MD6(TinputType, atinput6, &md2(atinput2, _t2, 0), A, A, xc->ic3, xc->I2, Tz, V);
@@ -255,7 +250,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
           &md5(atweights, _oc3, xc->ic3 - 1, _wA, _hA, 0),
           nullptr, attr, 0, nullptr, nullptr, nullptr);
     }
-  }}}}
+  }, A, A, xc->oc3, xc->t2);
 }
 
 } // namespace euler
