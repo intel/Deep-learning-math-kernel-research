@@ -49,49 +49,6 @@ Template_elx_conv_direct_t class elx_conv_direct_t : public elx_conv_t {
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  template <class F> inline void md_loop(F func)
-  {
-#pragma omp parallel num_threads(mthr_)
-    {
-      int task_start, task_end;
-      int ithr = omp_get_thread_num();
-      int _t3_s, _t3_e, _oc4_s, _oc4_e, _ht_s, _ht_e, _wt_s, _wt_e;
-
-      alloc_thread_task(nb_task_, mthr_, ithr, task_start, task_end);
-      md_loop_iterator<4> start(
-          task_start, this->t3, this->oc4, this->ht, this->wt);
-      start.get(_t3_s, _oc4_s, _ht_s, _wt_s);
-
-      md_loop_iterator<4> end(
-          task_end, this->t3, this->oc4, this->ht, this->wt);
-      end.get(_t3_e, _oc4_e, _ht_e, _wt_e);
-
-      for (int _t3 = _t3_s; _t3 <= _t3_e; ++_t3) {
-        bool first_t3 = _t3 == _t3_s;
-        bool last_t3 = _t3 == _t3_e;
-        int oc4_s = first_t3 ? _oc4_s : 0;
-        int oc4_e = last_t3 ? _oc4_e : this->oc4 - 1;
-        for (int _oc4 = oc4_s; _oc4 <= oc4_e; ++_oc4) {
-          bool first_oc4 = first_t3 && _oc4 == _oc4_s;
-          bool last_oc4 = last_t3 && _oc4 == _oc4_e;
-          int ht_s = first_oc4 ? _ht_s : 0;
-          int ht_e = last_oc4 ? _ht_e : this->ht - 1;
-          for (int _ic4 = 0; _ic4 < this->ic4; ++_ic4) {
-            for (int _ht = ht_s; _ht <= ht_e; ++_ht) {
-              bool first_ht = first_oc4 && _ht == _ht_s;
-              bool last_ht = last_oc4 && _ht == _ht_e;
-              int wt_s = first_ht ? _wt_s : 0;
-              int wt_e = last_ht ? _wt_e : this->wt - 1;
-              for (int _wt = wt_s; _wt <= wt_e; ++_wt) {
-                func(_t3, _oc4, _ic4, _ht, _wt);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
   // TODO: optimize it
   gemm_kernel_binder::kgemm<TarrayTypes> *ker_gemm_[64][8];
   conv_kernel_binder::kconv<TarrayTypes> *ker_conv_;
@@ -110,7 +67,6 @@ Template_elx_conv_direct_t class elx_conv_direct_t : public elx_conv_t {
   int mthr_;
   void *scratch_;
   void *workspace_;
-  int nb_task_;
 };
 
 // fp32-f32f32f32

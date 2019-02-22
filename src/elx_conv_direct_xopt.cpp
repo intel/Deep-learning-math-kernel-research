@@ -1,4 +1,5 @@
 #include "elx_conv_direct.hpp"
+#include "el_parallel.hpp"
 
 // XOPT
 //
@@ -29,7 +30,7 @@ void Instance_elx_conv_direct_t::__execute_a060(
   }
 
   if (this->input_fmt == nchw) { // nchw => blocked
-    md_loop([&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {
+    parallel_for<5, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {
       MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
       MD3(TweightsType, atweights, tweights_, this->ic4, this->oc4,
           V * V * this->kh * this->kw * this->ic3 * this->oc3 * this->I2
@@ -46,9 +47,9 @@ void Instance_elx_conv_direct_t::__execute_a060(
       conv_a060(&md3(aoutput1, _wt, 0, 0), &md2(ainput2, _wt, 0),
           &md3(atweights, _ic4, _oc4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _ht,
           _wt);
-    });
+    }, this->t3, this->oc4, this->ic4, this->ht, this->wt);
   } else if (this->input_fmt == nhwc) { // nhwc => nhwc
-    md_loop([&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {
+    parallel_for<5, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {
       MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
       MD3(TweightsType, atweights, tweights_, this->ic4, this->oc4,
           V * V * this->kh * this->kw * this->ic3 * this->oc3 * this->I2
@@ -67,9 +68,9 @@ void Instance_elx_conv_direct_t::__execute_a060(
       conv_a060(&md2(aoutput2, _oc4, 0), &md2(ainput2, _ic4, 0),
           &md3(atweights, _ic4, _oc4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _ht,
           _wt);
-    });
+    },  this->t3, this->oc4, this->ic4, this->ht, this->wt);
   } else { // blocked => blocked
-    md_loop([&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {
+    parallel_for<5, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {
       MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
       MD3(TweightsType, atweights, tweights_, this->ic4, this->oc4,
           V * V * this->kh * this->kw * this->ic3 * this->oc3 * this->I2
@@ -85,7 +86,7 @@ void Instance_elx_conv_direct_t::__execute_a060(
       conv_a060(&md3(aoutput1, _wt, 0, 0), &md3(ainput1, _wt, 0, 0),
           &md3(atweights, _ic4, _oc4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _ht,
           _wt);
-    });
+    }, this->t3, this->oc4, this->ic4, this->ht, this->wt);
   }
 
   if (inference_acc_)
@@ -104,7 +105,7 @@ void Instance_elx_conv_direct_t::__execute_d060(
   }
 
   if (this->input_fmt == nhwc) { // nhwc -> nhwc
-    md_loop([&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {
+    parallel_for<5, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {
       MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
       MD3(TweightsType, atweights, tweights_, this->ic4, this->oc4,
           V * V * this->kh * this->kw * this->ic3 * this->oc3 * this->I2
@@ -119,9 +120,9 @@ void Instance_elx_conv_direct_t::__execute_d060(
       gemm_d060(&md2(aoutput1, _oc4, 0), &md2(ainput1, _ic4, 0),
           &md3(atweights, _ic4, _oc4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _ht,
           _wt);
-    });
+    }, this->t3, this->oc4, this->ic4, this->ht, this->wt);
   } else { // blocked -> blocked
-    md_loop([&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {
+    parallel_for<5, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {
       MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
       MD3(TweightsType, atweights, tweights_, this->ic4, this->oc4,
           V * V * this->kh * this->kw * this->ic3 * this->oc3 * this->I2
@@ -133,7 +134,7 @@ void Instance_elx_conv_direct_t::__execute_d060(
       gemm_d060(&md4(aoutput, _t3, _oc4, 0, 0), &md4(ainput, _t3, _ic4, 0, 0),
           &md3(atweights, _ic4, _oc4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _ht,
           _wt);
-    });
+    }, this->t3, this->oc4, this->ic4, this->ht, this->wt);
   }
 
   if (inference_acc_)
