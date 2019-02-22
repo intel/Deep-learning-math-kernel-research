@@ -34,7 +34,7 @@ function conv_test() {
   streaming_weights=0; streaming_input=0; streaming_output=0
   input_format=nChw16c; weights_format=OIhw16i16o; output_format=nChw16c
   input_as_blocked=0; weights_as_blocked=0; output_as_blocked=0
-  with_ip_sum=0; f16c_opt=0; fp_mode=0
+  with_ip_sum=0; f16c_opt=0; data_type_cfg=0
   input_file=""; weights_file=""; bias_file=""
   sampling_kind=2; tinput_cali_s=0; tinput_cali_z=0
 
@@ -147,9 +147,9 @@ function conv_test() {
             ;;
           f16c-opt=*) f16c_opt=${OPTARG#*=}
             ;;
-          fp-mode) fp_mode="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+          data-type-cfg) data_type_cfg="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
             ;;
-          fp-mode=*) fp_mode=${OPTARG#*=}
+          data-type-cfg=*) data_type_cfg=${OPTARG#*=}
             ;;
           input-data-file) input_file="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
             ;;
@@ -204,7 +204,7 @@ function conv_test() {
     --output-as-blocked=$output_as_blocked   \
     --with-ip-sum=$with_ip_sum \
     --f16c-opt=$f16c_opt \
-    --fp-mode=$fp_mode \
+    --data-type-cfg=$data_type_cfg \
     --sampling-kind=$sampling_kind \
     --tinput-cali-s=$tinput_cali_s \
     --tinput-cali-z=$tinput_cali_z \

@@ -17,7 +17,7 @@ int parse_cmd_options(int, char **);
 int mb = 0, ic = 0, ih = 0, iw = 0, oc = 0, oh = 0, ow = 0, kh = 3, kw = 3;
 int ph = 1, pw = 1, sh = 1, sw = 1, dh = 1, dw = 1;
 bool with_bias = true, with_relu = false, with_ip_sum = false, f16c_opt = false;
-int fp_mode = 0;
+int data_type_cfg = 0;
 int prop_kind = forward_inference, alg = CONV_WINOGRAD;
 int input_format = nChw16c, weights_format = OIhw16i16o, output_format = nChw16c;
 int nthreads = 0;
@@ -194,7 +194,7 @@ int main(int argc, char **argv)
 
   bool reuse_inout = double_buffering || output_as_input;
 
-  if (fp_mode == euler::test::FP32) {
+  if (data_type_cfg == euler::test::FP32) {
     for (auto c = 0; c < C; ++c) {
       convs0[c] = desc0;
       if (convs0[c].setup() != ELD_OK) {
@@ -214,7 +214,7 @@ int main(int argc, char **argv)
           convs0[c], in, &weights[c], out, &bias[c],
           &input1[c], &weights1[c], &output1[c], &bias1[c],
           input_file, weights_file, bias_file,
-          reuse_inout, fp_mode, f16c_opt, validate_results);
+          reuse_inout, data_type_cfg, f16c_opt, validate_results);
     }
 
     if (validate_results) {
@@ -224,7 +224,7 @@ int main(int argc, char **argv)
     }
   }
 #ifdef ENABLE_USER_FP16
-  else if (fp_mode == euler::FP16){
+  else if (data_type_cfg == euler::FP16){
     for (auto c = 0; c < C; ++c) {
       convs1[c] = desc1;
       if (convs1[c].setup() != ELD_OK) {
@@ -252,7 +252,7 @@ int main(int argc, char **argv)
       test::prepare_conv_data<float, float, float, float>(
           convs0[0], &input[c], &weights[c], &output[c], &bias[c],
           in, &weights1[c], out, &bias1[c],
-          input_file, weights_file, bias_file, reuse_inout, fp_mode,
+          input_file, weights_file, bias_file, reuse_inout, data_type_cfg,
           f16c_opt, validate_results);
     }
 
@@ -261,7 +261,7 @@ int main(int argc, char **argv)
       if (desc1.with_ip_sum)
         memcpy(ref_output, output[0], convs0[0].byte_sizes.output);
     }
-  } else if (fp_mode == euler::test::FP16O) {
+  } else if (data_type_cfg == euler::test::FP16O) {
     for (auto c = 0; c < C; ++c) {
       convs2[c] = desc2;
       if (convs2[c].setup() != ELD_OK) {
@@ -281,7 +281,7 @@ int main(int argc, char **argv)
           convs0[0], &input[c], &weights[c], &output[c], &bias[c],
           nullptr, nullptr, &output1[c], nullptr,
           input_file, weights_file, bias_file,
-          reuse_inout, fp_mode, f16c_opt, validate_results);
+          reuse_inout, data_type_cfg, f16c_opt, validate_results);
     }
 
     if (validate_results) {
@@ -295,12 +295,12 @@ int main(int argc, char **argv)
   }
 
   // 3. execute convolution
-  if (fp_mode == euler::test::FP32)
+  if (data_type_cfg == euler::test::FP32)
     conv_execute(convs0, input, weights, output, bias, C);
 #ifdef ENABLE_USER_FP16
-  else if (fp_mode == euler::test::FP16)
+  else if (data_type_cfg == euler::test::FP16)
     conv_execute(convs1, input1, weights1, output1, bias1, C);
-  else if (fp_mode == euler::test::FP16O)
+  else if (data_type_cfg == euler::test::FP16O)
     conv_execute(convs2, input, weights, output1, bias, C);
 #endif
 
@@ -310,15 +310,15 @@ int main(int argc, char **argv)
     if (test::ref_convolution2d<float>(
             convs0[0], ref_output, input[0], weights[0], bias[0]))
       printf("Fail: Convolution ref execution error!\n");
-    if (fp_mode == euler::test::FP32) {
+    if (data_type_cfg == euler::test::FP32) {
       if (test::compare_conv_results(
-            convs0[0], output[0], ref_output, fp_mode, is_int8_lp, with_real_data))
+            convs0[0], output[0], ref_output, data_type_cfg, is_int8_lp, with_real_data))
         printf("Fail: Convolution results not correct!\n");
       else
         printf("Convolution Pass!\n");
     } else {
       if (test::compare_conv_results(
-            convs0[0], output1[0], ref_output, fp_mode, is_int8_lp, with_real_data))
+            convs0[0], output1[0], ref_output, data_type_cfg, is_int8_lp, with_real_data))
         printf("Fail: Convolution results not correct!\n");
       else
         printf("Convolution Pass!\n");
@@ -326,12 +326,12 @@ int main(int argc, char **argv)
     free(ref_output);
   } else {
     // 5. bench
-    if (fp_mode == euler::test::FP32)
+    if (data_type_cfg == euler::test::FP32)
       conv_bench(convs0, desc0, input, weights, output, bias, C);
 #ifdef ENABLE_USER_FP16
-    else if (fp_mode == euler::test::FP16)
+    else if (data_type_cfg == euler::test::FP16)
       conv_bench(convs1, desc0, input1, weights1, output1, bias1, C);
-    else if (fp_mode == euler::test::FP16O)
+    else if (data_type_cfg == euler::test::FP16O)
       conv_bench(convs2, desc0, input, weights, output1, bias, C);
 #endif
   }
@@ -339,7 +339,7 @@ int main(int argc, char **argv)
   // 6. setdown
   for (auto c = 0; c < C; ++c) {
     test::teardown_conv_data(input[c], weights[c], output[c], bias[c],
-        input1[c], weights1[c], output1[c], bias1[c], fp_mode, validate_results);
+        input1[c], weights1[c], output1[c], bias1[c], data_type_cfg, validate_results);
   }
 
   return 0;
@@ -390,7 +390,7 @@ int parse_cmd_options(int argc, char **argv) {
     ("weights-as-blocked", po::value<bool>(&weights_as_blocked), "on|off. Format weighs as blocked. Default: off")
     ("output-as-blocked", po::value<bool>(&output_as_blocked), "on|off. Format output as blocked. Default: off")
     ("f16c-opt", po::value<bool>(&f16c_opt), "on|off. With half-precision opt, Default: off")
-    ("fp-mode", po::value<int>(&fp_mode), "fp16 UserTypes, Default: FP32")
+    ("data-type-cfg", po::value<int>(&data_type_cfg), "UserTypes, Default: FP32")
     ("with-ip-sum", po::value<bool>(&with_ip_sum), "on|off. With inplace sum, Default: off")
     ("sampling-kind", po::value<int>((int *)&sampling_kind), "sampling kind 0: FINE, 1: COARSE, 2: CALIBRATED, Default: 2")
     ("tinput-cali-s", po::value<float>(&tinput_cali_s), "calibration scale for tinput quantization, Default: 0")
@@ -505,13 +505,13 @@ int parse_cmd_options(int argc, char **argv) {
          "mb:%d, ic:%d, ih:%d, iw:%d, oc:%d, oh:%d, ow:%d, kh:%d, kw:%d, "
          "ph:%d, pw:%d, sh:%d, sw:%d, dh:%d, dw:%d\n"
          "with_bias:%d, with_relu:%d, with_ip_sum:%d, f16c_opt=%d, "
-         "fp_mode=%d, validate_results:%d\n"
+         "data_type_cfg=%d, validate_results:%d\n"
          "flt_o:%d, flt_t:%d, blk_i:%d, blk_o:%d, pat_i:%d, pat_o:%d\n"
          "streaming-hint:%d, %d, %d\n"
          "nthreads:%d\n"
          "execution-mode:%x\n",
       mb, ic, ih, iw, oc, oh, ow, kh, kw, ph, pw, sh, sw, dh, dw, with_bias,
-      with_relu, with_ip_sum, f16c_opt, fp_mode, validate_results, flt_o,
+      with_relu, with_ip_sum, f16c_opt, data_type_cfg, validate_results, flt_o,
       flt_t, blk_i, blk_o, pat_i, pat_o, streaming_weights, streaming_input,
       streaming_output, nthreads, execution_mode);
 

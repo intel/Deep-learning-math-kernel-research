@@ -61,7 +61,7 @@ namespace test {
       float **input, float **weights, float **output, float **bias, short **input1,
       short **weights1, short **output1, short **bias1,
       const char *input_file, const char *weights_file, const char *bias_file,
-      bool reuse_inout, int fp_mode, bool f16c_opt, bool validate_results)
+      bool reuse_inout, int data_type_cfg, bool f16c_opt, bool validate_results)
   {
     seed = time(nullptr);
     size_t input_size = desc.byte_sizes.input;
@@ -71,7 +71,7 @@ namespace test {
       output_size = input_size;
     }
 
-    if (fp_mode == euler::test::FP16) {
+    if (data_type_cfg == euler::test::FP16) {
       if (input1 != nullptr)
         MEMALIGN64(input1, input_size / 2);
       if (output1 != nullptr)
@@ -91,7 +91,7 @@ namespace test {
         if (bias != nullptr)
           MEMALIGN64(bias, desc.byte_sizes.bias);
       }
-    } else if (fp_mode == euler::test::FP16O){
+    } else if (data_type_cfg == euler::test::FP16O){
       if (input != nullptr)
         MEMALIGN64(input, input_size);
       if (weights != nullptr)
@@ -126,7 +126,7 @@ namespace test {
     std::normal_distribution<float> dWeights(-1.0, 1.0);
 
     {
-      if (fp_mode == euler::test::FP16  && !validate_results) {
+      if (data_type_cfg == euler::test::FP16  && !validate_results) {
         if (input1 != nullptr) {
 #pragma omp parallel for
           for (size_t i = 0; i < desc.sizes.input; i++) {
@@ -138,12 +138,12 @@ namespace test {
 #pragma omp parallel for
           for (size_t i = 0; i < desc.sizes.input; i++) {
             (*input)[i]
-                = (fp_mode == euler::test::FP16 || f16c_opt)
+                = (data_type_cfg == euler::test::FP16 || f16c_opt)
                 ? dInput(gen)
                 : RAND() % 20 - 4;
           }
 
-          if (fp_mode == euler::test::FP16 && (input1 != nullptr)) {
+          if (data_type_cfg == euler::test::FP16 && (input1 != nullptr)) {
 #pragma omp parallel for
             for (size_t i = 0; i < desc.sizes.input; i++) {
               (*input1)[i] = float_2_half((*input)[i]);
@@ -152,7 +152,7 @@ namespace test {
         }
       }
 
-      if (fp_mode == euler::test::FP16  && !validate_results) {
+      if (data_type_cfg == euler::test::FP16  && !validate_results) {
         if (weights1 != nullptr) {
           if (desc.with_relu) {
 #pragma omp parallel for
@@ -174,7 +174,7 @@ namespace test {
 #pragma omp parallel for
             for (size_t i = 0; i < desc.sizes.weights; i++) {
               (*weights)[i]
-                  = (fp_mode == euler::test::FP16 || f16c_opt)
+                  = (data_type_cfg == euler::test::FP16 || f16c_opt)
                   ? dWeights(gen)
                   : -RAND() % 32;
               if (i % 3 == 1)
@@ -184,12 +184,12 @@ namespace test {
 #pragma omp parallel for
             for (size_t i = 0; i < desc.sizes.weights; i++) {
               (*weights)[i]
-                  = (fp_mode == euler::test::FP16 || f16c_opt)
+                  = (data_type_cfg == euler::test::FP16 || f16c_opt)
                   ? dWeights(gen)
                   : RAND() % 32;
             }
           }
-          if (fp_mode == euler::test::FP16 && (weights1 != nullptr)) {
+          if (data_type_cfg == euler::test::FP16 && (weights1 != nullptr)) {
 #pragma omp parallel for
             for (size_t i = 0; i < desc.sizes.weights; i++) {
               (*weights1)[i] = float_2_half((*weights)[i]);
@@ -198,7 +198,7 @@ namespace test {
         }
       }
 
-      if (fp_mode == euler::test::FP16  && !validate_results) {
+      if (data_type_cfg == euler::test::FP16  && !validate_results) {
         if (bias1 != nullptr) {
 #pragma omp parallel for
           for (size_t i = 0; i < desc.sizes.bias; i++) {
@@ -211,7 +211,7 @@ namespace test {
           for (size_t i = 0; i < desc.sizes.bias; i++) {
             (*bias)[i] = RAND() % 100;
           }
-          if (fp_mode == euler::test::FP16 && (bias1 != nullptr)) {
+          if (data_type_cfg == euler::test::FP16 && (bias1 != nullptr)) {
 #pragma omp parallel for
             for (size_t i = 0; i < desc.sizes.bias; i++) {
               (*bias1)[i] = float_2_half((*bias)[i]);
@@ -220,7 +220,7 @@ namespace test {
         }
       }
 
-      if (fp_mode == euler::test::FP16  && !validate_results) {
+      if (data_type_cfg == euler::test::FP16  && !validate_results) {
         if (output1 != nullptr && desc.with_ip_sum) {
 #pragma omp parallel for
           for (size_t i = 0; i < desc.sizes.output; i++) {
@@ -233,7 +233,7 @@ namespace test {
           for (size_t i = 0; i < desc.sizes.output; i++) {
             (*output)[i] = RAND() % 10;
           }
-          if (fp_mode  == euler::test::FP16 && (output1 != nullptr)) {
+          if (data_type_cfg  == euler::test::FP16 && (output1 != nullptr)) {
 #pragma omp parallel for
             for (size_t i = 0; i < desc.sizes.output; i++) {
               (*output1)[i] = float_2_half((*output)[i]);
@@ -245,10 +245,10 @@ namespace test {
   }
 
   void teardown_conv_data(void *input, void *weights, void *output, void *bias,
-      void *input1, void *weights1, void *output1, void *bias1, int fp_mode,
+      void *input1, void *weights1, void *output1, void *bias1, int data_type_cfg,
       bool validate_results)
   {
-    if (fp_mode == euler::test::FP32) {
+    if (data_type_cfg == euler::test::FP32) {
       if (input)
         free(input);
       if (weights)
@@ -269,7 +269,7 @@ namespace test {
         free(bias);
       }
 
-      if (fp_mode == euler::test::FP16) {
+      if (data_type_cfg == euler::test::FP16) {
         if (input1)
           free(input1);
         if (weights1)
@@ -278,7 +278,7 @@ namespace test {
           free(output1);
         if (bias1)
           free(bias1);
-      } else if (fp_mode == euler::test::FP16O){
+      } else if (data_type_cfg == euler::test::FP16O){
         if (output1)
           free(output1);
       }
@@ -287,22 +287,22 @@ namespace test {
 
   template <typename OutputType>
   int compare_conv_results(eld_conv_t &desc, OutputType *out,
-      float *ref, int fp_mode, bool is_int8_lp, bool with_real_data)
+      float *ref, int data_type_cfg, bool is_int8_lp, bool with_real_data)
   {
     double acc = is_int8_lp ? (with_real_data ? 1e-1 : 1e-2) : 1e-5;
     if (desc.formats.output == nhwc) {
      acc = desc.with_relu ? 1.0 : 1e-5;
-     return __compare_conv_results_nhwc(desc, out, ref, fp_mode, acc);
+     return __compare_conv_results_nhwc(desc, out, ref, data_type_cfg, acc);
     } else if (desc.formats.output == nchw) {
-     return __compare_conv_results_nchw(desc, out, ref, fp_mode, acc);
+     return __compare_conv_results_nchw(desc, out, ref, data_type_cfg, acc);
     } else {
-      return __compare_conv_results_blocked(desc, out, ref, fp_mode, acc);
+      return __compare_conv_results_blocked(desc, out, ref, data_type_cfg, acc);
     }
   }
 
   template <typename OutputType>
   int __compare_conv_results_blocked(
-      eld_conv_t &desc, OutputType *out, float *ref, int fp_mode, double acc)
+      eld_conv_t &desc, OutputType *out, float *ref, int data_type_cfg, double acc)
   {
     const int V = 16;
     auto dims = desc.dims.output;
@@ -322,7 +322,7 @@ namespace test {
           iter_each (_w, dims.w) {
             int v = _C == C - 1 ? Or : V;
             iter_each (_v, v) {
-              auto real = fp_mode != 0
+              auto real = data_type_cfg != 0
                   ? half_2_float(md5(aout, _n, _C, _h, _w, _v))
                   : md5(aout, _n, _C, _h, _w, _v);
               double delta = fabs(real - md5(aref, _n, _C, _h, _w, _v));
@@ -366,7 +366,7 @@ namespace test {
 
   template <typename OutputType>
   int __compare_conv_results_nchw(
-      eld_conv_t &desc, OutputType *out, float *ref, int fp_mode, double acc)
+      eld_conv_t &desc, OutputType *out, float *ref, int data_type_cfg, double acc)
   {
     auto dims = desc.dims.output;
     MD4(OutputType, aout, out, dims.n, dims.c, dims.h, dims.w);
@@ -380,7 +380,7 @@ namespace test {
       iter_each (_c, dims.c) {
         iter_each (_h, dims.h) {
           iter_each (_w, dims.w) {
-            auto real = fp_mode != 0
+            auto real = data_type_cfg != 0
                 ? half_2_float(md4(aout, _n, _c, _h, _w))
                 : md4(aout, _n, _c, _h, _w);
             double delta = fabs(real - md4(aref, _n, _c, _h, _w));
@@ -422,7 +422,7 @@ namespace test {
 
   template <typename OutputType>
   int __compare_conv_results_nhwc(
-      eld_conv_t &desc, OutputType *out, float *ref, int fp_mode, double acc)
+      eld_conv_t &desc, OutputType *out, float *ref, int data_type_cfg, double acc)
   {
     auto dims = desc.dims.output;
     MD4(OutputType, aout, out, dims.n, dims.h, dims.w, dims.c);
@@ -436,7 +436,7 @@ namespace test {
       iter_each (_c, dims.c) {
         iter_each (_h, dims.h) {
           iter_each (_w, dims.w) {
-            auto real = fp_mode != 0
+            auto real = data_type_cfg != 0
                 ? half_2_float(md4(aout, _n, _h, _w, _c))
                 : md4(aout, _n, _h, _w, _c);
             double delta = fabs(real - md4(aref, _n, _h, _w, _c));

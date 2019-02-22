@@ -7,17 +7,17 @@ cat <<!
   -P   Use nhwc format.
   -r   ReLU fusion.
   -l   Repeated layer.
-  -f   fp UserTypes
+  -t   UserTypes.
   -B   Double buffering.
-  -A   Output buffer bas input
+  -A   Output buffer bas input.
   -s   Inplace sum.
   -H   Half precision opt.
-  -F   Use fine sampling for int8-gemm
+  -F   Use fine sampling for int8-gemm.
   -h   This page.
 !
 }
 
-v=0; r=0; s=0; l=1; B=0; A=0; T=0; f=0; H=0
+v=0; r=0; s=0; l=1; B=0; A=0; T=0; t=0; H=0
 input_format=nChw16c
 weights_format=OIhw16i16o
 output_format=nChw16c
@@ -25,7 +25,7 @@ tile_size=5
 sampling_kind=0
 
 OPTIND=1
-while getopts "vpPrsf:l:BATF:Hh" opt; do
+while getopts "vpPrst:l:BATF:Hh" opt; do
   case $opt in
     v)
       v=1
@@ -46,8 +46,8 @@ while getopts "vpPrsf:l:BATF:Hh" opt; do
     s)
       s=1
       ;;
-    f)
-      f=$OPTARG
+    t)
+      t=$OPTARG
       ;;
     l)
       l=$OPTARG
@@ -74,7 +74,7 @@ while getopts "vpPrsf:l:BATF:Hh" opt; do
 done
 shift $((OPTIND-1))
 
-COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format -r$r --with-ip-sum=$s -l$l -B$B -A$A --f16c-opt=$H --fp-mode=$f --sampling-kind=$sampling_kind"
+COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format -r$r --with-ip-sum=$s -l$l -B$B -A$A --f16c-opt=$H --data-type-cfg=$t --sampling-kind=$sampling_kind"
 
 echo "Common option:" $COMMON
 echo
