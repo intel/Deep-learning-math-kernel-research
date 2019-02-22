@@ -95,7 +95,7 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
   MEMALIGN64(&weights, desc.byte_sizes.weights);
   MEMALIGN64(&bias, desc.byte_sizes.bias);
 
-  test::prepare_conv_data(desc, input, weights, output, bias,
+  test::prepare_conv_data(desc, desc, input, weights, output, bias,
       &input_dummy, &weights_dummy, &output_dummy, &bias_dummy,
       nullptr, nullptr, nullptr);
 

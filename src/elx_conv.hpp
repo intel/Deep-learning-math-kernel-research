@@ -66,22 +66,25 @@ struct elx_conv_params_t {
   bool input_as_blocked;
   bool weights_as_blocked;
   bool output_as_blocked;
+  bool use_scratch_pad;
 
   // threading
   int nthreads;
   int execution_mode;
 
   // calibration coefficients
-  float wino_tinput_quant_S;
-  float wino_tinput_quant_z;
-  float wino_tinput_quant_repS;
   float input_quant_S;
   float input_quant_z;
   float input_quant_repS;
+  float tinput_quant_S;
+  float tinput_quant_z;
+  float tinput_quant_repS;
   float output_quant_S;
   float output_quant_z;
   float output_quant_repS;
   sampling_kind_t sampling_kind;
+
+  void *scratch_pad;
 };
 
 struct elx_conv_t : elx_conv_params_t {

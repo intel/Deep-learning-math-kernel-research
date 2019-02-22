@@ -50,9 +50,9 @@ void Instance_elx_conv_wino_lp_t::__execute_a133(
         iter_each (_ic3, this->ic3) {
         iter_each (_T, this->T) {
           md6(atinput_quant_scale6, _t2, _wA, _hA, _ic3, 0, _T) =
-              this->wino_tinput_quant_S;
+              this->tinput_quant_S;
           md6(atinput_quant_scale6, _t2, _wA, _hA, _ic3, 1, _T) =
-              this->wino_tinput_quant_z;
+              this->tinput_quant_z;
         }}}}}
       }
     }
@@ -70,7 +70,7 @@ void Instance_elx_conv_wino_lp_t::__execute_a133(
 #pragma omp barrier
       u8s8_gemm.execute_na(toutput_, tinput_u8_,
           &md3(atweights_s8, _oc4, _ic4, 0),
-          tinput_quant_scale_, tinput_quant_factor_,
+          tinput_quant_scale_, nullptr,
           &md3(atweights_quant_scale, _ic4, _oc4, 0),
           &md3(aweights_quant_factor, _ic4, _oc4, 0),
           _ic4);
@@ -121,9 +121,9 @@ void Instance_elx_conv_wino_lp_t::__execute_a161(
         iter_each (_hA, A) {
         iter_each (_T, this->T) {
           md5(atinput_quant_scale5, _ic3, _wA, _hA, 0, _T) =
-              this->wino_tinput_quant_S;
+              this->tinput_quant_S;
           md5(atinput_quant_scale5, _ic3, _wA, _hA, 1, _T) =
-              this->wino_tinput_quant_z;
+              this->tinput_quant_z;
         }}}}
       }
     }

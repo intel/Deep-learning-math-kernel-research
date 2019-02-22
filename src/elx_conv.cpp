@@ -34,6 +34,9 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   this->with_ip_sum = dc.with_ip_sum;
   this->with_op_sum = dc.with_op_sum;
   this->f16c_opt = dc.f16c_opt;
+  this->use_scratch_pad = dc.use_scratch_pad;
+
+  this->scratch_pad = dc.scratch_pad;
 
   this->prop_kind = dc.prop_kind;
 
@@ -57,8 +60,6 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   this->weights_as_blocked = dc.format_as_blocked.weights;
   this->output_as_blocked = dc.format_as_blocked.output;
 
-  this->wino_tinput_quant_S = dc.wino_tinput_quant.scale;
-  this->wino_tinput_quant_z = dc.wino_tinput_quant.z;
   this->input_quant_S = dc.input_quant.scale;
   this->input_quant_z = dc.input_quant.z;
   this->output_quant_S = dc.output_quant.scale;

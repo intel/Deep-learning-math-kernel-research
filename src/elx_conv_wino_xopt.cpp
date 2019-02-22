@@ -282,17 +282,19 @@ void Instance_elx_conv_wino_t::__execute_a033(
     trans_weights(tweights_, weights, this->oc4);
   }
 
+  TinputType *_tinput = this->use_scratch_pad
+      ? (TinputType *)this->scratch_pad : tinput_;
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
     int last_ic4 = -1;
     iter_each(_ic4, this->ic4) {
     iter_each(_oc4, this->oc4) {
       if (_ic4 != last_ic4) {
-        trans_input(tinput_, input, _ic4);
+        trans_input(_tinput, input, _ic4);
         last_ic4 = _ic4;
       }
 #pragma omp barrier
-      gemm.execute_na(toutput_, tinput_, &md3(atweights, _oc4, _ic4, 0), _ic4);
+      gemm.execute_na(toutput_, _tinput, &md3(atweights, _oc4, _ic4, 0), _ic4);
 #pragma omp barrier
       trans_output(
           output, toutput_, &md2(abias, _oc4, 0), _oc4, _ic4);

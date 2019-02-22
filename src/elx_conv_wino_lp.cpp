@@ -60,6 +60,8 @@ Template_elx_conv_wino_lp_t Instance_elx_conv_wino_lp_t::elx_conv_wino_lp_t(
 
   this->t2 = (this->t + this->T - 1) / this->T;
 
+  prepare_quant_calibration(dc);
+
   prepare_execute_opt();
   bind_execute_functions();
   trans_input_u8.setup(this);
@@ -102,10 +104,8 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
   size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
   size_t binput_size = 0, bweights_size = 0, boutput_size = 0;
   size_t tinput_u8_size = 0, tinput_quant_scale_size = 0,
-      tinput_quant_factor_size = 0, tinput_max_abs_size = 0, tweights_s8_size = 0,
-      tweights_quant_scale_size = 0, tweights_quant_factor_size = 0, tweights_ci_size = 0;
-
-  prepare_wino_tinput_quant();
+      tweights_s8_size = 0,
+      tweights_quant_scale_size = 0, tweights_quant_factor_size = 0;
 
   if (xopt_ & FUS_O) {
     this->oc3 /= this->oc4;
@@ -149,17 +149,14 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
   boutput_ = nullptr;
   tinput_u8_ = nullptr;
   tinput_quant_scale_ = nullptr;
-  tinput_quant_factor_ = nullptr;
-  tinput_max_abs_ = nullptr;
   tweights_s8_ = nullptr;
   tweights_quant_scale_ = nullptr;
   tweights_quant_factor_ = nullptr;
-  tweights_ci_ = nullptr;
 
   switch (xopt_) {
   case 0xa133:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
-    tinput_size = A * A * (this->IC / this->ic4) * this->t * sizeof(InputType);
+    tinput_size = A * A * (this->IC / this->ic4) * this->t * sizeof(TinputType);
     toutput_size = A * A * (this->OC / this->oc4) * this->t * sizeof(ToutputType);
     tinput_u8_size = A * A * (this->IC / this->ic4) * this->t * sizeof(uint8_t);
     tinput_quant_scale_size = this->t * this->ic3 * 2 * A * A * sizeof(TscaleType);
@@ -179,7 +176,6 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
     tweights_s8_size = tweights_size / sizeof(TweightsType);
     tweights_quant_scale_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType);
     tweights_quant_factor_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType); // * this->ic4
-    tweights_ci_size = this->OC * sizeof(TscaleType);
     break;
   case 0xa173:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
@@ -211,24 +207,20 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
   boutput_size_ = boutput_size > 0 ? alignup(boutput_size, align) : 0;
   tinput_u8_size_ = tinput_u8_size > 0 ? alignup(tinput_u8_size, align) : 0;
   tinput_quant_scale_size_ = tinput_quant_scale_size > 0 ? alignup(tinput_quant_scale_size, align) : 0;
-  tinput_quant_factor_size_ = tinput_quant_factor_size > 0 ? alignup(tinput_quant_factor_size, align) : 0;
-  tinput_max_abs_size_ = tinput_max_abs_size > 0 ? alignup(tinput_max_abs_size, align) : 0;
   tweights_s8_size_ = tweights_s8_size > 0 ? alignup(tweights_s8_size, align) : 0;
   tweights_quant_scale_size_ = tweights_quant_scale_size > 0 ? alignup(tweights_quant_scale_size, align) : 0;
   tweights_quant_factor_size_ = tweights_quant_factor_size > 0 ? alignup(tweights_quant_factor_size, align) : 0;
-  tweights_ci_size_ = tweights_ci_size > 0 ? alignup(tweights_ci_size, align) : 0;
 
   workspace_ = nullptr, scratch_ = nullptr;
   size_t workspace_size = tweights_size_ + tweights_s8_size_
-      + tweights_quant_scale_size_ + tweights_quant_factor_size_ + tweights_ci_size_;
+      + tweights_quant_scale_size_ + tweights_quant_factor_size_;
   size_t scratch_size = tinput_size_ + toutput_size_
-      + binput_size_ + bweights_size_ + boutput_size_ + tinput_u8_size_
-      + tinput_quant_scale_size_ + tinput_quant_factor_size_ + tinput_max_abs_size_;
+      + binput_size_ + bweights_size_ + boutput_size_ + tinput_u8_size_;
 
-  if (this->sampling_kind == CALIBRATED) {
+  if (this->sampling_kind == CALIBRATED)
     workspace_size += tinput_quant_scale_size_;
-    scratch_size -= tinput_quant_scale_size_;
-  }
+  else
+    scratch_size += tinput_quant_scale_size_;
 
   // TODO: user provided buffer
   if (scratch_size != 0)
@@ -239,8 +231,12 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
   // dbg
   printf("nthreads=%d, mthr_=%d\n", this->nthreads, mthr_);
   printf("sampling_kind = %d\n", this->sampling_kind);
-  printf("wino_tinput_quant_S = %f\n", this->wino_tinput_quant_S);
-  printf("wino_tinput_quant_z = %d\n", (int)this->wino_tinput_quant_z);
+  printf("input_quant_S = %f\n", this->input_quant_S);
+  printf("input_quant_z = %f\n", this->input_quant_z);
+  printf("tinput_quant_S = %f\n", this->tinput_quant_S);
+  printf("tinput_quant_z = %f\n", this->tinput_quant_z);
+  printf("output_quant_S = %f\n", this->output_quant_S);
+  printf("output_quant_z = %f\n", this->output_quant_z);
   return 0;
 }
 
@@ -253,12 +249,11 @@ void Instance_elx_conv_wino_lp_t::set_trans_buffers()
     // int8gemm supported in weights reuse case only.
     tweights_quant_scale_ = (TscaleType *)((char *)tweights_ + tweights_size_);
     tweights_quant_factor_ = (TscaleType *)((char *)tweights_quant_scale_ + tweights_quant_scale_size_);
-    tweights_ci_ = (TscaleType *)((char *)tweights_quant_factor_ + tweights_quant_factor_size_);
     if (this->sampling_kind == CALIBRATED) {
-      tinput_quant_scale_ = (TscaleType *)((char *)tweights_ci_ + tweights_ci_size_);
+      tinput_quant_scale_ = (TscaleType *)((char *)tweights_quant_factor_ + tweights_quant_factor_size_);
       tweights_s8_ = (int8_t *)((char *)tinput_quant_scale_ + tinput_quant_scale_size_);
     } else {
-      tweights_s8_ = (int8_t *)((char *)tweights_ci_ + tweights_ci_size_);
+      tweights_s8_ = (int8_t *)((char *)tweights_quant_factor_ + tweights_quant_factor_size_);
     }
   } else {
     tweights_ = (TweightsType *)galloc::get();
@@ -268,26 +263,32 @@ void Instance_elx_conv_wino_lp_t::set_trans_buffers()
   binput_ = (InputType *)((char *)toutput_ + toutput_size_);
   bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
   boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);
-  tinput_quant_factor_ = (TscaleType *)((char *)boutput_ + boutput_size_);
-  tinput_max_abs_ = (TscaleType *)((char *)tinput_quant_factor_ + tinput_quant_factor_size_);
   if (this->sampling_kind == CALIBRATED) {
-    tinput_u8_ = (uint8_t *)((char *)tinput_max_abs_ + tinput_max_abs_size_);
+    tinput_u8_ = (uint8_t *)((char *)boutput_ + boutput_size_);
   } else {
-    tinput_quant_scale_ = (TscaleType *)((char *)tinput_max_abs_ + tinput_max_abs_size_);
+    tinput_quant_scale_ = (TscaleType *)((char *)boutput_ + boutput_size_);
     tinput_u8_ = (uint8_t *)((char *)tinput_quant_scale_ + tinput_quant_scale_size_);
   }
 }
 
 Template_elx_conv_wino_lp_t
-void Instance_elx_conv_wino_lp_t::prepare_wino_tinput_quant()
+void Instance_elx_conv_wino_lp_t::prepare_quant_calibration(eld_conv_t &dc)
 {
+  this->tinput_quant_S = dc.wino_tinput_quant.scale;
+  this->tinput_quant_z = dc.wino_tinput_quant.z;
+
   if (this->sampling_kind == CALIBRATED) {
-    if (this->wino_tinput_quant_S == EL_NO_CALI ||
-        this->wino_tinput_quant_z == EL_NO_CALI) {
+    if (this->input_quant_S == EL_NO_CALI ||
+        this->input_quant_z == EL_NO_CALI) {
       this->sampling_kind = FINE;
       return;
     }
-    this->wino_tinput_quant_repS = 1 / this->wino_tinput_quant_S;
+    this->input_quant_repS = 1 / this->input_quant_S;
+    this->input_quant_z = (float)std::ceil(this->input_quant_z);
+    this->tinput_quant_repS = 1 / this->tinput_quant_S;
+    this->tinput_quant_z = (float)std::ceil(this->tinput_quant_z);
+    this->output_quant_repS = 1 / this->output_quant_S;
+    this->output_quant_z = (float)std::ceil(this->output_quant_z);
   }
 }
 

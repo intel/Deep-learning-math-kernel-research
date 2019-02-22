@@ -17,12 +17,13 @@ cat <<!
 !
 }
 
-v=0; r=0; s=0; l=1; B=0; A=0; T=0; t=0; H=0
+v=0; r=0; s=0; l=1; B=0; A=0; T=0; H=0
 input_format=nChw16c
 weights_format=OIhw16i16o
 output_format=nChw16c
 tile_size=5
 sampling_kind=0
+data_type_cfg=FP32
 
 OPTIND=1
 while getopts "vpPrst:l:BATF:Hh" opt; do
@@ -47,7 +48,7 @@ while getopts "vpPrst:l:BATF:Hh" opt; do
       s=1
       ;;
     t)
-      t=$OPTARG
+      data_type_cfg=$OPTARG
       ;;
     l)
       l=$OPTARG
@@ -74,7 +75,7 @@ while getopts "vpPrst:l:BATF:Hh" opt; do
 done
 shift $((OPTIND-1))
 
-COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format -r$r --with-ip-sum=$s -l$l -B$B -A$A --f16c-opt=$H --data-type-cfg=$t --sampling-kind=$sampling_kind"
+COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format -r$r --with-ip-sum=$s -l$l -B$B -A$A --f16c-opt=$H --data-type-cfg=$data_type_cfg --sampling-kind=$sampling_kind"
 
 echo "Common option:" $COMMON
 echo

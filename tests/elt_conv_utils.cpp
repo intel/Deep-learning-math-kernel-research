@@ -58,7 +58,7 @@ namespace test {
   __thread unsigned int seed;
   template <typename InputType, typename WeightsType,
             typename OutputType, typename BiasType>
-  void prepare_conv_data(eld_conv_t &desc,
+  void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc,
       float *input_ref, float *weights_ref, float *output_ref, float *bias_ref,
       InputType **input, WeightsType **weights, OutputType **output, BiasType **bias,
       const char *input_file, const char *weights_file, const char *bias_file,
@@ -66,68 +66,57 @@ namespace test {
   {
     seed = time(nullptr);
 
-    size_t input_size = desc.byte_sizes.input;
-    size_t output_size = desc.byte_sizes.output;
-    if (reuse_inout) {
-      input_size = output_size =
-          std::max(desc.byte_sizes.input, desc.byte_sizes.output);
-    }
-
-    if (data_type_cfg == euler::test::FP32) {
-      MEMALIGN64(input, input_size);
-      MEMALIGN64(output, output_size);
-      MEMALIGN64(weights, desc.byte_sizes.weights);
-      MEMALIGN64(bias, desc.byte_sizes.bias);
-    } else if (data_type_cfg == euler::test::FP16) {
-      MEMALIGN64(input, input_size / 2);
-      MEMALIGN64(output, output_size / 2);
-      MEMALIGN64(weights, desc.byte_sizes.weights / 2);
-      MEMALIGN64(bias, desc.byte_sizes.bias / 2);
-    } else if (data_type_cfg == euler::test::FP16O){
-      MEMALIGN64(input, input_size);
-      MEMALIGN64(weights, desc.byte_sizes.weights);
-      MEMALIGN64(bias, desc.byte_sizes.bias);
-      MEMALIGN64(output, output_size / 2);
-    }
-
+    // reference data initialization
     if (input_file != nullptr && weights_file != nullptr) {
-      load_conv_data<float, float, float>(desc, input_ref, weights_ref,
+      load_conv_data<float, float, float>(desc_ref, input_ref, weights_ref,
           bias_ref, input_file, weights_file, bias_file);
     } else if (input_file == nullptr && weights_file == nullptr) {
 #define RAND() rand_r(&seed)
       std::default_random_engine gen;
       std::normal_distribution<float> dInput(-4.0, 20.0);
       std::normal_distribution<float> dWeights(-1.0, 1.0);
+      std::normal_distribution<float> dInput_mu_15_sigma_3(15.0, 3.0);
+      std::normal_distribution<float> dWeights_mu_0_sigma_0_1(0.0, 0.1);
 
       // ref input
 #pragma omp parallel for
-      for (size_t i = 0; i < desc.sizes.input; i++) {
-        input_ref[i]
-            = (data_type_cfg == euler::test::FP16 || f16c_opt)
-            ? dInput(gen)
-            : RAND() % 20 - 4;
+      for (size_t i = 0; i < desc_ref.sizes.input; i++) {
+        if (data_type_cfg == euler::test::FP32) {
+          input_ref[i] = RAND() % 20 - 4;
+        } else if (data_type_cfg == euler::test::FP16 || f16c_opt) {
+          input_ref[i] = dInput(gen);
+        } else if (data_type_cfg == euler::test::U8F32U8F32
+            || data_type_cfg == euler::test::U8F32F32F32) {
+          input_ref[i] = dInput_mu_15_sigma_3(gen);
+          if (input_ref[i] < 0)
+            input_ref[i] = 0;
+        }
       }
 
       // ref weights
 #pragma omp parallel for
-      for (size_t i = 0; i < desc.sizes.weights; i++) {
-        weights_ref[i]
-            = (data_type_cfg == euler::test::FP16 || f16c_opt)
-            ? dWeights(gen)
-            : -RAND() % 32;
-        if (desc.with_relu && i % 3 == 1)
+      for (size_t i = 0; i < desc_ref.sizes.weights; i++) {
+        if (data_type_cfg == euler::test::FP32) {
+          weights_ref[i] = -RAND() % 32;
+        } else if (data_type_cfg == euler::test::FP16 || f16c_opt) {
+          weights_ref[i] = dWeights(gen);
+        } else if (data_type_cfg == euler::test::U8F32U8F32
+            || data_type_cfg == euler::test::U8F32F32F32) {
+          weights_ref[i] = dWeights_mu_0_sigma_0_1(gen);
+        }
+        if (desc_ref.with_relu && i % 3 == 1)
           weights_ref[i] = -weights_ref[i];
       }
 
       // ref bias
 #pragma omp parallel for
-      for (size_t i = 0; i < desc.sizes.bias; i++)
+      for (size_t i = 0; i < desc_ref.sizes.bias; i++)
         bias_ref[i] = RAND() % 100;
 
       // ref ouput
-      if (desc.with_ip_sum) {
+      if (desc_ref.with_ip_sum) {
 #pragma omp parallel for
-        for (size_t i = 0; i < desc.sizes.output; i++)
+        for (size_t i = 0; i < desc_ref.sizes.output; i++)
           output_ref[i] = RAND() % 10;
       }
     } else {
@@ -135,49 +124,227 @@ namespace test {
       exit(1);
     }
 
-    // input
+    // real data initialization
+    size_t input_size = desc_ref.byte_sizes.input;
+    size_t output_size = desc_ref.byte_sizes.output;
+    if (reuse_inout) {
+      input_size = output_size =
+          std::max(desc_ref.byte_sizes.input, desc_ref.byte_sizes.output);
+    }
+
+    if (data_type_cfg == euler::test::FP32) {
+      MEMALIGN64(input, input_size);
+      MEMALIGN64(output, output_size);
+      MEMALIGN64(weights, desc_ref.byte_sizes.weights);
+      MEMALIGN64(bias, desc_ref.byte_sizes.bias);
+    } else if (data_type_cfg == euler::test::FP16) {
+      MEMALIGN64(input, input_size / 2);
+      MEMALIGN64(output, output_size / 2);
+      MEMALIGN64(weights, desc_ref.byte_sizes.weights / 2);
+      MEMALIGN64(bias, desc_ref.byte_sizes.bias / 2);
+    } else if (data_type_cfg == euler::test::FP16O){
+      MEMALIGN64(input, input_size);
+      MEMALIGN64(weights, desc_ref.byte_sizes.weights);
+      MEMALIGN64(bias, desc_ref.byte_sizes.bias);
+      MEMALIGN64(output, output_size / 2);
+    } else if (data_type_cfg == euler::test::U8F32U8F32){
+      MEMALIGN64(input, input_size / 4);
+      MEMALIGN64(weights, desc_ref.byte_sizes.weights);
+      MEMALIGN64(bias, desc_ref.byte_sizes.bias);
+      MEMALIGN64(output, output_size / 4);
+    } else if (data_type_cfg == euler::test::U8F32F32F32){
+      MEMALIGN64(input, input_size / 4);
+      MEMALIGN64(weights, desc_ref.byte_sizes.weights);
+      MEMALIGN64(bias, desc_ref.byte_sizes.bias);
+      MEMALIGN64(output, output_size);
+    }
+
+    // scale initialization
+    desc.input_quant.scale = 1.0;
+    desc.input_quant.z = 0.0;
+    desc.output_quant.scale = 1.0;
+    desc.output_quant.z = 0.0;
+
+    // for Winograd INT8 cases
+    #define PRECISION_REPRESENTATION_8B 255
+    #define PRECISION_REPRESENTATION_7B 127
+    auto trans_input_scale = [&] () {
+      float *_output_ref;
+      if (desc_ref.with_ip_sum) {
+        MEMALIGN64(&_output_ref, desc_ref.byte_sizes.output);
 #pragma omp parallel for
-    for (size_t i = 0; i < desc.sizes.input; i++) {
+        for (size_t i = 0; i < desc_ref.sizes.output; i++)
+          _output_ref[i] = output_ref[i];
+      } else {
+        _output_ref = output_ref;
+      }
+
+      if (ELX_OK != elx_conv(
+          desc_ref, _output_ref, input_ref, weights_ref, bias_ref)) {
+        test::error("Fail: Convolution execution error!\n");
+      }
+
+      float *tinput = (float *)desc_ref.scratch_pad;
+      float min = tinput[0], max = tinput[0];
+      size_t t = (desc.dims.output.h + desc.tile_size - 3)
+          / (desc.tile_size - 3 + 1) * (desc.dims.output.w + desc.tile_size - 3)
+          / (desc.tile_size - 3 + 1) * desc.dims.output.n;
+      size_t A = desc.tile_size;
+      size_t K = 3;
+      size_t IC = desc.dims.input.c;
+      size_t tinput_size = A * A * IC * t;
+      for (size_t i = 1; i < tinput_size; i++) {
+        min = tinput[i] < min ? tinput[i] : min;
+        max = tinput[i] > max ? tinput[i] : max;
+      }
+
+      auto diff = max - min + 0.000001;
+      desc.wino_tinput_quant.scale = diff / PRECISION_REPRESENTATION_8B;
+      desc.wino_tinput_quant.z = -min * PRECISION_REPRESENTATION_8B / diff;
+
+      printf("tinput max %f min %f scale %f z %f\n",
+          max, min, desc.wino_tinput_quant.scale, desc.wino_tinput_quant.z);
+
+      if (desc_ref.with_ip_sum)
+        free(_output_ref);
+    };
+
+    auto input_scale = [&] (float &iscale) {
+      float abs_max = input_ref[0] > 0 ? input_ref[0] : -input_ref[0];
+      for (size_t i = 1; i < desc_ref.sizes.input; i++) {
+        auto abs_cur = input_ref[i] > 0 ? input_ref[i] : -input_ref[i];
+        abs_max = abs_cur > abs_max ? abs_cur : abs_max;
+      }
+      // U8
+      if (data_type_cfg == euler::test::U8F32U8F32
+          || data_type_cfg == euler::test::U8F32F32F32)
+        iscale = abs_max / PRECISION_REPRESENTATION_8B;
+      // S8
+      else
+        iscale = abs_max / PRECISION_REPRESENTATION_7B;
+      desc.input_quant.scale = iscale;
+      desc.input_quant.z = 0;
+      printf("input abs_max %f scale %f\n", abs_max, iscale);
+    };
+
+    auto output_scale = [&] (float &oscale) {
+      float *_output_ref;
+      if (desc_ref.with_ip_sum) {
+        MEMALIGN64(&_output_ref, desc_ref.byte_sizes.output);
+#pragma omp parallel for
+        for (size_t i = 0; i < desc_ref.sizes.output; i++)
+          _output_ref[i] = output_ref[i];
+      } else {
+        _output_ref = output_ref;
+      }
+
+      if (test::ref_convolution2d<float>(
+          desc_ref, _output_ref, input_ref, weights_ref, bias_ref)) {
+        printf("Fail: scale initialization. Convolution ref execution error!\n");
+        exit(1);
+      }
+
+      float abs_max = _output_ref[0] > 0 ? _output_ref[0] : -_output_ref[0];
+      for (size_t i = 1; i < desc_ref.sizes.output; i++) {
+        auto abs_cur = _output_ref[i] > 0 ? _output_ref[i] : -_output_ref[i];
+        abs_max = abs_cur > abs_max ? abs_cur : abs_max;
+      }
+
+      if (desc_ref.with_relu)
+        oscale = PRECISION_REPRESENTATION_8B / abs_max;
+      else
+        oscale = PRECISION_REPRESENTATION_7B / abs_max;
+
+      desc.output_quant.scale = 1.0 / oscale;
+      desc.output_quant.z = 0.0;
+
+      printf("output abs_max %f scale %f\n", abs_max, desc.output_quant.scale);
+
+      if (desc_ref.with_ip_sum)
+        free(_output_ref);
+    };
+
+    auto rounding_to_nearest_even = [] (float f32) -> int32_t {
+      int32_t i32 = (int32_t)f32;
+      if (i32 >= 0) {
+        if (i32 % 2) {
+          return f32 - (float)i32 <= 0.5 ? i32 : i32 + 1;
+        } else {
+          return f32 - (float)i32 >= 0.5 ? i32 + 1 : i32;
+        }
+      } else {
+        if (i32 % 2) {
+          return (float)i32 - f32 <= 0.5 ? i32 : i32 - 1;
+        } else {
+          return (float)i32 - f32 >= 0.5 ? i32 - 1 : i32;
+        }
+      }
+    };
+
+    // input
+    float iscale;
+    if (data_type_cfg == euler::test::U8F32U8F32
+        || data_type_cfg == euler::test::U8F32F32F32) {
+      input_scale(iscale);
+      trans_input_scale();
+    }
+#pragma omp parallel for
+    for (size_t i = 0; i < desc_ref.sizes.input; i++) {
       if (data_type_cfg == euler::test::FP32)
         (*input)[i] = input_ref[i];
       else if (data_type_cfg == euler::test::FP16)
         (*input)[i] = float_2_half(input_ref[i]);
       else if (data_type_cfg == euler::test::FP16O)
         (*input)[i] = input_ref[i];
+      else if (data_type_cfg == euler::test::U8F32U8F32
+          || data_type_cfg == euler::test::U8F32F32F32)
+        (*input)[i] = (uint8_t)rounding_to_nearest_even(input_ref[i] / iscale);
     }
 
     // weights
 #pragma omp parallel for
-    for (size_t i = 0; i < desc.sizes.weights; i++) {
+    for (size_t i = 0; i < desc_ref.sizes.weights; i++) {
       if (data_type_cfg == euler::test::FP32)
         (*weights)[i] = weights_ref[i];
       else if (data_type_cfg == euler::test::FP16)
         (*weights)[i] = float_2_half(weights_ref[i]);
       else if (data_type_cfg == euler::test::FP16O)
         (*weights)[i] = weights_ref[i];
+      else if (data_type_cfg == euler::test::U8F32U8F32
+          || data_type_cfg == euler::test::U8F32F32F32)
+        (*weights)[i] = weights_ref[i];
     }
 
     // bias
 #pragma omp parallel for
-    for (size_t i = 0; i < desc.sizes.bias; i++) {
+    for (size_t i = 0; i < desc_ref.sizes.bias; i++) {
       if (data_type_cfg == euler::test::FP32)
         (*bias)[i] = bias_ref[i];
       else if (data_type_cfg == euler::test::FP16)
         (*bias)[i] = float_2_half(bias_ref[i]);
       else if (data_type_cfg == euler::test::FP16O)
         (*bias)[i] = bias_ref[i];
+      else if (data_type_cfg == euler::test::U8F32U8F32
+          || data_type_cfg == euler::test::U8F32F32F32)
+        (*bias)[i] = bias_ref[i];
     }
 
     // output
+    float oscale;
+    if (data_type_cfg == euler::test::U8F32U8F32)
+      output_scale(oscale);
     if (desc.with_ip_sum) {
 #pragma omp parallel for
-      for (size_t i = 0; i < desc.sizes.output; i++) {
+      for (size_t i = 0; i < desc_ref.sizes.output; i++) {
         if (data_type_cfg == euler::test::FP32)
           (*output)[i] = output_ref[i];
         else if (data_type_cfg == euler::test::FP16)
           (*output)[i] = float_2_half(output_ref[i]);
         else if (data_type_cfg == euler::test::FP16O)
           (*output)[i] = output_ref[i];
+        else if (data_type_cfg == euler::test::U8F32U8F32) {
+          (*output)[i] = (uint8_t)rounding_to_nearest_even(output_ref[i] * oscale);
+        }
       }
     }
   }
@@ -793,18 +960,23 @@ namespace test {
       eld_conv_t &, float *, float *, float *, float *);
 
   template void prepare_conv_data<float, float, float, float>(
-      eld_conv_t &,
+      eld_conv_t &, eld_conv_t &,
       float *, float *, float *, float *, float **, float **, float **,
       float **, const char *, const char *, const char *, bool, int, bool, bool);
 
   template void prepare_conv_data<uint16_t, uint16_t, uint16_t, uint16_t>(
-      eld_conv_t &,
+      eld_conv_t &, eld_conv_t &,
       float *, float *, float *, float *, uint16_t **, uint16_t **, uint16_t **,
       uint16_t **, const char *, const char *, const char *, bool, int, bool, bool);
 
   template void prepare_conv_data<uint8_t, float, uint8_t, float>(
-      eld_conv_t &,
+      eld_conv_t &, eld_conv_t &,
       float *, float *, float *, float *, uint8_t **, float **, uint8_t **,
+      float **, const char *, const char *, const char *, bool, int, bool, bool);
+
+  template void prepare_conv_data<uint8_t, float, float, float>(
+      eld_conv_t &, eld_conv_t &,
+      float *, float *, float *, float *, uint8_t **, float **, float **,
       float **, const char *, const char *, const char *, bool, int, bool, bool);
 
 }

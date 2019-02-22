@@ -82,7 +82,7 @@ private:
   int prepare_execute_opt();
   void set_trans_buffers();
   void bind_execute_functions();
-  void prepare_wino_tinput_quant();
+  void prepare_quant_calibration(eld_conv_t &dc);
 
   void (elx_conv_wino_lp_t::*execute_opt_)(
       OutputType *, InputType *, WeightsType *, BiasType *);
@@ -118,12 +118,9 @@ private:
   size_t boutput_size_;
   size_t tinput_u8_size_;
   size_t tinput_quant_scale_size_;
-  size_t tinput_quant_factor_size_;
-  size_t tinput_max_abs_size_;
   size_t tweights_s8_size_;
   size_t tweights_quant_scale_size_;
   size_t tweights_quant_factor_size_;
-  size_t tweights_ci_size_;
   void *workspace_;
   void *scratch_;
 
@@ -135,12 +132,9 @@ private:
   OutputType *boutput_;
   uint8_t *tinput_u8_;
   TscaleType *tinput_quant_scale_;
-  TscaleType *tinput_quant_factor_;
-  TscaleType *tinput_max_abs_;
   int8_t *tweights_s8_;
   TscaleType *tweights_quant_scale_;
   TscaleType *tweights_quant_factor_;
-  TscaleType *tweights_ci_;
 };
 
 // fp32-u8s8f32
@@ -153,6 +147,11 @@ template class elx_conv_wino_lp_t<conv::FP32, conv_impl::INT8_F32, 7, 3, 16, ISA
 template class elx_conv_wino_lp_t<conv::U8F32U8F32, conv_impl::INT8_F32, 4, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_lp_t<conv::U8F32U8F32, conv_impl::INT8_F32, 5, 3, 16, ISA_SKX_AVX512>;
 template class elx_conv_wino_lp_t<conv::U8F32U8F32, conv_impl::INT8_F32, 6, 3, 16, ISA_SKX_AVX512>;
+
+// u8f32f32f32-u8s8f32
+template class elx_conv_wino_lp_t<conv::U8F32F32F32, conv_impl::INT8_F32, 4, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_lp_t<conv::U8F32F32F32, conv_impl::INT8_F32, 5, 3, 16, ISA_SKX_AVX512>;
+template class elx_conv_wino_lp_t<conv::U8F32F32F32, conv_impl::INT8_F32, 6, 3, 16, ISA_SKX_AVX512>;
 
 // fp32-u8s8f16
 template class elx_conv_wino_lp_t<conv::FP32, conv_impl::INT8_F16o, 4, 3, 16, ISA_SKX_AVX512>;

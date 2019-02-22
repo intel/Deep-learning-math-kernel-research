@@ -21,7 +21,7 @@ namespace test {
   };
 
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  void prepare_conv_data(eld_conv_t &desc,
+  void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc,
       float *input_ref, float *weights_ref, float *output_ref, float *bias_ref,
       InputType **input, WeightsType **weights, OutputType **output, BiasType **bias,
       const char *input_file, const char *weights_file, const char *bias_file,

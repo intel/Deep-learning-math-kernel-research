@@ -127,6 +127,7 @@ struct EULER_API eld_conv_t {
   bool with_op_sum;
   bool f16c_opt;
   bool is_inference;
+  bool use_scratch_pad;
 
   // Performance:
   // Number of thread teams, number of threads per team
@@ -144,8 +145,10 @@ struct EULER_API eld_conv_t {
 
   // quantization calibration coefficients
   // A_fp32 = scale * (A_quant - z)
-  struct { float scale, z; } input_quant, output_quant, wino_tinput_quant;
+  struct { float scale, z; } input_quant, wino_tinput_quant, output_quant;
   sampling_kind_t sampling_kind;
+
+  void *scratch_pad;
 
   // Defaults
   eld_conv_t();

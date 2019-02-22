@@ -1,5 +1,23 @@
 #pragma once
 #include <x86intrin.h>
+#include <cassert>
+
+#define rounding_case(func, ret_type, imm8, var)                               \
+  switch (imm8) {                                                              \
+  case _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC:                          \
+    return func(var, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);           \
+  case _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC:                              \
+    return func(var, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);               \
+  case _MM_FROUND_TO_POS_INF | _MM_FROUND_NO_EXC:                              \
+    return func(var, _MM_FROUND_TO_POS_INF | _MM_FROUND_NO_EXC);               \
+  case _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC:                                 \
+    return func(var, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC);                  \
+  case _MM_FROUND_CUR_DIRECTION | _MM_FROUND_NO_EXC:                           \
+    return func(var, _MM_FROUND_CUR_DIRECTION);                                \
+  default:                                                                     \
+    assert(0);                                                                 \
+    return func(var, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);           \
+  };
 
 template <int V> struct _mm_traits {
   typedef void vector_type;
@@ -220,10 +238,10 @@ template <> struct _mm<16> {
     return _mm512_cvtps_epu32(m);
   }
   static inline __i<V> cvt_roundps_epu32(__m<V> m, int imm8) noexcept {
-    return _mm512_cvt_roundps_epu32(m, imm8);
+    rounding_case(_mm512_cvt_roundps_epu32, __i<V>, imm8, m);
   }
   static inline __i<V> cvt_roundps_epi32(__m<V> m, int imm8) noexcept {
-    return _mm512_cvt_roundps_epi32(m, imm8);
+    rounding_case(_mm512_cvt_roundps_epi32, __i<V>, imm8, m);
   }
   static inline __m128i cvtusepi32_epi8(__i<V> m) noexcept {
     return _mm512_cvtusepi32_epi8(m);
@@ -232,16 +250,13 @@ template <> struct _mm<16> {
     return _mm512_cvtsepi32_epi8(m);
   }
   static inline __m256i cvtps_ph(__m<V> a, int rounding) noexcept {
-    return _mm512_cvtps_ph(a, rounding);
+    rounding_case(_mm512_cvtps_ph, __m256i, rounding, a);
   }
   static inline __m<V> cvtph_ps(__m256i a) noexcept {
     return _mm512_cvtph_ps(a);
   }
   static inline __m<V> roundscale_ps(__m<V> m, int imm8) noexcept {
-    return _mm512_roundscale_ps(m, imm8);
-  }
-  static inline __m<V> add_round_ps(__m<V> m0, __m<V> m1, int rounding) noexcept {
-    return _mm512_add_round_ps(m0, m1, rounding);
+    rounding_case(_mm512_roundscale_ps, __m<V>, imm8, m);
   }
   static inline __m<V> range_ps(__m<V> m0, __m<V> m1, int imm8) noexcept {
     return _mm512_range_ps(m0, m1, imm8);
@@ -253,7 +268,30 @@ template <> struct _mm<16> {
     return _mm512_cvtepi32_epi16(a);
   }
   static inline __i<V> bsrli_epi128(__i<V> x, int imm8) {
-    return _mm512_bsrli_epi128(x, imm8);
+  #undef imm8_case
+  #define imm8_case(val) \
+    case val: return _mm512_bsrli_epi128(x, val);
+
+    switch (imm8) {
+    imm8_case(0)
+    imm8_case(1)
+    imm8_case(2)
+    imm8_case(3)
+    imm8_case(4)
+    imm8_case(5)
+    imm8_case(6)
+    imm8_case(7)
+    imm8_case(8)
+    imm8_case(9)
+    imm8_case(10)
+    imm8_case(11)
+    imm8_case(12)
+    imm8_case(13)
+    imm8_case(14)
+    imm8_case(15)
+    default:
+      return _mm512_bsrli_epi128(x, 15);
+    };
   }
   static inline __i<V/2> cvt_f32_b16(__i<V> x) {
     x = _mm512_bsrli_epi128(x, 2);

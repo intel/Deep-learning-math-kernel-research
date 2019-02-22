@@ -367,8 +367,8 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input)
 {
-  __m<V> mrepS = _mm<V>::set1_ps(xc->wino_tinput_quant_repS);
-  __m<V> mz = _mm<V>::set1_ps(xc->wino_tinput_quant_z);
+  __m<V> mrepS = _mm<V>::set1_ps(xc->input_quant_S * xc->tinput_quant_repS);
+  __m<V> mz = _mm<V>::set1_ps(xc->tinput_quant_z);
 
   int ithr = omp_get_thread_num();
   thread_parallel_for<4>(mthr_, ithr, [&](int _t2, int _ic3, int _I2, int _Vx) {
@@ -518,8 +518,8 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
   auto _t_off = res.rem;
 
   if (xc->sampling_kind == CALIBRATED) {
-    __m<V> mrepS = _mm<V>::set1_ps(xc->wino_tinput_quant_repS);
-    __m<V> mz = _mm<V>::set1_ps(xc->wino_tinput_quant_z);
+    __m<V> mrepS = _mm<V>::set1_ps(xc->input_quant_S * xc->tinput_quant_repS);
+    __m<V> mz = _mm<V>::set1_ps(xc->tinput_quant_z);
     alignas(64) op_type aout[A][A][V];
 
     iter_each(_ic3, xc->ic3) {

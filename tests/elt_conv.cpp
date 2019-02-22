@@ -85,7 +85,7 @@ int parse_cmd_options(int argc, char **argv) {
     ("weights-as-blocked", po::value<bool>(&weights_as_blocked), "on|off. Format weighs as blocked. Default: off")
     ("output-as-blocked", po::value<bool>(&output_as_blocked), "on|off. Format output as blocked. Default: off")
     ("f16c-opt", po::value<bool>(&f16c_opt), "on|off. With half-precision opt, Default: off")
-    ("data-type-cfg", po::value<int>(&data_type_cfg), "UserTypes, Default: FP32")
+    ("data-type-cfg", po::value<std::string>(), "UserTypes, Default: FP32")
     ("with-ip-sum", po::value<bool>(&with_ip_sum), "on|off. With inplace sum, Default: off")
     ("sampling-kind", po::value<int>((int *)&sampling_kind), "sampling kind 0: FINE, 1: COARSE, 2: CALIBRATED, Default: 2")
     ("tinput-cali-s", po::value<float>(&tinput_cali_s), "calibration scale for tinput quantization, Default: 0")
@@ -170,6 +170,22 @@ int parse_cmd_options(int argc, char **argv) {
       printf("Error: convolution options: output-format should be "
              "nchw|nhwc|nChw16c\n");
       return -1;
+    }
+  }
+  if (vm.count("data-type-cfg")) {
+    std::string fmt_str = vm["data-type-cfg"].as<std::string>();
+    if (fmt_str == "FP32")
+      data_type_cfg = euler::test::FP32;
+    else if (fmt_str == "FP16")
+      data_type_cfg = euler::test::FP16;
+    else if (fmt_str == "FP16O")
+      data_type_cfg = euler::test::FP16O;
+    else if (fmt_str == "U8F32U8F32")
+      data_type_cfg = euler::test::U8F32U8F32;
+    else if (fmt_str == "U8F32F32F32")
+      data_type_cfg = euler::test::U8F32F32F32;
+    else {
+      data_type_cfg = euler::test::FP32;
     }
   }
   if (vm.count("input-data-file")) {
@@ -276,6 +292,9 @@ static inline eld_conv_t create_conv_desc(int _data_type_cfg) {
   } else if (_data_type_cfg == euler::test::U8F32U8F32) {
     desc.data_type = {
         euler::euler_u8, euler::euler_f32, euler::euler_u8, euler::euler_f32 };
+  } else if (_data_type_cfg == euler::test::U8F32F32F32) {
+    desc.data_type = {
+        euler::euler_u8, euler::euler_f32, euler::euler_f32, euler::euler_f32 };
   } else {
     test::error("Fail: Unsupported user data type ...\n");
     exit(1);
@@ -306,9 +325,36 @@ static inline eld_conv_t create_conv_desc(int _data_type_cfg) {
   desc.format_as_blocked
       = { input_as_blocked, weights_as_blocked, output_as_blocked };
   desc.sampling_kind = sampling_kind;
-  desc.wino_tinput_quant.scale = tinput_cali_s;
-  desc.wino_tinput_quant.z = tinput_cali_z;
+  desc.use_scratch_pad = false;
   return desc;
+}
+
+static inline int conv_ref_setup(eld_conv_t &desc) {
+  auto int8_user_interface = [](int _data_type_cfg) -> bool {
+    switch (_data_type_cfg) {
+    case euler::test::U8F32U8F32:
+    case euler::test::U8F32F32F32:
+      return true;
+    default:
+      return false;
+    };
+  };
+
+  if (int8_user_interface(data_type_cfg) && desc.algorithm == CONV_WINOGRAD) {
+    size_t t = (desc.dims.output.h + desc.tile_size - 3)
+        / (desc.tile_size - 3 + 1) * (desc.dims.output.w + desc.tile_size - 3)
+        / (desc.tile_size - 3 + 1) * desc.dims.output.n;
+    size_t A = desc.tile_size;
+    size_t K = 3;
+    size_t IC = desc.dims.input.c;
+    size_t tinput_byte_size = A * A * IC * t * sizeof(float);
+
+    MEMALIGN64(&desc.scratch_pad, tinput_byte_size);
+    desc.use_scratch_pad = true;
+    desc.execution_mode = 0xa033;
+  }
+
+  return desc.setup();
 }
 
 static inline void conv_execute(eld_conv_t convs[],
@@ -386,7 +432,7 @@ int main(int argc, char **argv)
   // 2. setup convolution
   eld_conv_t convs[RL_MAX];
   eld_conv_t conv_ref = desc_ref;
-  if (conv_ref.setup() != ELD_OK) {
+  if (conv_ref_setup(conv_ref) != ELD_OK) {
     printf("Fail: Convolution setup error!\n");
     return 0;
   }
@@ -408,10 +454,6 @@ int main(int argc, char **argv)
   do {                                                                         \
     for (auto c = 0; c < C; ++c) {                                             \
       convs[c] = desc;                                                         \
-      if (convs[c].setup() != ELD_OK) {                                        \
-        printf("Fail: Convolution setup error!\n");                            \
-        return 0;                                                              \
-      }                                                                        \
       input[c] = nullptr;                                                      \
       output[c] = nullptr;                                                     \
       itype **in = (itype **)&input[c];                                        \
@@ -419,9 +461,15 @@ int main(int argc, char **argv)
       otype **out = (otype **)&output[c];                                      \
       btype **b = (btype **)&bias[c];                                          \
       test::prepare_conv_data<itype, wtype, otype, btype>(                     \
-          conv_ref, input_ref, weights_ref, output_ref, bias_ref,              \
+          conv_ref, convs[c],                                                  \
+          input_ref, weights_ref, output_ref, bias_ref,                        \
           in, wei, out, b, input_file, weights_file, bias_file,                \
           reuse_inout, data_type_cfg, f16c_opt, validate_results);             \
+                                                                               \
+      if (convs[c].setup() != ELD_OK) {                                        \
+        printf("Fail: Convolution setup error!\n");                            \
+        return 0;                                                              \
+      }                                                                        \
     }                                                                          \
   } while (0)
 
@@ -429,6 +477,8 @@ int main(int argc, char **argv)
     _prepare_conv_data(float, float, float, float);
   } else if (data_type_cfg == euler::test::U8F32U8F32) {
     _prepare_conv_data(uint8_t, float, uint8_t, float);
+  } else if (data_type_cfg == euler::test::U8F32F32F32) {
+    _prepare_conv_data(uint8_t, float, float, float);
   }
 #ifdef ENABLE_USER_FP16
   else if (data_type_cfg == euler::test::FP16){

@@ -14,12 +14,12 @@ struct elk_conv_wino_trans_input<float, InputType, format, is_border,
 
   static void execute(elx_conv_params_t &xc, float atinput[A][A][V],
       InputType *input, int hA_start, int hA_end, int wA_start, int wA_end) {
-    __m<V> mS, mz;
+    // __m<V> mS, mz;
 
-    if (std::is_same<InputType, uint8_t>::value) {
-      mS = _mm<V>::set1_ps(xc.input_quant_S);
-      mz = _mm<V>::set1_ps(xc.input_quant_z);
-    }
+    // if (std::is_same<InputType, uint8_t>::value) {
+    //   mS = _mm<V>::set1_ps(xc.input_quant_S);
+    //   mz = _mm<V>::set1_ps(xc.input_quant_z);
+    // }
 
 #undef ldr_f32_impl
 #undef ldr_f16_impl
@@ -41,7 +41,8 @@ struct elk_conv_wino_trans_input<float, InputType, format, is_border,
     __i<V> isrcu8 = _mm512_cvtepu8_epi32(*(__m128i *)addr); \
     __m<V> msrcu8 = _mm512_cvt_roundepi32_ps(isrcu8, \
         _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC); \
-    (msrcu8 - mz) * mS; \
+    /*(msrcu8 - mz) * mS;*/ \
+    (msrcu8); \
   })
 
     auto f_cb = [&](int _h, int _w) {
