@@ -36,4 +36,4 @@ NSOCKETS=1 ./scripts/run.sh -c -i512 -h28 -o512 -H28 -n1 --blk-i=8 --blk-o=2 --f
 
 sleep 1
 # vgg19_conv5_1, 5.2T
-NSOCKETS=1 ./scripts/run.sh -c -i512 -h14 -o512 -H14 -n1 --blk-i=8 --blk-o=4 --flt-o=1 --flt-t=26 --tile-size=4 --execution-mode=0xa033 --pat-o=1 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -i512 -h14 -o512 -H14 -n1 --blk-i=32 --blk-o=1 --flt-o=2 --flt-t=14 --tile-size=4 --execution-mode=0xa033 --pat-o=1 $COMMON
