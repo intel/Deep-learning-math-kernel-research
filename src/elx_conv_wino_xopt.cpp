@@ -215,7 +215,7 @@ void Instance_elx_conv_wino_t::__execute_a079(
     int last_ic4 = -1, last_t2 = -1, last_oc4 = -1;
     int ithr = omp_get_thread_num();
 
-    parallel_for<3, 1>(mthr_, [&](int _oc4, int _ic4, int _t2) {
+    thread_parallel_for<3, 1>(mthr_, ithr, [&](int _oc4, int _ic4, int _t2) {
       MD2(TinputType, atinput2, tinput_, mthr_,
           A * A * this->T * this->ic3 * this->I2 * V);
       MD2(ToutputType, atoutput2, toutput_, this->t2,
