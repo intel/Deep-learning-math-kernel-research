@@ -30,7 +30,7 @@ public:
     hA_end_ = (xc->ih + xc->tp) - (xc->ht - 1) * (A - K + 1) - 1;
     wA_end_ = (xc->iw + xc->lp) - (xc->wt - 1) * (A - K + 1) - 1;
 
-    input_is_bfmt_ = xc->input_fmt == nchw ? false : true;
+    input_is_bfmt_ = xc->input_fmt == nChw16c;
     input_as_bfmt_ = !input_is_bfmt_ && xc->input_as_blocked;
 
     bind_kernel_functions();
