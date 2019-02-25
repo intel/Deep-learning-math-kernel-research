@@ -24,12 +24,15 @@ template <int N, int M = -1> struct thread_parallel_for {
       }
     }
     alloc_thread_task(nb_tasks_, mthr, ithr, task_start_, task_end_);
-    build_loop_index(task_start_, iterators_lim_from_);
-    build_loop_index(task_end_, iterators_lim_to_);
 
-    int next_L = M == 0 ? 1 : 0;
-    loop_for<F, 0>(func, iterators_lim_from_[next_L], iterators_lim_to_[next_L],
-        true, true);
+    if (task_start_ <= task_end_) {
+      build_loop_index(task_start_, iterators_lim_from_);
+      build_loop_index(task_end_, iterators_lim_to_);
+
+      int next_L = M == 0 ? 1 : 0;
+      loop_for<F, 0>(func, iterators_lim_from_[next_L],
+                     iterators_lim_to_[next_L], true, true);
+    }
   }
 
   private:
