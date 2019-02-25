@@ -78,6 +78,18 @@ template <int N, int M = -1> struct thread_parallel_for {
   inline void alloc_thread_task(int n, int mthr, int ithr, int &start, int &end)
   {
     assert(n > 0);
+
+    auto res = std::div(n, mthr);
+    auto base = res.quot;
+    auto more = res.rem;
+
+    auto select = static_cast<int>((ithr - 1) < more);
+    start = (base + select) * ithr + more * (1 - select);
+
+    // right close set??? How about open to save a op
+    end = start + base + static_cast<int>(ithr < more) -1;
+
+    /*
     if (mthr <= 1) {
       start = 0;
       end = n - 1;
@@ -95,6 +107,7 @@ template <int N, int M = -1> struct thread_parallel_for {
       start = th_n1 * n1 + (ithr - th_n1) * n2;
       end = start + n2 - 1;
     }
+    */
   }
 
   inline void build_loop_index(int taskid, int indices[N])
