@@ -153,7 +153,7 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
             (__m256i *)&md5(aweights5, _I2, _V, _P, _O, 0));
         res = _mm<V>::cvtph_ps(fp16v);
       }
-    } else {
+    } else { // blocked, TODO: consider remove
       MD6(WeightsType, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V);
       if (std::is_same<WeightsType, float>::value) {
         res = _mm<V>::load_ps(&md6(aweights6, _O, 0, _I2, _V, _P, 0));
@@ -274,7 +274,7 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       Ir = xc.Ir;
     }
 
-    MD3(WeightsType, aweights, weights, xc.kh, xc.kw, xc.oc3 * xc.ic3 * xc.O1 * xc.I2 * V * O * V); // compact
+    MD3(WeightsType, aweights, weights, xc.kh, xc.kw, xc.O1 * xc.I2 * V * O * V); // compact
 
     __m<V> mmout[JO][T], mmwei[JO][P];
     __mmask16 k = _cvtu32_mask16(xc.ormask);
@@ -516,7 +516,7 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       Ir = xc.Ir;
     }
 
-    MD3(WeightsType, aweights, weights, xc.kh, xc.kw, xc.oc3 * xc.ic3 * xc.O1 * xc.I2 * V * O * V); // compact
+    MD3(WeightsType, aweights, weights, xc.kh, xc.kw, xc.O1 * xc.I2 * V * O * V); // compact
 
     __m<V> mmout[JO][T], mmwei[JO][P];
     __mmask16 k = _cvtu32_mask16(xc.ormask);
@@ -718,7 +718,7 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
           int kws, int kwe, int attr)
   {
-    MD3(WeightsType, aweights, weights, xc.kh * xc.kw * xc.oc3 * xc.ic3, xc.O1,
+    MD3(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
         xc.I2 * V * O * V * Vx); // compact
     MD2(OutputType, aoutput_blocked, output, xc.O1, O * xc.oh * xc.ow * V);
     MD4(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O * V);
@@ -745,7 +745,7 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
           int kws, int kwe, int attr)
   {
-    MD5(WeightsType, aweights, weights, xc.kh * xc.kw * xc.oc3 * xc.ic3, xc.O1,
+    MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
         xc.I2 * V, O, V * Vx); // compact
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
     MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O, V);
@@ -779,7 +779,7 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
           int kws, int kwe, int attr)
   {
-    MD5(WeightsType, aweights, weights, xc.kh * xc.kw * xc.oc3 * xc.ic3, xc.O1,
+    MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
         xc.I2 * V, O, V * Vx); // compact
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
     MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O, V);

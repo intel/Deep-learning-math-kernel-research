@@ -139,12 +139,8 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
   size_t workspace_size = tweights_size_;
   // TODO: user provided buffer
   if (workspace_size != 0) {
-#if 1 // TODO
     MEMALIGN64(&workspace_, workspace_size);
     tweights_ = (TweightsType *)workspace_;
-#else
-    tweights_ = (TweightsType *)galloc::acquire(workspace_size);
-#endif
   }
 
   return 0;
@@ -159,7 +155,7 @@ Instance_elx_conv_direct_t::~elx_conv_direct_t()
 
 // weights (hwio): kh, kw, ic, oc
 // weights (blocked): oc2, ic2, kh, kw, V, V
-// tweights: ic4, oc4, kh, kw, oc3, _ic3, O1, I2, V, O, V
+// tweights: oc4, ic4, oc3, _ic3, kh, kw, O1, I2, V, O, V
 Template_elx_conv_direct_t
 void Instance_elx_conv_direct_t::trans_weights_to_compact(
     TweightsType *tweights, WeightsType *weights)
@@ -168,8 +164,8 @@ void Instance_elx_conv_direct_t::trans_weights_to_compact(
   if (this->weights_fmt == OIhw16i16o) {
     parallel_for<7>(mthr_, [&](int _oc4, int _oc3, int _O1, int _O, int _ic4,
                                int _ic3, int _I2) {
-      MD11(TweightsType, atweights, tweights, this->ic4, this->oc4, this->kh,
-           this->kw, this->oc3, this->ic3, this->O1, this->I2, V, this->O, V);
+      MD11(TweightsType, atweights, tweights, this->oc4, this->ic4, this->oc3,
+           this->ic3, this->kh, this->kw, this->O1, this->I2, V, this->O, V);
       MD11(WeightsType, aweights, weights, this->oc4, this->oc3, this->O1,
            this->O, this->ic4, this->ic3, this->I2, this->kh, this->kw, V, V);
       iter_each (_kh, this->kh) {
@@ -178,7 +174,7 @@ void Instance_elx_conv_direct_t::trans_weights_to_compact(
         if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
           if (std::is_same<TweightsType, float>::value) {
             _mm<V>::store_ps(&md11(atweights,
-                _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV, _O, 0),
+                _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, 0),
                 *(__m<V> *)&md11(aweights,
                 _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, 0));
           } else {
@@ -186,12 +182,12 @@ void Instance_elx_conv_direct_t::trans_weights_to_compact(
                 _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, 0),
                 _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
             _mm<V/2>::store_si256((__m256i *)&md11(atweights,
-                _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV, _O, 0), fp16v);
+                _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, 0), fp16v);
           }
         } else {
           #pragma omp simd
           iter_each (_oV, V) {
-            md11(atweights, _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV, _O, _oV)
+            md11(atweights, _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, _oV)
               = md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, _oV);
           }
         }
@@ -200,8 +196,8 @@ void Instance_elx_conv_direct_t::trans_weights_to_compact(
   } else if (this->weights_fmt == hwio) {
     parallel_for<5>(mthr_, [&](int _kh, int _kw, int _ic4, int _ic3, int _I2) {
       MD4(WeightsType, aweights0, weights, this->kh, this->kw, this->ic, this->oc);
-      MD11(TweightsType, atweights, tweights, this->ic4, this->oc4, this->kh,
-           this->kw, this->oc3, this->ic3, this->O1, this->I2, V, this->O, V);
+      MD11(TweightsType, atweights, tweights, this->oc4, this->ic4, this->oc3,
+           this->ic3, this->kh, this->kw, this->O1, this->I2, V, this->O, V);
       auto Ir = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
            && _I2 == this->I2 - 1 ? this->Ir : V;
       iter_each (_iV, Ir) {
@@ -221,27 +217,27 @@ void Instance_elx_conv_direct_t::trans_weights_to_compact(
           if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
             if (std::is_same<TweightsType, float>::value) {
               _mm<V>::store_ps(&md11(atweights,
-                  _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV, _O, 0),
+                  _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, 0),
                   *(__m<V> *)&md5(aweights2, _oc4, _oc3, _O1, _O, 0));
             } else {
               auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&md5(aweights2,
                   _oc4, _oc3, _O1, _O, 0),
                   _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
               _mm<V / 2>::store_si256((__m256i *)&md11(atweights,
-                  _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV, _O, 0), fp16v);
+                  _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, 0), fp16v);
             }
           } else {
             #pragma omp simd
             iter_each(_oV, V) {
               md11(atweights,
-                   _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV, _O, _oV) =
+                   _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, _oV) =
                 md5(aweights2, _oc4, _oc3, _O1, _O, _oV);
             }
           }
         }
         iter_each(_oV, Or) {
           md11(atweights,
-            _ic4, _oc4, _kh, _kw, _oc3, _ic3, _O1, _I2, _iV, this->O - 1, _oV) =
+            _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, this->O - 1, _oV) =
             md5(aweights2, _oc4, _oc3, _O1, this->O - 1, _oV);
         }
       }}}}
@@ -260,8 +256,8 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
 {
   // input:   ic3*, I2, V, ht*, hs*, wt*, T, ws
   // output:  oc3*, O2, ht*, wt*, T, V
-  MD4(TweightsType, aweights, weights, this->kh * this->kw, this->oc3, this->ic3,
-      this->O2 * this->I2 * V * V);
+  MD3(TweightsType, aweights, weights, this->oc3, this->ic3,
+      this->kh * this->kw * this->O2 * this->I2 * V * V);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
 
   auto ker_conv = _wt == this->wt - 1 ? ker_conv_Tr_ : ker_conv_;
@@ -287,7 +283,7 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
         attr = set_attr(attr, has_Or_idx);
       }
       ker_conv(*this, &md2(aoutput, _oc3, 0),
-          &md2(ainput, _ic3, 0), &md4(aweights, 0, _oc3, _ic3, 0),
+          &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
           &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
     }}
   } else {
@@ -303,7 +299,7 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
         if (this->with_relu) attr = set_attr(attr, relu_idx);
       }
       ker_conv(*this, &md2(aoutput, _oc3, 0),
-          &md2(ainput, _ic3, 0), &md4(aweights, 0, _oc3, _ic3, 0),
+          &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
           &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
     }}
   }
@@ -316,7 +312,8 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
 {
   // input:   ic3*, I2, ht*, hs*, wt*, T, ws, V
   // output:  oc3*, O2, ht*, wt*, T, V
-  MD5(TweightsType, aweights, weights, this->kh, this->kw, this->oc3, this->ic3, this->O2 * this->I2 * V * V);
+  MD5(TweightsType, aweights, weights, this->oc3, this->ic3, this->kh, this->kw,
+      this->O2 * this->I2 * V * V);
   MD3(BiasType, abias, bias, this->oc3, this->O2, V);
 
   int Tz = _wt == this->wt - 1 ? this->Tr : this->T;
@@ -370,7 +367,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
               this->oc3, this->O2, V);
           ker_gemm_[_wt][_kw](
               *this, &md4(aoutput1, 0, _oc3, 0, 0), &md4(ainput1, 0, _ic3, 0, 0),
-              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
+              &md5(aweights, _oc3, _ic3, _kh, _kw, 0), &md3(abias, _oc3, 0, 0),
               attr, 0, nullptr, nullptr, nullptr);
         }
       }
@@ -406,7 +403,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           auto _ows = (_iws + this->lp - _kw) / this->ws;
           ker_gemm_[_wt][_kw](*this, &md5(aoutput, _oc3, 0, _ht, _ows, 0),
               &md5(ainput, _ic3, 0, _ih, _iws, 0),
-              &md5(aweights, _kh, _kw, _oc3, _ic3, 0), &md3(abias, _oc3, 0, 0),
+              &md5(aweights, _oc3, _ic3, _kh, _kw, 0), &md3(abias, _oc3, 0, 0),
               attr, 0, nullptr, nullptr, nullptr);
         }
       }
