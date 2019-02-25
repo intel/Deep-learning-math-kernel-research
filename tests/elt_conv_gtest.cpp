@@ -88,8 +88,16 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
 
   // 2. prepare data
   float *input, *weights, *output, *bias;
-  test::prepare_conv_data<float>(desc, &input, &weights, &output, &bias,
-      nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+  float *input_dummy, *weights_dummy, *output_dummy, *bias_dummy;
+
+  MEMALIGN64(&input, desc.byte_sizes.input);
+  MEMALIGN64(&output, desc.byte_sizes.output);
+  MEMALIGN64(&weights, desc.byte_sizes.weights);
+  MEMALIGN64(&bias, desc.byte_sizes.bias);
+
+  test::prepare_conv_data(desc, input, weights, output, bias,
+      &input_dummy, &weights_dummy, &output_dummy, &bias_dummy,
+      nullptr, nullptr, nullptr);
 
   // 3. execute convolution
   int iterations = validate_results ? 1 : 6400 / mb;
@@ -99,8 +107,7 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
   for (int n = 0; n < iterations; ++n) {
     if (ELX_OK != elx_conv(desc, output, input, weights, bias)) {
       printf("Fail: Convolution execution error!\n");
-      test::teardown_conv_data(input, weights, output, bias, nullptr, nullptr, nullptr, nullptr);
-      return -1;
+      goto ret;
     }
   }
   timer.stop();
@@ -115,7 +122,8 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
                                        bias)) {
       printf("Fail: Convolution ref execution error!\n");
       validation_pass = false;
-    } else if (test::compare_conv_results(desc, output, ref_output, euler::FP32)) {
+    } else if (test::compare_conv_results(
+        desc, output, ref_output, euler::test::FP32, false, false)) {
       printf("Fail: Convolution results not correct!\n");
       validation_pass = false;
     } else {
@@ -126,7 +134,15 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
     free(ref_output);
   }
 
-  test::teardown_conv_data(input, weights, output, bias, nullptr, nullptr, nullptr, nullptr);
+ret:
+  free(input);
+  free(weights);
+  free(output);
+  free(bias);
+  free(input_dummy);
+  free(weights_dummy);
+  free(output_dummy);
+  free(bias_dummy);
 
   return 0;
 }

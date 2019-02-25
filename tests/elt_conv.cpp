@@ -11,7 +11,6 @@
 
 using namespace euler;
 namespace po = boost::program_options;
-int parse_cmd_options(int, char **);
 
 // Covolution options
 int mb = 0, ic = 0, ih = 0, iw = 0, oc = 0, oh = 0, ow = 0, kh = 3, kw = 3;
@@ -41,309 +40,6 @@ bool with_real_data = false;
 euler::sampling_kind_t sampling_kind = euler::CALIBRATED;
 float tinput_cali_s = FLT_MAX;
 float tinput_cali_z = FLT_MAX;
-
-typedef enum USER_DTYPE {
-  FP32 = 0,
-  FP16,
-  FP16O
-} user_data_type_t;
-
-template <typename ConvType>
-static inline ConvType create_conv_desc(user_data_type_t dtype) {
-  ConvType desc;
-  switch (dtype) {
-  case USER_DTYPE::FP32: desc.data_type = {
-      euler::euler_f32, euler::euler_f32, euler::euler_f32, euler::euler_f32 };
-    break;
-  case USER_DTYPE::FP16: desc.data_type = {
-      euler::euler_f16, euler::euler_f16, euler::euler_f16, euler::euler_f16 };
-    break;
-  case USER_DTYPE::FP16O: desc.data_type = {
-      euler::euler_f32, euler::euler_f32, euler::euler_f16, euler::euler_f32 };
-    break;
-  default:
-    test::error("Fail: Unsupported user data type ...\n");
-    break;
-  }
-  desc.dims = {{ mb, ic, ih, iw },
-               { oc, ic, kh, kw },
-               { mb, oc, oh, ow },
-               { oc } };
-  desc.formats = {
-    input_format, weights_format, output_format
-  };
-  desc.pads = { pw, pw, ph, ph };
-  desc.strides   = { sh, sw };
-  desc.with_bias = with_bias;
-  desc.with_relu = with_relu;
-  desc.with_ip_sum = with_ip_sum;
-  desc.f16c_opt = f16c_opt;
-  desc.algorithm = alg;
-  desc.tile_size = tile_size;
-  desc.prop_kind = prop_kind;
-  desc.nthreads = nthreads;
-  desc.execution_mode = execution_mode;
-  desc.flatting = { flt_o, flt_t };
-  desc.blocking = { blk_i, blk_o };
-  desc.partition = { pat_i, pat_o };
-  desc.streaming_hint
-      = { streaming_weights, streaming_input, streaming_output };
-  desc.format_as_blocked
-      = { input_as_blocked, weights_as_blocked, output_as_blocked };
-  desc.sampling_kind = sampling_kind;
-  desc.wino_tinput_quant.scale = tinput_cali_s;
-  desc.wino_tinput_quant.z = tinput_cali_z;
-  return desc;
-}
-
-template <typename T, typename O>
-static inline void conv_execute(eld_conv_t convs[],
-    T **input, T **weights, O **output, T **bias, int C) {
-  for (auto c = 0; c < C; ++c) {
-    eld_conv_t &_convs = convs[c];
-    T *_weights = weights[c], *_bias = bias[c], *_input = input[c];
-    O *_output = output[c];
-
-    if (std::is_same<T, O>::value) {
-      if (double_buffering) {
-        if (c % 2 == 0) {
-          _input = input[0];
-          _output = output[0];
-        } else {
-          _input = (T *)output[0];
-          _output = (O *)input[0];
-        }
-      } else if (output_as_input) {
-        if (c > 0) _input = (T *)output[c - 1];
-      }
-    }
-
-    if (ELX_OK != elx_conv(_convs, _output, _input, _weights, _bias)) {
-      test::error("Fail: Convolution execution error!\n");
-    }
-  }
-}
-
-template <typename T, typename O>
-static inline void conv_bench(eld_conv_t convs[],
-    eld_conv_t &desc0, T **input, T **weights,
-    O **output, T **bias, int C) {
-  auto num_ops = test::cal_ops(desc0);
-  auto N = validate_results ? 1 : test::cal_iterations(num_ops);
-
-  test::timer timer;
-  for (auto n = 0; n < N / C; ++n) {
-    for (auto c = 0; c < C; ++c) {
-      eld_conv_t &_convs = convs[c];
-      T *_weights = weights[c], *_bias = bias[c], *_input = input[c];
-      O *_output = output[c];
-
-      if (std::is_same<T, O>::value) {
-        if (double_buffering) {
-          if (c % 2 == 0) {
-            _input = input[0];
-            _output = output[0];
-          } else {
-            _input = (T *)output[0];
-            _output = (O *)input[0];
-          }
-        } else if (output_as_input) {
-          if (c > 0)
-            _input = (T *)output[c - 1];
-        }
-      }
-
-      timer.start();
-      if (ELX_OK
-          != elx_conv(_convs, _output, _input, _weights, _bias)) {
-        test::error("Fail: Convolution execution error!\n");
-      }
-      timer.stop();
-    }
-  }
-
-  timer.report_tflops("conv", C * (N / C), num_ops);
-}
-
-#define RL_MAX 128
-int main(int argc, char **argv)
-{
-  if (parse_cmd_options(argc, argv))
-    return 0;
-
-  // 1, create convolution desc
-  auto desc0 = create_conv_desc<eld_conv_t>(USER_DTYPE::FP32);
-#ifdef ENABLE_USER_FP16
-  auto desc1 = create_conv_desc<eld_conv_t>(USER_DTYPE::FP16);
-  auto desc2 = create_conv_desc<eld_conv_t>(USER_DTYPE::FP16O);
-#endif
-
-  // 2. setup convolution
-  eld_conv_t convs0[RL_MAX];
-#ifdef ENABLE_USER_FP16
-  eld_conv_t convs1[RL_MAX];
-  eld_conv_t convs2[RL_MAX];
-#endif
-
-  const auto C = validate_results ?
-      1 : repeated_layer <= RL_MAX ? repeated_layer : RL_MAX;
-
-  float *input[RL_MAX], *weights[RL_MAX], *output[RL_MAX], *bias[RL_MAX],
-      *ref_output;
-  short *input1[RL_MAX], *weights1[RL_MAX], *output1[RL_MAX], *bias1[RL_MAX];
-
-  bool reuse_inout = double_buffering || output_as_input;
-
-  if (data_type_cfg == euler::test::FP32) {
-    for (auto c = 0; c < C; ++c) {
-      convs0[c] = desc0;
-      if (convs0[c].setup() != ELD_OK) {
-        printf("Fail: Convolution setup error!\n");
-        return 0;
-      }
-      input[c] = nullptr;
-      output[c] = nullptr;
-      float **in = &input[c], **out = &output[c];
-      if (double_buffering && (c > 0)) {
-        in = nullptr;
-        out = nullptr;
-      } else if (output_as_input && (c > 0)) {
-        in = nullptr;
-      }
-      test::prepare_conv_data<float, float, float, float>(
-          convs0[c], in, &weights[c], out, &bias[c],
-          &input1[c], &weights1[c], &output1[c], &bias1[c],
-          input_file, weights_file, bias_file,
-          reuse_inout, data_type_cfg, f16c_opt, validate_results);
-    }
-
-    if (validate_results) {
-      ref_output = (float *)malloc(convs0[0].byte_sizes.output);
-      if (desc0.with_ip_sum)
-        memcpy(ref_output, output[0], convs0[0].byte_sizes.output);
-    }
-  }
-#ifdef ENABLE_USER_FP16
-  else if (data_type_cfg == euler::FP16){
-    for (auto c = 0; c < C; ++c) {
-      convs1[c] = desc1;
-      if (convs1[c].setup() != ELD_OK) {
-        printf("Fail: Convolution setup error!\n");
-        return 0;
-      }
-      input1[c] = nullptr;
-      output1[c] = nullptr;
-      short **in = &input1[c], **out = &output1[c];
-      if (double_buffering && (c > 0)) {
-        in = nullptr;
-        out = nullptr;
-      } else if (output_as_input && (c > 0)) {
-        in = nullptr;
-      }
-
-      if (c == 0) {
-        convs0[0] = desc0;
-        if (convs0[0].setup() != ELD_OK) {
-          printf("Fail: Convolution setup error!\n");
-          return 0;
-        }
-      }
-
-      test::prepare_conv_data<float, float, float, float>(
-          convs0[0], &input[c], &weights[c], &output[c], &bias[c],
-          in, &weights1[c], out, &bias1[c],
-          input_file, weights_file, bias_file, reuse_inout, data_type_cfg,
-          f16c_opt, validate_results);
-    }
-
-    if (validate_results) {
-      ref_output = (float *)malloc(convs0[0].byte_sizes.output);
-      if (desc1.with_ip_sum)
-        memcpy(ref_output, output[0], convs0[0].byte_sizes.output);
-    }
-  } else if (data_type_cfg == euler::test::FP16O) {
-    for (auto c = 0; c < C; ++c) {
-      convs2[c] = desc2;
-      if (convs2[c].setup() != ELD_OK) {
-        printf("Fail: Convolution setup error!\n");
-        return 0;
-      }
-
-      if (c == 0) {
-        convs0[0] = desc0;
-        if (convs0[0].setup() != ELD_OK) {
-          printf("Fail: Convolution setup error!\n");
-          return 0;
-        }
-      }
-
-      test::prepare_conv_data<float, float, float, float>(
-          convs0[0], &input[c], &weights[c], &output[c], &bias[c],
-          nullptr, nullptr, &output1[c], nullptr,
-          input_file, weights_file, bias_file,
-          reuse_inout, data_type_cfg, f16c_opt, validate_results);
-    }
-
-    if (validate_results) {
-      ref_output = (float *)malloc(convs0[0].byte_sizes.output);
-    }
-  }
-#endif
-  else {
-    printf("unsupported UserTypes\n");
-    return 0;
-  }
-
-  // 3. execute convolution
-  if (data_type_cfg == euler::test::FP32)
-    conv_execute(convs0, input, weights, output, bias, C);
-#ifdef ENABLE_USER_FP16
-  else if (data_type_cfg == euler::test::FP16)
-    conv_execute(convs1, input1, weights1, output1, bias1, C);
-  else if (data_type_cfg == euler::test::FP16O)
-    conv_execute(convs2, input, weights, output1, bias, C);
-#endif
-
-  if (validate_results) {
-    // 4. validate results
-    printf("Validation: ");
-    if (test::ref_convolution2d<float>(
-            convs0[0], ref_output, input[0], weights[0], bias[0]))
-      printf("Fail: Convolution ref execution error!\n");
-    if (data_type_cfg == euler::test::FP32) {
-      if (test::compare_conv_results(
-            convs0[0], output[0], ref_output, data_type_cfg, is_int8_lp, with_real_data))
-        printf("Fail: Convolution results not correct!\n");
-      else
-        printf("Convolution Pass!\n");
-    } else {
-      if (test::compare_conv_results(
-            convs0[0], output1[0], ref_output, data_type_cfg, is_int8_lp, with_real_data))
-        printf("Fail: Convolution results not correct!\n");
-      else
-        printf("Convolution Pass!\n");
-    }
-    free(ref_output);
-  } else {
-    // 5. bench
-    if (data_type_cfg == euler::test::FP32)
-      conv_bench(convs0, desc0, input, weights, output, bias, C);
-#ifdef ENABLE_USER_FP16
-    else if (data_type_cfg == euler::test::FP16)
-      conv_bench(convs1, desc0, input1, weights1, output1, bias1, C);
-    else if (data_type_cfg == euler::test::FP16O)
-      conv_bench(convs2, desc0, input, weights, output1, bias, C);
-#endif
-  }
-
-  // 6. setdown
-  for (auto c = 0; c < C; ++c) {
-    test::teardown_conv_data(input[c], weights[c], output[c], bias[c],
-        input1[c], weights1[c], output1[c], bias1[c], data_type_cfg, validate_results);
-  }
-
-  return 0;
-}
 
 int parse_cmd_options(int argc, char **argv) {
   po::options_description desc{"Options"};
@@ -566,3 +262,229 @@ int parse_cmd_options(int argc, char **argv) {
 
   return 0;
 }
+
+static inline eld_conv_t create_conv_desc(int _data_type_cfg) {
+  eld_conv_t desc;
+  if (_data_type_cfg == euler::test::FP32) {
+    desc.data_type = {
+        euler::euler_f32, euler::euler_f32, euler::euler_f32, euler::euler_f32 };
+  } else if (_data_type_cfg == euler::test::FP16) {
+    desc.data_type = {
+        euler::euler_f16, euler::euler_f16, euler::euler_f16, euler::euler_f16 };
+  } else if (_data_type_cfg == euler::test::FP16O) {
+    desc.data_type = {
+        euler::euler_f32, euler::euler_f32, euler::euler_f16, euler::euler_f32 };
+  } else if (_data_type_cfg == euler::test::U8F32U8F32) {
+    desc.data_type = {
+        euler::euler_u8, euler::euler_f32, euler::euler_u8, euler::euler_f32 };
+  } else {
+    test::error("Fail: Unsupported user data type ...\n");
+    exit(1);
+  }
+  desc.dims = {{ mb, ic, ih, iw },
+               { oc, ic, kh, kw },
+               { mb, oc, oh, ow },
+               { oc } };
+  desc.formats = {
+    input_format, weights_format, output_format
+  };
+  desc.pads = { pw, pw, ph, ph };
+  desc.strides   = { sh, sw };
+  desc.with_bias = with_bias;
+  desc.with_relu = with_relu;
+  desc.with_ip_sum = with_ip_sum;
+  desc.f16c_opt = f16c_opt;
+  desc.algorithm = alg;
+  desc.tile_size = tile_size;
+  desc.prop_kind = prop_kind;
+  desc.nthreads = nthreads;
+  desc.execution_mode = execution_mode;
+  desc.flatting = { flt_o, flt_t };
+  desc.blocking = { blk_i, blk_o };
+  desc.partition = { pat_i, pat_o };
+  desc.streaming_hint
+      = { streaming_weights, streaming_input, streaming_output };
+  desc.format_as_blocked
+      = { input_as_blocked, weights_as_blocked, output_as_blocked };
+  desc.sampling_kind = sampling_kind;
+  desc.wino_tinput_quant.scale = tinput_cali_s;
+  desc.wino_tinput_quant.z = tinput_cali_z;
+  return desc;
+}
+
+static inline void conv_execute(eld_conv_t convs[],
+    void **input, void **weights, void **output, void **bias, int C) {
+  for (auto c = 0; c < C; ++c) {
+    eld_conv_t &_convs = convs[c];
+    void *_weights = weights[c], *_bias = bias[c],
+         *_input = input[c], *_output = output[c];
+
+    if (double_buffering) {
+      if (c % 2 == 0) {
+        _input = input[0];
+        _output = output[0];
+      } else {
+        _input = output[0];
+        _output = input[0];
+      }
+    } else if (output_as_input) {
+      if (c > 0) _input = output[c - 1];
+    }
+
+    if (ELX_OK != elx_conv(_convs, _output, _input, _weights, _bias)) {
+      test::error("Fail: Convolution execution error!\n");
+    }
+  }
+}
+
+static inline void conv_bench(eld_conv_t convs[], eld_conv_t &conv_ref,
+    void **input, void **weights, void **output, void **bias, int C) {
+  auto num_ops = test::cal_ops(conv_ref);
+  auto N = validate_results ? 1 : test::cal_iterations(num_ops);
+
+  test::timer timer;
+  for (auto n = 0; n < N / C; ++n) {
+    for (auto c = 0; c < C; ++c) {
+      eld_conv_t &_convs = convs[c];
+      void *_weights = weights[c],
+           *_bias = bias[c],
+           *_input = input[c],
+           *_output = output[c];
+
+      if (double_buffering) {
+        if (c % 2 == 0) {
+          _input = input[0];
+          _output = output[0];
+        } else {
+          _input = output[0];
+          _output = input[0];
+        }
+      } else if (output_as_input) {
+        if (c > 0)
+          _input = output[c - 1];
+      }
+
+      timer.start();
+      if (ELX_OK != elx_conv(_convs, _output, _input, _weights, _bias))
+        test::error("Fail: Convolution execution error!\n");
+      timer.stop();
+    }
+  }
+
+  timer.report_tflops("conv", C * (N / C), num_ops);
+}
+
+#define RL_MAX 128
+int main(int argc, char **argv)
+{
+  if (parse_cmd_options(argc, argv))
+    return 0;
+
+  // 1, create convolution desc
+  auto desc = create_conv_desc(data_type_cfg);
+  auto desc_ref = create_conv_desc(euler::test::FP32);
+
+  // 2. setup convolution
+  eld_conv_t convs[RL_MAX];
+  eld_conv_t conv_ref = desc_ref;
+  if (conv_ref.setup() != ELD_OK) {
+    printf("Fail: Convolution setup error!\n");
+    return 0;
+  }
+
+  const auto C = validate_results ?
+      1 : repeated_layer <= RL_MAX ? repeated_layer : RL_MAX;
+
+  void *input[RL_MAX], *weights[RL_MAX], *output[RL_MAX], *bias[RL_MAX];
+  float *input_ref, *weights_ref, *output_ref, *bias_ref;
+
+  bool reuse_inout = double_buffering || output_as_input;
+
+  MEMALIGN64(&input_ref, conv_ref.byte_sizes.input);
+  MEMALIGN64(&output_ref, conv_ref.byte_sizes.output);
+  MEMALIGN64(&weights_ref, conv_ref.byte_sizes.weights);
+  MEMALIGN64(&bias_ref, conv_ref.byte_sizes.bias);
+
+#define _prepare_conv_data(itype, wtype, otype, btype)                         \
+  do {                                                                         \
+    for (auto c = 0; c < C; ++c) {                                             \
+      convs[c] = desc;                                                         \
+      if (convs[c].setup() != ELD_OK) {                                        \
+        printf("Fail: Convolution setup error!\n");                            \
+        return 0;                                                              \
+      }                                                                        \
+      input[c] = nullptr;                                                      \
+      output[c] = nullptr;                                                     \
+      itype **in = (itype **)&input[c];                                        \
+      wtype **wei = (wtype **)&weights[c];                                     \
+      otype **out = (otype **)&output[c];                                      \
+      btype **b = (btype **)&bias[c];                                          \
+      test::prepare_conv_data<itype, wtype, otype, btype>(                     \
+          conv_ref, input_ref, weights_ref, output_ref, bias_ref,              \
+          in, wei, out, b, input_file, weights_file, bias_file,                \
+          reuse_inout, data_type_cfg, f16c_opt, validate_results);             \
+    }                                                                          \
+  } while (0)
+
+  if (data_type_cfg == euler::test::FP32) {
+    _prepare_conv_data(float, float, float, float);
+  } else if (data_type_cfg == euler::test::U8F32U8F32) {
+    _prepare_conv_data(uint8_t, float, uint8_t, float);
+  }
+#ifdef ENABLE_USER_FP16
+  else if (data_type_cfg == euler::FP16){
+    _prepare_conv_data(uint16_t, uint16_t, uint16_t, uint16_t);
+  } else if (data_type_cfg == euler::test::FP16O) {
+    _prepare_conv_data(float, float, float, float);
+  }
+#endif
+  else {
+    printf("unsupported UserTypes\n");
+    return 0;
+  }
+
+  // 3. execute convolution
+  conv_execute(convs, input, weights, output, bias, C);
+
+  if (validate_results) {
+    // 4. validate results
+    eld_conv_t &conv_val = convs[C - 1];
+    void *output_val = output[C - 1];
+
+    printf("Validation: ");
+    if (test::ref_convolution2d<float>(
+        conv_ref, output_ref, input_ref, weights_ref, bias_ref)) {
+      printf("Fail: Convolution ref execution error!\n");
+    } else {
+      float *_output;
+      MEMALIGN64(&_output, conv_ref.byte_sizes.output);
+      test::post_process_conv_results(
+          _output, conv_val, output_val, data_type_cfg);
+
+      if (test::compare_conv_results(conv_ref, _output,
+          output_ref, data_type_cfg, is_int8_lp, with_real_data))
+        printf("Fail: Convolution results not correct!\n");
+      else
+        printf("Convolution Pass!\n");
+      free(_output);
+    }
+  } else {
+    // 5. bench
+    conv_bench(convs, conv_ref, input, weights, output, bias, C);
+  }
+
+  // 6. setdown
+  free(input_ref);
+  free(output_ref);
+  free(weights_ref);
+  free(bias_ref);
+  for (auto c = 0; c < C; ++c) {
+    free(input[c]);
+    free(weights[c]);
+    free(output[c]);
+    free(bias[c]);
+  }
+
+  return 0;
+}
+

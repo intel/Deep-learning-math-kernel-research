@@ -22,31 +22,26 @@ namespace test {
 
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
   void prepare_conv_data(eld_conv_t &desc,
-      InputType **input, WeightsType **weights, OutputType **output,
-      BiasType **bias, short **input1, short **weights1, short **output1,
-      short **bias1, const char *input_file, const char *weights_file, const char *bias_file,
+      float *input_ref, float *weights_ref, float *output_ref, float *bias_ref,
+      InputType **input, WeightsType **weights, OutputType **output, BiasType **bias,
+      const char *input_file, const char *weights_file, const char *bias_file,
       bool double_buffering = false, int data_type_cfg = 0,
       bool f16c_opt = false, bool validate_results = false);
 
-  void teardown_conv_data(void *input, void *weights, void *output, void *bias,
-      void *input1, void *weights1, void *output1, void *bias1, int data_type_cfg = 0,
-      bool validate_results = false);
-
-  template <typename OutputType>
-  int __compare_conv_results_nchw(eld_conv_t &, OutputType *out,
+  int __compare_conv_results_nchw(eld_conv_t &, float *out,
       float *ref, int data_type_cfg, double acc);
 
-  template <typename OutputType>
-  int __compare_conv_results_nhwc(eld_conv_t &, OutputType *out,
+  int __compare_conv_results_nhwc(eld_conv_t &, float *out,
       float *ref, int data_type_cfg, double acc);
 
-  template <typename OutputType>
-  int __compare_conv_results_blocked(eld_conv_t &, OutputType *out,
+  int __compare_conv_results_blocked(eld_conv_t &, float *out,
       float *ref, int data_type_cfg, double acc);
 
-  template <typename OutputType>
-  int compare_conv_results(eld_conv_t &, OutputType *out, float *ref,
+  int compare_conv_results(eld_conv_t &, float *out, float *ref,
       int data_type_cfg, bool is_int8_lp = false, bool with_real_data = false);
+
+  void post_process_conv_results(float *ouput_ref, eld_conv_t &desc,
+      void *output_res, int data_type_cfg);
 
   size_t cal_ops(eld_conv_t &desc);
   int cal_iterations(size_t num_ops);
