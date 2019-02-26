@@ -180,7 +180,7 @@ int  Instance_elx_conv_direct_1x1_t::prepare_execute_opt()
   case 0xa061:
     toutput_size = mthr_ * this->oc3 * this->O2 * this->T * V * sizeof(ToutputType);
   case 0xb061:
-    tinput_msk_ = (unsigned char *)malloc(mthr_ * this->ht * this->wt);
+    tinput_msk_ = (unsigned char *)malloc(mthr_ * this->ic4 * this->ht * this->wt);
     tinput_size = mthr_ * this->ic3 * this->I2 * V * this->ht * this->wt * this->T * sizeof(TinputType);
     tweights_size = this->IC * this->OC * sizeof(TweightsType);
     break;
@@ -212,12 +212,23 @@ int  Instance_elx_conv_direct_1x1_t::prepare_execute_opt()
   boutput_size_ = boutput_size > 0 ? alignup(boutput_size, align) : 0;
 
   scratch_ = nullptr;
+  // TODO: enable workspace for tweights
+#if 0
   size_t workspace_size = tweights_size_;
+  size_t scratch_size = tinput_size_ + toutput_size_
+      + binput_size_ + bweights_size_ + boutput_size_;
+  // TODO: user provided buffer
+  if (scratch_size != 0)
+    scratch_ = galloc::acquire(scratch_size);
+  if (workspace_size != 0)
+    MEMALIGN64(&workspace_, workspace_size);
+#else
   size_t scratch_size = tinput_size_ + tweights_size_ + toutput_size_
       + binput_size_ + bweights_size_ + boutput_size_;
   // TODO: user provided buffer
   if (scratch_size != 0)
     scratch_ = galloc::acquire(scratch_size);
+#endif
 
   // dbg
   printf("nthreads=%d, mthr_=%d\n", this->nthreads, mthr_);
@@ -227,9 +238,15 @@ int  Instance_elx_conv_direct_1x1_t::prepare_execute_opt()
 Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::set_trans_buffers()
 {
+#if 0
+  tweights_ = (TweightsType *)workspace_;
+  tinput_ = (TinputType *)galloc::get();
+  toutput_ = (ToutputType *)((char *)tinput_ + tinput_size_);
+#else
   tinput_ = (TinputType *)galloc::get();
   tweights_ = (TweightsType *)((char *)tinput_ + tinput_size_);
   toutput_ = (ToutputType *)((char *)tweights_ + tweights_size_);
+#endif
   binput_ = (InputType *)((char *)toutput_ + toutput_size_);
   bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
   boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);

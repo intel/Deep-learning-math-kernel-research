@@ -115,6 +115,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t {
   size_t bweights_size_;
   size_t boutput_size_;
   void *scratch_;
+  void *workspace_;
 };
 
 //fp32-f32f32f32
