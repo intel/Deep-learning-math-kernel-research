@@ -24,7 +24,7 @@ typedef short float16;
 #define iter_each(indx, lim) for (int indx = 0; indx < (lim); ++indx)
 #define revs_each(indx, lim) for (int indx = lim -1; indx >=0; -- indx)
 #define unroll_auto(indx, lim)                                                 \
-  _Pragma(STRINGIFY(unroll)) for (int indx = 0; indx < (lim); ++indx)
+  _Pragma(STRINGIFY(unroll())) for (int indx = 0; indx < (lim); ++indx)
 #define unroll_for(indx, lim)                                                  \
   _Pragma(STRINGIFY(unroll(lim))) for (int indx = 0; indx < (lim); ++indx)
 #define unroll_from_to(indx, from, to)                                         \

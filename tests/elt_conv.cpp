@@ -25,7 +25,7 @@ int flt_o = 1, flt_t = 1;
 int blk_i = 1, blk_o = 1;
 int pat_i = 1, pat_o = 1;
 int tile_size = 7;
-int streaming_weights = 0, streaming_input = 0, streaming_output = 0;
+int streaming_input = 0, streaming_output = 0;
 bool input_as_blocked = false, weights_as_blocked = false, output_as_blocked = false;
 const char *input_file = nullptr, *weights_file = nullptr, *bias_file = nullptr;
 
@@ -76,7 +76,6 @@ int parse_cmd_options(int argc, char **argv) {
     ("blk-o", po::value<int>(&blk_o), "OC blocking")
     ("pat-i", po::value<int>(&pat_i), "Partition on ic")
     ("pat-o", po::value<int>(&pat_o), "Partition on oc")
-    ("streaming-weights", po::value<int>(&streaming_weights), "Streaming hint for winograd transformed weights")
     ("streaming-input", po::value<int>(&streaming_input), "Streaming hint for winograd transformed input")
     ("streaming-output", po::value<int>(&streaming_output), "Streaming hint for winograd transformed output")
     ("input-format", po::value<std::string>(), "nchw|nhwc|nChw16c. Input data format. Default: nChw16c")
@@ -203,12 +202,12 @@ int parse_cmd_options(int argc, char **argv) {
          "with_bias:%d, with_relu:%d, with_ip_sum:%d, f16c_opt=%d, "
          "data_type_cfg=%d, validate_results:%d\n"
          "flt_o:%d, flt_t:%d, blk_i:%d, blk_o:%d, pat_i:%d, pat_o:%d\n"
-         "streaming-hint:%d, %d, %d\n"
+         "streaming-hint:%d, %d\n"
          "nthreads:%d\n"
          "execution-mode:%x\n",
       mb, ic, ih, iw, oc, oh, ow, kh, kw, ph, pw, sh, sw, dh, dw, with_bias,
       with_relu, with_ip_sum, f16c_opt, data_type_cfg, validate_results, flt_o,
-      flt_t, blk_i, blk_o, pat_i, pat_o, streaming_weights, streaming_input,
+      flt_t, blk_i, blk_o, pat_i, pat_o, streaming_input,
       streaming_output, nthreads, execution_mode);
 
   std::unordered_map<int, const char *>prop_kind_str {
@@ -303,7 +302,7 @@ static inline eld_conv_t create_conv_desc(int _data_type_cfg) {
   desc.blocking = { blk_i, blk_o };
   desc.partition = { pat_i, pat_o };
   desc.streaming_hint
-      = { streaming_weights, streaming_input, streaming_output };
+      = { streaming_input, streaming_output };
   desc.format_as_blocked
       = { input_as_blocked, weights_as_blocked, output_as_blocked };
   desc.sampling_kind = sampling_kind;

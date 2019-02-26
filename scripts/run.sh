@@ -31,7 +31,7 @@ function conv_test() {
   b=1; r=0; v=1; a=wino; l=16; B=0; A=0; T=0
   flt_o=0; flt_t=0; blk_i=0; blk_o=0; pat_i=1; pat_o=1
   tile_size=5; nthreads=0; execution_mode=0
-  streaming_weights=0; streaming_input=0; streaming_output=0
+  streaming_input=0; streaming_output=0
   input_format=nChw16c; weights_format=OIhw16i16o; output_format=nChw16c
   input_as_blocked=0; weights_as_blocked=0; output_as_blocked=0
   with_ip_sum=0; f16c_opt=0; data_type_cfg=0
@@ -102,10 +102,6 @@ function conv_test() {
           tile-size) tile_size="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
             ;;
           tile-size=*) tile_size=${OPTARG#*=}
-            ;;
-          streaming-weights) streaming_weights="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-            ;;
-          streaming-weights=*) streaming_weights=${OPTARG#*=}
             ;;
           streaming-input) streaming_input="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
             ;;
@@ -193,7 +189,6 @@ function conv_test() {
     --flt-o=$flt_o --flt-t=$flt_t --blk-i=$blk_i --blk-o=$blk_o \
     --pat-i=$pat_i --pat-o=$pat_o --tile-size=$tile_size \
     --nthreads=$nthreads --execution-mode=$execution_mode \
-    --streaming-weights=$streaming_weights \
     --streaming-input=$streaming_input \
     --streaming-output=$streaming_output \
     --input-format=$input_format \

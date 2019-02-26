@@ -31,7 +31,7 @@ eld_conv_t::eld_conv_t()
   blocking = { 0, 0 };
   flatting = { 0, 0 };
   partition = { 1, 1 };
-  streaming_hint = { 0, 0, 0 };
+  streaming_hint = { 0, 0 };
   format_as_blocked = { false, false, false };
   input_quant = {EL_NO_CALI, EL_NO_CALI};
   output_quant = {EL_NO_CALI, EL_NO_CALI};

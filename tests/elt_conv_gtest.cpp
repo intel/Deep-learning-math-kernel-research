@@ -18,8 +18,8 @@ using ::testing::Combine;
 
 int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
                   int input_format, int weights_format, int output_format,
-                  int blk_i, int blk_o, int blk_t, int mb, int streaming_input,
-                  int streaming_weights, int streaming_output,
+                  int blk_i, int blk_o, int blk_t, int mb,
+                  int streaming_input, int streaming_output,
                   bool input_as_blocked, bool weights_as_blocked,
                   bool output_as_blocked, bool with_bias, bool with_relu) {
   // Covolution options
@@ -49,8 +49,8 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
   printf("input_format:%d, weights_format:%d, output_format:%d \n",
          input_format, weights_format, output_format);
   printf("blk_i:%d, blk_o:%d, blk_t:%d, mb:%d \n", blk_i, blk_o, blk_t, mb);
-  printf("streaming_input:%d, streaming_weights:%d, streaming_output:%d \n",
-         streaming_input, streaming_weights, streaming_output);
+  printf("streaming_input:%d, streaming_output:%d \n",
+         streaming_input, streaming_output);
   printf("input_as_blocked:%d, weights_as_blocked:%d, output_as_blocked:%d \n",
          input_as_blocked, weights_as_blocked, output_as_blocked);
   printf("with_bias:%d, with_relu:%d \n", with_bias, with_relu);
@@ -77,7 +77,7 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
   desc.flatting = {1, blk_t};
   desc.blocking = {blk_i, blk_o};
   desc.partition = {pat_i, pat_o};
-  desc.streaming_hint = {streaming_weights, streaming_input, streaming_output};
+  desc.streaming_hint = {streaming_input, streaming_output};
   desc.format_as_blocked = {input_as_blocked, weights_as_blocked,
                             output_as_blocked};
 
@@ -184,7 +184,6 @@ TEST_P(eltConvTest, combineTest) {
 
   int test_mb = rand() % 128 + 1;
   int test_streaming_input = rand() % 3;
-  int test_streaming_weights = rand() % 3;
   int test_streaming_output = rand() % 3;
   bool test_input_as_blocked = rand() % 2;
   bool test_weights_as_blocked = rand() % 2;
@@ -195,7 +194,7 @@ TEST_P(eltConvTest, combineTest) {
       test_tile_size, test_execution_mode, test_pat_i, test_pat_o,
       test_input_format, test_weights_format, test_output_format, test_blk_i,
       test_blk_o, test_blk_t, test_mb, test_streaming_input,
-      test_streaming_weights, test_streaming_output, test_input_as_blocked,
+      test_streaming_output, test_input_as_blocked,
       test_weights_as_blocked, test_output_as_blocked, test_with_bias,
       test_with_relu);
   EXPECT_EQ(0, ret);

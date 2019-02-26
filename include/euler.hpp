@@ -138,7 +138,7 @@ struct EULER_API eld_conv_t {
   struct { int i, o; } blocking;
   struct { int i, o; } partition;
   // Streaming hint: STORE_DEFAULT | STORE_NORMAL | STORE_STREAMING
-  struct { int weights, input, output; } streaming_hint;
+  struct { int input, output; } streaming_hint;
   // Use blocked format internally for plain format
   struct { bool input, weights, output; } format_as_blocked;
 

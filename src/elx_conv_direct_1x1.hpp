@@ -87,7 +87,6 @@ class elx_conv_direct_1x1_t : public elx_conv_t {
 
   bool stream_in_;
   bool stream_out_;
-  bool stream_wei_;
 
   bool is_bfmt_;
   bool input_is_bfmt_;

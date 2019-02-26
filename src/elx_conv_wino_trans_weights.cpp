@@ -17,99 +17,50 @@ void elx_conv_wino_trans_weights_t<TweightsType, WeightsType, I, A, K, V>
       xc->O1, xc->I2, V, xc->O, V);
   if (I == ISA_SKX_AVX512 && std::is_same<op_type, float>::value
       && std::is_same<TweightsType, float>::value) {
-    if (stream_wei_) {
-      iter_each (_wA, A) {
-      iter_each (_hA, A) {
-      iter_each (_iV, V) {
-        _mm<V>::stream_ps(&md9(atweights, _oc3, _ic3, _wA, _hA,
-            _O1, _I2, _iV, _O, 0), *((__m512 *)&at[_wA][_hA][_iV][0]));
-      }}}
-    } else {
-      iter_each (_wA, A) {
-      iter_each (_hA, A) {
-      iter_each (_iV, V) {
-        _mm512_store_ps(&md9(atweights, _oc3, _ic3, _wA, _hA,
-            _O1, _I2, _iV, _O, 0), *((__m512 *)&at[_wA][_hA][_iV][0]));
-      }}}
-    }
+    iter_each (_wA, A) {
+    iter_each (_hA, A) {
+    iter_each (_iV, V) {
+      _mm512_store_ps(&md9(atweights, _oc3, _ic3, _wA, _hA,
+          _O1, _I2, _iV, _O, 0), *((__m512 *)&at[_wA][_hA][_iV][0]));
+    }}}
   } else if (I == ISA_SKX_AVX512 && std::is_same<op_type, float>::value
      && std::is_same<TweightsType, float16>::value) {
-    if (xc->O == 2) { // fp32 -> bf16
+    if (xc->O == 2) { // fp32 -> bf16  combine two _O
       auto mask = _mm<V>::set1_epi32(0xFFFF0000);
       if (_O ==  0) {
-        if (stream_wei_) {
-          iter_each (_wA, A) {
-          iter_each (_hA, A) {
-          iter_each (_iV, V) {
-            auto si512 = _mm<V>::load_si512(&at[_wA][_hA][_iV][0]);
-            auto w0 = _mm<V>::and_epi32(si512, mask);
-            _mm<V>::stream_si512((__i<V> *)&md9(atweights, _oc3, _ic3, _wA, _hA,
-                                                _O1, _I2, _iV, 0, 0), w0);
-          }}}
-        } else {
-          iter_each (_wA, A) {
-          iter_each (_hA, A) {
-          iter_each (_iV, V) {
-            auto si512 = _mm<V>::load_si512(&at[_wA][_hA][_iV][0]);
-            auto w0 = _mm<V>::and_epi32(si512, mask);
-            _mm<V>::store_si512((__i<V> *)&md9(atweights, _oc3, _ic3, _wA, _hA,
-                                               _O1, _I2, _iV, 0, 0), w0);
-          }}}
-        }
+        iter_each (_wA, A) {
+        iter_each (_hA, A) {
+        iter_each (_iV, V) {
+          auto si512 = _mm<V>::load_si512(&at[_wA][_hA][_iV][0]);
+          auto w0 = _mm<V>::and_epi32(si512, mask);
+          _mm<V>::store_si512((__i<V> *)&md9(atweights, _oc3, _ic3, _wA, _hA,
+                                             _O1, _I2, _iV, 0, 0), w0);
+        }}}
       } else {
-        if (stream_wei_) {
-          iter_each (_wA, A) {
-          iter_each (_hA, A) {
-          iter_each (_iV, V) {
-            auto si512 = _mm<V>::load_si512(&at[_wA][_hA][_iV][0]);
-            auto w1 = _mm<V>::and_epi32(si512, mask);
-            auto sr_w1 = _mm<V>::bsrli_epi128(w1, 2);
+        iter_each (_wA, A) {
+        iter_each (_hA, A) {
+        iter_each (_iV, V) {
+          auto si512 = _mm<V>::load_si512(&at[_wA][_hA][_iV][0]);
+          auto w1 = _mm<V>::and_epi32(si512, mask);
+          auto sr_w1 = _mm<V>::bsrli_epi128(w1, 2);
 
-            auto w0 = _mm<V>::stream_load_si512(
-                &md9(atweights, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, 0, 0));
+          auto w0 = _mm<V>::load_si512(
+              &md9(atweights, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, 0, 0));
 
-            auto w0w1 = _mm<V>::or_epi32(w0, sr_w1);
-            _mm<V>::stream_si512((__i<V> *)&md9(atweights, _oc3, _ic3, _wA, _hA,
-                                                _O1, _I2, _iV, 0, 0), w0w1);
-          }}}
-        } else {
-          iter_each (_wA, A) {
-          iter_each (_hA, A) {
-          iter_each (_iV, V) {
-            auto si512 = _mm<V>::load_si512(&at[_wA][_hA][_iV][0]);
-            auto w1 = _mm<V>::and_epi32(si512, mask);
-            auto sr_w1 = _mm<V>::bsrli_epi128(w1, 2);
-
-            auto w0 = _mm<V>::load_si512(
-                &md9(atweights, _oc3, _ic3, _wA, _hA, _O1, _I2, _iV, 0, 0));
-
-            auto w0w1 = _mm<V>::or_epi32(w0, sr_w1);
-            _mm<V>::store_si512((__i<V> *)&md9(atweights, _oc3, _ic3, _wA, _hA,
-                                               _O1, _I2, _iV, 0, 0), w0w1);
-          }}}
-        }
+          auto w0w1 = _mm<V>::or_epi32(w0, sr_w1);
+          _mm<V>::store_si512((__i<V> *)&md9(atweights, _oc3, _ic3, _wA, _hA,
+                                             _O1, _I2, _iV, 0, 0), w0w1);
+        }}}
       }
     } else {       // fp32 -> fp16
-      if (stream_wei_) {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-        iter_each (_iV, V) {
-          auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&at[_wA][_hA][_iV][0],
-              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V/2>::stream_si256((__m256i *)&md9(atweights, _oc3,
-                               _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
-
-        }}}
-      } else {
-        iter_each (_wA, A) {
-        iter_each (_hA, A) {
-        iter_each (_iV, V) {
-          auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&at[_wA][_hA][_iV][0],
-              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-          _mm<V/2>::store_si256((__m256i *)&md9(atweights, _oc3,
-                               _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
-        }}}
-      }
+      iter_each (_wA, A) {
+      iter_each (_hA, A) {
+      iter_each (_iV, V) {
+        auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&at[_wA][_hA][_iV][0],
+            _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        _mm<V/2>::store_si256((__m256i *)&md9(atweights, _oc3,
+                             _ic3, _wA, _hA, _O1, _I2, _iV, _O, 0), fp16v);
+      }}}
     }
   } else {
     iter_each (_wA, A) {

@@ -10,8 +10,8 @@ typedef std::chrono::duration<float, std::milli> Duration;
 
 int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
                   int input_format, int weights_format, int output_format,
-                  int blk_i, int blk_o, int blk_t, int mb, int streaming_input,
-                  int streaming_weights, int streaming_output,
+                  int blk_i, int blk_o, int blk_t, int mb,
+                  int streaming_input, int streaming_output,
                   bool input_as_blocked, bool weights_as_blocked,
                   bool output_as_blocked, bool with_bias, bool with_relu);
 
