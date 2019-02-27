@@ -252,10 +252,9 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       MD5(InputType, ainput2, &md4(ainput1, 0, _T, 0, 0), xc.ic4, xc.ic3, xc.I2, V/P, P);
       return _mm<V>::set1_ps(md5(ainput2, 0, 0, _I2, _V, _P));
     } else { // blocked
-      MD2(InputType, ainput0, input, xc.I2, xc.ih * xc.iw * V);
-      MD3(InputType, ainput1, &md2(ainput0, _I2, 0), xc.ih, xc.iw, V);
-      MD4(InputType, ainput2, &md3(ainput1, _ih, _iw, 0), T, S, V / P, P);
-      return _mm<V>::set1_ps(md4(ainput2, _T, 0, _V, _P));
+      MD4(InputType, ainput0, input, xc.I2, xc.ih, xc.iw, V);
+      MD4(InputType, ainput1, &md4(ainput0, _I2, _ih, _iw, 0), T, S, V / P, P);
+      return _mm<V>::set1_ps(md4(ainput1, _T, 0, _V, _P));
     }
   }
 
