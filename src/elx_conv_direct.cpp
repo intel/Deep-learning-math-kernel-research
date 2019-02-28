@@ -118,6 +118,11 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
     el_error("Unimplemented: fuse sum (plain format) and relu together");
   }
 
+  // TODO:
+  if (this->weights_fmt != OIhw16i16o && f16c_opt) {
+    el_error("Unimplemented: f16c_opt mode for non-blocked weights");
+  }
+
   tweights_ = nullptr;
   switch (xopt_) {
   case 0xa060:
@@ -162,7 +167,7 @@ void Instance_elx_conv_direct_t::trans_weights_to_compact(
 {
   // clang-format off
   if (this->weights_fmt == OIhw16i16o) {
-    parallel_for<7>(mthr_, [&](int _oc4, int _oc3, int _O1, int _O, int _ic4,
+    parallel_for<7, 3>(mthr_, [&](int _oc4, int _oc3, int _O1, int _O, int _ic4,
                                int _ic3, int _I2) {
       MD11(TweightsType, atweights, tweights, this->oc4, this->ic4, this->oc3,
            this->ic3, this->kh, this->kw, this->O1, this->I2, V, this->O, V);
@@ -178,11 +183,33 @@ void Instance_elx_conv_direct_t::trans_weights_to_compact(
                 *(__m<V> *)&md11(aweights,
                 _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, 0));
           } else {
-            auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&md11(aweights,
-                _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, 0),
-                _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-            _mm<V/2>::store_si256((__m256i *)&md11(atweights,
-                _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, 0), fp16v);
+            if (this->O == 2) { // fp32 -> bf16
+              auto mask = _mm<V>::set1_epi32(0xFFFF0000);
+              if (_O == 0) {
+                auto si512 = _mm<V>::load_si512(&md11(aweights,
+                    _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, 0));
+                auto w0 = _mm<V>::and_epi32(si512, mask);
+                _mm<V>::store_si512((__i<V> *)&md11(atweights,
+                    _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, 0, 0), w0);
+              } else {
+                auto si512 = _mm<V>::load_si512(&md11(aweights,
+                    _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, 0));
+                auto w1 = _mm<V>::and_epi32(si512, mask);
+                auto sr_w1 = _mm<V>::bsrli_epi128(w1, 2);
+
+                auto w0 = _mm<V>::load_si512(&md11(atweights,
+                    _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, 0, 0));
+                auto w0w1 = _mm<V>::or_epi32(w0, sr_w1);
+                _mm<V>::store_si512((__i<V> *)&md11(atweights,
+                    _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, 0, 0), w0w1);
+              }
+            } else {            // fp32 -> fp16
+              auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&md11(aweights,
+                  _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, 0),
+                  _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+              _mm<V/2>::store_si256((__m256i *)&md11(atweights,
+                  _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, 0), fp16v);
+            }
           }
         } else {
           #pragma omp simd

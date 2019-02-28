@@ -182,13 +182,16 @@ int eld_conv_t::setup()
 
   // Direct
   if (algorithm == CONV_DIRECT) {
-    if (user_type == user_type_f32)
-      xc = new elx_conv_direct_t<conv::FP32, conv_impl::FP32, 16, ISA_SKX_AVX512>(*this);
+    if (user_type == user_type_f32) {
+      if (f16c_opt)
+        xc = new elx_conv_direct_t<conv::FP32, conv_impl::FP32_F16w, 16, ISA_SKX_AVX512>(*this);
+      else
+        xc = new elx_conv_direct_t<conv::FP32, conv_impl::FP32, 16, ISA_SKX_AVX512>(*this);
 #ifdef ENABLE_USER_FP16
-    else if (user_type == user_type_f16o)
+    } else if (user_type == user_type_f16o)
       xc = new elx_conv_direct_t<conv::FP16O, conv_impl::FP32_F16o, 16, ISA_SKX_AVX512>(*this);
 #endif
-    else
+    } else
       el_error("TODO: FP16 UserTypes for DIRECT.");
   } else if (algorithm == CONV_DIRECT_1X1) {
     if (dims.weights.h != 1 || dims.weights.w != 1) {

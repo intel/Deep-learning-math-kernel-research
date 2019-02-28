@@ -32,6 +32,7 @@ struct conv_kernel_binder {
   DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD); // direct, blocked
   DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD); // direct, nchw input
   DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF); // direct, nhwc
+  DECL_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD); // direct, blocked, f16c
   //DECL_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD); // direct, f16c
 
 #ifdef ENABLE_USER_FP16
@@ -74,6 +75,19 @@ struct conv_kernel_binder {
     case GKF_FCF:
       if (S == 1)
         *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF, O, T, K);
+      break;
+    default:
+      break;
+    }
+  }
+
+  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, int K>
+  static inline void bind(int O, int T, kconv<conv_impl::FP32_F16w> **func)
+  {
+    switch (F) {
+    case GKF_DCD:
+      if (S == 1)
+        *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, K);
       break;
     default:
       break;

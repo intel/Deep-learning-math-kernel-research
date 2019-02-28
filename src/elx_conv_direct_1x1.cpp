@@ -150,11 +150,6 @@ int  Instance_elx_conv_direct_1x1_t::prepare_execute_opt()
     el_error("Unimplemented: f16c_opt mode for IC/OC with tail");
   }
 
-  if ((this->input_fmt == nhwc || this->output_fmt == nhwc
-       || this->weights_fmt == hwio) && f16c_opt) {
-    el_error("Unimplemented: f16c_opt mode for nhwc/hwio");
-  }
-
   if (!is_bfmt_ && (xopt_ != 0xa061 && xopt_ != 0xf061)) {
     el_error("Unimplemented: only a061, f061 mode support plain format\n");
   }

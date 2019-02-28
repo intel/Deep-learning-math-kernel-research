@@ -71,6 +71,8 @@ Template_elx_conv_direct_t class elx_conv_direct_t : public elx_conv_t {
 
 // fp32-f32f32f32
 template class elx_conv_direct_t<conv::FP32, conv_impl::FP32, 16, ISA_SKX_AVX512>;
+//fp32-f32f16f32
+template class elx_conv_direct_t<conv::FP32, conv_impl::FP32_F16w, 16, ISA_SKX_AVX512>;
 
 #ifdef ENABLE_USER_FP16
 // fp16o-f32f32f16
