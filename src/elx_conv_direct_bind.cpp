@@ -45,6 +45,7 @@ Instance_elx_conv_direct_t::bind_execute_functions()
       conv_kernel_binder::kconv<TarrayTypes> **func, int K) {
     switch (xopt_) {
     case (0xa060):
+    case (0xb060):
       if (this->input_fmt == nchw) {
         BIND_CONV_KERNEL(1, GKF_ECD, K);
       } else if (this->input_fmt == nhwc) {
@@ -59,7 +60,7 @@ Instance_elx_conv_direct_t::bind_execute_functions()
     }
   };
 
-  if (xopt_ == 0xa060) {
+  if (xopt_ == 0xa060 || xopt_ == 0xb060) {
     bind_conv_kernel(this->O, this->T, &ker_conv_, this->kw);
     bind_conv_kernel(this->O, this->Tr, &ker_conv_Tr_, this->kw);
   } else if (xopt_ == 0xd060) {
@@ -91,6 +92,7 @@ Instance_elx_conv_direct_t::bind_execute_functions()
 
   switch (xopt_) {
     EXECUTE_CASE(a060);
+    EXECUTE_CASE(b060);
     EXECUTE_CASE(d060);
   default:
     el_error("Unimplemented xopt");

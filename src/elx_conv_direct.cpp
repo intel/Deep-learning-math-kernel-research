@@ -31,7 +31,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
   this->oc2 = this->OC / V;
 
   // t3, t2, (T, Tr)
-  if (xopt_ == 0xa060 || xopt_ == 0xd060) {
+  if (xopt_ == 0xa060 || xopt_ == 0xb060 || xopt_ == 0xd060) {
     this->t3 = this->n;
     this->ht = this->oh;
     this->wt = (this->ow + this->T - 1)/ this->T;
@@ -49,13 +49,16 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
          (V == 16 && xopt_ == 0xa060 &&
           (estl::any_of(this->input_fmt, nchw, nChw16c)) &&
           (this->output_fmt == nChw16c)) ||
+         (V == 16 && xopt_ == 0xb060 &&
+          (this->input_fmt == nChw16c) &&
+          (this->output_fmt == nChw16c)) ||
          (V == 16 && xopt_ == 0xd060 && (this->input_fmt == nChw16c) &&
           (this->output_fmt == nChw16c)));
     if (!format_ok) {
       el_error("direct: format not supported");
     }
 
-    if (xopt_ == 0xa060) {
+    if (xopt_ == 0xa060 || xopt_ == 0xb060) {
       bool shape_ok = estl::any_of(this->kh, 3, 5, 7)
           && estl::any_of(this->kw, 3, 5, 7) && this->ih == this->oh
           && this->iw == this->ow && this->hs == 1 && this->ws == 1
@@ -125,6 +128,8 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
 
   tweights_ = nullptr;
   switch (xopt_) {
+  case 0xb060:
+    toutput_size_ = this->ic4 * this->t3 * this->OC * this->oh * this->ow * sizeof(ToutputType);
   case 0xa060:
   case 0xd060:
     tweights_size_ = this->kh * this->kw * this->IC * this->OC * sizeof(TweightsType);
@@ -147,6 +152,11 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
     MEMALIGN64(&workspace_, workspace_size);
     tweights_ = (TweightsType *)workspace_;
   }
+  size_t scratchpad_size = toutput_size_;
+  if (scratchpad_size != 0) {
+    scratch_ = galloc::acquire(scratchpad_size);
+  }
+  toutput_ = (ToutputType*)scratch_;
 
   return 0;
 }
@@ -330,6 +340,42 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
           &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
     }}
   }
+}
+
+// kh,kw=odd, lp=rp=standard, ih=oh*hs, iw=ow*ws, hs=ws=1
+Template_elx_conv_direct_t void
+Instance_elx_conv_direct_t::conv_b060(OutputType *output,
+    InputType *input, TweightsType *weights, BiasType *bias, int _ic4, int _oc4,
+    int _ht, int _wt)
+{
+  // input:   ic3*, I2, V, ht*, hs*, wt*, T, ws
+  // output:  oc3*, O2, ht*, wt*, T, V
+  MD3(TweightsType, aweights, weights, this->oc3, this->ic3,
+      this->kh * this->kw * this->O2 * this->I2 * V * V);
+  MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
+
+  auto ker_conv = _wt == this->wt - 1 ? ker_conv_Tr_ : ker_conv_;
+
+  int khs = estl::max(0, this->tp - _ht);
+  int khe = estl::min(this->kh, this->ih + this->tp - _ht);
+  int kws = _wt == 0 ? this->lp : 0;
+  int kwe = _wt == this->wt - 1 ? this->kw - this->lp : this->kw;
+  assert(this->T > this->lp && this->Tr > this->rp);
+
+  // blocked or nchw
+  MD2(InputType, ainput, input, this->ic3, this->I2 * V * this->ih * this->iw);
+  MD2(OutputType, aoutput, output, this->oc3, this->O2 * this->ht * this->ow * V);
+
+  iter_each(_oc3, this->oc3) {
+  iter_each(_ic3, this->ic3) {
+    int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
+    if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+      if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+    }
+    ker_conv(*this, &md2(aoutput, _oc3, 0),
+        &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
+        &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
+  }}
 }
 
 // slow path
