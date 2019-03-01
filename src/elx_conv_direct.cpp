@@ -345,8 +345,8 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
 // kh,kw=odd, lp=rp=standard, ih=oh*hs, iw=ow*ws, hs=ws=1
 Template_elx_conv_direct_t void
 Instance_elx_conv_direct_t::conv_b060(OutputType *output,
-    InputType *input, TweightsType *weights, BiasType *bias, int _ic4, int _oc4,
-    int _ht, int _wt)
+    InputType *input, TweightsType *weights, BiasType *bias, int _ic4, int _ic3,
+    int _oc4, int _ht, int _wt)
 {
   // input:   ic3*, I2, V, ht*, hs*, wt*, T, ws
   // output:  oc3*, O2, ht*, wt*, T, V
@@ -362,20 +362,23 @@ Instance_elx_conv_direct_t::conv_b060(OutputType *output,
   int kwe = _wt == this->wt - 1 ? this->kw - this->lp : this->kw;
   assert(this->T > this->lp && this->Tr > this->rp);
 
-  // blocked or nchw
-  MD2(InputType, ainput, input, this->ic3, this->I2 * V * this->ih * this->iw);
-  MD2(OutputType, aoutput, output, this->oc3, this->O2 * this->ht * this->ow * V);
+  MD2(OutputType, aoutput_nhwc, output, this->oc3, this->O2 * V);
+  MD2(OutputType, aoutput_blocked, output, this->oc3, this->O2 * this->ht * this->ow * V);
 
   iter_each(_oc3, this->oc3) {
-  iter_each(_ic3, this->ic3) {
+    OutputType *aout = this->input_fmt == nhwc ? &md2(aoutput_nhwc, _oc3, 0)
+                                              : &md2(aoutput_blocked, _oc3, 0);
     int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
     if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
       if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
     }
-    ker_conv(*this, &md2(aoutput, _oc3, 0),
-        &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-        &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
-  }}
+    if (this->output_fmt == nhwc && this->Or != V && _oc4 == this->oc4 - 1 &&
+        _oc3 == this->oc3 - 1) {
+      attr = set_attr(attr, has_Or_idx);
+    }
+    ker_conv(*this, aout, input, &md3(aweights, _oc3, 0, 0),
+             &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
+  }
 }
 
 // slow path
