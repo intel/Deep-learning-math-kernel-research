@@ -165,7 +165,9 @@ Template_elx_conv_direct_t
 Instance_elx_conv_direct_t::~elx_conv_direct_t()
 {
   if (workspace_ != nullptr)
-    free(workspace_);
+    ::free(workspace_);
+
+  galloc::release();
 }
 
 // weights (hwio): kh, kw, ic, oc
