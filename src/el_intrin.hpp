@@ -44,6 +44,9 @@ template <> struct _mm<16> {
   static inline void stream_ps(void *adrs, __m<V> m) noexcept {
     _mm512_stream_ps((float *)adrs, m);
   }
+  static inline __m<V> maskz_load_ps(__mmask16 k, void const *adrs) noexcept {
+    return _mm512_maskz_load_ps(k, adrs);
+  }
   static inline __i<V> load_si512(void const *a) noexcept {
     return _mm512_load_si512(a);
   }
@@ -55,6 +58,9 @@ template <> struct _mm<16> {
   }
   static inline void stream_si512(__i<V> *a, __i<V> b) noexcept {
     return _mm512_stream_si512(a, b);
+  }
+  static inline __i<V> maskz_load_epi32(__mmask16 k, void const *adrs) noexcept {
+    return _mm512_maskz_load_epi32(k, adrs);
   }
   static inline void i32scatter_ps(void *adrs, __i<V> vidx,
       __m<V> m, int scale) noexcept {
