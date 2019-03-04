@@ -151,9 +151,14 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
   if (scratchpad_size != 0) {
     scratch_ = galloc::acquire(scratchpad_size);
   }
-  toutput_ = (ToutputType*)scratch_;
 
   return 0;
+}
+
+Template_elx_conv_direct_t
+void Instance_elx_conv_direct_t::set_trans_buffers()
+{
+  toutput_ = (ToutputType*)galloc::get();
 }
 
 Template_elx_conv_direct_t
@@ -163,6 +168,96 @@ Instance_elx_conv_direct_t::~elx_conv_direct_t()
     ::free(workspace_);
 
   galloc::release();
+}
+
+Template_elx_conv_direct_t
+void Instance_elx_conv_direct_t::__trans_weights_post(WeightsType *aweights,
+    TweightsType *tweights, int _oc4, int _ic4, int _oc3, int _ic3, int _kh,
+    int _kw, int _O1, int _I2, int _iV, int _O)
+{
+  MD11(TweightsType, atweights, tweights, this->oc4, this->ic4, this->oc3,
+       this->ic3, this->kh, this->kw, this->O1, this->I2, V, this->O, V);
+
+  if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+    if (std::is_same<TweightsType, float>::value) {
+      _mm<V>::store_ps(&md11(atweights, _oc4, _ic4, _oc3, _ic3, _kh, _kw,
+                             _O1, _I2, _iV, _O, 0), *(__m<V> *)aweights);
+    } else {
+      if (this->O == 2) { // fp32 -> bf16
+        auto mask = _mm<V>::set1_epi32(0xFFFF0000);
+        if (_O == 0) {
+          auto si512 = _mm<V>::load_si512(aweights);
+          auto w0 = _mm<V>::and_epi32(si512, mask);
+          _mm<V>::store_si512((__i<V> *)&md11(atweights,
+              _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, 0, 0), w0);
+        } else {
+          auto si512 = _mm<V>::load_si512(aweights);
+          auto w1 = _mm<V>::and_epi32(si512, mask);
+          auto sr_w1 = _mm<V>::bsrli_epi128(w1, 2);
+
+          auto w0 = _mm<V>::load_si512(&md11(atweights,
+              _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, 0, 0));
+          auto w0w1 = _mm<V>::or_epi32(w0, sr_w1);
+          _mm<V>::store_si512((__i<V> *)&md11(atweights,
+              _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, 0, 0), w0w1);
+        }
+      } else {            // fp32 -> fp16
+        auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)aweights,
+            _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        _mm<V/2>::store_si256((__m256i *)&md11(atweights,
+            _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, 0), fp16v);
+      }
+    }
+  } else {
+    #pragma omp simd
+    iter_each (_oV, V) {
+      md11(atweights, _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, _oV)
+        = aweights[_oV];
+    }
+  }
+}
+
+Template_elx_conv_direct_t
+void Instance_elx_conv_direct_t::__trans_weights_Or_post(WeightsType *aweights,
+    TweightsType *tweights, int _oc4, int _ic4, int _oc3, int _ic3, int _kh,
+    int _kw, int _O1, int _I2, int _iV, int _O)
+{
+  MD11(TweightsType, atweights, tweights, this->oc4, this->ic4, this->oc3,
+       this->ic3, this->kh, this->kw, this->O1, this->I2, V, this->O, V);
+
+  if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+    __mmask16 k = _mm512_int2mask(this->ormask);
+    if (std::is_same<TweightsType, float>::value) {
+      auto w = _mm<V>::maskz_load_ps(k, aweights);
+      _mm<V>::store_ps(&md11(atweights, _oc4, _ic4, _oc3, _ic3,
+                       _kh, _kw, _O1, _I2, _iV, _O, 0), w);
+    } else {
+      if (this->O == 2) { // fp32 -> bf16
+        // _O index in this path is 1
+        auto mask = _mm<V>::set1_epi32(0xFFFF0000);
+        auto si512 = _mm<V>::maskz_load_epi32(k, aweights);
+        auto w1 = _mm<V>::and_epi32(si512, mask);
+        auto sr_w1 = _mm<V>::bsrli_epi128(w1, 2);
+
+        auto w0 = _mm<V>::load_si512(&md11(atweights,
+            _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, 0, 0));
+        auto w0w1 = _mm<V>::or_epi32(w0, sr_w1);
+        _mm<V>::store_si512((__i<V> *)&md11(atweights,
+            _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, 0, 0), w0w1);
+      } else {            // fp32 -> fp16
+        auto w = _mm<V>::maskz_load_ps(k, aweights);
+        auto fp16v = _mm<V>::cvtps_ph(w, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        _mm<V / 2>::store_si256((__m256i *)&md11(atweights,
+            _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, 0), fp16v);
+      }
+    }
+  } else {
+    #pragma omp simd
+    iter_each(_oV, this->Or) {
+      md11(atweights, _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, _oV)
+        = aweights[_oV];
+    }
+  }
 }
 
 // weights (hwio): kh, kw, ic, oc
@@ -177,55 +272,14 @@ void Instance_elx_conv_direct_t::trans_weights_to_compact(
     // skip O for tasks allocation, as O == 2 will be optimized by BF16 type
     parallel_for<7, 3>(mthr_, [&](int _oc4, int _oc3, int _O1, int _O, int _ic4,
                                int _ic3, int _I2) {
-      MD11(TweightsType, atweights, tweights, this->oc4, this->ic4, this->oc3,
-           this->ic3, this->kh, this->kw, this->O1, this->I2, V, this->O, V);
       MD11(WeightsType, aweights, weights, this->oc4, this->oc3, this->O1,
            this->O, this->ic4, this->ic3, this->I2, this->kh, this->kw, V, V);
       iter_each (_kh, this->kh) {
       iter_each (_kw, this->kw) {
       iter_each (_iV, V) {
-        if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
-          if (std::is_same<TweightsType, float>::value) {
-            _mm<V>::store_ps(&md11(atweights,
-                _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, 0),
-                *(__m<V> *)&md11(aweights,
-                _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, 0));
-          } else {
-            if (this->O == 2) { // fp32 -> bf16
-              auto mask = _mm<V>::set1_epi32(0xFFFF0000);
-              if (_O == 0) {
-                auto si512 = _mm<V>::load_si512(&md11(aweights,
-                    _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, 0));
-                auto w0 = _mm<V>::and_epi32(si512, mask);
-                _mm<V>::store_si512((__i<V> *)&md11(atweights,
-                    _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, 0, 0), w0);
-              } else {
-                auto si512 = _mm<V>::load_si512(&md11(aweights,
-                    _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, 0));
-                auto w1 = _mm<V>::and_epi32(si512, mask);
-                auto sr_w1 = _mm<V>::bsrli_epi128(w1, 2);
-
-                auto w0 = _mm<V>::load_si512(&md11(atweights,
-                    _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, 0, 0));
-                auto w0w1 = _mm<V>::or_epi32(w0, sr_w1);
-                _mm<V>::store_si512((__i<V> *)&md11(atweights,
-                    _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, 0, 0), w0w1);
-              }
-            } else {            // fp32 -> fp16
-              auto fp16v = _mm<V>::cvtps_ph(*(__m<V> *)&md11(aweights,
-                  _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, 0),
-                  _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-              _mm<V/2>::store_si256((__m256i *)&md11(atweights,
-                  _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, 0), fp16v);
-            }
-          }
-        } else {
-          #pragma omp simd
-          iter_each (_oV, V) {
-            md11(atweights, _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, _oV)
-              = md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, _oV);
-          }
-        }
+        __trans_weights_post(
+            &md11(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _iV, 0),
+            tweights, _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O);
       }}}
     }, this->oc4, this->oc3, this->O1, this->O, this->ic4, this->ic3, this->I2);
   } else if (this->weights_fmt == hwio) {
@@ -240,98 +294,23 @@ void Instance_elx_conv_direct_t::trans_weights_to_compact(
       iter_each (_oc3, this->oc3) {
       iter_each (_O1, this->O1) {
         // handling ic/oc != 16x
+        MD5(WeightsType, aweights1, &md4(aweights0, _kh, _kw, 0, 0),
+            this->ic4, this->ic3, this->I2, V, this->oc);
+        MD5(WeightsType, aweights2, &md5(aweights1, _ic4, _ic3, _I2, _iV, 0),
+            this->oc4, this->oc3, this->O1, this->O, V);
+
         bool is_Or = this->Or != V && _oc4 == this->oc4 - 1
             && _oc3 == this->oc3 - 1 && _O1 == this->O1 - 1;
         auto O = is_Or ? this->O - 1: this->O;
-        auto Or = is_Or ? this->Or : 0;
-        MD5(WeightsType, aweights1, &md4(aweights0, _kh, _kw, 0, 0), this->ic4,
-            this->ic3, this->I2, V, this->oc);
-        MD5(WeightsType, aweights2, &md5(aweights1, _ic4, _ic3, _I2, _iV, 0),
-            this->oc4, this->oc3, this->O1, this->O, V);
         iter_each(_O, O) {
-          if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
-            if (std::is_same<TweightsType, float>::value) {
-              _mm<V>::store_ps(&md11(atweights,
-                  _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, 0),
-                  *(__m<V> *)&md5(aweights2, _oc4, _oc3, _O1, _O, 0));
-            } else {
-              if (this->O == 2) { // fp32 -> bf16
-                auto mask = _mm<V>::set1_epi32(0xFFFF0000);
-                if (_O == 0) {
-                  auto si512 = _mm<V>::load_si512(
-                      &md5(aweights2, _oc4, _oc3, _O1, _O, 0));
-                  auto w0 = _mm<V>::and_epi32(si512, mask);
-                  _mm<V>::store_si512((__i<V> *)&md11(atweights,
-                      _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, 0, 0), w0);
-                } else {
-                  auto si512 = _mm<V>::load_si512(
-                      &md5(aweights2, _oc4, _oc3, _O1, _O, 0));
-                  auto w1 = _mm<V>::and_epi32(si512, mask);
-                  auto sr_w1 = _mm<V>::bsrli_epi128(w1, 2);
-
-                  auto w0 = _mm<V>::load_si512(&md11(atweights,
-                      _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, 0, 0));
-                  auto w0w1 = _mm<V>::or_epi32(w0, sr_w1);
-                  _mm<V>::store_si512((__i<V> *)&md11(atweights,
-                      _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, 0, 0), w0w1);
-                }
-              } else {            // fp32 -> fp16
-                auto fp16v = _mm<V>::cvtps_ph(
-                    *(__m<V> *)&md5(aweights2, _oc4, _oc3, _O1, _O, 0),
-                    _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-                _mm<V / 2>::store_si256((__m256i *)&md11(atweights,
-                    _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, 0), fp16v);
-              }
-            }
-          } else {
-            #pragma omp simd
-            iter_each(_oV, V) {
-              md11(atweights,
-                   _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O, _oV) =
-                md5(aweights2, _oc4, _oc3, _O1, _O, _oV);
-            }
-          }
+          __trans_weights_post(&md5(aweights2, _oc4, _oc3, _O1, _O, 0),
+              tweights, _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, _O);
         }
+
         // handling Or
         if (is_Or) {
-          if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
-            __mmask16 k = _mm512_int2mask(this->ormask);
-            if (std::is_same<TweightsType, float>::value) {
-              auto w = _mm<V>::maskz_load_ps(k,
-                  &md5(aweights2, _oc4, _oc3, _O1, this->O - 1, 0));
-              _mm<V>::store_ps(&md11(atweights, _oc4, _ic4, _oc3, _ic3,
-                               _kh, _kw, _O1, _I2, _iV, this->O - 1, 0), w);
-            } else {
-              if (this->O == 2) { // fp32 -> bf16
-                // _O index in this path is 1
-                auto mask = _mm<V>::set1_epi32(0xFFFF0000);
-                auto si512 = _mm<V>::maskz_load_epi32(k,
-                    &md5(aweights2, _oc4, _oc3, _O1, this->O - 1, 0));
-                auto w1 = _mm<V>::and_epi32(si512, mask);
-                auto sr_w1 = _mm<V>::bsrli_epi128(w1, 2);
-
-                auto w0 = _mm<V>::load_si512(&md11(atweights,
-                    _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, 0, 0));
-                auto w0w1 = _mm<V>::or_epi32(w0, sr_w1);
-                _mm<V>::store_si512((__i<V> *)&md11(atweights,
-                    _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, 0, 0), w0w1);
-              } else {            // fp32 -> fp16
-                auto w = _mm<V>::maskz_load_ps(k,
-                    &md5(aweights2, _oc4, _oc3, _O1, this->O - 1, 0));
-                auto fp16v = _mm<V>::cvtps_ph(w,
-                    _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-                _mm<V / 2>::store_si256((__m256i *)&md11(atweights,
-                    _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, this->O - 1, 0), fp16v);
-              }
-            }
-          } else {
-            #pragma omp simd
-            iter_each(_oV, Or) {
-              md11(atweights, _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1,
-                   _I2, _iV, this->O - 1, _oV)
-                = md5(aweights2, _oc4, _oc3, _O1, this->O - 1, _oV);
-            }
-          }
+          __trans_weights_Or_post(&md5(aweights2, _oc4, _oc3, _O1, this->O - 1, 0),
+              tweights, _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _iV, this->O - 1);
         }
       }}}}
     }, this->kh, this->kw, this->ic4, this->ic3, this->I2);

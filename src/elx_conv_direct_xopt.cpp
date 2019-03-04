@@ -256,6 +256,8 @@ Template_elx_conv_direct_t
 void Instance_elx_conv_direct_t::execute(
     void *output, void *input, void *weights, void *bias)
 {
+  set_trans_buffers();
+
   (this->*execute_opt_)((OutputType *)output,
       (InputType *)input, (WeightsType *)weights, (BiasType *)bias);
 }
