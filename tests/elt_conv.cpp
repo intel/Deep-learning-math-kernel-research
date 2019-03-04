@@ -431,7 +431,7 @@ int main(int argc, char **argv)
     _prepare_conv_data(uint8_t, float, uint8_t, float);
   }
 #ifdef ENABLE_USER_FP16
-  else if (data_type_cfg == euler::FP16){
+  else if (data_type_cfg == euler::test::FP16){
     _prepare_conv_data(uint16_t, uint16_t, uint16_t, uint16_t);
   } else if (data_type_cfg == euler::test::FP16O) {
     _prepare_conv_data(float, float, float, float);
