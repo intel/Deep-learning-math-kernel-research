@@ -86,6 +86,7 @@ namespace test {
         } else if (data_type_cfg == euler::test::FP16 || f16c_opt) {
           input_ref[i] = dInput(gen);
         } else if (data_type_cfg == euler::test::U8F32U8F32
+            || data_type_cfg == euler::test::U8F32S8F32
             || data_type_cfg == euler::test::U8F32F32F32) {
           input_ref[i] = dInput_mu_15_sigma_3(gen);
           if (input_ref[i] < 0)
@@ -101,6 +102,7 @@ namespace test {
         } else if (data_type_cfg == euler::test::FP16 || f16c_opt) {
           weights_ref[i] = dWeights(gen);
         } else if (data_type_cfg == euler::test::U8F32U8F32
+            || data_type_cfg == euler::test::U8F32S8F32
             || data_type_cfg == euler::test::U8F32F32F32) {
           weights_ref[i] = dWeights_mu_0_sigma_0_1(gen);
         }
@@ -148,6 +150,11 @@ namespace test {
       MEMALIGN64(bias, desc_ref.byte_sizes.bias);
       MEMALIGN64(output, output_size / 2);
     } else if (data_type_cfg == euler::test::U8F32U8F32){
+      MEMALIGN64(input, input_size / 4);
+      MEMALIGN64(weights, desc_ref.byte_sizes.weights);
+      MEMALIGN64(bias, desc_ref.byte_sizes.bias);
+      MEMALIGN64(output, output_size / 4);
+    } else if (data_type_cfg == euler::test::U8F32S8F32){
       MEMALIGN64(input, input_size / 4);
       MEMALIGN64(weights, desc_ref.byte_sizes.weights);
       MEMALIGN64(bias, desc_ref.byte_sizes.bias);
@@ -217,6 +224,7 @@ namespace test {
       }
       // U8
       if (data_type_cfg == euler::test::U8F32U8F32
+          || data_type_cfg == euler::test::U8F32S8F32
           || data_type_cfg == euler::test::U8F32F32F32)
         iscale = abs_max / PRECISION_REPRESENTATION_8B;
       // S8
@@ -227,7 +235,7 @@ namespace test {
       printf("input abs_max %f scale %f\n", abs_max, iscale);
     };
 
-    auto output_scale = [&] (float &oscale) {
+    auto output_scale = [&] (float &oscale, float &oz) {
       float *_output_ref;
       if (desc_ref.with_ip_sum) {
         MEMALIGN64(&_output_ref, desc_ref.byte_sizes.output);
@@ -250,13 +258,19 @@ namespace test {
         abs_max = abs_cur > abs_max ? abs_cur : abs_max;
       }
 
-      if (desc_ref.with_relu)
-        oscale = PRECISION_REPRESENTATION_8B / abs_max;
-      else
-        oscale = PRECISION_REPRESENTATION_7B / abs_max;
-
-      desc.output_quant.scale = 1.0 / oscale;
-      desc.output_quant.z = 0.0;
+      if (desc_ref.with_relu) {
+        oscale = abs_max / PRECISION_REPRESENTATION_8B;
+        oz = 0.0;
+        desc.output_quant.scale = oscale;
+        desc.output_quant.z = oz;
+      } else if (data_type_cfg == euler::test::U8F32S8F32) {
+        oscale = abs_max / PRECISION_REPRESENTATION_7B;
+        oz = 0.0;
+        desc.output_quant.scale = oscale;
+        desc.output_quant.z = oz;
+      } else {
+        ; // TODO: without relu && U8
+      }
 
       printf("output abs_max %f scale %f\n", abs_max, desc.output_quant.scale);
 
@@ -284,6 +298,7 @@ namespace test {
     // input
     float iscale;
     if (data_type_cfg == euler::test::U8F32U8F32
+        || data_type_cfg == euler::test::U8F32S8F32
         || data_type_cfg == euler::test::U8F32F32F32) {
       input_scale(iscale);
       trans_input_scale();
@@ -297,6 +312,7 @@ namespace test {
       else if (data_type_cfg == euler::test::FP16O)
         (*input)[i] = input_ref[i];
       else if (data_type_cfg == euler::test::U8F32U8F32
+          || data_type_cfg == euler::test::U8F32S8F32
           || data_type_cfg == euler::test::U8F32F32F32)
         (*input)[i] = (uint8_t)rounding_to_nearest_even(input_ref[i] / iscale);
     }
@@ -311,6 +327,7 @@ namespace test {
       else if (data_type_cfg == euler::test::FP16O)
         (*weights)[i] = weights_ref[i];
       else if (data_type_cfg == euler::test::U8F32U8F32
+          || data_type_cfg == euler::test::U8F32S8F32
           || data_type_cfg == euler::test::U8F32F32F32)
         (*weights)[i] = weights_ref[i];
     }
@@ -325,14 +342,16 @@ namespace test {
       else if (data_type_cfg == euler::test::FP16O)
         (*bias)[i] = bias_ref[i];
       else if (data_type_cfg == euler::test::U8F32U8F32
+          || data_type_cfg == euler::test::U8F32S8F32
           || data_type_cfg == euler::test::U8F32F32F32)
         (*bias)[i] = bias_ref[i];
     }
 
     // output
-    float oscale;
-    if (data_type_cfg == euler::test::U8F32U8F32)
-      output_scale(oscale);
+    float oscale, oz;
+    if (data_type_cfg == euler::test::U8F32U8F32
+        || data_type_cfg == euler::test::U8F32S8F32)
+      output_scale(oscale, oz);
     if (desc.with_ip_sum) {
 #pragma omp parallel for
       for (size_t i = 0; i < desc_ref.sizes.output; i++) {
@@ -342,8 +361,10 @@ namespace test {
           (*output)[i] = float_2_half(output_ref[i]);
         else if (data_type_cfg == euler::test::FP16O)
           (*output)[i] = output_ref[i];
-        else if (data_type_cfg == euler::test::U8F32U8F32) {
-          (*output)[i] = (uint8_t)rounding_to_nearest_even(output_ref[i] * oscale);
+        else if (data_type_cfg == euler::test::U8F32U8F32
+            || data_type_cfg == euler::test::U8F32S8F32) {
+          (*output)[i] = (uint8_t)rounding_to_nearest_even(
+              output_ref[i] / oscale + oz);
         }
       }
     }
@@ -950,6 +971,13 @@ namespace test {
         float resu8 = (float)_output_res[i];
         output_ref[i] = (resu8 - desc.output_quant.z) * desc.output_quant.scale;
       }
+    } else if (data_type_cfg == euler::test::U8F32S8F32) {
+      int8_t *_output_res = (int8_t *)output_res;
+#pragma omp parallel for
+      for (size_t i = 0; i < desc.sizes.output; i++) {
+        float resi8 = (float)_output_res[i];
+        output_ref[i] = (resi8 - desc.output_quant.z) * desc.output_quant.scale;
+      }
     }
   }
 
@@ -972,6 +1000,11 @@ namespace test {
   template void prepare_conv_data<uint8_t, float, uint8_t, float>(
       eld_conv_t &, eld_conv_t &,
       float *, float *, float *, float *, uint8_t **, float **, uint8_t **,
+      float **, const char *, const char *, const char *, bool, int, bool, bool);
+
+  template void prepare_conv_data<uint8_t, float, int8_t, float>(
+      eld_conv_t &, eld_conv_t &,
+      float *, float *, float *, float *, uint8_t **, float **, int8_t **,
       float **, const char *, const char *, const char *, bool, int, bool, bool);
 
   template void prepare_conv_data<uint8_t, float, float, float>(

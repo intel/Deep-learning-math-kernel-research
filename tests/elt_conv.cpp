@@ -182,6 +182,8 @@ int parse_cmd_options(int argc, char **argv) {
       data_type_cfg = euler::test::FP16O;
     else if (fmt_str == "U8F32U8F32")
       data_type_cfg = euler::test::U8F32U8F32;
+    else if (fmt_str == "U8F32S8F32")
+      data_type_cfg = euler::test::U8F32S8F32;
     else if (fmt_str == "U8F32F32F32")
       data_type_cfg = euler::test::U8F32F32F32;
     else {
@@ -292,6 +294,9 @@ static inline eld_conv_t create_conv_desc(int _data_type_cfg) {
   } else if (_data_type_cfg == euler::test::U8F32U8F32) {
     desc.data_type = {
         euler::euler_u8, euler::euler_f32, euler::euler_u8, euler::euler_f32 };
+  } else if (_data_type_cfg == euler::test::U8F32S8F32) {
+    desc.data_type = {
+        euler::euler_u8, euler::euler_f32, euler::euler_s8, euler::euler_f32 };
   } else if (_data_type_cfg == euler::test::U8F32F32F32) {
     desc.data_type = {
         euler::euler_u8, euler::euler_f32, euler::euler_f32, euler::euler_f32 };
@@ -333,6 +338,7 @@ static inline int conv_ref_setup(eld_conv_t &desc) {
   auto int8_user_interface = [](int _data_type_cfg) -> bool {
     switch (_data_type_cfg) {
     case euler::test::U8F32U8F32:
+    case euler::test::U8F32S8F32:
     case euler::test::U8F32F32F32:
       return true;
     default:
@@ -477,6 +483,8 @@ int main(int argc, char **argv)
     _prepare_conv_data(float, float, float, float);
   } else if (data_type_cfg == euler::test::U8F32U8F32) {
     _prepare_conv_data(uint8_t, float, uint8_t, float);
+  } else if (data_type_cfg == euler::test::U8F32S8F32) {
+    _prepare_conv_data(uint8_t, float, int8_t, float);
   } else if (data_type_cfg == euler::test::U8F32F32F32) {
     _prepare_conv_data(uint8_t, float, float, float);
   }

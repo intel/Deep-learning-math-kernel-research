@@ -266,6 +266,8 @@ int eld_conv_t::setup()
 #endif
         } else if (user_type == user_type_u8f32u8f32) {
           create_conv_wino(conv::U8F32U8F32, conv_impl::INT8_F32, F_5_3_OFF, wino_lp);
+        } else if (user_type == user_type_u8f32s8f32) {
+          create_conv_wino(conv::U8F32S8F32, conv_impl::INT8_F32, F_5_3_OFF, wino_lp);
         } else if (user_type == user_type_u8f32f32f32) {
           create_conv_wino(conv::U8F32F32F32, conv_impl::INT8_F32, F_5_3_OFF, wino_lp);
         } else if (user_type != user_type_f16o) {

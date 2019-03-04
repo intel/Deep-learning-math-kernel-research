@@ -160,6 +160,10 @@ template class elx_conv_wino_trans_output_t<uint8_t, float, float, ISA_SKX_AVX51
 template class elx_conv_wino_trans_output_t<uint8_t, float, float, ISA_SKX_AVX512, 5, 3, 16>;
 template class elx_conv_wino_trans_output_t<uint8_t, float, float, ISA_SKX_AVX512, 6, 3, 16>;
 
+template class elx_conv_wino_trans_output_t<int8_t, float, float, ISA_SKX_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_output_t<int8_t, float, float, ISA_SKX_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_output_t<int8_t, float, float, ISA_SKX_AVX512, 6, 3, 16>;
+
 #ifdef ENABLE_USER_FP16
 // user: fp16, tarray: float
 template class elx_conv_wino_trans_output_t<short, short, float, ISA_SKX_AVX512, 4, 3, 16>;
