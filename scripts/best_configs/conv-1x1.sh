@@ -18,7 +18,7 @@ NSOCKETS=1 ./scripts/run.sh -c -n1 -i1024 -h14 -o512  -H7  -k1 -K1 -s2 -S2 -p0 -
 
 #n=64, stride=2, blocked
 #resnet_50:res3a_branch1, 3.06
-NSOCKETS=1 ./scripts/run.sh -c -n1 -i1024 -o1024 -h19 -k1 -K1 -H19 -p0 -P0 -s1 -b1 -adirect_1x1 --blk-i=8 --flt-o=2 --flt-t=13 --pat-o=1 --pat-i=8 --execution-mode=0xc060 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -n64 -i256  -h56 -o512  -H28 -k1 -K1 -s2 -S2 -p0 -P0 -b1 -adirect_1x1 --blk-i=16 --flt-o=2 --flt-t=14 --pat-i=1 --pat-o=16 --execution-mode=0xb061 $COMMON
 #resnet_50:res3a_branch2a, 2.3
 NSOCKETS=1 ./scripts/run.sh -c -n64 -i256  -h56 -o128  -H28 -k1 -K1 -s2 -S2 -p0 -P0 -b1 -adirect_1x1 --blk-i=16 --flt-o=2 --flt-t=14 --pat-i=1 --pat-o=4 --execution-mode=0xb061 $COMMON
 #resnet_50:res4a_branch1, 3.1
