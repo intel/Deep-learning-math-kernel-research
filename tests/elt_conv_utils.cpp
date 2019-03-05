@@ -409,24 +409,24 @@ namespace test {
               auto real = md5(aout, _n, _C, _h, _w, _v);
               double delta = fabs(real - md5(aref, _n, _C, _h, _w, _v));
               if (md5(aref, _n, _C, _h, _w, _v) == 0 || real == 0) {
-                if (delta < acc)
-                  continue;
-                else if (errors < MAX_PRINT_ERRORS) {
-                  printf("Not equal!: [%d][%d][%d][%d][%d]: %f != %f (ref), "
-                         "delta=%g, acc=%g\n",
-                      _n, _C, _h, _w, _v, real, md5(aref, _n, _C, _h, _w, _v),
-                      delta, acc);
-                }
+                if (delta > acc) {
+                  if (errors < MAX_PRINT_ERRORS) {
+                    printf("Not equal!: [%d][%d][%d][%d][%d]: %f != %f (ref), "
+                           "delta=%g, acc=%g\n",
+                           _n, _C, _h, _w, _v, real, md5(aref, _n, _C, _h, _w, _v),
+                           delta, acc);
+                  }
 #pragma omp atomic
                   errors++;
+                }
               } else {
                 double rel_diff = delta / fabs(md5(aref, _n, _C, _h, _w, _v));
                 if (rel_diff > acc) {
                   if (errors < MAX_PRINT_ERRORS) {
                     printf("Not equal!: [%d][%d][%d][%d][%d]: %f != %f (ref), "
                            "delta=%g, rel_diff=%g\n",
-                        _n, _C, _h, _w, _v, real, md5(aref, _n, _C, _h, _w, _v),
-                        delta, rel_diff);
+                           _n, _C, _h, _w, _v, real, md5(aref, _n, _C, _h, _w, _v),
+                           delta, rel_diff);
                   }
 #pragma omp atomic
                   errors++;
@@ -464,12 +464,12 @@ namespace test {
             auto real = md4(aout, _n, _c, _h, _w);
             double delta = fabs(real - md4(aref, _n, _c, _h, _w));
             if (real == 0 || md4(aref, _n, _c, _h, _w) == 0) {
-              if (delta < acc)
-                continue;
-              else if (errors < MAX_PRINT_ERRORS) {
-                printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
-                       "delta=%g, acc=%g\n",
-                    _n, _c, _h, _w, real, md4(aref, _n, _c, _h, _w), delta, acc);
+              if (delta > acc) {
+                if (errors < MAX_PRINT_ERRORS) {
+                  printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
+                         "delta=%g, acc=%g\n",
+                         _n, _c, _h, _w, real, md4(aref, _n, _c, _h, _w), delta, acc);
+                }
 #pragma omp atomic
                 errors++;
               }
@@ -479,8 +479,8 @@ namespace test {
                 if (errors < MAX_PRINT_ERRORS) {
                   printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
                          "delta=%g, rel_diff=%g\n",
-                      _n, _c, _h, _w, real, md4(aref, _n, _c, _h, _w), delta,
-                      rel_diff);
+                         _n, _c, _h, _w, real, md4(aref, _n, _c, _h, _w), delta,
+                         rel_diff);
                 }
 #pragma omp atomic
                 errors++;
@@ -517,12 +517,12 @@ namespace test {
             auto real = md4(aout, _n, _h, _w, _c);
             double delta = fabs(real - md4(aref, _n, _h, _w, _c));
             if (real == 0 || md4(aref, _n, _h, _w, _c) == 0) {
-              if (delta < acc)
-                continue;
-              else if (errors < MAX_PRINT_ERRORS) {
-                printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
-                       "delta=%g, acc=%g\n",
-                    _n, _c, _h, _w, real, md4(aref, _n, _h, _w, _c), delta, acc);
+              if (delta > acc) {
+                if (errors < MAX_PRINT_ERRORS) {
+                  printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
+                         "delta=%g, acc=%g\n",
+                         _n, _c, _h, _w, real, md4(aref, _n, _h, _w, _c), delta, acc);
+                }
 #pragma omp atomic
                 errors++;
               }
@@ -532,8 +532,8 @@ namespace test {
                 if (errors < MAX_PRINT_ERRORS) {
                   printf("Not equal!: [%d][%d][%d][%d]: %f != %f (ref), "
                          "delta=%g, rel_diff=%g\n",
-                      _n, _c, _h, _w, real, md4(aref, _n, _h, _w, _c), delta,
-                      rel_diff);
+                         _n, _c, _h, _w, real, md4(aref, _n, _h, _w, _c), delta,
+                         rel_diff);
                 }
 #pragma omp atomic
                 errors++;

@@ -8,3 +8,7 @@ cscope.*
 
 #build path
 build/*
+
+.idea
+cmake-build-debug
+
