@@ -37,7 +37,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_c060(
     trans_weights(tweights_, weights);
   }
 
-  parallel_for<4, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _t2) {
+  parallel_for<4, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _t2) {
     MD3(InputType, ainput, input, this->t3, this->ic4,
         this->ic3 * this->I2 * this->ih * this->iw * V);
     MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
@@ -53,7 +53,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_c060(
         &md3(atweights, _oc4, _ic4, 0),
         &md2(abias, _oc4, 0),
         _ic4, _oc4, _t2);
-  }, this->t3, this->oc4, this->ic4, this->t2);
+  }, this->t3, this->ic4, this->oc4, this->t2);
 
   if (inference_acc_)
     is_first_run_ = false;
@@ -72,7 +72,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_b061(
   }
 
   if (this->oc4 == 1) {
-    parallel_for<5, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {
+    parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
       MD3(InputType, ainput, input, this->t3, this->ic4,
           this->ic3 * this->I2 * this->ih * this->iw * V);
       MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
@@ -94,15 +94,15 @@ void Instance_elx_conv_direct_1x1_t::__execute_b061(
           &md3(atweights, _oc4, _ic4, 0),
           &md2(abias, _oc4, 0),
           _ic4);
-    }, this->t3, this->oc4, this->ic4, this->ht, this->wt);
+    }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
   } else {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
     {
       int t3_history = -1;
       size_t ithr = omp_get_thread_num();
 
-      thread_parallel_for<5, 2>(mthr_, ithr,
-          [&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {
+      thread_parallel_for<5, 1>(mthr_, ithr,
+          [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
         MD3(InputType, ainput, input, this->t3, this->ic4,
             this->ic3 * this->I2 * this->ih * this->iw * V);
         MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
@@ -134,7 +134,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_b061(
             &md3(atweights, _oc4, _ic4, 0),
             &md2(abias, _oc4, 0),
             _ic4);
-      }, this->t3, this->oc4, this->ic4, this->ht, this->wt);
+      }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
     }
   }
 
