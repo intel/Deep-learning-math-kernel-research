@@ -203,7 +203,7 @@ int  Instance_elx_conv_direct_1x1_t::prepare_execute_opt()
   scratch_ = nullptr;
   workspace_ = nullptr;
   // TODO: enable workspace for tweights
-#if 0
+#if 1
   size_t workspace_size = tweights_size_;
   size_t scratch_size = tinput_size_ + toutput_size_
       + binput_size_ + bweights_size_ + boutput_size_;
@@ -228,8 +228,9 @@ int  Instance_elx_conv_direct_1x1_t::prepare_execute_opt()
 Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::set_trans_buffers()
 {
-#if 0
-  tweights_ = (TweightsType *)workspace_;
+#if 1
+  if (workspace_ != nullptr)
+    tweights_ = (TweightsType *)workspace_;
   tinput_ = (TinputType *)galloc::get();
   toutput_ = (ToutputType *)((char *)tinput_ + tinput_size_);
 #else

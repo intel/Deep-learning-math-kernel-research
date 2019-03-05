@@ -81,7 +81,7 @@ namespace test {
       // ref input
 #pragma omp parallel for
       for (size_t i = 0; i < desc_ref.sizes.input; i++) {
-        if (data_type_cfg == euler::test::FP32) {
+        if (data_type_cfg == euler::test::FP32 && !f16c_opt) {
           input_ref[i] = RAND() % 20 - 4;
         } else if (data_type_cfg == euler::test::FP16 || f16c_opt) {
           input_ref[i] = dInput(gen);
@@ -97,7 +97,7 @@ namespace test {
       // ref weights
 #pragma omp parallel for
       for (size_t i = 0; i < desc_ref.sizes.weights; i++) {
-        if (data_type_cfg == euler::test::FP32) {
+        if (data_type_cfg == euler::test::FP32 && !f16c_opt) {
           weights_ref[i] = -RAND() % 32;
         } else if (data_type_cfg == euler::test::FP16 || f16c_opt) {
           weights_ref[i] = dWeights(gen);
