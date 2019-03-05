@@ -129,7 +129,18 @@ template <> struct _mm<16> {
   }
   static inline __i<V> mask_i32gather_epi32(__i<V> src, __mmask16 k,
       __i<V> vidx, void *adrs, int scale) noexcept{
-    return _mm512_mask_i32gather_epi32(src, k, vidx, adrs, scale);
+    switch (scale) {
+    case 1:
+      return _mm512_mask_i32gather_epi32(src, k, vidx, adrs, 1);
+    case 2:
+      return _mm512_mask_i32gather_epi32(src, k, vidx, adrs, 2);
+    case 4:
+      return _mm512_mask_i32gather_epi32(src, k, vidx, adrs, 4);
+    case 8:
+      return _mm512_mask_i32gather_epi32(src, k, vidx, adrs, 8);
+    }
+
+    return _mm512_mask_i32gather_epi32(src, k, vidx, adrs, 1);
   }
   static inline __m<V> setzero_ps(void) noexcept {
     return _mm512_setzero_ps();

@@ -88,8 +88,8 @@ void Instance_elx_conv_wino_lp_t::__execute_a161(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD2(TinputType, atinput2, tinput_, mthr_, this->sampling_kind == FINE ?
-      A * A * this->I2 * this->Vx * V : A * A * this->IC * this->T);
+  MD2(TinputType, atinput2, tinput_, mthr_, this->sampling_kind == COARSE ?
+      A * A * this->IC * this->T : A * A * this->I2 * this->Vx * V);
   MD2(ToutputType, atoutput2, toutput_, mthr_,
       A * A * this->T * this->oc3 * this->O2 * V);
 
