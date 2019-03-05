@@ -5,6 +5,7 @@
 # SKX 8180 1S
 
 source ./scripts/best_configs/common.sh $@
+COMMON="$COMMON --f16c-opt=1"
 
 # resnet50_res2a_branch2b, 5.2T
 NSOCKETS=1 ./scripts/run.sh -c -i64 -h56 -o64 -H56 -n1 -adirect --execution-mode=0xa060 --blk-i=4 --blk-o=2 --flt-o=2 --flt-t=14 --pat-o=1 $COMMON

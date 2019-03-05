@@ -5,6 +5,7 @@
 # SKX 8180 1S
 
 source ./scripts/best_configs/common.sh $@
+COMMON="$COMMON --f16c-opt=1"
 
 # vgg19_conv1_2,
 NSOCKETS=1 ./scripts/run.sh -c -i64 -h224 -o64 -H224 -n1 --blk-i=4 --blk-o=2 --flt-o=2 --flt-t=14 -adirect --execution-mode=0xa060 --pat-o=1 --output-as-blocked=true -v0 $COMMON
