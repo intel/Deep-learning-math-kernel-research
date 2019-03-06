@@ -88,7 +88,10 @@ namespace test {
         } else if (data_type_cfg == euler::test::U8F32U8F32
             || data_type_cfg == euler::test::U8F32S8F32
             || data_type_cfg == euler::test::U8F32F32F32) {
-          input_ref[i] = dInput_mu_15_sigma_3(gen);
+          if (validate_results)
+            input_ref[i] = dInput_mu_15_sigma_3(gen);
+          else
+            input_ref[i] = RAND() % 20;
           if (input_ref[i] < 0)
             input_ref[i] = 0;
         }
@@ -296,12 +299,14 @@ namespace test {
     };
 
     // input
-    float iscale;
-    if (data_type_cfg == euler::test::U8F32U8F32
-        || data_type_cfg == euler::test::U8F32S8F32
-        || data_type_cfg == euler::test::U8F32F32F32) {
-      input_scale(iscale);
-      trans_input_scale();
+    float iscale = 1.0;
+    if (validate_results) {
+      if (data_type_cfg == euler::test::U8F32U8F32
+          || data_type_cfg == euler::test::U8F32S8F32
+          || data_type_cfg == euler::test::U8F32F32F32) {
+        input_scale(iscale);
+        trans_input_scale();
+      }
     }
 #pragma omp parallel for
     for (size_t i = 0; i < desc_ref.sizes.input; i++) {
@@ -348,10 +353,12 @@ namespace test {
     }
 
     // output
-    float oscale, oz;
-    if (data_type_cfg == euler::test::U8F32U8F32
-        || data_type_cfg == euler::test::U8F32S8F32)
-      output_scale(oscale, oz);
+    float oscale = 1.0, oz = 0.0;
+    if (validate_results) {
+      if (data_type_cfg == euler::test::U8F32U8F32
+          || data_type_cfg == euler::test::U8F32S8F32)
+        output_scale(oscale, oz);
+    }
     if (desc.with_ip_sum) {
 #pragma omp parallel for
       for (size_t i = 0; i < desc_ref.sizes.output; i++) {
