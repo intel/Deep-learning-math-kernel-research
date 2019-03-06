@@ -230,33 +230,25 @@ void Instance_elx_conv_wino_lp_t::execute(
     OutputType *out = output_as_bfmt_ ? boutput_ : (OutputType *)output;
 
     if (input_as_bfmt_) {
-      MD5(InputType, abinput, binput_, this->n, this->ic2, this->ih, this->iw, V);
-      MD4(InputType, ainput, input, this->n, this->ic, this->ih, this->iw);
-
-#pragma omp parallel for collapse(3)
-      iter_each (_n, this->n) {
-      iter_each (_ic2, this->ic2) {
-      iter_each (_ih, this->ih) {
+      parallel_for<3>(mthr_, [&](int _n, int _ic2, int _ih) {
         int v = _ic2 == this->ic2 - 1 ? this->Ir : V;
+        MD5(InputType, abinput, binput_, this->n, this->ic2, this->ih, this->iw, V);
+        MD4(InputType, ainput, input, this->n, this->ic, this->ih, this->iw);
         iter_each (_iw, this->iw) {
 #pragma omp simd
           iter_each (_v, v)
             md5(abinput, _n, _ic2, _ih, _iw, _v)
                 = md4(ainput, _n, _ic2 * V + _v, _ih, _iw);
         }
-      }}}
+      }, this->n, this->ic2, this->ih);
       in = binput_;
     }
 
     if (weights_as_bfmt_) {
-      MD6(WeightsType, abweights, bweights_, this->oc2, this->ic2,
-          this->kh, this->kw, V, V);
-      MD4(WeightsType, aweights, weights, this->oc, this->ic, this->kh, this->kw);
-
-#pragma omp parallel for collapse(3)
-      iter_each (_oc2, this->oc2) {
-      iter_each (_ic2, this->ic2) {
-      iter_each (_kh, this->kh) {
+      parallel_for<3>(mthr_, [&](int _oc2, int _ic2, int _kh) {
+        MD6(WeightsType, abweights, bweights_, this->oc2, this->ic2,
+            this->kh, this->kw, V, V);
+        MD4(WeightsType, aweights, weights, this->oc, this->ic, this->kh, this->kw);
         int iv = _ic2 == this->ic2 - 1 ? this->Ir : V;
         int ov = _oc2 == this->oc2 - 1 ? this->Or : V;
         iter_each (_kw, this->kw) {
@@ -266,7 +258,7 @@ void Instance_elx_conv_wino_lp_t::execute(
           md6(abweights, _oc2, _ic2, _kh, _kw, _iv, _ov)
             = md4(aweights, _oc2 * V + _ov, _ic2 * V + _iv, _kh, _kw);
         }}}
-      }}}
+      }, this->oc2, this->ic2, this->kh);
       wei = bweights_;
     }
 
@@ -276,14 +268,11 @@ void Instance_elx_conv_wino_lp_t::execute(
         (InputType *)in, (WeightsType *)wei, (BiasType *)bias);
 
     if (output_as_bfmt_) {
-      MD5(OutputType, aboutput, boutput_, this->n, this->oc2, this->oh, this->ow, V);
-      MD4(OutputType, aoutput, output, this->n, this->oc, this->oh, this->ow);
-
-#pragma omp parallel for collapse(3)
-      iter_each (_n, this->n) {
-      iter_each (_oc2, this->oc2) {
-      iter_each (_oh, this->oh) {
+      parallel_for<3>(mthr_, [&](int _n, int _oc2, int _oh) {
+        MD5(OutputType, aboutput, boutput_, this->n, this->oc2, this->oh, this->ow, V);
+        MD4(OutputType, aoutput, output, this->n, this->oc, this->oh, this->ow);
         int v = _oc2 == this->oc2 - 1 ? this->Or : V;
+
         if (this->with_ip_sum)
           iter_each (_V, v) {
           iter_each (_ow, this->ow) {
@@ -296,7 +285,7 @@ void Instance_elx_conv_wino_lp_t::execute(
             md4(aoutput, _n, _oc2 * V + _V, _oh, _ow)
               = md5(aboutput, _n, _oc2, _oh, _ow, _V);
           }}
-      }}}
+      }, this->n, this->oc2, this->oh);
     }
   }
 }
