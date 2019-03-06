@@ -373,8 +373,8 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
       : ker_trans_output0_;
 
   int ithr = omp_get_thread_num();
-  thread_parallel_for<3>(mthr_, ithr,
-      [&](int _t2, int _oc3, int _O2) {
+  thread_parallel_for<4>(mthr_, ithr,
+      [&](int _t2, int _oc3, int _O2, int _T) {
         // A, A, oc3, O2, T, V -> n, oc2, oh, ow, V
         MD7(OutputType, aoutput, output, xc->n, xc->oc4, xc->oc3, xc->O2,
             xc->oh, xc->ow, V);
@@ -391,7 +391,8 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
         } In[A][A];
         using Array = TrOpType[A][A][V];
 
-        iter_each (_T, Tz) {
+        //iter_each (_T, Tz) {
+        if (_T < Tz) {
           iter_each (_wA, A) {
             iter_each (_hA, A) {
               if (std::is_same<ToutputType, float>::value) {
@@ -422,7 +423,7 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
                     : nullptr,
                 A - K, A - K);
         }
-      }, xc->t2, xc->oc3, xc->O2);
+      }, xc->t2, xc->oc3, xc->O2, xc->T);
 }
 
 template <typename OutputType, typename BiasType, typename ToutputType, int I,

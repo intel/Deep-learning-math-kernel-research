@@ -371,7 +371,8 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
   __m<V> mz = _mm<V>::set1_ps(xc->tinput_quant_z);
 
   int ithr = omp_get_thread_num();
-  thread_parallel_for<4>(mthr_, ithr, [&](int _t2, int _ic3, int _I2, int _Vx) {
+  thread_parallel_for<5, 4>(mthr_, ithr, [&](int _t2, int _ic3, int _I2,
+                                             int _T, int _Vx) {
     MD2(uint8_t, atinput2_u8, tinput_u8,
         xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * xc->Vx * V);
     MD2(TinputType, atinput2, tinput,
@@ -383,7 +384,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
         xc->ic3, xc->I2, xc->Vx, Tz, A * A * V);
     using Array = op_type[A][A][V];
 
-    iter_each (_T, Tz) {
+    if (_T < Tz) {
       int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
       t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
 
@@ -415,7 +416,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
         }}
       }
     }
-  }, xc->t2, xc->ic3, xc->I2, xc->Vx);
+  }, xc->t2, xc->ic3, xc->I2, xc->T, xc->Vx);
 
   if (xc->sampling_kind == CALIBRATED)
     return;
