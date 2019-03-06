@@ -391,7 +391,8 @@ static inline void conv_execute(eld_conv_t convs[],
 static inline void conv_bench(eld_conv_t convs[], eld_conv_t &conv_ref,
     void **input, void **weights, void **output, void **bias, int C) {
   auto num_ops = test::cal_ops(conv_ref);
-  auto N = validate_results ? 1 : test::cal_iterations(num_ops);
+  auto iter = test::cal_iterations(num_ops);
+  auto N = iter < C ? C : iter;
 
   test::timer timer;
   for (auto n = 0; n < N / C; ++n) {
