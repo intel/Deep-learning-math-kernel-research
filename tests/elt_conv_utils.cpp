@@ -73,7 +73,7 @@ namespace test {
     } else if (input_file == nullptr && weights_file == nullptr) {
 #define RAND() rand_r(&seed)
       std::default_random_engine gen;
-      std::normal_distribution<float> dInput(-4.0, 20.0);
+      //std::normal_distribution<float> dInput(-4.0, 20.0);
       std::normal_distribution<float> dWeights(-1.0, 1.0);
       std::normal_distribution<float> dInput_mu_15_sigma_3(15.0, 3.0);
       std::normal_distribution<float> dWeights_mu_0_sigma_0_1(0.0, 0.1);
@@ -84,7 +84,7 @@ namespace test {
         if (data_type_cfg == euler::test::FP32 && !f16c_opt) {
           input_ref[i] = RAND() % 20 - 4;
         } else if (data_type_cfg == euler::test::FP16 || f16c_opt) {
-          input_ref[i] = dInput(gen);
+          input_ref[i] = RAND() % 20 - 12;   // (-12, 8)
         } else if (data_type_cfg == euler::test::U8F32U8F32
             || data_type_cfg == euler::test::U8F32S8F32
             || data_type_cfg == euler::test::U8F32F32F32) {
