@@ -58,8 +58,8 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute(
       asrc_s = &md5(asrc_scale, 0, 0, 0, 0, 0);
       asrc_z = &md5(asrc_scale, 0, 0, 0, 1, 0);
     } else {
-      asrc_s = &md5(asrc_scale, xc->ic3, _wA, _hA, 0, 0);
-      asrc_z = &md5(asrc_scale, xc->ic3, _wA, _hA, 1, 0);
+      asrc_s = &md5(asrc_scale, _ic3, _wA, _hA, 0, 0);
+      asrc_z = &md5(asrc_scale, _ic3, _wA, _hA, 1, 0);
     }
 
     ker_gemm(*(elx_conv_params_t *)xc,
@@ -103,13 +103,20 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
         if (xc->Ir != V * xc->Vx && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
           attr = set_attr(attr, has_Ir_idx);
 
+        TscaleType *asrc_s, *asrc_z;
+        if (xc->sampling_kind == COARSE || xc->sampling_kind == CALIBRATED) {
+          asrc_s = &md5(asrc_scale, 0, 0, 0, 0, 0);
+          asrc_z = &md5(asrc_scale, 0, 0, 0, 1, 0);
+        } else {
+          asrc_s = &md5(asrc_scale, _ic3, _wA, _hA, 0, 0);
+          asrc_z = &md5(asrc_scale, _ic3, _wA, _hA, 1, 0);
+        }
+
         ker_gemm(*(elx_conv_params_t *)xc,
             &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
             &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
             &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
-            nullptr, attr,
-            &md5(asrc_scale, _ic3, _wA, _hA, 0, 0),
-            &md5(asrc_scale, _ic3, _wA, _hA, 1, 0),
+            nullptr, attr, asrc_s, asrc_z,
             &md6(aweights_scale, _oc3, _ic3, _wA, _hA, 0, 0),
             &md6(aweights_factor, _oc3, _ic3, _wA, _hA, 0, 0));
       }}
