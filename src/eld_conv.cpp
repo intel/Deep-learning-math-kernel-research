@@ -217,30 +217,57 @@ int eld_conv_t::setup()
       // TODO: auto-select tile_size
       el_error("TODO: implement tile size auto-selection");
     } else {
-      #define F_5_3_OFF_CASE(UT, TT, type) \
+      #define wino_F_5_3_OFF_CASE(UT, TT) \
         case 7: break
 
-      #define F_5_3_ON_CASE(UT, TT, type) \
+      #define wino_F_5_3_ON_CASE(UT, TT) \
         case 7: \
-          xc = new elx_conv_##type##_t<UT, TT, 7, 3, 16, \
-              ISA_SKX_AVX512>(*this); \
+          xc = new elx_conv_wino_t<UT, TT, 7, 3, 16, ISA_SKX_AVX512>(*this); \
           break
 
-      #define create_conv_wino(UT, TT, prefix, type) \
+      #define create_conv_wino(UT, TT, prefix) \
         switch (tile_size) { \
         case 4: \
-          xc = new elx_conv_##type##_t<UT, TT, 4, 3, 16, \
-              ISA_SKX_AVX512>(*this); \
+          xc = new elx_conv_wino_t<UT, TT, 4, 3, 16, ISA_SKX_AVX512>(*this); \
           break; \
         case 5: \
-          xc = new elx_conv_##type##_t<UT, TT, 5, 3, 16, \
-              ISA_SKX_AVX512>(*this); \
+          xc = new elx_conv_wino_t<UT, TT, 5, 3, 16, ISA_SKX_AVX512>(*this); \
           break; \
         case 6: \
-          xc = new elx_conv_##type##_t<UT, TT, 6, 3, 16, \
-              ISA_SKX_AVX512>(*this); \
+          xc = new elx_conv_wino_t<UT, TT, 6, 3, 16, ISA_SKX_AVX512>(*this); \
           break; \
-        prefix##_CASE(UT, TT, type); \
+        wino_##prefix##_CASE(UT, TT); \
+        default: \
+          el_error("Unimplemented tile size"); \
+          break; \
+        }
+
+      #define F_2_3_TIN_COMM_TYPE float
+      #define F_2_3_TIN_PERF_TYPE short
+
+      #define wino_lp_F_5_3_OFF_CASE(UT, TT) \
+        case 7: break
+
+      #define wino_lp_F_5_3_ON_CASE(UT, TT) \
+        case 7: \
+          xc = new elx_conv_wino_lp_t<UT, TT, float, float, 7, 3, 16, ISA_SKX_AVX512>(*this); \
+          break
+
+      #define create_conv_wino_lp(UT, TT, prefix, f_2_3_tin_op_type) \
+        switch (tile_size) { \
+        case 4: \
+          if (sampling_kind == CALIBRATED) \
+            xc = new elx_conv_wino_lp_t<UT, TT, f_2_3_tin_op_type, float, 4, 3, 16, ISA_SKX_AVX512>(*this); \
+          else \
+            xc = new elx_conv_wino_lp_t<UT, TT, float, float, 4, 3, 16, ISA_SKX_AVX512>(*this); \
+          break; \
+        case 5: \
+          xc = new elx_conv_wino_lp_t<UT, TT, float, float, 5, 3, 16, ISA_SKX_AVX512>(*this); \
+          break; \
+        case 6: \
+          xc = new elx_conv_wino_lp_t<UT, TT, float, float, 6, 3, 16, ISA_SKX_AVX512>(*this); \
+          break; \
+        wino_lp_##prefix##_CASE(UT, TT); \
         default: \
           el_error("Unimplemented tile size"); \
           break; \
@@ -249,29 +276,29 @@ int eld_conv_t::setup()
       // TODO: forward, backward_data, backward_weights
       if ((execution_mode & 0xF00) != 0x100) {
         if (f16c_opt && user_type == user_type_f32) {
-          create_conv_wino(conv::FP32, conv_impl::FP32_F16iwo, F_5_3_ON, wino);
+          create_conv_wino(conv::FP32, conv_impl::FP32_F16iwo, F_5_3_ON);
 #ifdef ENABLE_USER_FP16
         } else if (user_type == user_type_f16) {
-          create_conv_wino(conv::FP16, conv_impl::FP32_F16wob, F_5_3_ON, wino);
+          create_conv_wino(conv::FP16, conv_impl::FP32_F16wob, F_5_3_ON);
 #endif
         } else if (user_type != user_type_f16o) {
-          create_conv_wino(conv::FP32, conv_impl::FP32, F_5_3_ON, wino);
+          create_conv_wino(conv::FP32, conv_impl::FP32, F_5_3_ON);
         }
       } else {
         if (f16c_opt && user_type == user_type_f32) {
-          create_conv_wino(conv::FP32, conv_impl::INT8_F16o, F_5_3_OFF, wino_lp);
+          create_conv_wino_lp(conv::FP32, conv_impl::INT8_F16o, F_5_3_OFF, F_2_3_TIN_COMM_TYPE);
 #ifdef ENABLE_USER_FP16
         } else if (user_type == user_type_f16) {
-          create_conv_wino(conv::FP16, conv_impl::INT8_F16b, F_5_3_OFF, wino_lp);
+          create_conv_wino_lp(conv::FP16, conv_impl::INT8_F16b, F_5_3_OFF, F_2_3_TIN_COMM_TYPE);
 #endif
         } else if (user_type == user_type_u8f32u8f32) {
-          create_conv_wino(conv::U8F32U8F32, conv_impl::INT8_F32, F_5_3_OFF, wino_lp);
+          create_conv_wino_lp(conv::U8F32U8F32, conv_impl::INT8_F32, F_5_3_OFF, F_2_3_TIN_PERF_TYPE);
         } else if (user_type == user_type_u8f32s8f32) {
-          create_conv_wino(conv::U8F32S8F32, conv_impl::INT8_F32, F_5_3_OFF, wino_lp);
+          create_conv_wino_lp(conv::U8F32S8F32, conv_impl::INT8_F32, F_5_3_OFF, F_2_3_TIN_PERF_TYPE);
         } else if (user_type == user_type_u8f32f32f32) {
-          create_conv_wino(conv::U8F32F32F32, conv_impl::INT8_F32, F_5_3_OFF, wino_lp);
+          create_conv_wino_lp(conv::U8F32F32F32, conv_impl::INT8_F32, F_5_3_OFF, F_2_3_TIN_PERF_TYPE);
         } else if (user_type != user_type_f16o) {
-          create_conv_wino(conv::FP32, conv_impl::INT8_F32, F_5_3_ON, wino_lp);
+          create_conv_wino_lp(conv::FP32, conv_impl::INT8_F32, F_5_3_ON, F_2_3_TIN_COMM_TYPE);
         }
       }
     }
