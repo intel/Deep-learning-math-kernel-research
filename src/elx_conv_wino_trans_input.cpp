@@ -380,31 +380,27 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
     MD8(InputType, ainput, input,
         xc->n, xc->ic4, xc->ic3, xc->I2, xc->Vx, xc->ih, xc->iw, V);
     int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
-    MD5(TinputType, atinput5, &md2(atinput2, _t2, 0),
-        xc->ic3, xc->I2, xc->Vx, Tz, A * A * V);
-    using Array = op_type[A][A][V];
 
     if (_T < Tz) {
       int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
       t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
 
       InputType *in = &md8(ainput, _n, 0, _ic3, _I2, _Vx, _ih, _iw, 0);
-      auto aout = &md5(atinput5, _ic3, _I2, _Vx, _T, 0);
-      if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
-          && _wA_end == A - 1)
-        ker_trans_input_(*xc, *(Array *)aout, in, 0, A - 1, 0, A - 1);
-      else
-        ker_trans_input0_(
-            *xc, *(Array *)aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
-
       if (xc->sampling_kind == CALIBRATED) {
-        MD3(TinputType, aout3, &md5(atinput5, _ic3, _I2, _Vx, _T, 0), A, A, V);
         MD7(uint8_t, atinput_u8, &md2(atinput2_u8, _t2, 0),
             A, A, xc->ic3, xc->I2, Tz, xc->Vx, V);
+        alignas(64) op_type aout[A][A][V];
+
+        if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
+            && _wA_end == A - 1)
+          ker_trans_input_(*xc, aout, in, 0, A - 1, 0, A - 1);
+        else
+          ker_trans_input0_(*xc, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
+
         iter_each (_wA, A) {
         iter_each (_hA, A) {
           // Min-Max quantization
-          __m<V> a = *(__m<V> *)&md3(aout3, _wA, _hA, 0);
+          __m<V> a = *(__m<V> *)&aout[_wA][_hA][0];
           __m<V> mresf32 = a * mrepS + mz;
           // convert to uint8
           __i<V> mresu32 = _mm<V>::cvt_roundps_epu32(
@@ -414,6 +410,18 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
           _mm_store_si128((__m128i *)&md7(
               atinput_u8, _wA, _hA, _ic3, _I2, _T, _Vx, 0), mmresu8);
         }}
+      } else {
+        MD5(TinputType, atinput5, &md2(atinput2, _t2, 0),
+            xc->ic3, xc->I2, xc->Vx, Tz, A * A * V);
+        auto aout = &md5(atinput5, _ic3, _I2, _Vx, _T, 0);
+        using Array = op_type[A][A][V];
+
+        if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
+            && _wA_end == A - 1)
+          ker_trans_input_(*xc, *(Array *)aout, in, 0, A - 1, 0, A - 1);
+        else
+          ker_trans_input0_(
+              *xc, *(Array *)aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
       }
     }
   }, xc->t2, xc->ic3, xc->I2, xc->T, xc->Vx);
