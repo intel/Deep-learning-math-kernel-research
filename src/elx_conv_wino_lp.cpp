@@ -156,7 +156,7 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
   switch (xopt_) {
   case 0xa133:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
-    tinput_size = A * A * (this->IC / this->ic4) * this->t * sizeof(TrInputOpType);
+    tinput_size = A * A * (this->IC / this->ic4) * this->t * sizeof(TinputType);
     toutput_size = A * A * (this->OC / this->oc4) * this->t * sizeof(ToutputType);
     tinput_u8_size = A * A * (this->IC / this->ic4) * this->t * sizeof(uint8_t);
     tinput_quant_scale_size = this->t * this->ic3 * 2 * A * A * sizeof(TscaleType);
@@ -167,9 +167,9 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
   case 0xa161:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
     if (this->sampling_kind == COARSE)
-      tinput_size = this->IC * A * A * this->T * mthr_ * sizeof(TrInputOpType);
+      tinput_size = this->IC * A * A * this->T * mthr_ * sizeof(TinputType);
     else
-      tinput_size = A * A * this->I2 * this->Vx * V * mthr_ * sizeof(TrInputOpType);
+      tinput_size = A * A * this->I2 * this->Vx * V * mthr_ * sizeof(TinputType);
     toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
     tinput_u8_size = A * A * this->IC * mthr_ * this->T * sizeof(uint8_t);
     tinput_quant_scale_size = mthr_ * 2 * this->ic3 * this->T * A * A * sizeof(TscaleType);
@@ -179,7 +179,7 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
     break;
   case 0xa173:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
-    tinput_size = A * A * (this->IC / this->ic4) * mthr_ * sizeof(TrInputOpType);
+    tinput_size = A * A * (this->IC / this->ic4) * mthr_ * sizeof(TinputType);
     toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
     tinput_u8_size = A * A * (this->IC / this->ic4) * mthr_ * this->T * sizeof(uint8_t);
     tinput_quant_scale_size = mthr_ * 2 * this->ic3 * this->T * A * A * sizeof(TscaleType);
@@ -245,7 +245,7 @@ void Instance_elx_conv_wino_lp_t::set_trans_buffers()
 {
   if (workspace_ != nullptr) {
     tweights_ = (TweightsType *)workspace_;
-    tinput_ = (TrInputOpType *)galloc::get();
+    tinput_ = (TinputType *)galloc::get();
     // int8gemm supported in weights reuse case only.
     tweights_quant_scale_ = (TscaleType *)((char *)tweights_ + tweights_size_);
     tweights_quant_factor_ = (TscaleType *)((char *)tweights_quant_scale_ + tweights_quant_scale_size_);
@@ -257,7 +257,7 @@ void Instance_elx_conv_wino_lp_t::set_trans_buffers()
     }
   } else {
     tweights_ = (TweightsType *)galloc::get();
-    tinput_ = (TrInputOpType *)((char *)tweights_ + tweights_size_);
+    tinput_ = (TinputType *)((char *)tweights_ + tweights_size_);
   }
   toutput_ = (ToutputType *)((char *)tinput_ + tinput_size_);
   binput_ = (InputType *)((char *)toutput_ + toutput_size_);

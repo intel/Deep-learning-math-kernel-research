@@ -80,6 +80,7 @@ void Instance_elx_conv_wino_lp_t::__execute_a161(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
+
   if (is_first_run_) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
     {
@@ -102,7 +103,7 @@ void Instance_elx_conv_wino_lp_t::__execute_a161(
     size_t ithr = omp_get_thread_num();
 
     thread_parallel_for<2>(mthr_, ithr, [&](int _t2, int _oc4) {
-      MD2(TrInputOpType, atinput2, tinput_, mthr_, this->sampling_kind == COARSE ?
+      MD2(TinputType, atinput2, tinput_, mthr_, this->sampling_kind == COARSE ?
           A * A * this->IC * this->T : A * A * this->I2 * this->Vx * V);
       MD2(ToutputType, atoutput2, toutput_, mthr_,
           A * A * this->T * this->oc3 * this->O2 * V);
@@ -127,7 +128,7 @@ void Instance_elx_conv_wino_lp_t::__execute_a161(
 
       if (t2_history != _t2) {
         trans_input_u8(&md2(atinput_quant_scale, ithr, 0),
-            &md2(atinput2_u8, ithr, 0), (TrInputOpType *)tbuf, input, _t2, Tz);
+            &md2(atinput2_u8, ithr, 0), (TinputType *)tbuf, input, _t2, Tz);
         t2_history = _t2;
       }
       u8s8_gemm.execute(tbuf,
@@ -171,7 +172,7 @@ void Instance_elx_conv_wino_lp_t::__execute_a173(
     thread_parallel_for<3, 1>(mthr_, ithr, [&](int _t2, int _ic4, int _oc4) {
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       size_t ithr = omp_get_thread_num();
-      MD2(TrInputOpType, atinput2, tinput_, mthr_,
+      MD2(TinputType, atinput2, tinput_, mthr_,
           A * A * this->ic3 * this->I2 * V * this->Vx);
       MD2(ToutputType, atoutput2, toutput_, mthr_,
           A * A * this->T * this->oc3 * this->O2 * V);

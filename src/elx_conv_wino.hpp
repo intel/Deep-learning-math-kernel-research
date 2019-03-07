@@ -94,7 +94,7 @@ private:
   void (elx_conv_wino_t::*execute_opt_)(
       OutputType *, InputType *, WeightsType *, BiasType *);
 
-  elx_conv_wino_trans_input_t<TinputType, InputType, float, I, A, K, V>
+  elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
     trans_input;
 
   elx_conv_wino_trans_weights_t<TweightsType, WeightsType, I, A, K, V>
