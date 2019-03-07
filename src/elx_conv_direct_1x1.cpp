@@ -1,4 +1,5 @@
 #include "elx_conv_direct_1x1.hpp"
+#include "el_parallel.hpp"
 
 namespace euler {
 
@@ -264,38 +265,31 @@ Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::trans_input_2_blocked(
     InputType *binput, InputType *input)
 {
-  MD4(InputType, abinput4, binput, this->n, this->ic2, this->ih * this->iw, V);
   SET_EPI32(this->ih * this->iw)
 
   if (this->Ir == V) {
-    MD4(InputType, ainput4, input, this->n, this->ic2, V, this->ih * this->iw);
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-#pragma omp for nowait collapse(3)
-    iter_each(_n, this->n) {
-    iter_each(_ic2, this->ic2) {
-    iter_each(_t, this->ih * this->iw) {
+    parallel_for<3>(mthr_, [&](int _n, int _ic2, int _t) {
+      MD4(InputType, abinput4, binput, this->n, this->ic2, this->ih * this->iw, V);
+      MD4(InputType, ainput4, input, this->n, this->ic2, V, this->ih * this->iw);
       if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
          constexpr int scale = sizeof(InputType);
          __m<V> ain = _mm<V>::i32gather_ps(vindex,
              &md4(ainput4, _n, _ic2, 0, _t), scale);
          _mm<V>::store_ps(&md4(abinput4, _n, _ic2, _t, 0), ain);
       } else {
-#pragma omp simd
+        #pragma omp simd
         iter_each (_iv, V) {
           md4(abinput4, _n, _ic2, _t, _iv) = md4(ainput4, _n, _ic2, _iv, _t);
         }
       }
-    }}}
+    }, this->n, this->ic2, this->ih * this->iw);
   } else {
-    MD3(InputType, ainput3, input, this->n, this->ic, this->ih * this->iw);
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-#pragma omp for nowait collapse(3)
-    iter_each(_n, this->n) {
-    iter_each(_ic2, this->ic2) {
-    iter_each(_t, this->ih * this->iw) {
+    parallel_for<3>(mthr_, [&](int _n, int _ic2, int _t) {
+      MD4(InputType, abinput4, binput, this->n, this->ic2, this->ih * this->iw, V);
+      MD3(InputType, ainput3, input, this->n, this->ic, this->ih * this->iw);
       bool is_Ir = _ic2 == this->ic2 - 1;
       if (is_Ir) {
-#pragma omp simd
+        #pragma omp simd
         iter_each (_iv, this->Ir) {
           md4(abinput4, _n, _ic2, _t, _iv)
               = md3(ainput3, _n, (this->ic2 - 1) * V + _iv, _t);
@@ -307,14 +301,14 @@ void Instance_elx_conv_direct_1x1_t::trans_input_2_blocked(
                &md3(ainput3, _n, _ic2 * V , _t), scale);
            _mm<V>::store_ps(&md4(abinput4, _n, _ic2, _t, 0), ain);
         } else {
-#pragma omp simd
+          #pragma omp simd
           iter_each (_iv, V) {
             md4(abinput4, _n, _ic2, _t, _iv)
                 = md3(ainput3, _n, _ic2 * V + _iv, _t);
           }
         }
       }
-    }}}
+    }, this->n, this->ic2, this->ih * this->iw);
   }
 }
 
@@ -323,63 +317,57 @@ Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::trans_weights_2_blocked(
     WeightsType *bweights, WeightsType *weights)
 {
-  MD4(WeightsType, abweights4, bweights, this->oc2, this->ic2, V, V);
   SET_EPI32(this->ic)
 
   if (this->Ir == V && this->Or == V) {
-    MD4(WeightsType, aweights4, weights, this->oc2, V, this->ic2, V);
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-#pragma omp for nowait collapse(3)
-    iter_each(_oc2, this->oc2) {
-    iter_each(_ic2, this->ic2) {
-    iter_each(_iv, V) {
+    parallel_for<3>(mthr_, [&](int _oc2, int _ic2, int _iV) {
+      MD4(WeightsType, abweights4, bweights, this->oc2, this->ic2, V, V);
+      MD4(WeightsType, aweights4, weights, this->oc2, V, this->ic2, V);
       if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
          constexpr int scale = sizeof(WeightsType);
          __m<V> t = _mm<V>::i32gather_ps(vindex,
-             &md4(aweights4, _oc2, 0, _ic2, _iv), scale);
-         _mm<V>::store_ps(&md4(abweights4, _oc2, _ic2, _iv, 0), t);
+             &md4(aweights4, _oc2, 0, _ic2, _iV), scale);
+         _mm<V>::store_ps(&md4(abweights4, _oc2, _ic2, _iV, 0), t);
       } else {
-#pragma omp simd
+        #pragma omp simd
         iter_each (_ov, V) {
-          md4(abweights4, _oc2, _ic2, _iv, _ov)
-              = md4(aweights4, _oc2, _ov, _ic2, _iv);
+          md4(abweights4, _oc2, _ic2, _iV, _ov)
+              = md4(aweights4, _oc2, _ov, _ic2, _iV);
         }
       }
-    }}}
+    }, this->oc2, this->ic2, V);
   } else {
-    MD2(WeightsType, aweights2, weights, this->oc, this->ic);
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-#pragma omp for nowait collapse(2)
-    iter_each(_oc2, this->oc2) {
-    iter_each(_ic2, this->ic2) {
+    parallel_for<2>(mthr_, [&](int _oc2, int _ic2) {
+      MD2(WeightsType, aweights2, weights, this->oc, this->ic);
+      MD4(WeightsType, abweights4, bweights, this->oc2, this->ic2, V, V);
       bool is_Or = _oc2 == this->oc2 - 1;
       bool is_Ir = _ic2 == this->ic2 - 1;
       int iV = is_Ir ? this->Ir : V;
       if (is_Or) {
-        iter_each(_iv, iV) {
-#pragma omp simd
+        iter_each(_iV, iV) {
+          #pragma omp simd
           iter_each (_ov, this->Or) {
-            md4(abweights4, _oc2, _ic2, _iv, _ov)
-                = md2(aweights2, _oc2 * V + _ov, _ic2 * V + _iv);
+            md4(abweights4, _oc2, _ic2, _iV, _ov)
+                = md2(aweights2, _oc2 * V + _ov, _ic2 * V + _iV);
           }
         }
       } else {
-        iter_each(_iv, iV) {
+        iter_each(_iV, iV) {
           if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
              constexpr int scale = sizeof(WeightsType);
              __m<V> t = _mm<V>::i32gather_ps(vindex,
-                 &md2(aweights2, _oc2 * V, _ic2 * V + _iv), scale);
-             _mm<V>::store_ps(&md4(abweights4, _oc2, _ic2, _iv, 0), t);
+                 &md2(aweights2, _oc2 * V, _ic2 * V + _iV), scale);
+             _mm<V>::store_ps(&md4(abweights4, _oc2, _ic2, _iV, 0), t);
           } else {
-#pragma omp simd
+            #pragma omp simd
             iter_each (_ov, V) {
-              md4(abweights4, _oc2, _ic2, _iv, _ov)
-                  = md2(aweights2, _oc2 * V + _ov, _ic2 * V + _iv);
+              md4(abweights4, _oc2, _ic2, _iV, _ov)
+                  = md2(aweights2, _oc2 * V + _ov, _ic2 * V + _iV);
             }
           }
         }
       }
-    }}
+    }, this->oc2, this->ic2);
   }
 }
 
@@ -388,32 +376,28 @@ Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::trans_output_2_plain(
     OutputType *output, OutputType *boutput)
 {
-  MD5(OutputType, aboutput, boutput, this->n, this->oc2, this->oh, this->ow, V);
-  MD4(OutputType, aoutput, output, this->n, this->oc, this->oh, this->ow);
   if (this->with_ip_sum) {
-#pragma omp parallel for collapse(3)
-    iter_each (_n, this->n) {
-    iter_each (_oc2, this->oc2) {
-    iter_each (_oh, this->oh) {
+    parallel_for<3>(mthr_, [&](int _n, int _oc2, int _oh) {
+      MD5(OutputType, aboutput, boutput, this->n, this->oc2, this->oh, this->ow, V);
+      MD4(OutputType, aoutput, output, this->n, this->oc, this->oh, this->ow);
       int v = _oc2 == this->oc2 - 1 ? this->Or : V;
       iter_each (_V, v) {
       iter_each (_ow, this->ow) {
         md4(aoutput, _n, _oc2 * V + _V, _oh, _ow)
           += md5(aboutput, _n, _oc2, _oh, _ow, _V);
       }}
-    }}}
+    }, this->n, this->oc2, this->oh);
   } else {
-#pragma omp parallel for collapse(3)
-    iter_each (_n, this->n) {
-    iter_each (_oc2, this->oc2) {
-    iter_each (_oh, this->oh) {
+    parallel_for<3>(mthr_, [&](int _n, int _oc2, int _oh) {
+      MD5(OutputType, aboutput, boutput, this->n, this->oc2, this->oh, this->ow, V);
+      MD4(OutputType, aoutput, output, this->n, this->oc, this->oh, this->ow);
       int v = _oc2 == this->oc2 - 1 ? this->Or : V;
       iter_each (_V, v) {
       iter_each (_ow, this->ow) {
         md4(aoutput, _n, _oc2 * V + _V, _oh, _ow)
           = md5(aboutput, _n, _oc2, _oh, _ow, _V);
       }}
-    }}}
+    }, this->n, this->oc2, this->oh);
   }
 }
 
@@ -456,7 +440,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_post(WeightsType *aweights,
       }
     }
   } else {
-#pragma omp simd
+    #pragma omp simd
     iter_each (_oV, V) {
       md8(atweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2, _oV) = aweights[_oV];
     }
@@ -512,22 +496,17 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_blocked(
 {
   // oc4, (oc3, oc3r), (O2, O2r), ic4, ic3, I2, V, V ->
   // ic4, oc4, ic3, (oc3, oc3r), I2, V, (O2, O2r), V
-  MD8(WeightsType, aweights, weights, this->oc4, this->oc3, this->O2, this->ic4,
-      this->ic3, this->I2, V, V);
 
-#pragma omp parallel
-#pragma omp for nowait collapse(4) schedule(static)
-  iter_each (_oc4, this->oc4) {
-  iter_each (_ic4, this->ic4) {
-  iter_each (_oc3, this->oc3) {
-  iter_each (_ic3, this->ic3) {
+  parallel_for<4>(mthr_, [&](int _oc4, int _ic4, int _oc3, int _ic3) {
     iter_each (_I2, this->I2) {
     iter_each (_iV, V) {
     iter_each (_O2, this->O2) {
+      MD8(WeightsType, aweights, weights, this->oc4, this->oc3, this->O2,
+          this->ic4, this->ic3, this->I2, V, V);
       __trans_weights_post(&md8(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV, 0),
           tweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2);
     }}}
-  }}}}
+  }, this->oc4, this->ic4, this->oc3, this->ic3);
 }
 
 Template_elx_conv_direct_1x1_t
@@ -539,13 +518,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_oihw(
   SET_EPI32(this->ic)
 
   if (this->Ir == V && this->Or == V) {
-#pragma omp parallel
-#pragma omp for nowait collapse(5) schedule(static)
-    iter_each (_oc4, this->oc4) {
-    iter_each (_ic4, this->ic4) {
-    iter_each (_oc3, this->oc3) {
-    iter_each (_ic3, this->ic3) {
-    iter_each (_I2, this->I2) {
+    parallel_for<5>(mthr_, [&](int _oc4, int _ic4, int _oc3, int _ic3, int _I2) {
       iter_each (_iV, V) {
       iter_each (_O2, this->O2) {
         MD8(WeightsType, aweights, weights, this->oc4, this->oc3, this->O2, V,
@@ -556,7 +529,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_oihw(
         __trans_weights_post((WeightsType *)&awei,
             tweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2);
       }}
-    }}}}}
+    }, this->oc4, this->ic4, this->oc3, this->ic3, this->I2);
   } else {
     auto readin_v = [&](TweightsType *tweights, WeightsType *weights,
         int _oc4, int _oc3, int _O2, int _ic4, int _ic3, int _I2, int _iV) {
@@ -591,13 +564,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_oihw(
       }
     };
 
-#pragma omp parallel
-#pragma omp for nowait collapse(5) schedule(static)
-    iter_each (_oc4, this->oc4) {
-    iter_each (_ic4, this->ic4) {
-    iter_each (_oc3, this->oc3) {
-    iter_each (_ic3, this->ic3) {
-    iter_each (_I2, this->I2) {
+    parallel_for<5>(mthr_, [&](int _oc4, int _ic4, int _oc3, int _ic3, int _I2) {
       bool is_Ir = (_ic4 == this->ic4 - 1) && (_ic3 == this->ic3 -1)
           && (_I2 == this->I2 - 1);
       int iV = is_Ir ? this->Ir : V;
@@ -610,7 +577,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_oihw(
         else
           readin_v(tweights, weights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV);
       }}
-    }}}}}
+    }, this->oc4, this->ic4, this->oc3, this->ic3, this->I2);
   }
 }
 
@@ -618,24 +585,18 @@ Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::__trans_weights_hwio(
     TweightsType *tweights, WeightsType *weights)
 {
-  MD8(TweightsType, atweights, tweights, this->oc4, this->ic4, this->oc3,
-      this->ic3, this->I2, V, this->O2, V);
-  MD8(WeightsType, aweights, weights, this->ic4, this->ic3, this->I2, V,
-      this->oc4, this->oc3, this->O2, V);
   if (this->Ir == V && this->Or == V) {
-#pragma omp parallel
-#pragma omp for nowait collapse(5) schedule(static)
-    iter_each (_oc4, this->oc4) {
-    iter_each (_ic4, this->ic4) {
-    iter_each (_oc3, this->oc3) {
-    iter_each (_ic3, this->ic3) {
-    iter_each (_I2, this->I2) {
+    parallel_for<5>(mthr_, [&](int _oc4, int _ic4, int _oc3, int _ic3, int _I2) {
+      MD8(TweightsType, atweights, tweights, this->oc4, this->ic4, this->oc3,
+          this->ic3, this->I2, V, this->O2, V);
+      MD8(WeightsType, aweights, weights, this->ic4, this->ic3, this->I2, V,
+          this->oc4, this->oc3, this->O2, V);
       iter_each (_iV, V) {
       iter_each (_O2, this->O2) {
         __trans_weights_post(&md8(aweights, _ic4, _ic3, _I2, _iV, _oc4, _oc3, _O2, 0),
             tweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2);
       }}
-    }}}}}
+    }, this->oc4, this->ic4, this->oc3, this->ic3, this->I2);
   } else {
     auto readin = [&](int _oc4, int _ic4, int _oc3, int _ic3,
                       int _I2, int _iV, int _O2) {
@@ -653,13 +614,11 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_hwio(
             tweights, _oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2);
     };
 
-#pragma omp parallel
-#pragma omp for nowait collapse(5) schedule(static)
-    iter_each (_oc4, this->oc4) {
-    iter_each (_ic4, this->ic4) {
-    iter_each (_oc3, this->oc3) {
-    iter_each (_ic3, this->ic3) {
-    iter_each (_I2, this->I2) {
+    parallel_for<5>(mthr_, [&](int _oc4, int _ic4, int _oc3, int _ic3, int _I2) {
+      MD8(TweightsType, atweights, tweights, this->oc4, this->ic4, this->oc3,
+          this->ic3, this->I2, V, this->O2, V);
+      MD8(WeightsType, aweights, weights, this->ic4, this->ic3, this->I2, V,
+          this->oc4, this->oc3, this->O2, V);
       int iV = (this->Ir != V && _ic4 == this->ic4 - 1
           && _ic3 == this->ic3 - 1 && _I2 == this->I2 - 1)
           ? this->Ir : V;
@@ -667,7 +626,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_hwio(
       iter_each (_O2, this->O2) {
         readin(_oc4, _ic4, _oc3, _ic3, _I2, _iV, _O2);
       }}
-    }}}}}
+    }, this->oc4, this->ic4, this->oc3, this->ic3, this->I2);
   }
 }
 
@@ -739,7 +698,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_input_blocked(
         _mm<V>::store_ps(&md4(atinput, _ic3, _I2, _T, 0),
              *((__m<V> *)&md8(ainput, _ic3, _I2, _ht, 0, _wt, _T, 0, 0)));
     } else {
-#pragma omp simd
+      #pragma omp simd
       iter_each (_V, V) {
         md4(atinput, _ic3, _I2, _T, _V)
             = md8(ainput, _ic3, _I2, _ht, 0, _wt, _T, 0, _V);
@@ -762,7 +721,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_pad_input_plain(
     iter_each (_T, this->T) {
       int _iw = _wt * (this->ws * this->T) + _T * this->ws - this->lp;
       if (_ih < 0 || _ih >= this->ih || _iw < 0 || _iw >= this->iw) {
-#pragma omp simd
+        #pragma omp simd
         iter_each (_V, V) {
           md3(atinput, _ic2, _T, _V) = 0.0f;
         }
@@ -773,10 +732,9 @@ void Instance_elx_conv_direct_1x1_t::__trans_pad_input_plain(
                &md4(ainput, _ic2, 0, _ih, _iw), scale);
            _mm<V>::store_ps(&md3(atinput, _ic2, _T, 0), ain);
         } else {
-#pragma omp simd
+          #pragma omp simd
           iter_each (_V, V) {
-            md3(atinput, _ic2, _T, _V)
-                = md4(ainput, _ic2, _V, _ih, _iw);
+            md3(atinput, _ic2, _T, _V) = md4(ainput, _ic2, _V, _ih, _iw);
           }
         }
       }
@@ -791,12 +749,12 @@ void Instance_elx_conv_direct_1x1_t::__trans_pad_input_plain(
       bool is_Ir = _ic2 == this->ic2 - 1;
       if (is_Ir) {
         if (_ih < 0 || _ih >= this->ih || _iw < 0 || _iw >= this->iw) {
-#pragma omp simd
+          #pragma omp simd
           iter_each (_V, V) {
             md3(atinput, _ic2, _T, _V) = 0.0f;
           }
         } else {
-#pragma omp simd
+          #pragma omp simd
           iter_each (_V, this->Ir) {
             md3(atinput, _ic2, _T, _V)
                 = md3(ainput, (this->ic2 - 1) * V + _V, _ih, _iw);
@@ -804,7 +762,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_pad_input_plain(
         }
       } else {
         if (_ih < 0 || _ih >= this->ih || _iw < 0 || _iw >= this->iw) {
-#pragma omp simd
+          #pragma omp simd
           iter_each (_V, V) {
             md3(atinput, _ic2, _T, _V) = 0.0f;
           }
@@ -815,7 +773,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_pad_input_plain(
                 &md3(ainput, _ic2 * V, _ih, _iw), scale);
             _mm<V>::store_ps(&md3(atinput, _ic2, _T, 0), ain);
           } else {
-#pragma omp simd
+            #pragma omp simd
             iter_each (_V, V) {
               md3(atinput, _ic2, _T, _V)
                   = md3(ainput, _ic2 * V + _V, _ih, _iw);
@@ -845,7 +803,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_input_nchw(
              &md7(ainput, _ic2, 0, _ht, 0, _wt, _T, 0), scale);
          _mm<V>::store_ps(&md3(atinput, _ic2, _T, 0), ain);
       } else {
-#pragma omp simd
+        #pragma omp simd
         iter_each (_V, V) {
           md3(atinput, _ic2, _T, _V)
               = md7(ainput, _ic2, _V, _ht, 0, _wt, _T, 0);
@@ -859,7 +817,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_input_nchw(
     iter_each (_T, this->T) {
       bool is_Ir = _ic2 == this->ic2 - 1;
       if (is_Ir) {
-#pragma omp simd
+        #pragma omp simd
         iter_each (_V, this->Ir) {
           md3(atinput, _ic2, _T, _V)
               = md6(ainput6, (this->ic2 - 1) * V + _V, _ht, 0, _wt, _T, 0);
@@ -871,7 +829,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_input_nchw(
               &md6(ainput6, _ic2 * V, _ht, 0, _wt, _T, 0), scale);
           _mm<V>::store_ps(&md3(atinput, _ic2, _T, 0), ain);
         } else {
-#pragma omp simd
+          #pragma omp simd
           iter_each (_V, V) {
             md3(atinput, _ic2, _T, _V)
                 = md6(ainput6, _ic2 * V + _V, _ht, 0, _wt, _T, 0);
@@ -913,7 +871,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_blocked(
   iter_each (_O2, this->O2) {
   iter_each (_T, this->T) {
     if (this->with_ip_sum && !output_as_bfmt_) {
-#pragma omp simd
+      #pragma omp simd
       iter_each (_V, V) {
         md7(aoutput, _oc4, _oc3, _O2, _ht, _wt, _T, _V)
             += md4(atoutput, _oc3, _O2, _T, _V);
@@ -926,7 +884,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_blocked(
         _mm<V>::store_ps(&md7(aoutput, _oc4, _oc3, _O2, _ht, _wt, _T, 0),
              *((__m<V> *)&md4(atoutput, _oc3, _O2, _T, 0)));
     } else {
-#pragma omp simd
+      #pragma omp simd
       iter_each (_V, V) {
         md7(aoutput, _oc4, _oc3, _O2, _ht, _wt, _T, _V)
             = md4(atoutput, _oc3, _O2, _T, _V);
@@ -949,7 +907,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_nchw(
     iter_each (_O2, this->O2) {
     iter_each (_T, this->T) {
       if (this->with_ip_sum && !output_as_bfmt_) {
-#pragma omp simd
+        #pragma omp simd
         iter_each (_V, V) {
           md7(aoutput, _oc4, _oc3, _O2, _V, _ht, _wt, _T)
               += md4(atoutput, _oc3, _O2, _T, _V);
@@ -960,7 +918,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_nchw(
         _mm<V>::i32scatter_ps(&md7(aoutput, _oc4, _oc3, _O2, 0, _ht, _wt, _T),
             vindex, t, scale);
       } else {
-#pragma omp simd
+        #pragma omp simd
         iter_each (_V, V) {
           md7(aoutput, _oc4, _oc3, _O2, _V, _ht, _wt, _T)
               = md4(atoutput, _oc3, _O2, _T, _V);
@@ -978,13 +936,13 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_nchw(
           && (_O2 == this->O2 - 1);
       if (is_Or) {
         if (this->with_ip_sum && !output_as_bfmt_) {
-#pragma omp simd
+          #pragma omp simd
           iter_each(_ov, this->Or) {
             md4(aoutput, (this->oc2 - 1) * V + _ov, _ht, _wt, _T)
                 += md4(atoutput, _oc3, _O2, _T, _ov);
           }
         } else {
-#pragma omp simd
+          #pragma omp simd
           iter_each(_ov, this->Or) {
             md4(aoutput, (this->oc2 - 1) * V + _ov, _ht, _wt, _T)
                 = md4(atoutput, _oc3, _O2, _T, _ov);
@@ -992,7 +950,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_nchw(
         }
       } else {
         if (this->with_ip_sum && !output_as_bfmt_) {
-#pragma omp simd
+          #pragma omp simd
           iter_each(_V, V) {
             md4(aoutput, _oc2 * V + _V, _ht, _wt, _T)
                 += md4(atoutput, _oc3, _O2, _T, _V);
@@ -1003,7 +961,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_nchw(
           _mm<V>::i32scatter_ps(&md4(aoutput, _oc2 * V, _ht, _wt, _T), vindex,
               t, scale);
         } else {
-#pragma omp simd
+          #pragma omp simd
           iter_each(_V, V) {
             md4(aoutput, _oc2 * V + _V, _ht, _wt, _T)
                 = md4(atoutput, _oc3, _O2, _T, _V);
@@ -1040,7 +998,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_input_plain2(
              &md3(ainput, _ic2, 0, _t2 * this->T + _T), scale);
          _mm<V>::store_ps(&md3(atinput, _ic2, _T, 0), ain);
       } else {
-#pragma omp simd
+        #pragma omp simd
         iter_each (_V, V) {
           md3(atinput, _ic2, _T, _V)
               = md3(ainput, _ic2, _V, _t2 * this->T + _T);
@@ -1053,7 +1011,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_input_plain2(
     iter_each (_T, Tz) {
       bool is_Ir = _ic2 == this->ic2 - 1;
       if (is_Ir) {
-#pragma omp simd
+        #pragma omp simd
         iter_each (_V, this->Ir) {
           md3(atinput, _ic2, _T, _V)
               = md2(ainput2, (this->ic2 - 1) * V + _V, _t2 * this->T + _T);
@@ -1065,7 +1023,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_input_plain2(
               &md2(ainput2, _ic2 * V, _t2 * this->T + _T), scale);
           _mm<V>::store_ps(&md3(atinput, _ic2, _T, 0), ain);
         } else {
-#pragma omp simd
+          #pragma omp simd
           iter_each (_V, V) {
             md3(atinput, _ic2, _T, _V)
                 = md2(ainput2, _ic2 * V + _V, _t2 * this->T + _T);
@@ -1093,7 +1051,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_input_blocked2(
         _mm<V>::store_ps(&md4(atinput, _ic3, _I2, _T, 0),
              *((__m<V> *)&md4(ainput, _ic3, _I2, _t2 * this->T + _T, 0)));
     } else {
-#pragma omp simd
+      #pragma omp simd
       iter_each (_V, V) {
         md4(atinput, _ic3, _I2, _T, _V)
             = md4(ainput, _ic3, _I2, _t2 * this->T + _T, _V);
@@ -1126,7 +1084,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_plain2(
     iter_each (_O2, this->O2) {
     iter_each (_T, Tz) {
       if (this->with_ip_sum && !output_as_bfmt_) {
-#pragma omp simd
+        #pragma omp simd
         iter_each (_V, V) {
           md5(aoutput, _oc4, _oc3, _O2, _V, _t2 * this->T + _T)
               += md4(atoutput, _oc3, _O2, _T, _V);
@@ -1137,7 +1095,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_plain2(
         _mm<V>::i32scatter_ps(&md5(aoutput, _oc4, _oc3, _O2, 0, _t2 * this->T + _T),
             vindex, t, scale);
       } else {
-#pragma omp simd
+        #pragma omp simd
         iter_each (_V, V) {
           md5(aoutput, _oc4, _oc3, _O2, _V, _t2 * this->T + _T)
               = md4(atoutput, _oc3, _O2, _T, _V);
@@ -1155,13 +1113,13 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_plain2(
           && (_O2 == this->O2 - 1);
       if (is_Or) {
         if (this->with_ip_sum && !output_as_bfmt_) {
-#pragma omp simd
+          #pragma omp simd
           iter_each(_ov, this->Or) {
             md2(aoutput, (this->oc2 - 1) * V + _ov, _t2 * this->T + _T)
                 += md4(atoutput, _oc3, _O2, _T, _ov);
           }
         } else {
-#pragma omp simd
+          #pragma omp simd
           iter_each(_ov, this->Or) {
             md2(aoutput, (this->oc2 - 1) * V + _ov, _t2 * this->T + _T)
                 = md4(atoutput, _oc3, _O2, _T, _ov);
@@ -1169,7 +1127,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_plain2(
         }
       } else {
         if (this->with_ip_sum && !output_as_bfmt_) {
-#pragma omp simd
+          #pragma omp simd
           iter_each(_V, V) {
             md2(aoutput, _oc2 * V + _V, _t2 * this->T + _T)
                 += md4(atoutput, _oc3, _O2, _T, _V);
@@ -1180,7 +1138,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_plain2(
           _mm<V>::i32scatter_ps(&md2(aoutput, _oc2 * V, _t2 * this->T + _T),
               vindex, t, scale);
         } else {
-#pragma omp simd
+          #pragma omp simd
           iter_each(_V, V) {
             md2(aoutput, _oc2 * V + _V, _t2 * this->T + _T)
                 = md4(atoutput, _oc3, _O2, _T, _V);
@@ -1204,7 +1162,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_blocked2(
   iter_each (_O2, this->O2) {
   iter_each (_T, Tz) {
     if (this->with_ip_sum && !output_as_bfmt_) {
-#pragma omp simd
+      #pragma omp simd
       iter_each (_V, V) {
         md5(aoutput, _oc4, _oc3, _O2, _t2 * this->T + _T, _V)
             += md4(atoutput, _oc3, _O2, _T, _V);
@@ -1217,7 +1175,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_blocked2(
         _mm<V>::store_ps(&md5(aoutput, _oc4, _oc3, _O2, _t2 * this->T + _T, 0),
              *((__m<V> *)&md4(atoutput, _oc3, _O2, _T, 0)));
     } else {
-#pragma omp simd
+      #pragma omp simd
       iter_each (_V, V) {
         md5(aoutput, _oc4, _oc3, _O2, _t2 * this->T + _T, _V)
             = md4(atoutput, _oc3, _O2, _T, _V);
