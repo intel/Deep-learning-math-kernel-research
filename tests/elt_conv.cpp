@@ -471,7 +471,8 @@ int main(int argc, char **argv)
           conv_ref, convs[c],                                                  \
           input_ref, weights_ref, output_ref, bias_ref,                        \
           in, wei, out, b, input_file, weights_file, bias_file,                \
-          reuse_inout, data_type_cfg, f16c_opt, validate_results);             \
+          input_format, weights_format, reuse_inout, data_type_cfg,            \
+          f16c_opt, validate_results);                                         \
                                                                                \
       if (convs[c].setup() != ELD_OK) {                                        \
         printf("Fail: Convolution setup error!\n");                            \

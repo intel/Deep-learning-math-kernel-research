@@ -25,8 +25,8 @@ namespace test {
       float *input_ref, float *weights_ref, float *output_ref, float *bias_ref,
       InputType **input, WeightsType **weights, OutputType **output, BiasType **bias,
       const char *input_file, const char *weights_file, const char *bias_file,
-      bool double_buffering = false, int data_type_cfg = 0,
-      bool f16c_opt = false, bool validate_results = false);
+      int input_format, int weights_format, bool double_buffering = false,
+      int data_type_cfg = 0, bool f16c_opt = false, bool validate_results = false);
 
   int __compare_conv_results_nchw(eld_conv_t &, float *out,
       float *ref, int data_type_cfg, double acc);
@@ -81,6 +81,10 @@ namespace test {
 
   template <typename Type> struct reorder<Type, oihw, hwio> {
     reorder(Type *dst, Type *src, int o, int i, int h, int w);
+  };
+
+  template <typename Type> struct reorder<Type, hwio, oihw> {
+	reorder(Type *dst, Type *src, int o, int i, int h, int w);
   };
 
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
