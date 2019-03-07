@@ -64,9 +64,9 @@ NSOCKETS=1 ./scripts/run.sh -c -n1 -i512 -o1024 -h14 -w14 -H14 -W14 -k1 -K1 -p0 
 # resnet_50_sparse:res4a_branch2a
 NSOCKETS=1 ./scripts/run.sh -c -n1 -i512 -o256 -h14 -w14 -H14 -W14 -k1 -K1 -p0 -P0 -s1 -S1 -b1 -adirect_1x1 --blk-i=32 --flt-o=2 --flt-t=14 --execution-mode=0xc060 --pat-o=2 $COMMON
 # resnet_50_sparse:res5a_branch1
-NSOCKETS=1 ./scripts/run.sh -c -n1 -i1024 -o2048 -h7 -w7 -H7 -W7 -k1 -K1 -p0 -P0 -s1 -S1 -b1 -adirect_1x1 --blk-i=8 --flt-o=2 --flt-t=14 --execution-mode=0xc060 --pat-o=2 --pat-i=8 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -n1 -i1024 -o2048 -h7 -w7 -H7 -W7 -k1 -K1 -p0 -P0 -s1 -S1 -b1 -adirect_1x1 --blk-i=4 --flt-o=1 --flt-t=25 --execution-mode=0xc060 --pat-o=1 --pat-i=16 $COMMON
 # resnet_50_sparse:res5a_branch2a
-NSOCKETS=1 ./scripts/run.sh -c -n1 -i1024 -o512 -h7 -w7 -H7 -W7 -k1 -K1 -p0 -P0 -s1 -S1 -b1 -adirect_1x1 --blk-i=64 --flt-o=2 --flt-t=14 --execution-mode=0xc060 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -n1 -i1024 -o512 -h7 -w7 -H7 -W7 -k1 -K1 -p0 -P0 -s1 -S1 -b1 -adirect_1x1 --blk-i=4 --flt-o=1 --flt-t=25 --execution-mode=0xc060 --pat-i=16 $COMMON
 
 
 # bs=64, stride=1, blocked
