@@ -178,8 +178,8 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
     ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _ic4)
 {
   int ithr = omp_get_thread_num();
-  thread_parallel_for<5, 2>(mthr_, ithr, [&](int _hA, int _wA,
-                                             int _ic3, int _oc3, int _t2) {
+  thread_parallel_for<5, 4>(mthr_, ithr, [&](int _hA, int _wA,
+                                             int _oc3, int _t2, int _ic3) {
     MD2(TinputType, atinput2, tinput, xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * V);
     MD2(ToutputType, atoutput2, toutput, xc->t2, A * A * xc->T * xc->oc3 * xc->O2 * V);
     MD5(TweightsType, atweights, tweights, xc->oc3, xc->ic3, A, A, xc->O2 * xc->I2 * V * V);
@@ -199,7 +199,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
              &md6(atinput6, _hA, _wA, _ic3, 0, 0, 0),
              &md5(atweights, _oc3, _ic3, _hA, _wA, 0), nullptr, attr, 0,
              nullptr, nullptr, nullptr);
-  }, A, A, xc->ic3, xc->oc3, xc->t2);
+  }, A, A, xc->oc3, xc->t2, xc->ic3);
 }
 
 template <typename GarrayTypes, const int A, const int V, const int I>
@@ -207,8 +207,8 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
     ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _ic4)
 {
   int ithr = omp_get_thread_num();
-  thread_parallel_for<5, 3>(mthr_, ithr, [&](int _hA, int _wA,
-                                             int _oc3, int _ic3, int _t2) {
+  thread_parallel_for<5, 4>(mthr_, ithr, [&](int _hA, int _wA,
+                                             int _oc3, int _t2, int _ic3) {
     MD2(TinputType, atinput2, tinput, xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * V);
     MD2(ToutputType, atoutput2, toutput, xc->t2, A * A * xc->T * xc->oc3 * xc->O2 * V);
     MD5(TweightsType, atweights, tweights, xc->oc3, xc->ic3, A, A, xc->O2 * xc->I2 * V * V);
@@ -228,7 +228,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
              &md6(atinput6, _hA, _wA, _ic3, 0, 0, 0),
              &md5(atweights, _oc3, _ic3, _hA, _wA, 0), nullptr, attr, 0,
              nullptr, nullptr, nullptr);
-  }, A, A, xc->oc3, xc->ic3, xc->t2);
+  }, A, A, xc->oc3, xc->t2, xc->ic3);
 }
 
 } // namespace euler
