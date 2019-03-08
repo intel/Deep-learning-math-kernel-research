@@ -92,7 +92,7 @@ struct elk_conv_wino_trans_input<float, InputType, format, is_border,
 #undef ISTORE
 
 #define F(_h, _w) f_cb(_h, _w)
-#define T(h, w) atinput[w][h]
+#define T(h, w) atinput[h][w]
 #define f(m, n) f##m##n
 #define OP(m, n) f(m, n) = F(m, n)
 #define ISTORE(i, j) _mm<V>::store_ps(T(i, j), t##i##j);

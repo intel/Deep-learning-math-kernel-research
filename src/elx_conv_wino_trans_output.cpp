@@ -140,8 +140,8 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
     MD6(OutputType, aoutput1, &md2(aoutput0, _n, 0), xc->oc4, xc->oc3,
         xc->O2, V, xc->oh, xc->ow);
 
-    for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
-      for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
+    for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
+      for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
         if (is_Or) {
           if ((xc->with_ip_sum && !output_as_bfmt_) || _ic4 > 0) {
             iter_each (_V, xc->Or)
@@ -187,15 +187,15 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
       bool is_Or = xc->Or != V && _oc4 == xc->oc4 - 1
           && _oc3 == xc->oc3 - 1 && _O2 == xc->O2 - 1;
       iter_each (_T, Tz) {
-        iter_each (_wA, A) {
-          iter_each (_hA, A) {
+        iter_each (_hA, A) {
+          iter_each (_wA, A) {
             if (std::is_same<ToutputType, float>::value) {
-              In[_wA][_hA].vin
-                  = _mm<V>::load_ps(&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
+              In[_hA][_wA].vin
+                  = _mm<V>::load_ps(&md6(atoutput, _hA, _wA, _oc3, _O2, _T, 0));
             } else {
               auto fp16v = _mm<V / 2>::load_si256(
-                  (__m256i *)&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
-              In[_wA][_hA].vin = _mm<V>::cvtph_ps(fp16v);
+                  (__m256i *)&md6(atoutput, _hA, _wA, _oc3, _O2, _T, 0));
+              In[_hA][_wA].vin = _mm<V>::cvtph_ps(fp16v);
             }
           }
         }
@@ -243,15 +243,15 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
       output_tile_iter<A, K> t2spato_o(
           _n_off, _t_off, xc->ht, xc->wt, xc->oh, xc->ow);
       iter_each (_T, Tz) {
-        iter_each (_wA, A) {
-          iter_each (_hA, A) {
+        iter_each (_hA, A) {
+          iter_each (_wA, A) {
             if (std::is_same<ToutputType, float>::value) {
-              In[_wA][_hA].vin
-                  = _mm<V>::load_ps(&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
+              In[_hA][_wA].vin
+                  = _mm<V>::load_ps(&md6(atoutput, _hA, _wA, _oc3, _O2, _T, 0));
             } else {
               auto fp16v = _mm<V / 2>::load_si256(
-                  (__m256i *)&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
-              In[_wA][_hA].vin = _mm<V>::cvtph_ps(fp16v);
+                  (__m256i *)&md6(atoutput, _hA, _wA, _oc3, _O2, _T, 0));
+              In[_hA][_wA].vin = _mm<V>::cvtph_ps(fp16v);
             }
           }
         }
@@ -310,15 +310,15 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
       output_tile_iter<A, K> t2spato_o(
           _n_off, _t_off, xc->ht, xc->wt, xc->oh, xc->ow);
       iter_each (_T, Tz) {
-        iter_each (_wA, A) {
-          iter_each (_hA, A) {
+        iter_each (_hA, A) {
+          iter_each (_wA, A) {
             if (std::is_same<ToutputType, float>::value) {
-              In[_wA][_hA].vin
-                  = _mm<V>::load_ps(&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
+              In[_hA][_wA].vin
+                  = _mm<V>::load_ps(&md6(atoutput, _hA, _wA, _oc3, _O2, _T, 0));
             } else {
               auto fp16v = _mm<V / 2>::load_si256(
-                  (__m256i *)&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
-              In[_wA][_hA].vin = _mm<V>::cvtph_ps(fp16v);
+                  (__m256i *)&md6(atoutput, _hA, _wA, _oc3, _O2, _T, 0));
+              In[_hA][_wA].vin = _mm<V>::cvtph_ps(fp16v);
             }
           }
         }
@@ -393,15 +393,15 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
 
         //iter_each (_T, Tz) {
         if (_T < Tz) {
-          iter_each (_wA, A) {
-            iter_each (_hA, A) {
+          iter_each (_hA, A) {
+            iter_each (_wA, A) {
               if (std::is_same<ToutputType, float>::value) {
-                In[_wA][_hA].vin = _mm<V>::load_ps(
-                    &md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
+                In[_hA][_wA].vin = _mm<V>::load_ps(
+                    &md6(atoutput, _hA, _wA, _oc3, _O2, _T, 0));
               } else {
                 auto fp16v = _mm<V / 2>::load_si256(
-                    (__m256i *)&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
-                In[_wA][_hA].vin = _mm<V>::cvtph_ps(fp16v);
+                    (__m256i *)&md6(atoutput, _hA, _wA, _oc3, _O2, _T, 0));
+                In[_hA][_wA].vin = _mm<V>::cvtph_ps(fp16v);
               }
             }
           }
@@ -457,15 +457,15 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
         using Array = TrOpType[A][A][V];
 
         iter_each (_T, Tz) {
-          iter_each (_wA, A) {
-            iter_each (_hA, A) {
+          iter_each (_hA, A) {
+            iter_each (_wA, A) {
               if (std::is_same<ToutputType, float>::value) {
-                In[_wA][_hA].vin = _mm<V>::load_ps(
-                    &md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
+                In[_hA][_wA].vin = _mm<V>::load_ps(
+                    &md6(atoutput, _hA, _wA, _oc3, _O2, _T, 0));
               } else {
                 auto fp16v = _mm<V / 2>::load_si256(
-                    (__m256i *)&md6(atoutput, _wA, _hA, _oc3, _O2, _T, 0));
-                In[_wA][_hA].vin = _mm<V>::cvtph_ps(fp16v);
+                    (__m256i *)&md6(atoutput, _hA, _wA, _oc3, _O2, _T, 0));
+                In[_hA][_wA].vin = _mm<V>::cvtph_ps(fp16v);
               }
             }
           }
@@ -507,8 +507,8 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
     MD6(OutputType, aoutput1, &md2(aoutput0, _n, 0), xc->oc4, xc->oc3,
         xc->O2, V, xc->oh, xc->ow);
 
-    for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
-      for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
+    for (int _hA = 0; _hA <= _hOA_end; ++_hA) {
+      for (int _wA = 0; _wA <= _wOA_end; ++_wA) {
         if (is_Or) {
           if ((xc->with_ip_sum && !output_as_bfmt_) || (_ic4 > 0)) {
 #pragma omp simd
@@ -563,15 +563,15 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
         bool is_Or = xc->Or != V && _oc4 == xc->oc4 - 1
             && _oc3 == xc->oc3 - 1 && _O2 == xc->O2 - 1;
         iter_each (_T, Tz) {
-          iter_each (_wA, A) {
-            iter_each (_hA, A) {
+          iter_each (_hA, A) {
+            iter_each (_wA, A) {
               if (std::is_same<ToutputType, float>::value) {
-                In[_wA][_hA].vin = _mm<V>::load_ps(
-                    &md6(atoutput6, _wA, _hA, _oc3, _O2, _T, 0));
+                In[_hA][_wA].vin = _mm<V>::load_ps(
+                    &md6(atoutput6, _hA, _wA, _oc3, _O2, _T, 0));
               } else {
                 auto fp16v = _mm<V / 2>::load_si256(
-                    (__m256i *)&md6(atoutput6, _wA, _hA, _oc3, _O2, _T, 0));
-                In[_wA][_hA].vin = _mm<V>::cvtph_ps(fp16v);
+                    (__m256i *)&md6(atoutput6, _hA, _wA, _oc3, _O2, _T, 0));
+                In[_hA][_wA].vin = _mm<V>::cvtph_ps(fp16v);
               }
             }
           }

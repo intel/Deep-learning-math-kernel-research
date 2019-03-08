@@ -57,7 +57,7 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
 #undef T
 #undef OP
 #undef BIAS
-#define T(_h, _w) atoutput[_w][_h]
+#define T(_h, _w) atoutput[_h][_w]
 #define P(_h, _w) p_cb(_h, _w)
 
     __m<V> c0, c1, c2, c3, zero;

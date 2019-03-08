@@ -41,8 +41,8 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
     int it_start = omp_get_thread_num();
     iter_each(i, A * A) {
       int n = (it_start + i) % (A * A);
-      int _hA = n % A;
-      int _wA = n / A;
+      int _wA = n % A;
+      int _hA = n / A;
       iter_each(_oc3, xc->oc3) {
         bool last_ic4 = _ic4 == xc->ic4 - 1;
         int ic3 = last_ic4 ? xc->ic3 - 1 : xc->ic3;
@@ -50,9 +50,9 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
           int attr = _ic3 == 0 && _ic4 == 0
               ? set_attr(attr_, r_output_idx) : attr_;
           ker_gemm(*xc,
-              &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-              &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
-              &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
+              &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
+              &md6(atinput, _hA, _wA, _ic3, 0, 0, 0),
+              &md5(atweights, _oc3, _ic3, _hA, _wA, 0),
               nullptr, attr, 0, nullptr, nullptr, nullptr);
         }
         if (last_ic4) {
@@ -62,16 +62,16 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
          if (xc->Ir != V * xc->Vx)
            attr = set_attr(attr, has_Ir_idx);
          ker_gemm(*xc,
-             &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-             &md6(atinput, _wA, _hA, xc->ic3 - 1, 0, 0, 0),
-             &md5(atweights, _oc3, xc->ic3 - 1, _wA, _hA, 0),
+             &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
+             &md6(atinput, _hA, _wA, xc->ic3 - 1, 0, 0, 0),
+             &md5(atweights, _oc3, xc->ic3 - 1, _hA, _wA, 0),
              nullptr, attr, 0, nullptr, nullptr, nullptr);
         }
       }
     }
   } else {
-    iter_each(_wA, A) {
     iter_each(_hA, A) {
+    iter_each(_wA, A) {
     iter_each(_oc3, xc->oc3) {
       bool last_ic4 = _ic4 == xc->ic4 - 1;
       int ic3 = last_ic4 ? xc->ic3 - 1 : xc->ic3;
@@ -79,9 +79,9 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
         int attr =
             _ic3 == 0 && _ic4 == 0 ? set_attr(attr_, r_output_idx) : attr_;
         ker_gemm(*xc,
-            &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-            &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
-            &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
+            &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
+            &md6(atinput, _hA, _wA, _ic3, 0, 0, 0),
+            &md5(atweights, _oc3, _ic3, _hA, _wA, 0),
             nullptr, attr, 0, nullptr, nullptr, nullptr);
       }
       if (last_ic4) {
@@ -91,9 +91,9 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
         if (xc->Ir != V * xc->Vx)
           attr = set_attr(attr, has_Ir_idx);
         ker_gemm(*xc,
-            &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-            &md6(atinput, _wA, _hA, xc->ic3 - 1, 0, 0, 0),
-            &md5(atweights, _oc3, xc->ic3 - 1, _wA, _hA, 0),
+            &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
+            &md6(atinput, _hA, _wA, xc->ic3 - 1, 0, 0, 0),
+            &md5(atweights, _oc3, xc->ic3 - 1, _hA, _wA, 0),
             nullptr, attr, 0, nullptr, nullptr, nullptr);
       }
     }}}
@@ -117,17 +117,17 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
     int it_start = omp_get_thread_num();
     iter_each(i, A * A) {
       int n = (it_start + i) % (A * A);
-      int _hA = n % A;
-      int _wA = n / A;
+      int _wA = n % A;
+      int _hA = n / A;
       iter_each(_oc3, xc->oc3) {
         bool last_ic4 = _ic4 == xc->ic4 - 1;
         int ic3 = last_ic4 ? xc->ic3 - 1 : xc->ic3;
         iter_each(_ic3, ic3) {
           int attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
           ker_gemm(*xc,
-              &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-              &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
-              &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
+              &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
+              &md6(atinput, _hA, _wA, _ic3, 0, 0, 0),
+              &md5(atweights, _oc3, _ic3, _hA, _wA, 0),
               nullptr, attr, 0, nullptr, nullptr, nullptr);
         }
         if (last_ic4) {
@@ -135,25 +135,25 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
           if (xc->Ir != V * xc->Vx)
             attr = set_attr(attr, has_Ir_idx);
           ker_gemm(*xc,
-              &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-              &md6(atinput, _wA, _hA, xc->ic3 - 1, 0, 0, 0),
-              &md5(atweights, _oc3, xc->ic3 - 1, _wA, _hA, 0),
+              &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
+              &md6(atinput, _hA, _wA, xc->ic3 - 1, 0, 0, 0),
+              &md5(atweights, _oc3, xc->ic3 - 1, _hA, _wA, 0),
               nullptr, attr, 0, nullptr, nullptr, nullptr);
         }
       }
     }
   } else {
-    iter_each(_wA, A) {
     iter_each(_hA, A) {
+    iter_each(_wA, A) {
     iter_each(_oc3, xc->oc3) {
       bool last_ic4 = _ic4 == xc->ic4 - 1;
       int ic3 = last_ic4 ? xc->ic3 - 1 : xc->ic3;
       iter_each(_ic3, ic3) {
         int attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
         ker_gemm(*xc,
-            &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-            &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
-            &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
+            &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
+            &md6(atinput, _hA, _wA, _ic3, 0, 0, 0),
+            &md5(atweights, _oc3, _ic3, _hA, _wA, 0),
             nullptr, attr, 0, nullptr, nullptr, nullptr);
       }
       if (last_ic4) {
@@ -161,9 +161,9 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
         if (xc->Ir != V * xc->Vx)
           attr = set_attr(attr, has_Ir_idx);
         ker_gemm(*xc,
-            &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-            &md6(atinput, _wA, _hA, xc->ic3 - 1, 0, 0, 0),
-            &md5(atweights, _oc3, xc->ic3 - 1, _wA, _hA, 0),
+            &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
+            &md6(atinput, _hA, _wA, xc->ic3 - 1, 0, 0, 0),
+            &md5(atweights, _oc3, xc->ic3 - 1, _hA, _wA, 0),
             nullptr, attr, 0, nullptr, nullptr, nullptr);
       }
     }}}
@@ -178,7 +178,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
     ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _ic4)
 {
   int ithr = omp_get_thread_num();
-  thread_parallel_for<5, 2>(mthr_, ithr, [&](int _wA, int _hA,
+  thread_parallel_for<5, 2>(mthr_, ithr, [&](int _hA, int _wA,
                                              int _ic3, int _oc3, int _t2) {
     MD2(TinputType, atinput2, tinput, xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * V);
     MD2(ToutputType, atoutput2, toutput, xc->t2, A * A * xc->T * xc->oc3 * xc->O2 * V);
@@ -195,9 +195,9 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
     if (xc->Ir != V * xc->Vx && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
       attr = set_attr(attr, has_Ir_idx);
 
-    ker_gemm(*xc, &md6(atoutput6, _wA, _hA, _oc3, 0, 0, 0),
-             &md6(atinput6, _wA, _hA, _ic3, 0, 0, 0),
-             &md5(atweights, _oc3, _ic3, _wA, _hA, 0), nullptr, attr, 0,
+    ker_gemm(*xc, &md6(atoutput6, _hA, _wA, _oc3, 0, 0, 0),
+             &md6(atinput6, _hA, _wA, _ic3, 0, 0, 0),
+             &md5(atweights, _oc3, _ic3, _hA, _wA, 0), nullptr, attr, 0,
              nullptr, nullptr, nullptr);
   }, A, A, xc->ic3, xc->oc3, xc->t2);
 }
@@ -207,7 +207,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
     ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _ic4)
 {
   int ithr = omp_get_thread_num();
-  thread_parallel_for<5, 3>(mthr_, ithr, [&](int _wA, int _hA,
+  thread_parallel_for<5, 3>(mthr_, ithr, [&](int _hA, int _wA,
                                              int _oc3, int _ic3, int _t2) {
     MD2(TinputType, atinput2, tinput, xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * V);
     MD2(ToutputType, atoutput2, toutput, xc->t2, A * A * xc->T * xc->oc3 * xc->O2 * V);
@@ -224,9 +224,9 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
     if (xc->Ir != V * xc->Vx && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
       attr = set_attr(attr, has_Ir_idx);
 
-    ker_gemm(*xc, &md6(atoutput6, _wA, _hA, _oc3, 0, 0, 0),
-             &md6(atinput6, _wA, _hA, _ic3, 0, 0, 0),
-             &md5(atweights, _oc3, _ic3, _wA, _hA, 0), nullptr, attr, 0,
+    ker_gemm(*xc, &md6(atoutput6, _hA, _wA, _oc3, 0, 0, 0),
+             &md6(atinput6, _hA, _wA, _ic3, 0, 0, 0),
+             &md5(atweights, _oc3, _ic3, _hA, _wA, 0), nullptr, attr, 0,
              nullptr, nullptr, nullptr);
   }, A, A, xc->oc3, xc->ic3, xc->t2);
 }

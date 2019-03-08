@@ -23,7 +23,7 @@ struct elk_conv_wino_trans_weights<float, WeightsType, ISA_SKX_AVX512,
 #undef T
 #undef f
 #define F(h, w) aweights[h][w][_V]
-#define T(h, w) atweights[w][h][_V]
+#define T(h, w) atweights[h][w][_V]
 #define f(m, n) f##m##n
 
 #define LOAD(m, n)                                                             \

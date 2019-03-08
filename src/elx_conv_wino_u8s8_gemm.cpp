@@ -43,8 +43,8 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute(
   MD6(TscaleType, aweights_factor, weights_factor, xc->oc3, xc->ic3, A, A, xc->O2, V);
   MD5(TscaleType, asrc_scale, src_scale, xc->ic3,  A, A, 2, xc->T);
 
-  iter_each (_wA, A) {
   iter_each (_hA, A) {
+  iter_each (_wA, A) {
   iter_each (_ic3, xc->ic3) {
   iter_each (_oc3, xc->oc3) {
     int attr = _ic3 == 0 && _ic4 == 0 ?  set_attr(attr_, r_output_idx) : attr_;
@@ -58,17 +58,17 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute(
       asrc_s = &md5(asrc_scale, 0, 0, 0, 0, 0);
       asrc_z = &md5(asrc_scale, 0, 0, 0, 1, 0);
     } else {
-      asrc_s = &md5(asrc_scale, _ic3, _wA, _hA, 0, 0);
-      asrc_z = &md5(asrc_scale, _ic3, _wA, _hA, 1, 0);
+      asrc_s = &md5(asrc_scale, _ic3, _hA, _wA, 0, 0);
+      asrc_z = &md5(asrc_scale, _ic3, _hA, _wA, 1, 0);
     }
 
     ker_gemm(*(elx_conv_params_t *)xc,
-        &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-        &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
-        &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
+        &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
+        &md6(atinput, _hA, _wA, _ic3, 0, 0, 0),
+        &md5(atweights, _oc3, _ic3, _hA, _wA, 0),
         nullptr, attr, asrc_s, asrc_z,
-        &md6(aweights_scale, _oc3, _ic3, _wA, _hA, 0, 0),
-        &md6(aweights_factor, _oc3, _ic3, _wA, _hA, 0, 0));
+        &md6(aweights_scale, _oc3, _ic3, _hA, _wA, 0, 0),
+        &md6(aweights_factor, _oc3, _ic3, _hA, _wA, 0, 0));
   }}}}
 }
 
@@ -93,8 +93,8 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
     int it_start = omp_get_thread_num();
     iter_each(i, A * A) {
       int n = (it_start + i) % (A * A);
-      int _hA = n % A;
-      int _wA = n / A;
+      int _wA = n % A;
+      int _hA = n / A;
       iter_each(_ic3, xc->ic3) {
       iter_each(_oc3, xc->oc3) {
         auto attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
@@ -108,22 +108,22 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
           asrc_s = &md5(asrc_scale, 0, 0, 0, 0, 0);
           asrc_z = &md5(asrc_scale, 0, 0, 0, 1, 0);
         } else {
-          asrc_s = &md5(asrc_scale, _ic3, _wA, _hA, 0, 0);
-          asrc_z = &md5(asrc_scale, _ic3, _wA, _hA, 1, 0);
+          asrc_s = &md5(asrc_scale, _ic3, _hA, _wA, 0, 0);
+          asrc_z = &md5(asrc_scale, _ic3, _hA, _wA, 1, 0);
         }
 
         ker_gemm(*(elx_conv_params_t *)xc,
-            &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-            &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
-            &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
+            &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
+            &md6(atinput, _hA, _wA, _ic3, 0, 0, 0),
+            &md5(atweights, _oc3, _ic3, _hA, _wA, 0),
             nullptr, attr, asrc_s, asrc_z,
-            &md6(aweights_scale, _oc3, _ic3, _wA, _hA, 0, 0),
-            &md6(aweights_factor, _oc3, _ic3, _wA, _hA, 0, 0));
+            &md6(aweights_scale, _oc3, _ic3, _hA, _wA, 0, 0),
+            &md6(aweights_factor, _oc3, _ic3, _hA, _wA, 0, 0));
       }}
     }
   } else {
-    iter_each(_wA, A) {
     iter_each(_hA, A) {
+    iter_each(_wA, A) {
     iter_each(_ic3, xc->ic3) {
     iter_each(_oc3, xc->oc3) {
       auto attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
@@ -133,14 +133,14 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
         attr = set_attr(attr, has_Ir_idx);
 
       ker_gemm(*(elx_conv_params_t *)xc,
-          &md6(atoutput, _wA, _hA, _oc3, 0, 0, 0),
-          &md6(atinput, _wA, _hA, _ic3, 0, 0, 0),
-          &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
+          &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
+          &md6(atinput, _hA, _wA, _ic3, 0, 0, 0),
+          &md5(atweights, _oc3, _ic3, _hA, _wA, 0),
           nullptr, attr,
-          &md5(asrc_scale, _ic3, _wA, _hA, 0, 0),
-          &md5(asrc_scale, _ic3, _wA, _hA, 1, 0),
-          &md6(aweights_scale, _oc3, _ic3, _wA, _hA, 0, 0),
-          &md6(aweights_factor, _oc3, _ic3, _wA, _hA, 0, 0));
+          &md5(asrc_scale, _ic3, _hA, _wA, 0, 0),
+          &md5(asrc_scale, _ic3, _hA, _wA, 1, 0),
+          &md6(aweights_scale, _oc3, _ic3, _hA, _wA, 0, 0),
+          &md6(aweights_factor, _oc3, _ic3, _hA, _wA, 0, 0));
     }}}}
   }
 }
@@ -151,9 +151,8 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
     TscaleType *src_scale, TscaleType *src_factor,
     TscaleType *weights_scale, TscaleType *weights_factor, int _ic4)
 {
-
   int ithr = omp_get_thread_num();
-  thread_parallel_for<5, 2>(mthr_, ithr, [&](int _wA, int _hA, int _ic3, int _oc3, int _t2) {
+  thread_parallel_for<5, 2>(mthr_, ithr, [&](int _hA, int _wA, int _ic3, int _oc3, int _t2) {
     MD2(uint8_t, atinput2, tinput, xc->t2, A * A * xc->ic3 * xc->I2 * xc->T * V * xc->Vx);
     MD2(ToutputType, atoutput2, toutput, xc->t2, A * A * xc->oc3 * xc->O2 * xc->T * V);
     MD5(int8_t, atweights, tweights, xc->oc3, xc->ic3, A, A, xc->O2 * xc->I2 * V * V * xc->Vx);
@@ -176,16 +175,16 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
       asrc_s = &md6(asrc_scale, 0, 0, 0, 0, 0, 0);
       asrc_z = &md6(asrc_scale, 0, 0, 0, 0, 1, 0);
     } else {
-      asrc_s = &md6(asrc_scale, _t2, _wA, _hA, _ic3, 0, 0);
-      asrc_z = &md6(asrc_scale, _t2, _wA, _hA, _ic3, 1, 0);
+      asrc_s = &md6(asrc_scale, _t2, _hA, _wA, _ic3, 0, 0);
+      asrc_z = &md6(asrc_scale, _t2, _hA, _wA, _ic3, 1, 0);
     }
 
-    ker_gemm(*xc, &md6(atoutput6, _wA, _hA, _oc3, 0, 0, 0),
-        &md6(atinput6, _wA, _hA, _ic3, 0, 0, 0),
-        &md5(atweights, _oc3, _ic3, _wA, _hA, 0),
+    ker_gemm(*xc, &md6(atoutput6, _hA, _wA, _oc3, 0, 0, 0),
+        &md6(atinput6, _hA, _wA, _ic3, 0, 0, 0),
+        &md5(atweights, _oc3, _ic3, _hA, _wA, 0),
         nullptr, attr, asrc_s, asrc_z,
-        &md6(aweights_scale, _oc3, _ic3, _wA, _hA, 0, 0),
-        &md6(aweights_factor, _oc3, _ic3, _wA, _hA, 0, 0));
+        &md6(aweights_scale, _oc3, _ic3, _hA, _wA, 0, 0),
+        &md6(aweights_factor, _oc3, _ic3, _hA, _wA, 0, 0));
   }, A, A, xc->ic3, xc->oc3, xc->t2);
 }
 

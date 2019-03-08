@@ -59,7 +59,7 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
 #undef BIAS
 #undef STORE
 
-#define T(_h, _w) atoutput[_w][_h]
+#define T(_h, _w) atoutput[_h][_w]
 #define P(_h, _w) p_cb(_h, _w)
 #define t(m, n) t##m##n
 #define OP(m,n) t(m,n) = _mm<V>::load_ps(T(m, n))
