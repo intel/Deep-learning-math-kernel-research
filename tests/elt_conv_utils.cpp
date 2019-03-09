@@ -202,7 +202,6 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
   desc.output_quant.scale = 1.0;
   desc.output_quant.z = 0.0;
 
-// for Winograd INT8 cases
 #define PRECISION_REPRESENTATION_8B 255
 #define PRECISION_REPRESENTATION_7B 127
   auto trans_input_scale = [&]() {
@@ -333,7 +332,8 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
         data_type_cfg == euler::test::U8F32S8F32 ||
         data_type_cfg == euler::test::U8F32F32F32) {
       input_scale(iscale);
-      trans_input_scale();
+      if (desc.algorithm == CONV_WINOGRAD)
+        trans_input_scale();
     }
   }
 #pragma omp parallel for

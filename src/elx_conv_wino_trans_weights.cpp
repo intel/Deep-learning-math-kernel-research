@@ -7,7 +7,7 @@
 
 namespace euler {
 
-constexpr float INT8GEMM_TWT_QTSCALE = 127.0;
+static constexpr float INT8GEMM_TWT_QTSCALE = 127.0;
 
 template <typename TweightsType, typename WeightsType, int I, int A, int K, int V>
 void elx_conv_wino_trans_weights_t<TweightsType, WeightsType, I, A, K, V>

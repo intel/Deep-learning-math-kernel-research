@@ -8,6 +8,7 @@
 #include "elx_conv_wino.hpp"
 #include "elx_conv_wino_lp.hpp"
 #include "elx_conv_direct_1x1.hpp"
+#include "elx_conv_direct_1x1_lp.hpp"
 #include "elx_conv_direct.hpp"
 
 namespace euler {
@@ -202,6 +203,10 @@ int eld_conv_t::setup()
         xc = new elx_conv_direct_1x1_t<conv::FP32, conv_impl::FP32_F16w, 16, ISA_SKX_AVX512>(*this);
       else
         xc = new elx_conv_direct_1x1_t<conv::FP32, conv_impl::FP32, 16, ISA_SKX_AVX512>(*this);
+    } else if (user_type == user_type_u8f32u8f32) {
+        xc = new elx_conv_direct_1x1_lp_t<conv::U8F32U8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>(*this);
+    } else if (user_type == user_type_u8f32s8f32) {
+        xc = new elx_conv_direct_1x1_lp_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>(*this);
     } else
       el_error("TODO: FP16 UserTypes for DIRECT 1x1.");
   } else if (algorithm == CONV_WINOGRAD) {

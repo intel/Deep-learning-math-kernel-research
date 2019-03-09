@@ -65,6 +65,9 @@ file (GLOB __euler_source
   src/elx_conv_direct_1x1_bind.cpp
   src/elx_conv_direct_1x1.cpp
   src/elx_conv_direct_1x1_xopt.cpp
+  src/elx_conv_direct_1x1_lp_bind.cpp
+  src/elx_conv_direct_1x1_lp.cpp
+  src/elx_conv_direct_1x1_lp_xopt.cpp
   src/elx_conv_direct_bind.cpp
   src/elx_conv_direct.cpp
   src/elx_conv_direct_xopt.cpp)
