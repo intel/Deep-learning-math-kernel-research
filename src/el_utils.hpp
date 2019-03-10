@@ -55,10 +55,8 @@ enum {
   op_sum_idx = 0x8,       // fuse with out-of-place sum
   r_output_idx = 0x10,    // clear output
   s_output_idx = 0x20,    // streaming output
-  c_output_idx = 0x40,    // convert and restore output for int8 gemm
-  l_output_idx = 0x80,    // output lazy accumulation
-  has_Ir_idx = 0x100,     // has Ir
-  has_Or_idx = 0x200,     // has_Or
+  has_Ir_idx = 0x40,      // has Ir
+  has_Or_idx = 0x80,      // has_Or
 };
 
 inline int set_attr(int attr, int index) {

@@ -22,6 +22,7 @@ namespace conv {
   using FP32 = ConvTypes<float, float, float, float>;
   using FP16 = ConvTypes<short, short, short, short>;
   using FP16O = ConvTypes<float, float, short, float>;
+  using U8S8F32F32 = ConvTypes<uint8_t, int8_t, float, float>;
   using U8F32F32F32 = ConvTypes<uint8_t, float, float, float>;
   using U8F32U8F32 = ConvTypes<uint8_t, float, uint8_t, float>;
   using U8F32S8F32 = ConvTypes<uint8_t, float, int8_t, float>;

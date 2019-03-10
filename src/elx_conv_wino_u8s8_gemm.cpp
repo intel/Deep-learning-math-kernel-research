@@ -48,8 +48,6 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute(
   iter_each (_ic3, xc->ic3) {
   iter_each (_oc3, xc->oc3) {
     int attr = _ic3 == 0 && _ic4 == 0 ?  set_attr(attr_, r_output_idx) : attr_;
-    attr = set_attr(attr, l_output_idx);
-    attr = set_attr(attr, c_output_idx);
     if (xc->Ir != V * xc->Vx && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
       attr = set_attr(attr, has_Ir_idx);
 
@@ -98,8 +96,6 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
       iter_each(_ic3, xc->ic3) {
       iter_each(_oc3, xc->oc3) {
         auto attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
-        attr = set_attr(attr, l_output_idx);
-        attr = set_attr(attr, c_output_idx);
         if (xc->Ir != V * xc->Vx && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
           attr = set_attr(attr, has_Ir_idx);
 
@@ -127,8 +123,6 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
     iter_each(_ic3, xc->ic3) {
     iter_each(_oc3, xc->oc3) {
       auto attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
-      attr = set_attr(attr, l_output_idx);
-      attr = set_attr(attr, c_output_idx);
       if (xc->Ir != V * xc->Vx && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
         attr = set_attr(attr, has_Ir_idx);
 
@@ -165,8 +159,6 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
     auto ker_gemm = (_t2 == xc->t2 - 1) ? ker_u8s8_gemm0_ : ker_u8s8_gemm_;
 
     int attr = _ic3 == 0 ?  set_attr(attr_, r_output_idx) : attr_;
-    attr = set_attr(attr, l_output_idx);
-    attr = set_attr(attr, c_output_idx);
     if (xc->Ir != V * xc->Vx && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
       attr = set_attr(attr, has_Ir_idx);
 

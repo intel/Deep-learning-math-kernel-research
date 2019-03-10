@@ -31,6 +31,8 @@ struct u8s8_gemm_kernel_binder {
 
   DECL_U8S8_KGEMM_TBL(INT8_F32, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC); // wino, int8-gemm
   DECL_U8S8_KGEMM_TBL(INT8_F16o, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC); // wino, int8-gemm, f16c
+  DECL_U8S8_KGEMM_TBL(INT8_F32, 16, 4, ISA_SKX_AVX512, 1, GKF_DCD); // direct, blocked, int8-gemm
+  DECL_U8S8_KGEMM_TBL(INT8_F32, 16, 4, ISA_SKX_AVX512, 2, GKF_DCD); // direct, blocked, int8-gemm
 
 #ifdef ENABLE_USER_FP16
   DECL_U8S8_KGEMM_TBL(INT8_F16b, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC); // wino, int8-gemm, user f16
@@ -48,6 +50,14 @@ struct u8s8_gemm_kernel_binder {
       if (S == 1)
         *func = LOOKUP_U8S8_KGEMM_TBL(INT8_F32, 16, 4, ISA_SKX_AVX512,
             1, GKF_CCC, O, T);
+      break;
+    case GKF_DCD:
+      if (S == 1)
+        *func = LOOKUP_U8S8_KGEMM_TBL(INT8_F32, 16, 4, ISA_SKX_AVX512,
+            1, GKF_DCD, O, T);
+      else if (S == 2)
+        *func = LOOKUP_U8S8_KGEMM_TBL(INT8_F32, 16, 4, ISA_SKX_AVX512,
+            2, GKF_DCD, O, T);
       break;
     default:
       break;

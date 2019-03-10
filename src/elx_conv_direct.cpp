@@ -18,7 +18,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
   this->IC = ALIGNUP(this->ic, V);
   this->OC = ALIGNUP(this->oc, V);
 
-  if (this->I2 == 0) this->I2 = this->ic2;
+  if (this->I2 == 0) this->I2 = 1;
   if (this->T == 0)  this->T = 1;
   if (this->O == 0)  this->O = 1;
   if (this->O1 == 0) this->O1 = 1;
@@ -121,7 +121,13 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
     el_error("Unimplemented: fuse sum (plain format) and relu together");
   }
 
+  toutput_size_ = 0;
+  tweights_size_ = 0;
   tweights_ = nullptr;
+  toutput_ = nullptr;
+  scratch_ = nullptr;
+  workspace_ = nullptr;
+
   switch (xopt_) {
   case 0xb060:
     toutput_size_ = this->ic4 * this->t3 * this->OC * this->oh * this->ow * sizeof(ToutputType);
@@ -139,8 +145,6 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
   if (tweights_size_ > 0)
     tweights_size_ += WEIGHTS_MAX_PRELOAD * V;
 
-  scratch_ = nullptr;
-  workspace_ = nullptr;
   size_t workspace_size = tweights_size_;
   // TODO: user provided buffer
   if (workspace_size != 0) {
