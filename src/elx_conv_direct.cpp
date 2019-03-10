@@ -60,8 +60,8 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
 
     if (xopt_ == 0xa060 || xopt_ == 0xb060) {
       bool shape_ok = estl::any_of(this->kh, 3, 5, 7)
-          && estl::any_of(this->kw, 3, 5, 7) && this->ih == this->oh
-          && this->iw == this->ow && this->hs == 1 && this->ws == 1
+          && estl::any_of(this->kw, 3, 5, 7)
+          && (this->ws == 1 || this->ws == 2)
           && this->lp == (this->kw / 2) && (this->tp == this->kh / 2);
       if (!shape_ok) {
         el_error("direct: a060: shape not supported");
@@ -334,8 +334,8 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
 
   auto ker_conv = _wt == this->wt - 1 ? ker_conv_Tr_ : ker_conv_;
 
-  int khs = estl::max(0, this->tp - _ht);
-  int khe = estl::min(this->kh, this->ih + this->tp - _ht);
+  int khs = estl::max(0, this->tp - this->hs * _ht);
+  int khe = estl::min(this->kh, this->ih + this->tp - this->hs * _ht);
   int kws = _wt == 0 ? this->lp : 0;
   int kwe = _wt == this->wt - 1 ? this->kw - this->lp : this->kw;
   assert(this->T > this->lp && this->Tr > this->rp);
@@ -391,8 +391,8 @@ Instance_elx_conv_direct_t::conv_b060(OutputType *output,
 
   auto ker_conv = _wt == this->wt - 1 ? ker_conv_Tr_ : ker_conv_;
 
-  int khs = estl::max(0, this->tp - _ht);
-  int khe = estl::min(this->kh, this->ih + this->tp - _ht);
+  int khs = estl::max(0, this->tp - this->hs * _ht);
+  int khe = estl::min(this->kh, this->ih + this->tp - this->hs * _ht);
   int kws = _wt == 0 ? this->lp : 0;
   int kwe = _wt == this->wt - 1 ? this->kw - this->lp : this->kw;
   assert(this->T > this->lp && this->Tr > this->rp);

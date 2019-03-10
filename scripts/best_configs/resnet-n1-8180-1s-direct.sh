@@ -18,3 +18,9 @@ NSOCKETS=1 ./scripts/run.sh -c -i256 -h14 -o256 -H14 -n1 -adirect --execution-mo
 sleep 1
 # resnet50_res5a_branch2b, 2.5T
 NSOCKETS=1 ./scripts/run.sh -c -i512 -h7 -o512 -H7 -n1 -adirect --execution-mode=0xb060 --blk-i=4 --blk-o=1 --flt-o=1 --flt-t=7 --pat-i=8 $COMMON
+sleep 1
+NSOCKETS=1 ./scripts/run.sh -c -i64 -h56 -o64 -H28 -k3 -s2 -S2 -n1 -adirect --execution-mode=0xa060 --blk-i=4 --blk-o=1 --flt-o=2 --flt-t=14 --pat-i=1 $COMMON
+sleep 1
+NSOCKETS=1 ./scripts/run.sh -c -i128 -h28 -o128 -H14 -k3 -s2 -S2 -n1 -adirect --execution-mode=0xb060 --blk-i=2 --blk-o=1 --flt-o=2 --flt-t=14 --pat-i=4 $COMMON
+sleep 1
+NSOCKETS=1 ./scripts/run.sh -c -i256 -h14 -o256 -H7 -k3 -s2 -S2 -n1 -adirect --execution-mode=0xb060 --blk-i=2 --blk-o=1 --flt-o=1 --flt-t=7 --pat-i=8 $COMMON
