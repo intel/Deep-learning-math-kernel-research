@@ -57,6 +57,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   constexpr static int JO2 = J_traits<O, T, WeightsType>::O2;
   constexpr static int JP2 = J_traits<O, T, WeightsType>::P2;
 
+  constexpr static int V1 = V / Vx;
   // INT8 gemm kernel
   //
   static inline __i<V> op_int8_fma(__i<V>& out, __i<V>& a, __i<V>& b) {
@@ -74,26 +75,26 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
   template <const int P>
   static inline __i<V> op_int8_load_input(
-      uint8_t *input, const int _V, const int _P, const int _T)
+      uint8_t *input, const int _V1, const int _P, const int _T)
   {
     static_assert(F_traits<F>::is_compact_input || F_traits<F>::is_blocked_input,
                   "only compact and blocked format input enabled");
 
-    MD5(uint8_t, ainput5, input, T, S, V / P, P, Vx);
-    return _mm<V>::set1_epi32(*(int32_t*)&md5(ainput5, _T, 0, _V, _P, 0));
+    MD5(uint8_t, ainput5, input, T, S, V1 / P, P, Vx);
+    return _mm<V>::set1_epi32(*(int32_t*)&md5(ainput5, _T, 0, _V1, _P, 0));
   }
 
   template <const int JO, const int P>
   static inline __i<V> op_int8_load_weights(elx_conv_params_t &xc,
-      int8_t *weights, const int _I2, const int _V, const int _P, const int _O)
+      int8_t *weights, const int _I2, const int _V1, const int _P, const int _O)
   {
     __i<V> res;
     if (F_traits<F>::is_compact_weights) {
-      MD5(int8_t, aweights5, weights, xc.I2, V / P, P, O, V * Vx);
-      res = _mm<V>::load_epi32(&md5(aweights5, _I2, _V, _P, _O, 0));
+      MD5(int8_t, aweights5, weights, xc.I2, V1 / P, P, O, V * Vx);
+      res = _mm<V>::load_epi32(&md5(aweights5, _I2, _V1, _P, _O, 0));
     } else {
-      MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V / P, P, V * Vx);
-      res = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V, _P, 0));
+      MD6(int8_t, aweights6, weights, JO, xc.ic34, xc.I2, V1 / P, P, V * Vx);
+      res = _mm<V>::load_epi32(&md6(aweights6, _O, 0, _I2, _V1, _P, 0));
     }
     return res;
   }
@@ -162,7 +163,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   {
     __i<V> mmout[JO][T], mmwei[JO][P];
     const int I2_stride
-        = F_traits<F>::is_compact_input ? T * V * Vx: xc.ih * xc.iw * V * Vx;
+        = F_traits<F>::is_compact_input ? T * V1 * Vx: xc.ih * xc.iw * V1 * Vx;
     const int O_stride
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
@@ -188,16 +189,16 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
 #pragma nounroll
-      for (int _V = 0; _V < V / P; ++_V) {
+      for (int _V1 = 0; _V1 < V1 / P; ++_V1) {
         unroll_for(_P, P) {
           unroll_for(_T, T) {
             __i<V> bcast =
-                op_int8_load_input<P>(&md2(ainput, _I2, 0), _V, _P, _T);
+                op_int8_load_input<P>(&md2(ainput, _I2, 0), _V1, _P, _T);
             unroll_for(_O, JO) mmout[_O][_T] =
                 op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][_P]);
           }
           unroll_for(_O, JO) mmwei[_O][_P] =
-              op_int8_load_weights<JO, P>(xc, weights, _I2, _V + 1, _P, _O);
+              op_int8_load_weights<JO, P>(xc, weights, _I2, _V1 + 1, _P, _O);
         }
       }
     }
@@ -219,7 +220,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       ScaleType *weights_scale, ScaleType *weights_factor)
   {
     const int W_stride = F_traits<F>::is_compact_weights
-                         ? xc.I2 * V * O * V * Vx : O * xc.IC * V;
+                         ? xc.I2 * V1 * O * V * Vx : O * xc.IC * V;
 
     MD2(OutputType, aoutput_compact, output, xc.O1, O * T * V);
     MD2(OutputType, aoutput_blocked, output, xc.O1, O * xc.oh * xc.ow * V);
@@ -254,7 +255,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       ScaleType *weights_scale, ScaleType *weights_factor)
   {
     const int W_stride0
-        = F_traits<F>::is_compact_weights ? xc.I2 * V : 1;
+        = F_traits<F>::is_compact_weights ? xc.I2 * V1 : 1;
     const int W_stride1
         = F_traits<F>::is_compact_weights ? V * Vx : xc.IC * V;
 
@@ -298,7 +299,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       ScaleType *weights_scale, ScaleType *weights_factor)
   {
     const int W_stride0
-        = F_traits<F>::is_compact_weights ? xc.I2 * V : 1;
+        = F_traits<F>::is_compact_weights ? xc.I2 * V1 : 1;
     const int W_stride1
         = F_traits<F>::is_compact_weights ? V * Vx : xc.IC * V;
 

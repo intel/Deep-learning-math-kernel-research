@@ -29,7 +29,7 @@ struct elx_conv_params_t {
   // pack size
   // int V;
   // int8 gemm
-  int Vx;
+  int V1, Vx;
   // tile-size
   // int A;
   // register working set

@@ -11,6 +11,7 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t &dc)
   xopt_ = this->execution_mode;
 
   this->Vx = 1;
+  this->V1 = V / this->Vx;
   this->IC = ALIGNUP(this->ic, V);
   this->OC = ALIGNUP(this->oc, V);
 

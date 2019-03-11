@@ -67,9 +67,9 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
   thread_parallel_for<3>(mthr_, ithr, [&](int _t2, int _ic3, int _I2) {
     // n, ic2, ih, iw, V => t2, hA, wA, ic3, I2, T, V
     MD2(TinputType, atinput, tinput, xc->t2,
-        A * A * xc->T * xc->ic3 * xc->I2 * xc->Vx * V);
+        A * A * xc->T * xc->ic3 * xc->I2 * V);
     MD7(InputType, ainput, input, xc->n, xc->ic4, xc->ic3,
-        xc->I2 * xc->Vx, xc->ih, xc->iw, V);
+        xc->I2, xc->ih, xc->iw, V);
     int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
     alignas(64) op_type aout[A][A][V];
 
@@ -86,14 +86,14 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
             *xc, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
       __execute_post(&md2(atinput, _t2, 0), aout, Tz, _ic3, _I2, _T);
     }
-  }, xc->t2, xc->ic3, xc->I2 * xc->Vx);
+  }, xc->t2, xc->ic3, xc->I2);
 }
 
 template <typename TinputType, typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
 ::__execute_post(TinputType *__restrict tinput,
     op_type at[A][A][V], int Tz, int _ic3, int _I2, int _T) {
-  MD6(TinputType, atinput6, tinput, A, A, xc->ic3, xc->I2 * xc->Vx, Tz, V);
+  MD6(TinputType, atinput6, tinput, A, A, xc->ic3, xc->I2, Tz, V);
 
   if (I == ISA_SKX_AVX512 && std::is_same<op_type, float>::value
       && std::is_same<TinputType, float>::value) {
@@ -146,7 +146,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
   thread_parallel_for<3>(mthr_, ithr, [&](int _t2, int _ic3, int _I2) {
     // n, ih, iw, ic => t2, hA, wA, ic3, I2, T, V
     MD2(TinputType, atinput, tinput, xc->t2,
-        A * A * xc->T * xc->ic3 * xc->I2 * xc->Vx * V);
+        A * A * xc->T * xc->ic3 * xc->I2 * V);
     MD4(InputType, ainput0, input, xc->n, xc->ih, xc->iw, xc->ic);
     int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
     alignas(64) op_type aout[A][A][V];
@@ -165,7 +165,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
             *xc, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
       __execute_post(&md2(atinput, _t2, 0), aout, Tz, _ic3, _I2, _T);
     }
-  }, xc->t2, xc->ic3, xc->I2 * xc->Vx);
+  }, xc->t2, xc->ic3, xc->I2);
 }
 
 template <typename TinputType, typename InputType, int I, int A, int K, int V>
@@ -258,7 +258,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
   int ithr = omp_get_thread_num();
   thread_parallel_for<3>(mthr_, ithr, [&](int _t2, int _ic3, int _I2) {
     // n, ic2, ih, iw, V => t2, hA, wA, ic3, I2, T, V
-    MD2(TinputType, atinput, tinput, xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * xc->Vx * V);
+    MD2(TinputType, atinput, tinput, xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * V);
     bool is_Ir = xc->Ir != V && _ic4 == xc->ic4 - 1 &&
          _ic3 == xc->ic3 - 1 && _I2 == xc->I2 - 1;
     int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
@@ -371,24 +371,23 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
   __m<V> mz = _mm<V>::set1_ps(xc->tinput_quant_z);
 
   int ithr = omp_get_thread_num();
-  thread_parallel_for<5, 4>(mthr_, ithr, [&](int _t2, int _ic3, int _I2,
-                                             int _T, int _Vx) {
+  thread_parallel_for<4>(mthr_, ithr, [&](int _t2, int _ic3, int _I2, int _T) {
     MD2(uint8_t, atinput2_u8, tinput_u8,
-        xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * xc->Vx * V);
+        xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * V);
     MD2(TinputType, atinput2, tinput,
-        xc->t2, A * A * xc->ic3 * xc->I2 * xc->Vx * xc->T * V);
-    MD8(InputType, ainput, input,
-        xc->n, xc->ic4, xc->ic3, xc->I2, xc->Vx, xc->ih, xc->iw, V);
+        xc->t2, A * A * xc->ic3 * xc->I2 * xc->T * V);
+    MD7(InputType, ainput, input,
+        xc->n, xc->ic4, xc->ic3, xc->I2, xc->ih, xc->iw, V);
     int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
 
     if (_T < Tz) {
       int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
       t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
 
-      InputType *in = &md8(ainput, _n, 0, _ic3, _I2, _Vx, _ih, _iw, 0);
+      InputType *in = &md7(ainput, _n, 0, _ic3, _I2, _ih, _iw, 0);
       if (xc->sampling_kind == CALIBRATED) {
-        MD7(uint8_t, atinput_u8, &md2(atinput2_u8, _t2, 0),
-            A, A, xc->ic3, xc->I2, Tz, xc->Vx, V);
+        MD6(uint8_t, atinput_u8, &md2(atinput2_u8, _t2, 0),
+            A, A, xc->ic3, xc->I2, Tz, V);
         alignas(64) op_type aout[A][A][V];
 
         if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
@@ -407,13 +406,13 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
               mresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
           __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mresu32);
           // store
-          _mm_store_si128((__m128i *)&md7(
-              atinput_u8, _hA, _wA, _ic3, _I2, _T, _Vx, 0), mmresu8);
+          _mm_store_si128((__m128i *)&md6(
+              atinput_u8, _hA, _wA, _ic3, _I2, _T, 0), mmresu8);
         }}
       } else {
-        MD5(TinputType, atinput5, &md2(atinput2, _t2, 0),
-            xc->ic3, xc->I2, xc->Vx, Tz, A * A * V);
-        auto aout = &md5(atinput5, _ic3, _I2, _Vx, _T, 0);
+        MD4(TinputType, atinput4, &md2(atinput2, _t2, 0),
+            xc->ic3, xc->I2, Tz, A * A * V);
+        auto aout = &md4(atinput4, _ic3, _I2, _T, 0);
         using Array = op_type[A][A][V];
 
         if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
@@ -424,7 +423,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
               *xc, *(Array *)aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
       }
     }
-  }, xc->t2, xc->ic3, xc->I2, xc->T, xc->Vx);
+  }, xc->t2, xc->ic3, xc->I2, xc->T);
 
   if (xc->sampling_kind == CALIBRATED)
     return;
@@ -432,24 +431,23 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 #pragma omp barrier
   thread_parallel_for<4>(mthr_, ithr, [&](int _t2, int _hA, int _wA, int _ic3) {
     MD2(uint8_t, atinput2_u8, tinput_u8,
-        xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * xc->Vx * V);
+        xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * V);
     MD6(TscaleType, atinput_quant_scale, tinput_quant_scale,
         xc->t2, A, A, xc->ic3, 2, xc->T);
     MD2(TinputType, atinput2, tinput,
-        xc->t2, A * A * xc->ic3 * xc->I2 * xc->Vx * xc->T * V);
-    MD8(InputType, ainput, input,
-        xc->n, xc->ic4, xc->ic3, xc->I2, xc->Vx, xc->ih, xc->iw, V);
+        xc->t2, A * A * xc->ic3 * xc->I2 * xc->T * V);
+    MD7(InputType, ainput, input,
+        xc->n, xc->ic4, xc->ic3, xc->I2, xc->ih, xc->iw, V);
     int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
-    MD7(TinputType, atinput7, &md2(atinput2, _t2, 0),
-        xc->ic3, xc->I2, xc->Vx, Tz, A, A, V);
-    MD7(uint8_t, atinput_u8, &md2(atinput2_u8, _t2, 0),
-        A, A, xc->ic3, xc->I2, Tz, xc->Vx, V);
+    MD6(TinputType, atinput6, &md2(atinput2, _t2, 0),
+        xc->ic3, xc->I2, Tz, A, A, V);
+    MD6(uint8_t, atinput_u8, &md2(atinput2_u8, _t2, 0),
+        A, A, xc->ic3, xc->I2, Tz, V);
     iter_each (_T, Tz) {
       __m<V> mmax, mmin;
       bool flush = true;
       iter_each (_I2, xc->I2) {
-      iter_each (_Vx, xc->Vx) {
-        __m<V> mcur = *(__m<V> *)&md7(atinput7, _ic3, _I2, _Vx, _T, _hA, _wA, 0);
+        __m<V> mcur = *(__m<V> *)&md6(atinput6, _ic3, _I2, _T, _hA, _wA, 0);
         if (flush) {
           mmax = mcur;
           mmin = mcur;
@@ -458,7 +456,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
           mmax = _mm<V>::max_ps(mcur, mmax);
           mmin = _mm<V>::min_ps(mcur, mmin);
         }
-      }}
+      }
 
       TinputType max, min;
       if (I == ISA_SKX_AVX512 && std::is_same<TinputType, float>::value) {
@@ -485,15 +483,14 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
       __m<V> mrepS = _mm<V>::set1_ps(repS);
       __m<V> mz = _mm<V>::set1_ps(z);
       iter_each (_I2, xc->I2) {
-      iter_each (_Vx, xc->Vx) {
-        __m<V> f = *(__m<V> *)&md7(atinput7, _ic3, _I2, _Vx, _T, _hA, _wA, 0);
+        __m<V> f = *(__m<V> *)&md6(atinput6, _ic3, _I2, _T, _hA, _wA, 0);
         __m<V> mresf32 = f * mrepS + mz;
         __i<V> mresu32 = _mm<V>::cvt_roundps_epu32(
             mresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
         __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mresu32);
-        _mm_store_si128((__m128i *)&md7(
-            atinput_u8, _hA, _wA, _ic3, _I2, _T, _Vx, 0), mmresu8);
-      }}
+        _mm_store_si128((__m128i *)&md6(
+            atinput_u8, _hA, _wA, _ic3, _I2, _T, 0), mmresu8);
+      }
     }
   }, xc->t2, A, A, xc->ic3);
 }
@@ -516,10 +513,9 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
     InputType *__restrict input, int _t2, int Tz)
 {
   _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
-  MD8(InputType, ainput, input, xc->n,
-      xc->ic4, xc->ic3, xc->I2, xc->Vx, xc->ih, xc->iw, V);
-  // 4i,V temporarily here for store AVX instruction
-  MD7(uint8_t, atinput_u8, tinput_u8, A, A, xc->ic3, xc->I2, Tz, xc->Vx, V);
+  MD7(InputType, ainput, input, xc->n,
+      xc->ic4, xc->ic3, xc->I2, xc->ih, xc->iw, V);
+  MD6(uint8_t, atinput_u8, tinput_u8, A, A, xc->ic3, xc->I2, Tz, V);
   MD5(TscaleType, atinput_quant_scale, tinput_quant_scale, xc->ic3, A, A, 2, xc->T);
 
   auto res = std::div(_t2 * xc->T, xc->nt);
@@ -533,14 +529,13 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 
     iter_each(_ic3, xc->ic3) {
     iter_each (_I2, xc->I2) {
-    iter_each (_Vx, xc->Vx) {
       input_tile_iter<A, K> t2spati_o(_n, _t_off, xc->ht, xc->wt, xc->ih,
                                       xc->iw, xc->tp, xc->lp);
       iter_each (_T, Tz) {
         auto _ih = t2spati_o.anchor_t_;
         auto _iw = t2spati_o.anchor_l_;
 
-        InputType *in = &md8(ainput, t2spati_o.n_, 0, _ic3, _I2, _Vx, _ih, _iw, 0);
+        InputType *in = &md7(ainput, t2spati_o.n_, 0, _ic3, _I2, _ih, _iw, 0);
         if (!t2spati_o.is_border())
           ker_trans_input_(*xc, aout, in, 0, A - 1, 0, A - 1);
         else
@@ -559,28 +554,27 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
               mresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
           __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mresu32);
           // store
-          _mm_store_si128((__m128i *)&md7(atinput_u8, _hA, _wA, _ic3, _I2, _T, _Vx, 0), mmresu8);
+          _mm_store_si128((__m128i *)&md6(atinput_u8, _hA, _wA, _ic3, _I2, _T, 0), mmresu8);
         }}
       }
-    }}}
+    }}
     return;
   } else if (xc->sampling_kind == COARSE) {
-    MD7(TinputType, atinput, tinput, xc->ic3, xc->I2, xc->Vx, Tz, A, A, V);
+    MD6(TinputType, atinput, tinput, xc->ic3, xc->I2, Tz, A, A, V);
     auto mmin = _mm<V>::set1_ps(FLT_MAX);
     auto mmax = _mm<V>::set1_ps(-FLT_MAX);
 
     iter_each(_ic3, xc->ic3) {
     iter_each (_I2, xc->I2) {
-    iter_each (_Vx, xc->Vx) {
       input_tile_iter<A, K> t2spati_o(_n, _t_off, xc->ht, xc->wt, xc->ih,
                                       xc->iw, xc->tp, xc->lp);
       iter_each (_T, Tz) {
         auto _ih = t2spati_o.anchor_t_;
         auto _iw = t2spati_o.anchor_l_;
 
-        MD3(TinputType, aout, &md7(atinput, _ic3, _I2, _Vx, _T, 0, 0, 0), A, A, V);
+        MD3(TinputType, aout, &md6(atinput, _ic3, _I2, _T, 0, 0, 0), A, A, V);
         using Array = op_type[A][A][V];
-        InputType *in = &md8(ainput, t2spati_o.n_, 0, _ic3, _I2, _Vx, _ih, _iw, 0);
+        InputType *in = &md7(ainput, t2spati_o.n_, 0, _ic3, _I2, _ih, _iw, 0);
         if (!t2spati_o.is_border())
           ker_trans_input_(*xc, *(Array *)&md3(aout, 0, 0, 0), in, 0, A - 1, 0, A - 1);
         else
@@ -595,7 +589,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
           mmax = _mm<V>::max_ps(mmax, *(__m<V> *)&md3(aout, _hA, _wA, 0));
         }}
       }
-    }}}
+    }}
 
     TinputType min = _mm<V>::reduce_min_ps(mmin);
     TinputType max = _mm<V>::reduce_max_ps(mmax);
@@ -612,24 +606,23 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 
     iter_each (_ic3, xc->ic3) {
     iter_each (_I2, xc->I2) {
-    iter_each (_Vx, xc->Vx) {
     iter_each (_T, Tz) {
     iter_each (_hA, A) {
     iter_each (_wA, A) {
       // Min-Max quantization
       __m<V> mrepS = _mm<V>::set1_ps(repS);
       __m<V> mz = _mm<V>::set1_ps(z);
-      __m<V> a = *(__m<V> *)&md7(atinput, _ic3, _I2, _Vx, _T, _hA, _wA, 0);
+      __m<V> a = *(__m<V> *)&md6(atinput, _ic3, _I2, _T, _hA, _wA, 0);
       __m<V> mresf32 = a * mrepS + mz;
       // convert to uint8
       __i<V> mresu32 = _mm<V>::cvt_roundps_epu32(mresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
       __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mresu32);
       // store
-      _mm_store_si128((__m128i *)&md7(atinput_u8, _hA, _wA, _ic3, _I2, _T, _Vx, 0), mmresu8);
-    }}}}}}
+      _mm_store_si128((__m128i *)&md6(atinput_u8, _hA, _wA, _ic3, _I2, _T, 0), mmresu8);
+    }}}}}
     return;
   } else if (xc->sampling_kind == FINE) {
-    MD5(TinputType, atinput, tinput, xc->I2, xc->Vx, A, A, V);
+    MD4(TinputType, atinput, tinput, xc->I2, A, A, V);
     iter_each(_ic3, xc->ic3) {
       input_tile_iter<A, K> t2spati_o(_n, _t_off, xc->ht, xc->wt, xc->ih,
                                       xc->iw, xc->tp, xc->lp);
@@ -638,13 +631,12 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
         alignas(64) TinputType mmin[A][A][V];
         bool flush = true;
         iter_each (_I2, xc->I2) {
-        iter_each (_Vx, xc->Vx) {
           auto _ih = t2spati_o.anchor_t_;
           auto _iw = t2spati_o.anchor_l_;
 
-          MD3(TinputType, aout, &md5(atinput, _I2, _Vx, 0, 0, 0), A, A, V);
+          MD3(TinputType, aout, &md4(atinput, _I2, 0, 0, 0), A, A, V);
           using Array = op_type[A][A][V];
-          InputType *in = &md8(ainput, t2spati_o.n_, 0, _ic3, _I2, _Vx, _ih, _iw, 0);
+          InputType *in = &md7(ainput, t2spati_o.n_, 0, _ic3, _I2, _ih, _iw, 0);
           if (!t2spati_o.is_border())
             ker_trans_input_(*xc, *(Array *)&md3(aout, 0, 0, 0), in, 0, A - 1, 0, A - 1);
           else
@@ -669,7 +661,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
               _mmin = _mm<V>::min_ps(_mmin, *(__m<V> *)&md3(aout, _hA, _wA, 0));
             }}
           }
-        }}
+        }
 
         iter_each (_hA, A) {
         iter_each (_wA, A) {
@@ -699,20 +691,19 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 
         // quantization
         iter_each (_I2, xc->I2) {
-        iter_each (_Vx, xc->Vx) {
         iter_each (_hA, A) {
         iter_each (_wA, A) {
           // Min-Max quantization
           __m<V> mrepS = _mm<V>::set1_ps(mmax[_hA][_wA][0]);
           __m<V> mz = _mm<V>::set1_ps(mmin[_hA][_wA][0]);
-          __m<V> f = *(__m<V> *)&md5(atinput, _I2, _Vx, _hA, _wA, 0);
+          __m<V> f = *(__m<V> *)&md4(atinput, _I2, _hA, _wA, 0);
           __m<V> mresf32 = f * mrepS + mz;
           // convert to uint8
           __i<V> mresu32 = _mm<V>::cvt_roundps_epu32(mresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
           __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mresu32);
           // store
-          _mm_store_si128((__m128i *)&md7(atinput_u8, _hA, _wA, _ic3, _I2, _T, _Vx, 0), mmresu8);
-        }}}}
+          _mm_store_si128((__m128i *)&md6(atinput_u8, _hA, _wA, _ic3, _I2, _T, 0), mmresu8);
+        }}}
         ++ t2spati_o;
       }
     }

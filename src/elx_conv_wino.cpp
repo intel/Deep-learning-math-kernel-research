@@ -9,7 +9,8 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
   xopt_ = this->execution_mode;
 
   this->Vx = 1;
-  this->IC = ALIGNUP(this->ic, V * this->Vx);
+  this->V1 = V / this->Vx;
+  this->IC = ALIGNUP(this->ic, V);
   this->OC = ALIGNUP(this->oc, V);
 
   this->ic2 = this->IC / V;
@@ -29,9 +30,7 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
 
   // Tailing
   this->Tr = this->t % this->T ? this->t % this->T : this->T;
-  this->Ir = this->ic % (V * this->Vx)
-      ? ALIGNUP(this->ic % (V * this->Vx), this->Vx) / this->Vx
-      : (V * this->Vx);
+  this->Ir = this->ic % V ? this->ic % V : V;
   this->Or = this->oc % V ? this->oc % V : V;
 
   is_first_run_ = true;
@@ -49,7 +48,7 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
 
   // further divide packed oc/ic
   this->oc3 = this->oc2 / this->O2;
-  this->ic3 = this->ic2 / this->I2 / this->Vx;
+  this->ic3 = this->ic2 / this->I2;
 
   this->t2 = (this->t + this->T - 1) / this->T;
 
@@ -69,9 +68,9 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
       V, this->Or, this->O2, this->O, this->O1, this->oc3, this->oc4, this->OC);
 
 #ifdef DEBUG
-  if (this->Vx * V * this->I2 * this->ic3 * this->ic4 != this->IC) {
-    el_warn("Vx * V * I2 * ic3 * ic4 != this->IC\n Force ic4 = IC / (Vx * V * I2 * ic3)");
-    this->ic4 = this->IC / (this->Vx * V * this->I2 * this->ic3);
+  if (V * this->I2 * this->ic3 * this->ic4 != this->IC) {
+    el_warn("V * I2 * ic3 * ic4 != this->IC\n Force ic4 = IC / (V * I2 * ic3)");
+    this->ic4 = this->IC / (V * this->I2 * this->ic3);
   }
 
   if (V * this->O2 * this->oc3 * this->oc4 != this->OC) {
@@ -84,8 +83,8 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
     el_error("Unimplemented: fuse sum (plain format) and relu together");
   }
 
-  if (this->Vx * V * this->I2 * this->ic3 * this->ic4 != this->IC) {
-    el_error("Vx * V * I2 * ic3 * ic4 != this->IC\n)");
+  if (V * this->I2 * this->ic3 * this->ic4 != this->IC) {
+    el_error("V * I2 * ic3 * ic4 != this->IC\n)");
   }
 
   if (V * this->O2 * this->oc3 * this->oc4 != this->OC) {
@@ -109,7 +108,7 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   }
   if (xopt_ & FUS_I) {
     this->ic3 /= this->ic4;
-    if (V * this->Vx * this->I2 * this->ic3 * this->ic4 != this->IC) {
+    if (V * this->I2 * this->ic3 * this->ic4 != this->IC) {
       el_error("Config error!");
       return -1;
     }

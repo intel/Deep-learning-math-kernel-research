@@ -59,7 +59,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
           auto attr = xc->ic3 == 1 && xc->ic4 == 1
                           ? set_attr(attr_, r_output_idx)
                           : attr_;
-         if (xc->Ir != V * xc->Vx)
+         if (xc->Ir != V)
            attr = set_attr(attr, has_Ir_idx);
          ker_gemm(*xc,
              &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
@@ -88,7 +88,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
         auto attr = xc->ic3 == 1 && xc->ic4 == 1
                         ? set_attr(attr_, r_output_idx)
                         : attr_;
-        if (xc->Ir != V * xc->Vx)
+        if (xc->Ir != V)
           attr = set_attr(attr, has_Ir_idx);
         ker_gemm(*xc,
             &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
@@ -132,7 +132,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
         }
         if (last_ic4) {
           auto attr = xc->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
-          if (xc->Ir != V * xc->Vx)
+          if (xc->Ir != V)
             attr = set_attr(attr, has_Ir_idx);
           ker_gemm(*xc,
               &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
@@ -158,7 +158,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
       }
       if (last_ic4) {
         auto attr = xc->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
-        if (xc->Ir != V * xc->Vx)
+        if (xc->Ir != V)
           attr = set_attr(attr, has_Ir_idx);
         ker_gemm(*xc,
             &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
@@ -192,7 +192,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
     int attr = attr_;
     if (_ic3 == 0 && _ic4 == 0)
       attr = set_attr(attr, r_output_idx);
-    if (xc->Ir != V * xc->Vx && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
+    if (xc->Ir != V && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
       attr = set_attr(attr, has_Ir_idx);
 
     ker_gemm(*xc, &md6(atoutput6, _hA, _wA, _oc3, 0, 0, 0),
@@ -221,7 +221,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
     int attr = attr_;
     if (_ic3 == 0)
       attr = set_attr(attr, r_output_idx);
-    if (xc->Ir != V * xc->Vx && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
+    if (xc->Ir != V && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
       attr = set_attr(attr, has_Ir_idx);
 
     ker_gemm(*xc, &md6(atoutput6, _hA, _wA, _oc3, 0, 0, 0),

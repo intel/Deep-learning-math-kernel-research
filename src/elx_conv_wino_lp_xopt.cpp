@@ -22,13 +22,13 @@ void Instance_elx_conv_wino_lp_t::__execute_a133(
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
   MD3(InputType, ainput, input, this->n, this->ic4,
-      this->ih * this->iw * this->ic3 * this->I2 * this->Vx * V);
+      this->ih * this->iw * this->ic3 * this->I2 * V);
   MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
-      A * A * this->ic3 * this->I2 * this->Vx * V * this->oc3 * this->O2 * V);
+      A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
-      A * A * this->ic3 * this->I2 * this->Vx * V * this->oc3 * this->O2 * V);
+      A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
 
   MD3(TscaleType, atweights_quant_scale, tweights_quant_scale_,
       this->oc4, this->ic4, this->oc3 * this->ic3 * this->O2 * V * A * A);
@@ -104,7 +104,7 @@ void Instance_elx_conv_wino_lp_t::__execute_a161(
 
     thread_parallel_for<2>(mthr_, ithr, [&](int _t2, int _oc4) {
       MD2(TinputType, atinput2, tinput_, mthr_, this->sampling_kind == COARSE ?
-          A * A * this->IC * this->T : A * A * this->I2 * this->Vx * V);
+          A * A * this->IC * this->T : A * A * this->I2 * V);
       MD2(ToutputType, atoutput2, toutput_, mthr_,
           A * A * this->T * this->oc3 * this->O2 * V);
       MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
@@ -173,16 +173,16 @@ void Instance_elx_conv_wino_lp_t::__execute_a173(
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       size_t ithr = omp_get_thread_num();
       MD2(TinputType, atinput2, tinput_, mthr_,
-          A * A * this->ic3 * this->I2 * V * this->Vx);
+          A * A * this->ic3 * this->I2 * V);
       MD2(ToutputType, atoutput2, toutput_, mthr_,
           A * A * this->T * this->oc3 * this->O2 * V);
       MD3(InputType, ainput, input, this->n, this->ic4,
-          this->ih * this->iw * this->ic3 * this->I2 * this->Vx * V);
+          this->ih * this->iw * this->ic3 * this->I2 * V);
       MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
       MD2(uint8_t, atinput2_u8, tinput_u8_, mthr_,
-          A * A * this->T * this->ic3 * this->I2 * this->Vx * V);
+          A * A * this->T * this->ic3 * this->I2 * V);
       MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
-          A * A * this->ic3 * this->I2 * this->Vx * V * this->oc3 * this->O2 * V);
+          A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
       MD2(TscaleType, atinput_quant_scale, tinput_quant_scale_, mthr_,
           this->sampling_kind == CALIBRATED ? 2 * this->T
                                             : this->ic3 * A * A * 2 * this->T);

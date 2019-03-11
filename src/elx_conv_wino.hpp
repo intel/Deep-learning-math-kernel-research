@@ -45,6 +45,7 @@ public:
   using elx_conv_t::oc4;
   using elx_conv_t::ic3;
   using elx_conv_t::oc3;
+  using elx_conv_t::V1;
   using elx_conv_t::Vx;
   using InputType = typename UserTypes::InputType;
   using WeightsType = typename UserTypes::WeightsType;

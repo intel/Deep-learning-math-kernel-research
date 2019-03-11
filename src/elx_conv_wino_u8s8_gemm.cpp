@@ -22,8 +22,8 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::bind_kernel_functions()
       V, 4, I, 1, GKF_CCC>(xc->O, xc->Tr, &ker_u8s8_gemm0_);
 }
 
-// tweights:      oc4 | oc3, ic3, A, A, O2, I2, V, V, Vx
-// tinputs:        t2 | A, A, ic3, I2, T, V, Vx
+// tweights:      oc4 | oc3, ic3, A, A, O2, I2, V1, V, Vx
+// tinputs:        t2 | A, A, ic3, I2, T, V1, Vx
 // toutput:   t2, oc4 | A, A, oc3, O2, T, V
 // weights_scale  oc4 | oc3, O2, V
 // facotr:        oc4 | oc3, A, A, O2, V
@@ -35,10 +35,10 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute(
 {
   auto ker_gemm = (_t2 == xc->t2 - 1) ? ker_u8s8_gemm0_ : ker_u8s8_gemm_;
 
-  MD6(uint8_t, atinput, tinput, A, A, xc->ic3, xc->I2, Tz, V * xc->Vx);
+  MD6(uint8_t, atinput, tinput, A, A, xc->ic3, xc->I2, Tz, V);
   MD6(ToutputType, atoutput, toutput, A, A, xc->oc3, xc->O2, Tz, V);
   MD5(int8_t, atweights, tweights, xc->oc3, xc->ic3, A, A,
-      xc->O2 * xc->I2 * V * V * xc->Vx);
+      xc->O2 * xc->I2 * V * V);
   MD6(TscaleType, aweights_scale, weights_scale, xc->oc3, xc->ic3, A, A, xc->O2, V);
   MD6(TscaleType, aweights_factor, weights_factor, xc->oc3, xc->ic3, A, A, xc->O2, V);
   MD5(TscaleType, asrc_scale, src_scale, xc->ic3,  A, A, 2, xc->T);
@@ -48,7 +48,7 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute(
   iter_each (_ic3, xc->ic3) {
   iter_each (_oc3, xc->oc3) {
     int attr = _ic3 == 0 && _ic4 == 0 ?  set_attr(attr_, r_output_idx) : attr_;
-    if (xc->Ir != V * xc->Vx && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
+    if (xc->Ir != V && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
       attr = set_attr(attr, has_Ir_idx);
 
     TscaleType *asrc_s, *asrc_z;
@@ -78,10 +78,10 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
 {
   auto ker_gemm = (_t2 == xc->t2 - 1) ? ker_u8s8_gemm0_ : ker_u8s8_gemm_;
 
-  MD6(uint8_t, atinput, tinput, A, A, xc->ic3, xc->I2, Tz, V * xc->Vx);
+  MD6(uint8_t, atinput, tinput, A, A, xc->ic3, xc->I2, Tz, V);
   MD6(ToutputType, atoutput, toutput, A, A, xc->oc3, xc->O2, Tz, V);
   MD5(int8_t, atweights, tweights, xc->oc3, xc->ic3, A, A,
-      xc->O2 * xc->I2 * V * V * xc->Vx);
+      xc->O2 * xc->I2 * V * V);
   MD6(TscaleType, aweights_scale, weights_scale, xc->oc3, xc->ic3, A, A, xc->O2, V);
   MD6(TscaleType, aweights_factor, weights_factor, xc->oc3, xc->ic3, A, A, xc->O2, V);
   MD5(TscaleType, asrc_scale, src_scale, xc->ic3, A, A, 2, Tz);
@@ -96,7 +96,7 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
       iter_each(_ic3, xc->ic3) {
       iter_each(_oc3, xc->oc3) {
         auto attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
-        if (xc->Ir != V * xc->Vx && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
+        if (xc->Ir != V && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
           attr = set_attr(attr, has_Ir_idx);
 
         TscaleType *asrc_s, *asrc_z;
@@ -123,7 +123,7 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
     iter_each(_ic3, xc->ic3) {
     iter_each(_oc3, xc->oc3) {
       auto attr = _ic3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
-      if (xc->Ir != V * xc->Vx && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
+      if (xc->Ir != V && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
         attr = set_attr(attr, has_Ir_idx);
 
       ker_gemm(*(elx_conv_params_t *)xc,
@@ -147,19 +147,19 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
 {
   int ithr = omp_get_thread_num();
   thread_parallel_for<5, 2>(mthr_, ithr, [&](int _hA, int _wA, int _ic3, int _oc3, int _t2) {
-    MD2(uint8_t, atinput2, tinput, xc->t2, A * A * xc->ic3 * xc->I2 * xc->T * V * xc->Vx);
+    MD2(uint8_t, atinput2, tinput, xc->t2, A * A * xc->ic3 * xc->I2 * xc->T * V);
     MD2(ToutputType, atoutput2, toutput, xc->t2, A * A * xc->oc3 * xc->O2 * xc->T * V);
-    MD5(int8_t, atweights, tweights, xc->oc3, xc->ic3, A, A, xc->O2 * xc->I2 * V * V * xc->Vx);
+    MD5(int8_t, atweights, tweights, xc->oc3, xc->ic3, A, A, xc->O2 * xc->I2 * V * V);
     MD6(TscaleType, aweights_scale, weights_scale, xc->oc3, xc->ic3, A, A, xc->O2, V);
     MD6(TscaleType, aweights_factor, weights_factor, xc->oc3, xc->ic3, A, A, xc->O2, V);
     MD6(TscaleType, asrc_scale, src_scale, xc->t2, A, A, xc->ic3, 2, xc->T);
     int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
-    MD6(uint8_t, atinput6, &md2(atinput2, _t2, 0), A, A, xc->ic3, xc->I2, Tz, V * xc->Vx);
+    MD6(uint8_t, atinput6, &md2(atinput2, _t2, 0), A, A, xc->ic3, xc->I2, Tz, V);
     MD6(ToutputType, atoutput6, &md2(atoutput2, _t2, 0), A, A, xc->oc3, xc->O2, Tz, V);
     auto ker_gemm = (_t2 == xc->t2 - 1) ? ker_u8s8_gemm0_ : ker_u8s8_gemm_;
 
     int attr = _ic3 == 0 ?  set_attr(attr_, r_output_idx) : attr_;
-    if (xc->Ir != V * xc->Vx && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
+    if (xc->Ir != V && _ic4 == xc->ic4 - 1 && _ic3 == xc->ic3 - 1)
       attr = set_attr(attr, has_Ir_idx);
 
     TscaleType *asrc_s, *asrc_z;
