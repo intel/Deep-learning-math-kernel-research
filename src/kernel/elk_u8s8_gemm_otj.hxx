@@ -76,10 +76,11 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   static inline __i<V> op_int8_load_input(
       uint8_t *input, const int _V, const int _P, const int _T)
   {
-    if (F_traits<F>::is_compact_input || F_traits<F>::is_blocked_input) {
-      MD5(uint8_t, ainput5, input, T, S, V / P, P, Vx);
-      return _mm<V>::set1_epi32(*(int32_t*)&md5(ainput5, _T, 0, _V, _P, 0));
-    }
+    static_assert(F_traits<F>::is_compact_input || F_traits<F>::is_blocked_input,
+                  "only compact and blocked format input enabled");
+
+    MD5(uint8_t, ainput5, input, T, S, V / P, P, Vx);
+    return _mm<V>::set1_epi32(*(int32_t*)&md5(ainput5, _T, 0, _V, _P, 0));
   }
 
   template <const int JO, const int P>
