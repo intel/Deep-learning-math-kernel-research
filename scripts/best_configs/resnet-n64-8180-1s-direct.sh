@@ -6,6 +6,8 @@
 
 source ./scripts/best_configs/common.sh $@
 
+NSOCKETS=1 ./scripts/run.sh -c -i3 -h224 -o64 -H112 -k7 -K7 -s2 -S2 -p3 -P3 -n64 -adirect --execution-mode=0xa060 --blk-i=1 --blk-o=2 --flt-o=2 --flt-t=14 --pat-o=1 $COMMON --input-format=nchw
+sleep 1
 # resnet50_res2a_branch2b, 5.2T
 NSOCKETS=1 ./scripts/run.sh -c -i64 -h56 -o64 -H56 -n64 -adirect --execution-mode=0xa060 --blk-i=4 --blk-o=2 --flt-o=2 --flt-t=14 --pat-o=1 $COMMON
 sleep 1
