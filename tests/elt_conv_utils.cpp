@@ -399,7 +399,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
       else if (data_type_cfg == euler::test::U8F32U8F32 ||
                data_type_cfg == euler::test::U8F32S8F32) {
         (*output)[i] =
-            (uint8_t)rounding_to_nearest_even(output_ref[i] / oscale + oz);
+            (int8_t)rounding_to_nearest_even(output_ref[i] / oscale + oz);
       }
     }
   }
