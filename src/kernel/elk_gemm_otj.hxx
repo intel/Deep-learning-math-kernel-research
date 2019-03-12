@@ -432,7 +432,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       ScaleType *weights_scale, ScaleType *weights_factor)
   {
     const int W_stride = F_traits<F>::is_compact_weights
-                         ? xc.I2 * V * O * V * Vx : O * xc.IC * V;
+                         ? xc.I2 * V * O * V : O * xc.IC * V;
 
     MD2(OutputType, aoutput_compact, output, xc.O1, O * T * V);
     MD2(OutputType, aoutput_blocked, output, xc.O1, O * xc.oh * xc.ow * V);
@@ -469,7 +469,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     const int W_stride0
         = F_traits<F>::is_compact_weights ? xc.I2 * V : 1;
     const int W_stride1
-        = F_traits<F>::is_compact_weights ? V * Vx : xc.IC * V;
+        = F_traits<F>::is_compact_weights ? V : xc.IC * V;
 
     MD3(OutputType, aoutput_compact, output, xc.O1, O, T * V);
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
@@ -513,7 +513,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     const int W_stride0
         = F_traits<F>::is_compact_weights ? xc.I2 * V : 1;
     const int W_stride1
-        = F_traits<F>::is_compact_weights ? V * Vx : xc.IC * V;
+        = F_traits<F>::is_compact_weights ? V : xc.IC * V;
 
     MD3(OutputType, aoutput_compact, output, xc.O1, O, T * V);
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);

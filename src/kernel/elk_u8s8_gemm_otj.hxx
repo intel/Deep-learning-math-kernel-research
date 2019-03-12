@@ -99,6 +99,30 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     return res;
   }
 
+  static inline __i<V> op_int8_load_output(OutputType *output, const int _T)
+  {
+    MD2(OutputType, aoutput2, output, T, V);
+    if (std::is_same<OutputType, float>::value) {
+      return _mm<V>::load_epi32((__i<V> *)&md2(aoutput2, _T, 0));
+    } else {
+      auto fp16v = _mm<V / 2>::load_si256((__i<V/2> *)&md2(aoutput2, _T, 0));
+      return _mm<V>::cvtepi16_epi32(fp16v);
+    }
+  }
+
+  static inline void op_int8_store_output(
+      OutputType *output, __i<V> res, const int _T)
+  {
+    if (std::is_same<OutputType, float>::value) {
+      MD2(int, aoutput2, output, T, V);
+      _mm<V>::store_epi32(&md2(aoutput2, _T, 0), res);
+    } else {
+      MD2(OutputType, aoutput2, output, T, V);
+      _mm<V / 2>::store_si256(
+          (__i<V / 2> *)&md2(aoutput2, _T, 0), _mm<V>::cvtepi32_epi16(res));
+    }
+  }
+
   template <const int JO>
   static inline void op_int8_restore_output(elx_conv_params_t &xc,
       OutputType *output, BiasType *bias, __i<V> res, ScaleType *src_scale,
@@ -121,7 +145,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     fout = Sa * Sw * fout;
 
     // toutput lazy accumulation
-    if (!get_attr(attr, r_output_idx)) {
+    if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
       if (std::is_same<OutputType, float>::value)
         fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
       else {
@@ -171,7 +195,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(uint8_t, ainput, input, xc.I2, I2_stride);
 
     if (get_attr(attr, has_Ir_idx)) {
-      el_error("Unimplement non-64x IC for int8 gemm");
+      el_error("Unimplement non-16x IC for int8 gemm");
     }
 
     // preload weights
@@ -181,11 +205,19 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       }
     }
 
-    // clear tmp output
-    __i<V> tmp = _mm<V>::setzero_epi32();
-    unroll_for (_O, JO)
-    unroll_for (_T, T)
-      mmout[_O][_T] = tmp;
+    if (get_attr(attr, r_output_idx) || get_attr(attr, l_output_idx)) {
+      // clear output
+      __i<V> tmp = _mm<V>::setzero_epi32();
+      unroll_for (_O, JO)
+      unroll_for (_T, T)
+        mmout[_O][_T] = tmp;
+    } else { // for 1x1 and direct path
+      // load accumulated s32 output
+      unroll_for (_O, JO) {
+        unroll_for (_T, T)
+          mmout[_O][_T] = op_int8_load_output(&md2(aoutput, _O, 0), _T);
+      }
+    }
 
     for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
 #pragma nounroll
@@ -204,12 +236,19 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     }
 
     // store output
-    unroll_for (_O, JO) {
-    unroll_for (_T, T) {
-      op_int8_restore_output<JO>(xc, &md2(aoutput, _O, 0), bias,
-          mmout[_O][_T], src_scale, src_factor, weights_scale,
-          weights_factor, _O1, _O0, _O, _T, attr);
-    }}
+    if (get_attr(attr, c_output_idx)) {
+      unroll_for (_O, JO) {
+      unroll_for (_T, T) {
+        op_int8_restore_output<JO>(xc, &md2(aoutput, _O, 0), bias,
+            mmout[_O][_T], src_scale, src_factor, weights_scale,
+            weights_factor, _O1, _O0, _O, _T, attr);
+      }}
+    } else { // For 1x1/direct. Store accumulated s32 output
+      unroll_for (_O, JO) {
+      unroll_for (_T, T)
+        op_int8_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T);
+      }
+    }
   }
 
   template <int O = O, int T = T>
