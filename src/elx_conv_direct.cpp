@@ -474,46 +474,38 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
         attr = set_attr(attr, has_Or_idx);
       }
 
-      if (_wt == this->wt - 1) {
-        for (int _kh = khs; _kh < khe; ++_kh) {
-          auto _ih = this->hs * _ht + _kh - this->tp;
-          for (int _kw = this->kw - 1; _kw >= 0; --_kw) {
-            auto _iws = this->ws * ows0 + _kw - this->lp;
-            while (_iws < 0) _iws += this->ws;
-            auto _ows = (_iws + this->lp - _kw) / this->ws;
+      for (int _kh = khs; _kh < khe; ++_kh) {
+        auto _ih = this->hs * _ht + _kh - this->tp;
+        for (int _kw = 0; _kw < this->kw; ++_kw) {
+          auto _iws = this->ws * ows0 + _kw - this->lp;
+          while (_iws < 0) _iws += this->ws;
+          auto _ows = (_iws + this->lp - _kw) / this->ws;
 
-            MD4(InputType, ainput1, &md3(ainput0, _ih, _iws, 0), this->ic4,
-                this->ic3, this->I2, V);
-            MD4(OutputType, aoutput1, &md3(aoutput0, _ht, _ows, 0), this->oc4,
-                this->oc3, this->O2, V);
-            if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 && _kh == khe - 1
-                && _kw == 0 && this->with_relu)
-              attr = set_attr(attr, relu_idx);
-            ker_gemm_[_wt][_kw](
-                *this, &md4(aoutput1, 0, _oc3, 0, 0), &md4(ainput1, 0, _ic3, 0, 0),
-                &md5(aweights, _oc3, _ic3, _kh, _kw, 0), &md3(abias, _oc3, 0, 0),
-                attr, 0, nullptr, nullptr, nullptr);
-          }
+          MD4(InputType, ainput1, &md3(ainput0, _ih, _iws, 0), this->ic4,
+              this->ic3, this->I2, V);
+          MD4(OutputType, aoutput1, &md3(aoutput0, _ht, _ows, 0), this->oc4,
+              this->oc3, this->O2, V);
+          ker_gemm_[_wt][_kw](
+              *this, &md4(aoutput1, 0, _oc3, 0, 0), &md4(ainput1, 0, _ic3, 0, 0),
+              &md5(aweights, _oc3, _ic3, _kh, _kw, 0), &md3(abias, _oc3, 0, 0),
+              attr, 0, nullptr, nullptr, nullptr);
         }
-      } else {
-        for (int _kh = khs; _kh < khe; ++_kh) {
-          auto _ih = this->hs * _ht + _kh - this->tp;
-          for (int _kw = 0; _kw < this->kw; ++_kw) {
-            auto _iws = this->ws * ows0 + _kw - this->lp;
-            while (_iws < 0) _iws += this->ws;
-            auto _ows = (_iws + this->lp - _kw) / this->ws;
+      }
 
-            MD4(InputType, ainput1, &md3(ainput0, _ih, _iws, 0), this->ic4,
-                this->ic3, this->I2, V);
-            MD4(OutputType, aoutput1, &md3(aoutput0, _ht, _ows, 0), this->oc4,
-                this->oc3, this->O2, V);
-            if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 && _kh == khe - 1
-                && _kw == kw - 1 && this->with_relu)
-              attr = set_attr(attr, relu_idx);
-            ker_gemm_[_wt][_kw](
-                *this, &md4(aoutput1, 0, _oc3, 0, 0), &md4(ainput1, 0, _ic3, 0, 0),
-                &md5(aweights, _oc3, _ic3, _kh, _kw, 0), &md3(abias, _oc3, 0, 0),
-                attr, 0, nullptr, nullptr, nullptr);
+      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+        if (this->with_relu) {
+          iter_each (_O2, this->O2) {
+            bool O2_has_Or = oc3_has_Or && (_O2 == this->O2 - 1);
+            __mmask16 k = _mm512_int2mask(O2_has_Or ? this->ormask : 0xFFFF);
+            if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value) {
+              iter_each (_T, Tz) {
+                MD4(OutputType, aoutput1, &md3(aoutput0, _ht, ows0 + _T, 0),
+                    this->oc4, this->oc3, this->O2, V);
+                auto s = _mm<V>::max_ps(*(__m<V> *)&md4(aoutput1, 0, _oc3, _O2, 0),
+                                        _mm<V>::setzero_ps());
+                _mm512_mask_store_ps(&md4(aoutput1, 0, _oc3, _O2, 0), k, s);
+              }
+            } else el_error("direct: d060: unimplemented");
           }
         }
       }
@@ -536,41 +528,32 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           }
         }
       }
-      int attr = attr_;
-      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
-        if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
-      }
-      if (_wt == this->wt - 1) {
-        for (int _kh = khs; _kh < khe; ++_kh) {
-          auto _ih = this->hs * _ht + _kh - this->tp;
-          for (int _kw = this->kw - 1; _kw >= 0; --_kw) {
-            auto _iws = this->ws * ows0 + _kw - this->lp;
-            while (_iws < 0) _iws += this->ws;
-            auto _ows = (_iws + this->lp - _kw) / this->ws;
-            if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 && _kh == khe - 1
-                && _kw == 0 && this->with_relu)
-              attr = set_attr(attr, relu_idx);
-            ker_gemm_[_wt][_kw](*this, &md5(aoutput, _oc3, 0, _ht, _ows, 0),
-                &md5(ainput, _ic3, 0, _ih, _iws, 0),
-                &md5(aweights, _oc3, _ic3, _kh, _kw, 0), &md3(abias, _oc3, 0, 0),
-                attr, 0, nullptr, nullptr, nullptr);
-          }
+
+      for (int _kh = khs; _kh < khe; ++_kh) {
+        auto _ih = this->hs * _ht + _kh - this->tp;
+        for (int _kw = 0; _kw < this->kw; ++_kw) {
+          auto _iws = this->ws * ows0 + _kw - this->lp;
+          while (_iws < 0) _iws += this->ws;
+          auto _ows = (_iws + this->lp - _kw) / this->ws;
+          ker_gemm_[_wt][_kw](*this, &md5(aoutput, _oc3, 0, _ht, _ows, 0),
+              &md5(ainput, _ic3, 0, _ih, _iws, 0),
+              &md5(aweights, _oc3, _ic3, _kh, _kw, 0), &md3(abias, _oc3, 0, 0),
+              attr_, 0, nullptr, nullptr, nullptr);
         }
-      } else {
-        for (int _kh = khs; _kh < khe; ++_kh) {
-          auto _ih = this->hs * _ht + _kh - this->tp;
-          for (int _kw = 0; _kw < this->kw; ++_kw) {
-            auto _iws = this->ws * ows0 + _kw - this->lp;
-            while (_iws < 0) _iws += this->ws;
-            auto _ows = (_iws + this->lp - _kw) / this->ws;
-            if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 && _kh == khe - 1
-                && _kw == kw - 1 && this->with_relu)
-              attr = set_attr(attr, relu_idx);
-            ker_gemm_[_wt][_kw](*this, &md5(aoutput, _oc3, 0, _ht, _ows, 0),
-                &md5(ainput, _ic3, 0, _ih, _iws, 0),
-                &md5(aweights, _oc3, _ic3, _kh, _kw, 0), &md3(abias, _oc3, 0, 0),
-                attr, 0, nullptr, nullptr, nullptr);
-          }
+      }
+
+      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+        if (this->with_relu) {
+          iter_each (_O2, this->O2) {
+          iter_each (_T, Tz) {
+            if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value) {
+              auto s = _mm<V>::max_ps(
+                  *(__m<V> *)&md5(aoutput, _oc3, _O2, _ht, ows0 + _T, 0),
+                  _mm<V>::setzero_ps());
+              _mm<V>::store_ps(&md5(aoutput, _oc3, _O2, _ht, ows0 + _T, 0), s);
+            } else
+              el_error("direct: d060: unimplemented");
+          }}
         }
       }
     }}
