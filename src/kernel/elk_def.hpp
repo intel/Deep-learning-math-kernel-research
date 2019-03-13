@@ -116,7 +116,9 @@ const int TKF_NHWC = 0xF;
 
 // GEMM kernel format
 // Input - weights - output
-// C: compact
+// B: compact b
+//    Weights: O1, Ir, O, oV
+// C: compact c
 //    Input: I2, T, S, V, Vx
 //    Weights: O1, I2, V, O, V, Vx
 //    Output: O1, O, T, V
@@ -137,7 +139,7 @@ const int GKF_CCC = 0xccc;
 const int GKF_CCD = 0xccd;
 const int GKF_DCD = 0xdcd;
 const int GKF_DDD = 0xddd;
-const int GKF_ECD = 0xecd;
+const int GKF_EBD = 0xebd;
 const int GKF_FCF = 0xfcf;
 
 }  // namespace euler

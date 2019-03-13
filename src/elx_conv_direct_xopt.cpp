@@ -33,9 +33,10 @@ void Instance_elx_conv_direct_t::__execute_a060(
 
   if (this->input_fmt == nchw) { // nchw => blocked
     parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
+      int Vr = this->ic < V ? this->Ir : V;
       MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
       MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
-          V * V * this->kh * this->kw * this->ic3 * this->oc3 * this->I2
+          V * Vr * this->kh * this->kw * this->ic3 * this->oc3 * this->I2
               * this->O2);
       MD2(InputType, ainput0, input, this->t3, this->ic * this->ih * this->iw);
       MD5(InputType, ainput1, &md2(ainput0, _t3, 0), this->ic4,

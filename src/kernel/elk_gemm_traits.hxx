@@ -153,6 +153,7 @@ struct F_traits {
   static constexpr bool is_nchw_input = (F & 0xF00) == 0xE00;
   static constexpr bool is_nhwc_input = (F & 0xF00) == 0xF00;
   static constexpr bool is_compact_weights = (F & 0xF0) == 0xC0;
+  static constexpr bool is_compact_ir_weights = (F & 0xF0) == 0xB0;
   static constexpr bool is_compact_output = (F & 0xF) == 0xC;
   static constexpr bool is_blocked_output = (F & 0xF) == 0xD;
   static constexpr bool is_nhwc_output = (F & 0xF) == 0xF;

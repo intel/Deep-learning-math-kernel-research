@@ -50,9 +50,9 @@ Instance_elx_conv_direct_t::bind_execute_functions()
     case (0xb060):
       if (this->input_fmt == nchw) {
         if (this->ws == 1) {
-          BIND_CONV_KERNEL(1, GKF_ECD, K);
+          BIND_CONV_KERNEL(1, GKF_EBD, K);
         } else if (this->ws == 2) {
-          BIND_CONV_KERNEL(2, GKF_ECD, K);
+          BIND_CONV_KERNEL(2, GKF_EBD, K);
         } else {
           el_error("Stride > 2 not yet bounded");
         }

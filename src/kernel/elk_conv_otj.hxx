@@ -50,12 +50,17 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   // Jamming components
   constexpr static int J = J_traits<O, T, WeightsType>::J;
   constexpr static int JO0 = J_traits<O, T, WeightsType>::O0;
-  constexpr static int JP0 = K > 3 ? 1 : J_traits<O, T, WeightsType>::P0;
+  constexpr static int JP0 = (K > 3 || F_traits<F>::is_compact_ir_weights)
+                                 ? 1
+                                 : J_traits<O, T, WeightsType>::P0;
   constexpr static int JO1 = J_traits<O, T, WeightsType>::O1;
-  constexpr static int JP1 = K > 3 ? 1 : J_traits<O, T, WeightsType>::P1;
+  constexpr static int JP1 = (K > 3 || F_traits<F>::is_compact_ir_weights)
+                                 ? 1
+                                 : J_traits<O, T, WeightsType>::P1;
   constexpr static int JO2 = J_traits<O, T, WeightsType>::O2;
-  constexpr static int JP2 = K > 3 ? 1 : J_traits<O, T, WeightsType>::P2;
-
+  constexpr static int JP2 = (K > 3 || F_traits<F>::is_compact_ir_weights)
+                                 ? 1
+                                 : J_traits<O, T, WeightsType>::P2;
 
   template <int JO>
   static inline __m<V> op_load_bias(BiasType *bias, const int _O)
@@ -144,7 +149,23 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       WeightsType *weights, const int _I2, const int _V, const int _P, const int _O)
   {
     __m<V> res;
-    if (F_traits<F>::is_compact_weights) {
+    if (F_traits<F>::is_compact_ir_weights) {
+      assert(_I2 == 0 && _P == 0);
+      MD3(WeightsType, aweights, weights, xc.Ir, O, V);
+      if (std::is_same<WeightsType, float>::value) {
+        res = _mm<V>::load_ps(&md3(aweights, _V, _O, 0));
+      } else {
+        if (O == 2) { // bf16 type weights
+          res = (_O == 0)
+              ? _mm<V>::load_ps(&md3(aweights, _V, 0, 0))
+              : _mm<V>::load_ps(&md3(aweights, _V, 0, 0) - 1);
+        } else {      // fp16 type weights
+          auto fp16v = _mm<V / 2>::load_si256(
+              (__m256i *)&md3(aweights, _V, _O, 0));
+          res = _mm<V>::cvtph_ps(fp16v);
+        }
+      }
+    } else if (F_traits<F>::is_compact_weights) {
       MD5(WeightsType, aweights5, weights, xc.I2, V / P, P, O, V);
       if (std::is_same<WeightsType, float>::value) {
         res = _mm<V>::load_ps(&md5(aweights5, _I2, _V, _P, _O, 0));
@@ -279,7 +300,8 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       Ir = xc.Ir;
     }
 
-    MD3(WeightsType, aweights, weights, xc.kh, xc.kw, xc.O1 * xc.I2 * V * O * V); // compact
+    int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V; 
+    MD3(WeightsType, aweights, weights, xc.kh, xc.kw, xc.O1 * xc.I2 * Vr * O * V); // compact
 
     __m<V> mmout[JO][T], mmwei[JO][P];
     __mmask16 k = _cvtu32_mask16(xc.ormask);
@@ -717,14 +739,15 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T> static inline
-      typename std::enable_if<(J_traits<O, T, WeightsType>::J == 1)
-          && (F_traits<F>::is_compact_weights)>::type
+      typename std::enable_if<(J_traits<O, T, WeightsType>::J == 1) &&
+      (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
       conv(elx_conv_params_t &xc, OutputType *output, InputType *input,
           WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
           int kws, int kwe, int attr)
   {
+    int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V; 
     MD3(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
-        xc.I2 * V * O * V); // compact
+        xc.I2 * Vr * O * V); // compact
     MD2(OutputType, aoutput_blocked, output, xc.O1, O * xc.oh * xc.ow * V);
     MD4(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O * V);
     MD2(BiasType, abias, bias, xc.O1, O * V);
@@ -744,14 +767,15 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T> static inline
-      typename std::enable_if<(J_traits<O, T, WeightsType>::J == 2)
-          && (F_traits<F>::is_compact_weights)>::type
+      typename std::enable_if<(J_traits<O, T, WeightsType>::J == 2) &&
+      (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
       conv(elx_conv_params_t &xc, OutputType *output, InputType *input,
           WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
           int kws, int kwe, int attr)
   {
+    int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V; 
     MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
-        xc.I2 * V, O, V); // compact
+        xc.I2 * Vr, O, V); // compact
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
     MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O, V);
     MD3(BiasType, abias, bias, xc.O1, O, V);
@@ -778,14 +802,15 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T> static inline
-      typename std::enable_if<(J_traits<O, T, WeightsType>::J == 3)
-          && (F_traits<F>::is_compact_weights)>::type
+      typename std::enable_if<(J_traits<O, T, WeightsType>::J == 3) &&
+      (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
       conv(elx_conv_params_t &xc, OutputType *output, InputType *input,
           WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
           int kws, int kwe, int attr)
   {
+    int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V; 
     MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
-        xc.I2 * V, O, V); // compact
+        xc.I2 * Vr, O, V); // compact
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
     MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O, V);
     MD3(BiasType, abias, bias, xc.O1, O, V);

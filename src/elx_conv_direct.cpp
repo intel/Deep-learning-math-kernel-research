@@ -68,6 +68,15 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
         el_error("direct: a060: shape not supported");
       }
     }
+
+    if (this->ic < V) {
+      bool ok = this->input_fmt == nchw
+          && this->weights_fmt == hwio
+          && xopt_ == 0xa060;
+      if (!ok) {
+        el_error("direct: first-conv requries a060 with nchw/hwio");
+      }
+    }
   }
 
   this->Ir = this->ic % V ? this->ic % V : V;
@@ -180,8 +189,9 @@ void Instance_elx_conv_direct_t::__trans_weights_post(WeightsType *aweights,
     TweightsType *tweights, int _oc4, int _ic4, int _oc3, int _ic3, int _kh,
     int _kw, int _O1, int _I2, int _iV, int _O)
 {
+  int Vr = this->ic < V ? this->Ir : V;
   MD11(TweightsType, atweights, tweights, this->oc4, this->ic4, this->oc3,
-       this->ic3, this->kh, this->kw, this->O1, this->I2, V, this->O, V);
+       this->ic3, this->kh, this->kw, this->O1, this->I2, Vr, this->O, V);
 
   if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
     if (std::is_same<TweightsType, float>::value) {
@@ -227,8 +237,9 @@ void Instance_elx_conv_direct_t::__trans_weights_Or_post(WeightsType *aweights,
     TweightsType *tweights, int _oc4, int _ic4, int _oc3, int _ic3, int _kh,
     int _kw, int _O1, int _I2, int _iV, int _O)
 {
+  int Vr = this->ic < V ? this->Ir : V;
   MD11(TweightsType, atweights, tweights, this->oc4, this->ic4, this->oc3,
-       this->ic3, this->kh, this->kw, this->O1, this->I2, V, this->O, V);
+       this->ic3, this->kh, this->kw, this->O1, this->I2, Vr, this->O, V);
 
   if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
     __mmask16 k = _mm512_int2mask(this->ormask);
@@ -290,8 +301,6 @@ void Instance_elx_conv_direct_t::trans_weights_to_compact(
   } else if (this->weights_fmt == hwio) {
     parallel_for<5>(mthr_, [&](int _kh, int _kw, int _ic4, int _ic3, int _I2) {
       MD4(WeightsType, aweights0, weights, this->kh, this->kw, this->ic, this->oc);
-      MD11(TweightsType, atweights, tweights, this->oc4, this->ic4, this->oc3,
-           this->ic3, this->kh, this->kw, this->O1, this->I2, V, this->O, V);
       auto Ir = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
            && _I2 == this->I2 - 1 ? this->Ir : V;
       iter_each (_iV, Ir) {
@@ -333,8 +342,9 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
 {
   // input:   ic3*, I2, V, ht*, hs*, wt*, T, ws
   // output:  oc3*, O2, ht*, wt*, T, V
+  int Vr = this->ic < V ? this->Ir : V;
   MD3(TweightsType, aweights, weights, this->oc3, this->ic3,
-      this->kh * this->kw * this->O2 * this->I2 * V * V);
+      this->kh * this->kw * this->O2 * this->I2 * V * Vr);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
 
   auto ker_conv = _wt == this->wt - 1 ? ker_conv_Tr_ : ker_conv_;
