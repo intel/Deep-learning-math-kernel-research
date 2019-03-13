@@ -33,7 +33,7 @@ struct gemm_kernel_binder {
   DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_CCD); // 1x1
   //DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD); // direct, nchw input
   DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD); // direct, 1x1, blocked
-  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF); // direct, hhwc
+  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF); // direct, nhwc
   //DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_CCC); // 1x1
   //DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_CCD); // 1x1
   DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_DCD); // direct, blocked
