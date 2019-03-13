@@ -160,8 +160,8 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
     tinput_u8_size = A * A * (this->IC / this->ic4) * this->t * sizeof(uint8_t);
     tinput_quant_scale_size = this->t * this->ic3 * 2 * A * A * sizeof(TscaleType);
     tweights_s8_size = tweights_size / sizeof(TweightsType);
-    tweights_quant_scale_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType);
-    tweights_quant_factor_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType);
+    tweights_quant_scale_size = this->ic4 * this->OC * A * A * sizeof(TscaleType);
+    tweights_quant_factor_size = this->ic4 * this->OC * A * A * sizeof(TscaleType);
     break;
   case 0xa161:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
@@ -173,8 +173,8 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
     tinput_u8_size = A * A * this->IC * mthr_ * this->T * sizeof(uint8_t);
     tinput_quant_scale_size = mthr_ * 2 * this->ic3 * this->T * A * A * sizeof(TscaleType);
     tweights_s8_size = tweights_size / sizeof(TweightsType);
-    tweights_quant_scale_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType);
-    tweights_quant_factor_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType); // * this->ic4
+    tweights_quant_scale_size = this->OC * A * A * sizeof(TscaleType);
+    tweights_quant_factor_size = this->OC * A * A * sizeof(TscaleType); // * this->ic4
     break;
   case 0xa173:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
@@ -183,8 +183,8 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
     tinput_u8_size = A * A * (this->IC / this->ic4) * mthr_ * this->T * sizeof(uint8_t);
     tinput_quant_scale_size = mthr_ * 2 * this->ic3 * this->T * A * A * sizeof(TscaleType);
     tweights_s8_size = tweights_size / sizeof(TweightsType);
-    tweights_quant_scale_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType);
-    tweights_quant_factor_size = this->ic4 * this->ic3 * this->OC * A * A * sizeof(TscaleType);
+    tweights_quant_scale_size = this->ic4 * this->OC * A * A * sizeof(TscaleType);
+    tweights_quant_factor_size = this->ic4 * this->OC * A * A * sizeof(TscaleType);
     break;
   default:
       el_error("Config error!");

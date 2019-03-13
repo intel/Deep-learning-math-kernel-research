@@ -31,9 +31,9 @@ void Instance_elx_conv_wino_lp_t::__execute_a133(
       A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
 
   MD3(TscaleType, atweights_quant_scale, tweights_quant_scale_,
-      this->oc4, this->ic4, this->oc3 * this->ic3 * this->O2 * V * A * A);
+      this->oc4, this->ic4, this->oc3 * this->O2 * V * A * A);
   MD3(TscaleType, aweights_quant_factor, tweights_quant_factor_,
-      this->oc4, this->ic4, this->oc3 * this->ic3 * this->O2 * V * A * A);
+      this->oc4, this->ic4, this->oc3 * this->O2 * V * A * A);
 
   if (is_first_run_) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
@@ -56,15 +56,16 @@ void Instance_elx_conv_wino_lp_t::__execute_a133(
     iter_each (_ic4, this->ic4) {
     iter_each (_oc4, this->oc4) {
       if (_ic4 != last_ic4) {
-        trans_input_u8(tinput_quant_scale_, tinput_u8_, tinput_, input);
+        trans_input_u8(
+            tinput_quant_scale_, tinput_u8_, tinput_, &md3(ainput, 0, _ic4, 0));
         last_ic4 = _ic4;
       }
 #pragma omp barrier
       u8s8_gemm.execute_na(toutput_, tinput_u8_,
           &md3(atweights_s8, _oc4, _ic4, 0),
           tinput_quant_scale_, nullptr,
-          &md3(atweights_quant_scale, _ic4, _oc4, 0),
-          &md3(aweights_quant_factor, _ic4, _oc4, 0),
+          &md3(atweights_quant_scale, _oc4, _ic4, 0),
+          &md3(aweights_quant_factor, _oc4, _ic4, 0),
           _ic4);
 #pragma omp barrier
       trans_output(output, toutput_, &md2(abias, _oc4, 0), _oc4, _ic4);
@@ -116,9 +117,9 @@ void Instance_elx_conv_wino_lp_t::__execute_a161(
       MD2(int8_t, atweights_s8, tweights_s8_, this->oc4,
           A * A * this->IC * this->oc3 * this->O2 * V);
       MD2(TscaleType, atweights_quant_scale, tweights_quant_scale_,
-          this->oc4, this->oc3 * this->ic3 * this->O2 * V * A * A);
+          this->oc4, this->oc3 * this->O2 * V * A * A);
       MD2(TscaleType, aweights_quant_factor, tweights_quant_factor_,
-          this->oc4, this->oc3 * this->ic3 * this->O2 * V * A * A);
+          this->oc4, this->oc3 * this->O2 * V * A * A);
 
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
 
@@ -186,10 +187,10 @@ void Instance_elx_conv_wino_lp_t::__execute_a173(
       MD2(TscaleType, atinput_quant_scale, tinput_quant_scale_, mthr_,
           this->sampling_kind == CALIBRATED ? 2 * this->T
                                             : this->ic3 * A * A * 2 * this->T);
-      MD3(TscaleType, atweights_quant_scale, tweights_quant_scale_, this->oc4,
-          this->ic4, this->oc3 * this->ic3 * this->O2 * V * A * A);
+      MD3(TscaleType, atweights_quant_scale, tweights_quant_scale_,
+          this->oc4, this->ic4, this->oc3 * this->O2 * V * A * A);
       MD3(TscaleType, aweights_quant_factor, tweights_quant_factor_,
-          this->oc4, this->ic4, this->oc3 * this->ic3 * this->O2 * V * A * A);
+          this->oc4, this->ic4, this->oc3 * this->O2 * V * A * A);
 
       if (last_ic4 != _ic4 || last_t2 != _t2) {
         trans_input_u8(

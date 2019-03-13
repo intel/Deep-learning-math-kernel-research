@@ -56,7 +56,6 @@ enum {
   r_output_idx = 0x10,    // clear output
   s_output_idx = 0x20,    // streaming output
   c_output_idx = 0x40,    // convert and restore output for int8 gemm
-  l_output_idx = 0x80,    // output lazy accumulation
   has_Ir_idx = 0x100,     // has Ir
   has_Or_idx = 0x200,     // has_Or
 };

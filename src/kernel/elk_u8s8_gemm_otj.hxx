@@ -144,15 +144,6 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     auto Sw = *(__m<V> *)&md2(aweights_scale, _O, 0);
     fout = Sa * Sw * fout;
 
-    // toutput lazy accumulation
-    if (!get_attr(attr, r_output_idx) && get_attr(attr, l_output_idx)) {
-      if (std::is_same<OutputType, float>::value)
-        fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(aoutput2, _T, 0)));
-      else {
-        auto fp16v = _mm<V / 2>::load_si256((__m256i *)&md2(aoutput2, _T, 0));
-        fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
-      }
-    }
     // 1. add bias (direct conv 1x1)
     if (get_attr(attr, bias_idx)) {
       MD2(BiasType, abias2, bias, JO, V);
@@ -205,7 +196,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       }
     }
 
-    if (get_attr(attr, r_output_idx) || get_attr(attr, l_output_idx)) {
+    if (get_attr(attr, r_output_idx)) {
       // clear output
       __i<V> tmp = _mm<V>::setzero_epi32();
       unroll_for (_O, JO)
