@@ -12,7 +12,6 @@ Template_elx_conv_direct_lp_t
 Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
     : elx_conv_t(dc)
 {
-  // user input
   xopt_ = this->execution_mode;
   mthr_ = omp_get_max_threads();
 
@@ -28,7 +27,7 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
   this->O2 = this->O * this->O1;
 
   if (this->oc4 == 0) this->oc4 = 1;
-  if (this->ic4 == 1) this->ic4 = 1;
+  if (this->ic4 == 0) this->ic4 = 1;
 
   this->ic2 = this->IC / V;
   this->oc2 = this->OC / V;
@@ -70,9 +69,6 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
   this->Ir = this->ic % V ? this->ic % V : V;
   this->Or = this->oc % V ? this->oc % V : V;
 
-  if (this->Ir != V)
-    el_error("ic / 16 != 0 is not implement while doing int8 gemm");
-
   // oc4, (oc3, oc3r), (O2, O2r)
   this->oc34 = (this->oc2 + this->O2 - 1) / this->O2;
   this->O2r = this->oc2 % this->O2;
@@ -81,6 +77,9 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
   this->oc4 = (this->oc34 + this->oc3 - 1) / this->oc3;
   this->oc3r = this->oc34 % this->oc3;
   if (this->oc3r == 0) this->oc3r = this->oc3;
+
+  if (this->Ir != V)
+    el_error("ic / 16 != 0 is not implement while doing int8 gemm");
 
   if (this->Or != V || this->O2r != this->O2 || this->oc3r != this->oc3) {
     el_error("No oc tailing support");
@@ -208,8 +207,8 @@ Instance_elx_conv_direct_lp_t::~elx_conv_direct_lp_t()
 // weights (blocked): oc2, ic2, kh, kw, V, V
 // tweights: oc4, ic4, oc3, _ic3, kh, kw, O1, I2, V1, O, V, Vx
 Template_elx_conv_direct_lp_t
-void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale_,
-    TscaleType *weights_factor_, int8_t *tweights_s8_, WeightsType *weights)
+void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
+    TscaleType *weights_factor, int8_t *tweights_s8, WeightsType *weights)
 {
   _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
@@ -217,44 +216,39 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale_,
   int ithr = omp_get_thread_num();
 
   // abs-max
-  thread_parallel_for<4>(mthr_, ithr, [&](int _oc4, int _oc3, int _O1, int _O) {
-    MD12(WeightsType, aweights, weights, this->oc4, this->oc3, this->O1, this->O,
-         this->ic4, this->ic3, this->I2, this->kh, this->kw, this->V1, this->Vx, V);
-    MD5(TscaleType, atweights_scale, weights_scale_, this->oc4, this->oc3,
-        this->O1, this->O, V);
+  thread_parallel_for<1>(mthr_, ithr, [&](int _oc2) {
+    MD6(WeightsType, aweights, weights, this->oc2, this->ic2, this->kh, this->kw, V, V);
+    MD2(TscaleType, atweights_scale, weights_scale, this->oc2, V);
 
     __m<V> mmax_cur = _mm<V>::set1_ps(0.0);
-    iter_each (_ic4, this->ic4) {
-    iter_each (_ic3, this->ic3) {
-    iter_each (_I2, this->I2) {
+    iter_each (_ic2, this->ic2) {
     iter_each (_kh, this->kh) {
     iter_each (_kw, this->kw) {
-    iter_each (_V1, this->V1) {
-    iter_each (_Vx, this->Vx) {
+    iter_each (_iV, V) {
       __m<V> mmax_abs;
       TweightsType *max_abs = (TweightsType *)&mmax_abs;
       #pragma omp simd
       iter_each (_oV, V) {
         max_abs[_oV] =
-            md12(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _V1, _Vx, _oV) >= 0.0 ?
-            md12(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _V1, _Vx, _oV) :
-            -md12(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _kh, _kw, _V1, _Vx, _oV);
+            md6(aweights, _oc2, _ic2, _kh, _kw, _iV, _oV) >= 0.0 ?
+            md6(aweights, _oc2, _ic2, _kh, _kw, _iV, _oV) :
+            -md6(aweights, _oc2, _ic2, _kh, _kw, _iV, _oV);
       }
       mmax_cur = _mm<V>::max_ps(mmax_cur, mmax_abs);
-    }}}}}}}
-    _mm512_store_ps(&md5(atweights_scale, _oc4, _oc3, _O1, _O, 0), mmax_cur);
-  }, this->oc4, this->oc3, this->O1, this->O);
+    }}}}
+    _mm512_store_ps(&md2(atweights_scale, _oc2, 0), mmax_cur);
+  }, this->oc2);
 #pragma omp barrier
 
   // quantization
   thread_parallel_for<11>(mthr_, ithr, [&](int _oc4, int _oc3, int _O1,
       int _O, int _ic4, int _ic3, int _I2, int _kh, int _kw, int _V1, int _Vx) {
-    MD12(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4, this->oc3,
+    MD12(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4, this->oc3,
          this->ic3, this->kh, this->kw, this->O1, this->I2, this->V1, this->O,
          V, this->Vx);
     MD12(WeightsType, aweights, weights, this->oc4, this->oc3, this->O1, this->O,
          this->ic4, this->ic3, this->I2, this->kh, this->kw, this->V1, this->Vx, V);
-    MD5(TscaleType, atweights_scale, weights_scale_, this->oc4, this->oc3,
+    MD5(TscaleType, atweights_scale, weights_scale, this->oc4, this->oc3,
         this->O1, this->O, V);
 
     __m<V> t0;
@@ -279,10 +273,10 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale_,
 
   // weights-acc
   thread_parallel_for<5>(mthr_, ithr, [&](int _oc4, int _oc3, int _O1, int _O, int _oV) {
-    MD12(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4, this->oc3,
+    MD12(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4, this->oc3,
          this->ic3, this->kh, this->kw, this->O1, this->I2, this->V1, this->O,
          V, this->Vx);
-    MD5(TscaleType, atweights_factor, weights_factor_, this->oc4, this->oc3,
+    MD5(TscaleType, atweights_factor, weights_factor, this->oc4, this->oc3,
         this->O1, this->O, V);
 
     int acc = 0;
@@ -299,13 +293,12 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale_,
   }, this->oc4, this->oc3, this->O1, this->O, V);
 
   // weights-scale
-  thread_parallel_for<5>(mthr_, ithr, [&](int _oc4, int _oc3, int _O1, int _O, int _oV) {
-    MD5(TscaleType, atweights_scale, weights_scale_, this->oc4, this->oc3,
-        this->O1, this->O, V);
+  thread_parallel_for<1>(mthr_, ithr, [&](int _oc2) {
+    MD2(TscaleType, atweights_scale, weights_scale, this->oc2, V);
     auto t0 = _mm<V>::div_ps(
-        *(__m<V> *)&md5(atweights_scale, _oc4, _oc3, _O1, _O, 0), mmscale);
-    _mm<V>::store_ps(&md5(atweights_scale, _oc4, _oc3, _O1, _O, 0), t0);
-  }, this->oc4, this->oc3, this->O1, this->O, V);
+        *(__m<V> *)&md2(atweights_scale, _oc2, 0), mmscale);
+    _mm<V>::store_ps(&md2(atweights_scale, _oc2, 0), t0);
+  }, this->oc2);
 }
 
 // slow path
