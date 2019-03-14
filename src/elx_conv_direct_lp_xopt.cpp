@@ -1,0 +1,78 @@
+#include "elx_conv_direct_lp.hpp"
+#include "el_parallel.hpp"
+
+// XOPT
+//
+// fusion:  same as winograd
+// dup:     same as winograd
+// ------+-----+--------+-----+------------------------------------------------
+//       | ker | fusion | dup |             notes
+// ------+-----+--------+-----+------------------------------------------------
+//  a160 |conv |   t+o  |  -  | blocked, Tr, K=3,5,7 S=1,2
+// ------+-----+--------+-----+------------------------------------------------
+//  b160 |conv |   t+o  |  -  | blocked, Tr, K=3,5,7 S=1,2 small spatial
+// ------+-----+--------+-----+------------------------------------------------
+//  d160 |gemm |   t+o  |  -  | blocked, Tr
+// ------+-----+--------+-----+------------------------------------------------
+//
+namespace euler {
+
+Template_elx_conv_direct_lp_t
+void Instance_elx_conv_direct_lp_t::__execute_d160(
+    OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
+{
+  // input (blocked): t3*, ic4*, ic3, I2, ih, iw, V(V1, Vx)
+  // weights: oc4*, oc3, O2, ic4*, ic3, I2, kh, kw, V(V1, Vx), V
+  // output:  t3*, oc4*, oc3, O2, ht*wt*, T(Tr), V
+  if (is_first_run_) {
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+    {
+      trans_weights_s8(weights_scale_, weights_factor_, tweights_s8_, weights);
+    }
+    if (this->sampling_kind == CALIBRATED) {
+      MD2(TscaleType, atinput_scale, input_scale_, 2, this->T);
+      iter_each(_T, this->T) {
+        md2(atinput_scale, 0, _T) = this->tinput_quant_S;
+        md2(atinput_scale, 1, _T) = this->tinput_quant_z;
+      }
+    }
+  }
+
+  parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4,
+                                int _ht, int _wt) {
+    MD3(InputType, ainput, input, this->t3, this->ic4, this->ic3
+        * this->I2 * this->ih * this->iw * V);
+    MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
+        V * V * this->kh * this->kw * this->ic3 * this->oc3
+        * this->I2 * this->O2);
+    MD3(OutputType, aoutput, output, this->t3, this->oc4,
+        this->oc3 * this->O2 * this->ht * this->ow * V);
+    MD3(ToutputType, atoutput, toutput_, this->t3, this->oc4,
+        this->oc3 * this->O2 * this->ht * this->ow * V);
+    MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+    MD2(TscaleType, atweights_scale, weights_scale_, this->oc4,
+        this->oc3 * this->O2 * V);
+    MD2(TscaleType, aweights_factor, weights_factor_, this->oc4,
+        this->oc3 * this->O2 * V);
+
+    gemm_d160(&md3(aoutput, _t3, _oc4, 0), &md3(atoutput, _t3, _oc4, 0),
+              &md3(ainput, _t3, _ic4, 0), &md3(atweights_s8, _oc4, _ic4, 0),
+              &md2(abias, _oc4, 0), input_scale_, &md2(atweights_scale, _oc4, 0),
+              &md2(aweights_factor, _oc4, 0), _ic4, _oc4, _ht, _wt);
+  }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
+
+  if (inference_acc_)
+    is_first_run_ = false;
+}
+
+Template_elx_conv_direct_lp_t
+void Instance_elx_conv_direct_lp_t::execute(
+    void *output, void *input, void *weights, void *bias)
+{
+  set_trans_buffers();
+
+  (this->*execute_opt_)((OutputType *)output,
+      (InputType *)input, (WeightsType *)weights, (BiasType *)bias);
+}
+
+} // namespace euler

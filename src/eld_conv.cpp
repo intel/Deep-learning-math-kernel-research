@@ -10,6 +10,7 @@
 #include "elx_conv_direct_1x1.hpp"
 #include "elx_conv_direct_1x1_lp.hpp"
 #include "elx_conv_direct.hpp"
+#include "elx_conv_direct_lp.hpp"
 
 namespace euler {
 
@@ -187,6 +188,10 @@ int eld_conv_t::setup()
         xc = new elx_conv_direct_t<conv::FP32, conv_impl::FP32_F16w, 16, ISA_SKX_AVX512>(*this);
       else
         xc = new elx_conv_direct_t<conv::FP32, conv_impl::FP32, 16, ISA_SKX_AVX512>(*this);
+    } else if (user_type == user_type_u8f32u8f32) {
+      xc = new elx_conv_direct_lp_t<conv::U8F32U8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>(*this);
+    } else if (user_type == user_type_u8f32s8f32) {
+      xc = new elx_conv_direct_lp_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>(*this);
 #ifdef ENABLE_USER_FP16
     } else if (user_type == user_type_f16o)
       xc = new elx_conv_direct_t<conv::FP16O, conv_impl::FP32_F16o, 16, ISA_SKX_AVX512>(*this);

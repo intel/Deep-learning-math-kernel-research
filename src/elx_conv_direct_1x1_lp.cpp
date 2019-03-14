@@ -325,7 +325,7 @@ void Instance_elx_conv_direct_1x1_lp_t::trans_weights_s8(
   if (weights_is_bfmt_ || weights_as_bfmt_)
     __trans_weights_s8_blocked(weights_scale, tweights, weights);
   else
-    ; // implemented
+    el_error("Unimplement format");
 }
 
 Template_elx_conv_direct_1x1_lp_t
