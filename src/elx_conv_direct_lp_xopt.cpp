@@ -32,8 +32,8 @@ void Instance_elx_conv_direct_lp_t::__execute_d160(
     if (this->sampling_kind == CALIBRATED) {
       MD2(TscaleType, atinput_scale, input_scale_, 2, this->T);
       iter_each(_T, this->T) {
-        md2(atinput_scale, 0, _T) = this->tinput_quant_S;
-        md2(atinput_scale, 1, _T) = this->tinput_quant_z;
+        md2(atinput_scale, 0, _T) = this->input_quant_S;
+        md2(atinput_scale, 1, _T) = this->input_quant_z;
       }
     }
   }
