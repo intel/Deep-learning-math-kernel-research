@@ -78,23 +78,42 @@ struct elk_conv_wino_trans_output<float,OutputType, BiasType, format,
     _mm<V>::cvtepi32_ps(_mm<V>::cvtepi8_epi32(*(__m128i *)addr));              \
   })
 
+#define STORE_PS(mem, reg)                                                     \
+  if (xc.streaming_output) {                                                   \
+    _mm<V>::stream_ps(mem, reg);                                               \
+  } else {                                                                     \
+    _mm<V>::store_ps(mem, reg);                                                \
+  }
+#define STORE_SI128(mem, reg)                                                  \
+  if (xc.streaming_output) {                                                   \
+    _mm_stream_si128(mem, reg);                                                \
+  } else {                                                                     \
+    _mm_store_si128(mem, reg);                                                 \
+  }
+#define STORE_SI256(mem, reg)                                                  \
+  if (xc.streaming_output) {                                                   \
+    _mm<V/2>::stream_si256(mem, reg);                                          \
+  } else {                                                                     \
+    _mm<V/2>::store_si256(mem, reg);                                           \
+  }
+
 #define STORE(i, j)                                                            \
   if (std::is_same<OutputType, float>::value) {                                \
-    _mm<V>::store_ps(P(i, j), p##j);                                           \
+    STORE_PS(P(i, j), p##j);                                                   \
   } else if (std::is_same<OutputType, uint8_t>::value) {                       \
     __i<V> mresu32 = _mm<V>::cvt_roundps_epu32(                                \
         p##j, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);                  \
     __m128i mresu8 = _mm<V>::cvtusepi32_epi8(mresu32);                         \
-    _mm_store_si128((__m128i *)P(i, j), mresu8);                               \
+    STORE_SI128((__m128i *)P(i, j), mresu8);                                   \
   } else if (std::is_same<OutputType, int8_t>::value) {                        \
     __i<V> mresi32 = _mm<V>::cvt_roundps_epi32(                                \
         p##j, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);                  \
     __m128i mresi8 = _mm<V>::cvtsepi32_epi8(mresi32);                          \
-    _mm_store_si128((__m128i *)P(i, j), mresi8);                               \
+    STORE_SI128((__m128i *)P(i, j), mresi8);                                   \
   } else {                                                                     \
     auto f16 = _mm<V>::cvtps_ph(                                               \
         p##j, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);                  \
-    _mm<V / 2>::store_si256((__m256i *)P(i, j), f16);                          \
+    STORE_SI256((__m256i *)P(i, j), f16);                                      \
   }
 
     float M[4][6][16];

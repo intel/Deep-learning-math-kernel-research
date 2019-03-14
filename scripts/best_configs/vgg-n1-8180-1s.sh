@@ -8,8 +8,12 @@
 source ./scripts/best_configs/common.sh $@
 COMMON="$COMMON --f16c-opt=1"
 
+# vgg19_conv1_1,
+NSOCKETS=1 ./scripts/run.sh -c -i3 -h224 -o64 -H224 -n1 --blk-i=1 --blk-o=2 --flt-o=2 --flt-t=14 --tile-size=6 --execution-mode=0xa061 --pat-o=1 --output-as-blocked=true -v0 $COMMON --streaming-output=2
+
+sleep 1
 # vgg19_conv1_2,
-NSOCKETS=1 ./scripts/run.sh -c -i64 -h224 -o64 -H224 -n1 --blk-i=4 --blk-o=2 --flt-o=2 --flt-t=14 --tile-size=6 --execution-mode=0xa061 --pat-o=1 --output-as-blocked=true -v0 $COMMON
+NSOCKETS=1 ./scripts/run.sh -c -i64 -h224 -o64 -H224 -n1 --blk-i=4 --blk-o=2 --flt-o=2 --flt-t=14 --tile-size=6 --execution-mode=0xa061 --pat-o=1 --output-as-blocked=true -v0 $COMMON --streaming-output=2
 
 sleep 1
 # vgg19_conv2_1,
