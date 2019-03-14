@@ -116,6 +116,9 @@ int Instance_elx_conv_direct_lp_t::prepare_execute_opt()
   if (this->with_ip_sum && this->with_relu && this->output_fmt != nChw16c) {
     el_error("Unimplemented: fuse sum (plain format) and relu together");
   }
+  size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
+  size_t tweights_s8_size = 0, input_scale_size = 0, weights_scale_size = 0,
+      weights_factor_size;
 
   toutput_size_ = 0;
   tweights_s8_size_ = 0;
@@ -134,17 +137,24 @@ int Instance_elx_conv_direct_lp_t::prepare_execute_opt()
   /*case 0xb160:
   case 0xa160:*/
   case 0xd160:
-    toutput_size_ = this->n * this->OC * this->oh * this->ow * sizeof(ToutputType);
-    tweights_s8_size_ = this->kh * this->kw * this->IC * this->OC * sizeof(int8_t);
-    input_scale_size_ = 2 * this->T * sizeof(TscaleType);
-    weights_scale_size_ = this->OC * sizeof(TscaleType);
-    weights_factor_size_ = this->OC * sizeof(TscaleType);
+    toutput_size = this->n * this->OC * this->oh * this->ow * sizeof(ToutputType);
+    tweights_s8_size = this->kh * this->kw * this->IC * this->OC * sizeof(int8_t);
+    input_scale_size = 2 * this->T * sizeof(TscaleType);
+    weights_scale_size = this->OC * sizeof(TscaleType);
+    weights_factor_size = this->OC * sizeof(TscaleType);
     break;
   default:
     el_error("Unknown xopt!");
     return -1;
     break;
   }
+
+  const size_t align = PAGE_SIZE;
+  toutput_size_ = toutput_size > 0 ? alignup(toutput_size, align) : 0;
+  tweights_s8_size_ = tweights_s8_size > 0 ? alignup(tweights_s8_size, align) : 0;
+  input_scale_size_ = input_scale_size > 0 ? alignup(input_scale_size, align) : 0;
+  weights_scale_size_ = weights_scale_size > 0 ? alignup(weights_scale_size, align) : 0;
+  weights_factor_size_ = weights_factor_size > 0 ? alignup(weights_factor_size, align) : 0;
 
   size_t workspace_size = tweights_s8_size_ + weights_scale_size_
       + weights_factor_size_ + input_scale_size_;
@@ -162,8 +172,6 @@ int Instance_elx_conv_direct_lp_t::prepare_execute_opt()
   printf("sampling_kind = %d\n", this->sampling_kind);
   printf("input_quant_S = %f\n", this->input_quant_S);
   printf("input_quant_z = %f\n", this->input_quant_z);
-  printf("tinput_quant_S = %f\n", this->tinput_quant_S);
-  printf("tinput_quant_z = %f\n", this->tinput_quant_z);
   printf("output_quant_S = %f\n", this->output_quant_S);
   printf("output_quant_z = %f\n", this->output_quant_z);
   return 0;
@@ -220,23 +228,15 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
     MD6(WeightsType, aweights, weights, this->oc2, this->ic2, this->kh, this->kw, V, V);
     MD2(TscaleType, atweights_scale, weights_scale, this->oc2, V);
 
-    __m<V> mmax_cur = _mm<V>::set1_ps(0.0);
+    __m<V> abs_max = _mm<V>::set1_ps(0.0);
     iter_each (_ic2, this->ic2) {
     iter_each (_kh, this->kh) {
     iter_each (_kw, this->kw) {
     iter_each (_iV, V) {
-      __m<V> mmax_abs;
-      TweightsType *max_abs = (TweightsType *)&mmax_abs;
-      #pragma omp simd
-      iter_each (_oV, V) {
-        max_abs[_oV] =
-            md6(aweights, _oc2, _ic2, _kh, _kw, _iV, _oV) >= 0.0 ?
-            md6(aweights, _oc2, _ic2, _kh, _kw, _iV, _oV) :
-            -md6(aweights, _oc2, _ic2, _kh, _kw, _iV, _oV);
-      }
-      mmax_cur = _mm<V>::max_ps(mmax_cur, mmax_abs);
+      abs_max = _mm<V>::max_ps(abs_max, _mm512_abs_ps(
+          *(__m<V> *)&md6(aweights, _oc2, _ic2, _kh, _kw, _iV, 0)));
     }}}}
-    _mm512_store_ps(&md2(atweights_scale, _oc2, 0), mmax_cur);
+    _mm512_store_ps(&md2(atweights_scale, _oc2, 0), abs_max);
   }, this->oc2);
 #pragma omp barrier
 

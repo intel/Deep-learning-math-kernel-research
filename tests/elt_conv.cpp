@@ -131,7 +131,7 @@ int parse_cmd_options(int argc, char **argv) {
     } else if (alg == CONV_DIRECT_1X1 &&
         (execution_mode == 0xc160)) {
       is_int8_lp = true;
-    } else if (alg == CONV_AUTO && execution_mode == 0xd160) {
+    } else if (alg == CONV_DIRECT && execution_mode == 0xd160) {
       is_int8_lp = true;
     }
   }
