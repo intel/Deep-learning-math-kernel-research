@@ -350,6 +350,7 @@ void Instance_elx_conv_direct_lp_t::gemm_d160(OutputType *output,
 
         ker_gemm_[_wt][_kw](*this,
             &md5(atoutput, _oc3, 0, _ht, _ows, 0),
+            nullptr,
             &md5(ainput, _ic3, 0, _ih, _iws, 0),
             &md5(aweights, _oc3, _ic3, _kh, _kw, 0),
             &md3(abias, _oc3, 0, 0), attr_,

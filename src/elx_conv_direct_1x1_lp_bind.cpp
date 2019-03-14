@@ -5,23 +5,29 @@ namespace euler {
 Template_elx_conv_direct_1x1_lp_t void
 Instance_elx_conv_direct_1x1_lp_t::bind_execute_functions()
 {
-#define BIND_KERNEL(S, F)                                                    \
+#define BIND_KERNEL(S, F)                                               \
   u8s8_gemm_kernel_binder::bind<S, F>(O, T, func);
 
-  auto bind_kernel = [&](int O, int T,
-      u8s8_gemm_kernel_binder::kgemm<TarrayTypes> **func) {
-    switch (xopt_) {
-    case (0xc160):
-      BIND_KERNEL(1, GKF_DCD)
-      break;
-    default:
-      el_error("Unknown xopt");
-      break;
-    }
-  };
+#define DEF_BINDER(binder, otype)                                              \
+  auto binder = [&](int O, int T,                                              \
+      u8s8_gemm_kernel_binder::kgemm<TarrayTypes, otype> **func) {             \
+    switch (xopt_) {                                                           \
+    case (0xc160):                                                             \
+      BIND_KERNEL(1, GKF_DCD)                                           \
+      break;                                                                   \
+    default:                                                                   \
+      el_error("Unknown xopt");                                                \
+      break;                                                                   \
+    }                                                                          \
+  }
+
+  DEF_BINDER(bind_kernel, float);
+  DEF_BINDER(bind_oo_kernel, OutputType);
 
   bind_kernel(this->O, this->T, &ker_u8s8_gemm_I_O_T_);
   bind_kernel(this->O, this->Tr, &ker_u8s8_gemm_I_O_Tr_);
+  bind_oo_kernel(this->O, this->T, &ker_u8s8_gemm_oo_I_O_T_);
+  bind_oo_kernel(this->O, this->Tr, &ker_u8s8_gemm_oo_I_O_Tr_);
 
 #define EXECUTE_CASE(n)                                                        \
   case 0x##n:                                                                  \

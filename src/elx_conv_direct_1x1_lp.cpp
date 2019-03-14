@@ -483,6 +483,7 @@ void Instance_elx_conv_direct_1x1_lp_t::gemm_c160(ToutputType *toutput,
       ker_gemm(
           *this,
           &md2(atoutput2, _t2, 0),
+          nullptr,
           &md2(ainput2_u8, _t2, 0),
           &md3(aweights_s8, _oc3, _ic3, 0),
           &md2(abias, _oc3, 0),

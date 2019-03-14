@@ -63,6 +63,7 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute(
 
     ker_gemm(*(elx_conv_params_t *)xc,
         &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
+        nullptr,
         &md6(atinput, _hA, _wA, _ic3, 0, 0, 0),
         &md5(atweights, _oc3, _ic3, _hA, _wA, 0),
         nullptr, attr, asrc_s, asrc_z,
@@ -114,6 +115,7 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
 
         ker_gemm(*(elx_conv_params_t *)xc,
             &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
+            nullptr,
             &md6(atinput, _hA, _wA, _ic3, 0, 0, 0),
             &md5(atweights, _oc3, _ic3, _hA, _wA, 0),
             nullptr, attr, asrc_s, asrc_z,
@@ -135,6 +137,7 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
 
       ker_gemm(*(elx_conv_params_t *)xc,
           &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
+          nullptr,
           &md6(atinput, _hA, _wA, _ic3, 0, 0, 0),
           &md5(atweights, _oc3, _ic3, _hA, _wA, 0),
           nullptr, attr,
@@ -182,6 +185,7 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
     }
 
     ker_gemm(*xc, &md6(atoutput6, _hA, _wA, _oc3, 0, 0, 0),
+        nullptr,
         &md6(atinput6, _hA, _wA, _ic3, 0, 0, 0),
         &md5(atweights, _oc3, _ic3, _hA, _wA, 0),
         nullptr, attr, asrc_s, asrc_z,

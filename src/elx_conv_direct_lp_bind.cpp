@@ -18,7 +18,7 @@ Instance_elx_conv_direct_lp_t::bind_execute_functions()
   }
 
   auto bind_gemm_kernel = [&](int O, int T,
-      u8s8_gemm_kernel_binder::kgemm<TarrayTypes> **func) {
+      u8s8_gemm_kernel_binder::kgemm<TarrayTypes, float> **func) {
     switch (xopt_) {
     case (0xd160):
       if (this->ws == 1) {

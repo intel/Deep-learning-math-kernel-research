@@ -59,6 +59,8 @@ namespace conv_impl {
   using INT8_F16b = ConvImplTypes<uint8_t, int8_t, float, short, float>;
   using INT8_F16o = ConvImplTypes<uint8_t, int8_t, short, float, float>;
   using INT8_F16ob = ConvImplTypes<uint8_t, int8_t, short, short, float>;
+  using INT8_INT8o = ConvImplTypes<uint8_t, int8_t, int8_t, float, float>;
+  using INT8_UINT8o = ConvImplTypes<uint8_t, int8_t, uint8_t, float, float>;
 };
 
 } // namespace euler

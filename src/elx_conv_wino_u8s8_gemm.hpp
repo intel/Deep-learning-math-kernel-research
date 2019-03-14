@@ -32,7 +32,7 @@ public:
 private:
   void bind_kernel_functions();
 
-  using i8_ker_type = typename u8s8_gemm_kernel_binder::kgemm<GarrayTypes>;
+  using i8_ker_type = typename u8s8_gemm_kernel_binder::kgemm<GarrayTypes, float>;
 
   i8_ker_type *ker_u8s8_gemm_;
   i8_ker_type *ker_u8s8_gemm0_;

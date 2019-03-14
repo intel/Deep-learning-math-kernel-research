@@ -77,12 +77,14 @@ file (GLOB __euler_source
 
 set(KGEMM_GEN_DIR ${CMAKE_BINARY_DIR}/kgen)
 set(BUILD_KGEMM_GEN_CMD ${KGEMM_GEN_DIR}/kgemm_gen.sh)
+set(BUILD_U8S8_KGEMM_GEN_CMD ${KGEMM_GEN_DIR}/u8s8_kgemm_gen.sh)
 set(BUILD_KCONV_GEN_CMD ${KGEMM_GEN_DIR}/kconv_gen.sh)
 set(BUILD_KGEMM_GEN_SRC1 ${KGEMM_GEN_DIR}/elk_gemm_otj_binder.hxx)
 set(BUILD_KGEMM_GEN_SRC2 ${KGEMM_GEN_DIR}/elk_u8s8_gemm_otj_binder.hxx)
 set(BUILD_KCONV_GEN_SRC ${KGEMM_GEN_DIR}/elk_conv_otj_binder.hxx)
 
 set(KGEMM_GEN_CMD ${CMAKE_HOME_DIRECTORY}/src/kernel/kgemm_gen.sh)
+set(U8S8_KGEMM_GEN_CMD ${CMAKE_HOME_DIRECTORY}/src/kernel/u8s8_kgemm_gen.sh)
 set(KCONV_GEN_CMD ${CMAKE_HOME_DIRECTORY}/src/kernel/kconv_gen.sh)
 set(KGEMM_GEN_SRC1 ${CMAKE_HOME_DIRECTORY}/src/kernel/elk_gemm_otj_binder.hxx)
 set(KGEMM_GEN_SRC2 ${CMAKE_HOME_DIRECTORY}/src/kernel/elk_u8s8_gemm_otj_binder.hxx)
@@ -90,6 +92,7 @@ set(KCONV_GEN_SRC ${CMAKE_HOME_DIRECTORY}/src/kernel/elk_conv_otj_binder.hxx)
 
 execute_process(COMMAND mkdir -p ${KGEMM_GEN_DIR})
 configure_file(${KGEMM_GEN_CMD} ${BUILD_KGEMM_GEN_CMD} COPYONLY)
+configure_file(${U8S8_KGEMM_GEN_CMD} ${BUILD_U8S8_KGEMM_GEN_CMD} COPYONLY)
 configure_file(${KCONV_GEN_CMD} ${BUILD_KCONV_GEN_CMD} COPYONLY)
 configure_file(${KGEMM_GEN_SRC1} ${BUILD_KGEMM_GEN_SRC1} COPYONLY)
 configure_file(${KGEMM_GEN_SRC2} ${BUILD_KGEMM_GEN_SRC2} COPYONLY)
@@ -97,7 +100,7 @@ configure_file(${KCONV_GEN_SRC} ${BUILD_KCONV_GEN_SRC} COPYONLY)
 
 execute_process(COMMAND ${BUILD_KGEMM_GEN_CMD} ${BUILD_KGEMM_GEN_SRC1}
   ${KGEMM_GEN_DIR} ${CMAKE_CXX_COMPILER} ${ENABLE_USER_FP16})
-execute_process(COMMAND ${BUILD_KGEMM_GEN_CMD} ${BUILD_KGEMM_GEN_SRC2}
+execute_process(COMMAND ${BUILD_U8S8_KGEMM_GEN_CMD} ${BUILD_KGEMM_GEN_SRC2}
   ${KGEMM_GEN_DIR} ${CMAKE_CXX_COMPILER} ${ENABLE_USER_FP16})
 execute_process(COMMAND ${BUILD_KCONV_GEN_CMD} ${BUILD_KCONV_GEN_SRC}
   ${KGEMM_GEN_DIR} ${CMAKE_CXX_COMPILER} ${ENABLE_USER_FP16})
