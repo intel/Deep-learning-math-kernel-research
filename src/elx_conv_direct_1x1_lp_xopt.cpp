@@ -28,7 +28,7 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
   // output:  t3*, oc4*, oc3, O2, t2*, T(Tr), V
 
   if (is_first_run_) {
-    trans_weights_s8(weights_scale_, tweights_s8_, weights);
+    trans_weights_s8_oc(weights_scale_, tweights_s8_, weights);
     MD2(TscaleType, ainput_scale, input_scale_, 2, this->T);
     iter_each (_T, this->T) {
       md2(ainput_scale, 0, _T) = this->input_quant_S;
@@ -44,9 +44,9 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
 
     MD2(TscaleType, ainput_scale, input_scale_, 2, this->T);
     MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
-      this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
-    MD2(TscaleType, aweights_scale, weights_scale_, this->oc4,
-      this->oc3 * this->ic3 * 2 * this->O2 * V);
+        this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
+    MD2(TscaleType, aweights_scale, weights_scale_,
+        this->oc4, this->oc3 * 2 * this->O2 * V);
     MD2(ToutputType, atoutput2, &md2(atoutput, _t3, 0), this->oc4,
         this->oc3 * this->O2 * this->oh * this->ow * V);
     gemm_c160(

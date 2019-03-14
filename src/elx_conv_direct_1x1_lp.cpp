@@ -146,8 +146,7 @@ int Instance_elx_conv_direct_1x1_lp_t::prepare_execute_opt()
   case 0xc160:
     input_scale_size = this->T * 2 * sizeof(TscaleType);
     tweights_s8_size = this->IC * this->OC * sizeof(int8_t);
-    weights_scale_size =
-        this->OC * this->ic4 * this->ic3 * 2 * sizeof(TscaleType);
+    weights_scale_size = this->OC * 2 * sizeof(TscaleType);
     toutput_size = this->n * this->OC * this->oh * this->ow * sizeof(ToutputType);
     break;
   default:
@@ -240,17 +239,17 @@ Instance_elx_conv_direct_1x1_lp_t::~elx_conv_direct_1x1_lp_t()
 }
 
 Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked(
+void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked_ocic4(
     TscaleType *weights_scale, int8_t *tweights_s8, WeightsType *weights)
 {
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
 
   // abs max
-  parallel_for<5>(mthr_,
-      [&](int _oc4, int _oc3, int _O2, int _ic4, int _ic3) {
-    MD7(TscaleType, aweights_scale, weights_scale,
-        this->oc4, this->ic4, this->oc3, this->ic3, 2, this->O2, V);
+  parallel_for<4>(mthr_, [&](int _oc4, int _oc3, int _O2, int _ic4) {
+    MD6(TscaleType, aweights_scale, weights_scale,
+        this->oc4, this->ic4, this->oc3, 2, this->O2, V);
     __m<V> mmabs_max = _mm<V>::set1_ps(0.0);
+    iter_each (_ic3, this->ic3) {
     iter_each (_I2, this->I2) {
     iter_each (_iV1, this->V1) {
     iter_each (_iVx, this->Vx) {
@@ -258,10 +257,10 @@ void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked(
           this->ic4, this->ic3, this->I2, this->V1, this->Vx, V);
       mmabs_max = _mm<V>::max_ps(mmabs_max, _mm512_abs_ps(*(__m<V> *)
           &md9(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV1, _iVx, 0)));
-    }}}
+    }}}}
     _mm<V>::store_ps(
-        &md7(aweights_scale, _oc4, _ic4, _oc3, _ic3, 0, _O2, 0), mmabs_max);
-  }, this->oc4, this->oc3, this->O2, this->ic4, this->ic3);
+        &md6(aweights_scale, _oc4, _ic4, _oc3, 0, _O2, 0), mmabs_max);
+  }, this->oc4, this->oc3, this->O2, this->ic4);
 
   // oc4, (oc3, oc3r), (O2, O2r), ic4, ic3, I2, V1, Vx, V ->
   // oc4, ic4, (oc3, oc3r), ic3, I2, V1, (O2, O2r), V, Vx
@@ -272,14 +271,14 @@ void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked(
         this->ic4, this->ic3, this->I2, this->V1, this->Vx, V);
     MD9(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4,
         this->oc3, this->ic3, this->I2, this->V1, this->O2, V, this->Vx);
-    MD7(TscaleType, aweights_scale, weights_scale,
-        this->oc4, this->ic4, this->oc3, this->ic3, 2, this->O2, V);
+    MD6(TscaleType, aweights_scale, weights_scale,
+        this->oc4, this->ic4, this->oc3, 2, this->O2, V);
 
     auto mmresf32 = _mm<V>::mul_ps(
         *(__m<V> *)&md9(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV1, _iVx, 0),
         mmscale);
     mmresf32 = _mm<V>::div_ps(mmresf32,
-        *(__m<V> *)&md7(aweights_scale, _oc4, _ic4, _oc3, _ic3, 0, _O2, 0));
+        *(__m<V> *)&md6(aweights_scale, _oc4, _ic4, _oc3, 0, _O2, 0));
     mmresf32 = _mm<V>::roundscale_ps(
         mmresf32, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
     TscaleType *resf32 = (TscaleType *)&mmresf32;
@@ -291,39 +290,128 @@ void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked(
   }, this->oc4, this->ic4, this->oc3, this->ic3, this->I2, this->V1, this->O2, this->Vx);
 
   // accumulation
-  parallel_for<6>(mthr_,
-      [&](int _oc4, int _ic4, int _oc3, int _ic3, int _O2, int _oV) {
+  parallel_for<5>(mthr_, [&](int _oc4, int _ic4, int _oc3, int _O2, int _oV) {
     MD9(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4,
         this->oc3, this->ic3, this->I2, this->V1, this->O2, V, this->Vx);
-    MD7(TscaleType, aweights_scale, weights_scale,
-        this->oc4, this->ic4, this->oc3, this->ic3, 2, this->O2, V);
+    MD6(TscaleType, aweights_scale, weights_scale,
+        this->oc4, this->ic4, this->oc3, 2, this->O2, V);
     TscaleType acc = 0;
+    iter_each (_ic3, this->ic3) {
     iter_each (_I2, this->I2) {
     iter_each (_iV1, this->V1) {
     iter_each (_iVx, this->Vx) {
       acc += (TscaleType)md9(atweights_s8,
           _oc4, _ic4, _oc3, _ic3, _I2, _iV1, _O2, _oV, _iVx);
-    }}}
-    md7(aweights_scale, _oc4, _ic4, _oc3, _ic3, 1, _O2, _oV) = acc;
-  }, this->oc4, this->ic4, this->oc3, this->ic3, this->O2, V);
+    }}}}
+    md6(aweights_scale, _oc4, _ic4, _oc3, 1, _O2, _oV) = acc;
+  }, this->oc4, this->ic4, this->oc3, this->O2, V);
 
   // scale
-  parallel_for<5>(mthr_,
-      [&](int _oc4, int _ic4, int _oc3, int _ic3, int _O2) {
-    MD7(TscaleType, aweights_scale, weights_scale,
-        this->oc4, this->ic4, this->oc3, this->ic3, 2, this->O2, V);
-    __m<V> &mmqs = *(__m<V> *)&md7(
-        aweights_scale, _oc4, _ic4, _oc3, _ic3, 0, _O2, 0);
+  parallel_for<4>(mthr_, [&](int _oc4, int _ic4, int _oc3, int _O2) {
+    MD6(TscaleType, aweights_scale, weights_scale,
+        this->oc4, this->ic4, this->oc3, 2, this->O2, V);
+    __m<V> &mmqs = *(__m<V> *)&md6(
+        aweights_scale, _oc4, _ic4, _oc3, 0, _O2, 0);
     mmqs = mmqs / mmscale;
-  }, this->oc4, this->ic4, this->oc3, this->ic3, this->O2);
+  }, this->oc4, this->ic4, this->oc3, this->O2);
 }
 
 Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::trans_weights_s8(
+void Instance_elx_conv_direct_1x1_lp_t::trans_weights_s8_ocic4(
     TscaleType *weights_scale, int8_t *tweights, WeightsType *weights)
 {
   if (weights_is_bfmt_ || weights_as_bfmt_)
-    __trans_weights_s8_blocked(weights_scale, tweights, weights);
+    __trans_weights_s8_blocked_ocic4(weights_scale, tweights, weights);
+  else
+    ; // implemented
+}
+
+Template_elx_conv_direct_1x1_lp_t
+void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked_oc(
+    TscaleType *weights_scale, int8_t *tweights_s8, WeightsType *weights)
+{
+  __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
+
+  // abs max
+  parallel_for<3>(mthr_, [&](int _oc4, int _oc3, int _O2) {
+    MD5(TscaleType, aweights_scale, weights_scale,
+        this->oc4, this->oc3, 2, this->O2, V);
+    __m<V> mmabs_max = _mm<V>::set1_ps(0.0);
+    iter_each (_ic4, this->ic4) {
+    iter_each (_ic3, this->ic3) {
+    iter_each (_I2, this->I2) {
+    iter_each (_iV1, this->V1) {
+    iter_each (_iVx, this->Vx) {
+      MD9(WeightsType, aweights, weights, this->oc4, this->oc3, this->O2,
+          this->ic4, this->ic3, this->I2, this->V1, this->Vx, V);
+      mmabs_max = _mm<V>::max_ps(mmabs_max, _mm512_abs_ps(*(__m<V> *)
+          &md9(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV1, _iVx, 0)));
+    }}}}}
+    _mm<V>::store_ps(
+        &md5(aweights_scale, _oc4, _oc3, 0, _O2, 0), mmabs_max);
+  }, this->oc4, this->oc3, this->O2);
+
+  // oc4, (oc3, oc3r), (O2, O2r), ic4, ic3, I2, V1, Vx, V ->
+  // oc4, ic4, (oc3, oc3r), ic3, I2, V1, (O2, O2r), V, Vx
+  // quantization
+  parallel_for<8>(mthr_, [&](int _oc4, int _ic4, int _oc3,
+    int _ic3, int _I2, int _iV1, int _O2, int _iVx) {
+    MD9(WeightsType, aweights, weights, this->oc4, this->oc3, this->O2,
+        this->ic4, this->ic3, this->I2, this->V1, this->Vx, V);
+    MD9(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4,
+        this->oc3, this->ic3, this->I2, this->V1, this->O2, V, this->Vx);
+    MD5(TscaleType, aweights_scale, weights_scale,
+        this->oc4, this->oc3, 2, this->O2, V);
+
+    auto mmresf32 = _mm<V>::mul_ps(
+        *(__m<V> *)&md9(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV1, _iVx, 0),
+        mmscale);
+    mmresf32 = _mm<V>::div_ps(mmresf32,
+        *(__m<V> *)&md5(aweights_scale, _oc4, _oc3, 0, _O2, 0));
+    mmresf32 = _mm<V>::roundscale_ps(
+        mmresf32, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+    TscaleType *resf32 = (TscaleType *)&mmresf32;
+#pragma omp simd
+    iter_each (_oV, V) {
+      md9(atweights_s8, _oc4, _ic4, _oc3, _ic3, _I2, _iV1, _O2, _oV, _iVx) =
+          (int8_t)resf32[_oV];
+    }
+  }, this->oc4, this->ic4, this->oc3, this->ic3, this->I2, this->V1, this->O2, this->Vx);
+
+  // accumulation
+  parallel_for<4>(mthr_, [&](int _oc4, int _oc3, int _O2, int _oV) {
+    MD9(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4,
+        this->oc3, this->ic3, this->I2, this->V1, this->O2, V, this->Vx);
+    MD5(TscaleType, aweights_scale, weights_scale,
+        this->oc4, this->oc3, 2, this->O2, V);
+    TscaleType acc = 0;
+    iter_each (_ic4, this->ic4) {
+    iter_each (_ic3, this->ic3) {
+    iter_each (_I2, this->I2) {
+    iter_each (_iV1, this->V1) {
+    iter_each (_iVx, this->Vx) {
+      acc += (TscaleType)md9(atweights_s8,
+          _oc4, _ic4, _oc3, _ic3, _I2, _iV1, _O2, _oV, _iVx);
+    }}}}}
+    md5(aweights_scale, _oc4, _oc3, 1, _O2, _oV) = acc;
+  }, this->oc4, this->oc3, this->O2, V);
+
+  // scale
+  parallel_for<3>(mthr_, [&](int _oc4, int _oc3, int _O2) {
+    MD5(TscaleType, aweights_scale, weights_scale,
+        this->oc4, this->oc3, 2, this->O2, V);
+    __m<V> &mmqs = *(__m<V> *)&md5(
+        aweights_scale, _oc4, _oc3, 0, _O2, 0);
+    mmqs = mmqs / mmscale;
+  }, this->oc4, this->oc3, this->O2);
+}
+
+Template_elx_conv_direct_1x1_lp_t
+void Instance_elx_conv_direct_1x1_lp_t::trans_weights_s8_oc(
+    TscaleType *weights_scale, int8_t *tweights, WeightsType *weights)
+{
+  if (weights_is_bfmt_ || weights_as_bfmt_)
+    __trans_weights_s8_blocked_oc(weights_scale, tweights, weights);
   else
     el_error("Unimplement format");
 }
@@ -371,8 +459,8 @@ void Instance_elx_conv_direct_1x1_lp_t::gemm_c160(ToutputType *toutput,
       this->oc3, this->ic3, this->O2 * this->I2 * V * V);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
   MD2(TscaleType, ainput_scale, input_scale, 2, this->T);
-  MD5(TscaleType, aweights_scale, weights_scale,
-      this->oc3, this->ic3, 2, this->O2, V);
+  MD4(TscaleType, aweights_scale, weights_scale,
+      this->oc3, 2, this->O2, V);
 
   auto ker_gemm = (_t2 == this->t2 - 1)
       ? ker_u8s8_gemm_I_O_Tr_
@@ -386,6 +474,9 @@ void Instance_elx_conv_direct_1x1_lp_t::gemm_c160(ToutputType *toutput,
     attr = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
         ? set_attr(attr, relu_idx)
         : attr;
+    attr = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
+        ? set_attr(attr, c_output_idx)
+        : attr;
 
     iter_each (_oc3, this->oc3) {
       MD2(ToutputType, atoutput2, &md2(atoutput, _oc3, 0), this->t2, this->T * V);
@@ -398,8 +489,8 @@ void Instance_elx_conv_direct_1x1_lp_t::gemm_c160(ToutputType *toutput,
           attr,
           &md2(ainput_scale, 0, 0),
           &md2(ainput_scale, 1, 0),
-          &md5(aweights_scale, _oc3, _ic3, 0, 0, 0),
-          &md5(aweights_scale, _oc3, _ic3, 1, 0, 0));
+          &md4(aweights_scale, _oc3, 0, 0, 0),
+          &md4(aweights_scale, _oc3, 1, 0, 0));
     }
   }
 }
