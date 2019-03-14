@@ -173,6 +173,12 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
     tinput_u8_size = A * A * this->IC * mthr_ * this->T * sizeof(uint8_t);
     tinput_quant_scale_size = mthr_ * 2 * this->ic3 * this->T * A * A * sizeof(TscaleType);
     tweights_s8_size = tweights_size / sizeof(TweightsType);
+
+    // FIXME: To implement OC sampling for weights transformation.
+    // Current weights transformation includes a sampling involving OC and ic4.
+    // As to a161, sampling scope should be only in OC. However, ic4 must be 1
+    // in current execution mode. So far, we temporarily borrow OC and ic4
+    // sampling for weights transformation, where ic4 is 1.
     tweights_quant_scale_size = this->OC * A * A * sizeof(TscaleType);
     tweights_quant_factor_size = this->OC * A * A * sizeof(TscaleType); // * this->ic4
     break;
