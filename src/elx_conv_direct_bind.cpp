@@ -6,15 +6,15 @@ Template_elx_conv_direct_t void
 Instance_elx_conv_direct_t::bind_execute_functions()
 {
 #define BIND_GEMM_KERNEL(S, F)                                                 \
-  gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S, F>(O, T, func);
+  gemm_kernel_binder::bind<S, F>(O, T, func);
 
 #define BIND_CONV_KERNEL(S, F, K)                                              \
   if (K == 3) {                                                                \
-    conv_kernel_binder::bind<TarrayTypes, V, 1, I, S, F, 3>(O, T, func);       \
+    conv_kernel_binder::bind<S, F, 3>(O, T, func);                             \
   } else if (K == 5) {                                                         \
-    conv_kernel_binder::bind<TarrayTypes, V, 1, I, S, F, 5>(O, T, func);       \
+    conv_kernel_binder::bind<S, F, 5>(O, T, func);                             \
   } else if (K == 7) {                                                         \
-    conv_kernel_binder::bind<TarrayTypes, V, 1, I, S, F, 7>(O, T, func);       \
+    conv_kernel_binder::bind<S, F, 7>(O, T, func);                             \
   }
 
   auto bind_gemm_kernel = [&](int O, int T,

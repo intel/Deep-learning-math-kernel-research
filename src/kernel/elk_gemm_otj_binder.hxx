@@ -56,7 +56,7 @@ struct gemm_kernel_binder {
 
 #if !defined(BUILD_OTJ_TBL)
   // GarrayTypes->f32f32f32f32, used by WINO with f32 UserTypes
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F>
+  template <int S, int F>
   static inline void bind(int O, int T, kgemm<conv_impl::FP32> **func)
   {
     switch (F) {
@@ -94,7 +94,7 @@ struct gemm_kernel_binder {
   }
 
   // GarrayTypes->f32f16f16f32, used by WINO with f32 UserTypes
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F>
+  template <int S, int F>
   static inline void bind(int O, int T, kgemm<conv_impl::FP32_F16iwo> **func)
   {
     switch (F) {
@@ -108,7 +108,7 @@ struct gemm_kernel_binder {
   }
 
   // GarrayTypes->f32f16f32f32, used by CONV 1x1 with f32 UserTypes
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F>
+  template <int S, int F>
   static inline void bind(int O, int T, kgemm<conv_impl::FP32_F16w> **func)
   {
     switch (F) {
@@ -139,7 +139,7 @@ struct gemm_kernel_binder {
 
 #ifdef ENABLE_USER_FP16
   // GarrayTypes->f32f32f32f16, used by WINO with f16 UserTypes
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F>
+  template <int S, int F>
   static inline void bind(int O, int T, kgemm<conv_impl::FP32_F16b> **func)
   {
     switch (F) {
@@ -153,7 +153,7 @@ struct gemm_kernel_binder {
   }
 
   // GarrayTypes->f32f16f16f16, used by WINO with f16 UserTypes
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F>
+  template <int S, int F>
   static inline void bind(int O, int T, kgemm<conv_impl::FP32_F16wob> **func)
   {
     switch (F) {
@@ -167,7 +167,7 @@ struct gemm_kernel_binder {
   }
 
   // GarrayTypes->f32f32f16f32, used by DIRECT CONV with f16o UserTypes
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F>
+  template <int S, int F>
   static inline void bind(int O, int T, kgemm<conv_impl::FP32_F16o> **func)
   {
     switch (F) {

@@ -16,10 +16,8 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::setup(elx_conv_params_t *conv_x
 template <typename GarrayTypes, const int A, const int V, const int I>
 void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::bind_kernel_functions()
 {
-  gemm_kernel_binder::bind<GarrayTypes,
-      V, 1, I, 1, GKF_CCC>(xc->O, xc->T, &ker_gemm_);
-  gemm_kernel_binder::bind<GarrayTypes,
-      V, 1, I, 1, GKF_CCC>(xc->O, xc->Tr, &ker_gemm0_);
+  gemm_kernel_binder::bind<1, GKF_CCC>(xc->O, xc->T, &ker_gemm_);
+  gemm_kernel_binder::bind<1, GKF_CCC>(xc->O, xc->Tr, &ker_gemm0_);
 }
 
 // tweights:     oc4 | oc3, ic3, A, A, O2, I2, V, V

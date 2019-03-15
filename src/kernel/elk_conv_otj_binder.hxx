@@ -50,7 +50,7 @@ struct conv_kernel_binder {
 #if !defined(BUILD_OTJ_TBL)
 
 #ifdef ENABLE_USER_FP16
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, int K>
+  template <int S, int F, int K>
   static inline void bind(int O, int T, kconv<conv_impl::FP32_F16o> **func)
   {
     switch (F) {
@@ -68,7 +68,7 @@ struct conv_kernel_binder {
   }
 #endif
 
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, int K>
+  template <int S, int F, int K>
   static inline void bind(int O, int T, kconv<conv_impl::FP32> **func)
   {
     switch (F) {
@@ -95,7 +95,7 @@ struct conv_kernel_binder {
     }
   }
 
-  template <typename GarrayTypes, int V, int Vx, int I, int S, int F, int K>
+  template <int S, int F, int K>
   static inline void bind(int O, int T, kconv<conv_impl::FP32_F16w> **func)
   {
     switch (F) {

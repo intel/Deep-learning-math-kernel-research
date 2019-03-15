@@ -6,7 +6,7 @@ Template_elx_conv_direct_1x1_lp_t void
 Instance_elx_conv_direct_1x1_lp_t::bind_execute_functions()
 {
 #define BIND_KERNEL(S, F)                                                    \
-  u8s8_gemm_kernel_binder::bind<TarrayTypes, V, 1, I, S, F>(O, T, func);
+  u8s8_gemm_kernel_binder::bind<S, F>(O, T, func);
 
   auto bind_kernel = [&](int O, int T,
       u8s8_gemm_kernel_binder::kgemm<TarrayTypes> **func) {
