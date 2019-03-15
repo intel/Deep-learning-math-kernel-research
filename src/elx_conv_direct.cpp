@@ -498,7 +498,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           ker_gemm_[_wt][_kw](
               *this, &md4(aoutput1, 0, _oc3, 0, 0), &md4(ainput1, 0, _ic3, 0, 0),
               &md5(aweights, _oc3, _ic3, _kh, _kw, 0), &md3(abias, _oc3, 0, 0),
-              attr, 0, nullptr, nullptr, nullptr);
+              attr);
         }
       }
 
@@ -548,7 +548,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           ker_gemm_[_wt][_kw](*this, &md5(aoutput, _oc3, 0, _ht, _ows, 0),
               &md5(ainput, _ic3, 0, _ih, _iws, 0),
               &md5(aweights, _oc3, _ic3, _kh, _kw, 0), &md3(abias, _oc3, 0, 0),
-              attr_, 0, nullptr, nullptr, nullptr);
+              attr_);
         }
       }
 

@@ -300,7 +300,7 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       Ir = xc.Ir;
     }
 
-    int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V; 
+    int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V;
     MD3(WeightsType, aweights, weights, xc.kh, xc.kw, xc.O1 * xc.I2 * Vr * O * V); // compact
 
     __m<V> mmout[JO][T], mmwei[JO][P];
@@ -745,7 +745,7 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
           int kws, int kwe, int attr)
   {
-    int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V; 
+    int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V;
     MD3(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
         xc.I2 * Vr * O * V); // compact
     MD2(OutputType, aoutput_blocked, output, xc.O1, O * xc.oh * xc.ow * V);
@@ -773,7 +773,7 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
           int kws, int kwe, int attr)
   {
-    int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V; 
+    int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V;
     MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
         xc.I2 * Vr, O, V); // compact
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
@@ -808,7 +808,7 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
           int kws, int kwe, int attr)
   {
-    int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V; 
+    int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V;
     MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
         xc.I2 * Vr, O, V); // compact
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);

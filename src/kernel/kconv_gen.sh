@@ -24,10 +24,10 @@ namespace euler {
 
 #undef E
 #define E(O, T, K) \\
-  conv_kernel_binder::conv_ker_cls<conv_impl::$dtype, \\
+  ${ktype}_kernel_binder::conv_ker_cls<conv_impl::$dtype, \\
       $V, $Vx, $I, $S, $F, O, T, K>::$ktype
-  conv_kernel_binder::k${ktype}<conv_impl::$dtype>
-      *conv_kernel_binder::k${ktype}_${dtype}_${V}_${Vx}_${I}_${S}_${F}[8][32][3] =
+  ${ktype}_kernel_binder::k${ktype}<conv_impl::$dtype>
+      *${ktype}_kernel_binder::kconv_${dtype}_${V}_${Vx}_${I}_${S}_${F}[8][32][3] =
   { // 8
     { // 32
       { E(1, 1,  3), E(1, 1,  5), E(1, 1,  7) },

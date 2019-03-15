@@ -51,7 +51,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
               &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
               &md6(atinput, _hA, _wA, _ic3, 0, 0, 0),
               &md5(atweights, _oc3, _ic3, _hA, _wA, 0),
-              nullptr, attr, 0, nullptr, nullptr, nullptr);
+              nullptr, attr);
         }
         if (last_ic4) {
           auto attr = xc->ic3 == 1 && xc->ic4 == 1
@@ -63,7 +63,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
              &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
              &md6(atinput, _hA, _wA, xc->ic3 - 1, 0, 0, 0),
              &md5(atweights, _oc3, xc->ic3 - 1, _hA, _wA, 0),
-             nullptr, attr, 0, nullptr, nullptr, nullptr);
+             nullptr, attr);
         }
       }
     }
@@ -80,7 +80,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
             &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
             &md6(atinput, _hA, _wA, _ic3, 0, 0, 0),
             &md5(atweights, _oc3, _ic3, _hA, _wA, 0),
-            nullptr, attr, 0, nullptr, nullptr, nullptr);
+            nullptr, attr);
       }
       if (last_ic4) {
         auto attr = xc->ic3 == 1 && xc->ic4 == 1
@@ -92,7 +92,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
             &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
             &md6(atinput, _hA, _wA, xc->ic3 - 1, 0, 0, 0),
             &md5(atweights, _oc3, xc->ic3 - 1, _hA, _wA, 0),
-            nullptr, attr, 0, nullptr, nullptr, nullptr);
+            nullptr, attr);
       }
     }}}
   }
@@ -126,7 +126,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
               &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
               &md6(atinput, _hA, _wA, _ic3, 0, 0, 0),
               &md5(atweights, _oc3, _ic3, _hA, _wA, 0),
-              nullptr, attr, 0, nullptr, nullptr, nullptr);
+              nullptr, attr);
         }
         if (last_ic4) {
           auto attr = xc->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
@@ -136,7 +136,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
               &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
               &md6(atinput, _hA, _wA, xc->ic3 - 1, 0, 0, 0),
               &md5(atweights, _oc3, xc->ic3 - 1, _hA, _wA, 0),
-              nullptr, attr, 0, nullptr, nullptr, nullptr);
+              nullptr, attr);
         }
       }
     }
@@ -152,7 +152,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
             &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
             &md6(atinput, _hA, _wA, _ic3, 0, 0, 0),
             &md5(atweights, _oc3, _ic3, _hA, _wA, 0),
-            nullptr, attr, 0, nullptr, nullptr, nullptr);
+            nullptr, attr);
       }
       if (last_ic4) {
         auto attr = xc->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
@@ -162,7 +162,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
             &md6(atoutput, _hA, _wA, _oc3, 0, 0, 0),
             &md6(atinput, _hA, _wA, xc->ic3 - 1, 0, 0, 0),
             &md5(atweights, _oc3, xc->ic3 - 1, _hA, _wA, 0),
-            nullptr, attr, 0, nullptr, nullptr, nullptr);
+            nullptr, attr);
       }
     }}}
   }
@@ -195,8 +195,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
 
     ker_gemm(*xc, &md6(atoutput6, _hA, _wA, _oc3, 0, 0, 0),
              &md6(atinput6, _hA, _wA, _ic3, 0, 0, 0),
-             &md5(atweights, _oc3, _ic3, _hA, _wA, 0), nullptr, attr, 0,
-             nullptr, nullptr, nullptr);
+             &md5(atweights, _oc3, _ic3, _hA, _wA, 0), nullptr, attr);
   }, A, A, xc->oc3, xc->t2, xc->ic3);
 }
 
@@ -224,8 +223,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
 
     ker_gemm(*xc, &md6(atoutput6, _hA, _wA, _oc3, 0, 0, 0),
              &md6(atinput6, _hA, _wA, _ic3, 0, 0, 0),
-             &md5(atweights, _oc3, _ic3, _hA, _wA, 0), nullptr, attr, 0,
-             nullptr, nullptr, nullptr);
+             &md5(atweights, _oc3, _ic3, _hA, _wA, 0), nullptr, attr);
   }, A, A, xc->oc3, xc->t2, xc->ic3);
 }
 

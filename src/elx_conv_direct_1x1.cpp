@@ -1205,8 +1205,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_a061(ToutputType *output,
             &md2(aoutput, _oc3, 0),
             &md2(ainput, _ic3, 0),
             &md3(aweights, _oc3, _ic3, 0),
-            &md2(abias, _oc3, 0),
-            attr, 0, nullptr, nullptr, nullptr);
+            &md2(abias, _oc3, 0), attr);
       }
     }
     int attr
@@ -1223,8 +1222,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_a061(ToutputType *output,
           &md2(aoutput, _oc3, 0),
           &md2(ainput, this->ic3 - 1, 0),
           &md3(aweights, _oc3, this->ic3 - 1, 0),
-          &md2(abias, _oc3, 0),
-          attr, 0, nullptr, nullptr, nullptr);
+          &md2(abias, _oc3, 0), attr);
     }
   } else { // nchw
     MD2(TinputType, ainput, input, this->ic3, this->I2 * this->T * V);
@@ -1240,8 +1238,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_a061(ToutputType *output,
             &md2(aoutput, _oc3, 0),
             &md2(ainput, _ic3, 0),
             &md3(aweights, _oc3, _ic3, 0),
-            &md2(abias, _oc3, 0),
-            attr, 0, nullptr, nullptr, nullptr);
+            &md2(abias, _oc3, 0), attr);
       }
     }
     int attr
@@ -1258,8 +1255,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_a061(ToutputType *output,
           &md2(aoutput, _oc3, 0),
           &md2(ainput, this->ic3 - 1, 0),
           &md3(aweights, _oc3, this->ic3 - 1, 0),
-          &md2(abias, _oc3, 0),
-          attr, 0, nullptr, nullptr, nullptr);
+          &md2(abias, _oc3, 0), attr);
     }
   }
 }
@@ -1293,8 +1289,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_b061(OutputType *output,
           &md5(aoutput, _oc3, 0, 0, 0, 0),
           &md2(ainput, _ic3, 0),
           &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0),
-          attr, 0, nullptr, nullptr, nullptr);
+          &md2(abias, _oc3, 0), attr);
     }
   }
 }
@@ -1320,8 +1315,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_f061(ToutputType *output,
             &md2(aoutput, _oc3, 0),
             &md2(ainput, _ic3, 0),
             &md3(aweights, _oc3, _ic3, 0),
-            &md2(abias, _oc3, 0),
-            attr, 0, nullptr, nullptr, nullptr);
+            &md2(abias, _oc3, 0), attr);
       }
     }
     int attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
@@ -1333,8 +1327,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_f061(ToutputType *output,
           &md2(aoutput, _oc3, 0),
           &md2(ainput, this->ic3 - 1, 0),
           &md3(aweights, _oc3, this->ic3 - 1, 0),
-          &md2(abias, _oc3, 0),
-          attr, 0, nullptr, nullptr, nullptr);
+          &md2(abias, _oc3, 0), attr);
     }
   } else { // nchw
     MD2(TinputType, ainput, input, this->ic3, this->I2 * Tz * V);
@@ -1347,8 +1340,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_f061(ToutputType *output,
             &md2(aoutput, _oc3, 0),
             &md2(ainput, _ic3, 0),
             &md3(aweights, _oc3, _ic3, 0),
-            &md2(abias, _oc3, 0),
-            attr, 0, nullptr, nullptr, nullptr);
+            &md2(abias, _oc3, 0), attr);
       }
     }
     int attr = this->ic3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
@@ -1360,8 +1352,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_f061(ToutputType *output,
           &md2(aoutput, _oc3, 0),
           &md2(ainput, this->ic3 - 1, 0),
           &md3(aweights, _oc3, this->ic3 - 1, 0),
-          &md2(abias, _oc3, 0),
-          attr, 0, nullptr, nullptr, nullptr);
+          &md2(abias, _oc3, 0), attr);
     }
   }
 }
@@ -1399,8 +1390,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_c060(OutputType *output,
           &md2(aoutput2, _t2, 0),
           &md2(ainput2, _t2, 0),
           &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0),
-          attr, 0, nullptr, nullptr, nullptr);
+          &md2(abias, _oc3, 0), attr);
     }
   }
 }
