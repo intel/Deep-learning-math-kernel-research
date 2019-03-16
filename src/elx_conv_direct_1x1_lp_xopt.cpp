@@ -63,9 +63,6 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
         _ic4, _oc4, _t2);
   }, this->t3, this->ic4, this->oc4, this->t2);
 
-  if (ic4 != 1 && ic3 != 1)
-    requant_output(output, toutput_);
-
   if (inference_acc_)
     is_first_run_ = false;
 }

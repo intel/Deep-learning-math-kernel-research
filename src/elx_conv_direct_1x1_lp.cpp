@@ -484,11 +484,12 @@ void Instance_elx_conv_direct_1x1_lp_t::gemm_c160(ToutputType *toutput,
         : attr;
 
     iter_each (_oc3, this->oc3) {
-      if (ic4 == 1 && ic3 == 1) {
+      MD2(ToutputType, atoutput2, &md2(atoutput, _oc3, 0), this->t2, this->T * V);
+      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
         MD2(OutputType, aoutput2, &md2(aoutput, _oc3, 0), this->t2, this->T * V);
         ker_gemm_oo(
             *this,
-            nullptr,
+            &md2(atoutput2, _t2, 0),
             &md2(aoutput2, _t2, 0),
             &md2(ainput2_u8, _t2, 0),
             &md3(aweights_s8, _oc3, _ic3, 0),
@@ -499,7 +500,6 @@ void Instance_elx_conv_direct_1x1_lp_t::gemm_c160(ToutputType *toutput,
             &md4(aweights_scale, _oc3, 0, 0, 0),
             &md4(aweights_scale, _oc3, 1, 0, 0));
       } else {
-        MD2(ToutputType, atoutput2, &md2(atoutput, _oc3, 0), this->t2, this->T * V);
         ker_gemm(
             *this,
             &md2(atoutput2, _t2, 0),
