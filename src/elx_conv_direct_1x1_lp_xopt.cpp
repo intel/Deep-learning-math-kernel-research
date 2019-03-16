@@ -40,6 +40,7 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
     MD3(uint8_t, ainput, input, this->t3, this->ic4,
         this->ic3 * this->I2 * this->ih * this->iw * V);
     MD2(ToutputType, atoutput, toutput_, this->t3, this->OC * this->oh * this->ow);
+    MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
     MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
     MD2(TscaleType, ainput_scale, input_scale_, 2, this->T);
@@ -49,8 +50,11 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
         this->oc4, this->oc3 * 2 * this->O2 * V);
     MD2(ToutputType, atoutput2, &md2(atoutput, _t3, 0), this->oc4,
         this->oc3 * this->O2 * this->oh * this->ow * V);
+    MD2(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
+        this->oc3 * this->O2 * this->oh * this->ow * V);
     gemm_c160(
         &md2(atoutput2, _oc4, 0),
+        &md2(aoutput2, _oc4, 0),
         &md3(ainput, _t3, _ic4, 0),
         &md3(atweights_s8, _oc4, _ic4, 0),
         &md2(ainput_scale, 0, 0),
@@ -59,7 +63,8 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
         _ic4, _oc4, _t2);
   }, this->t3, this->ic4, this->oc4, this->t2);
 
-  requant_output(output, toutput_);
+  if (ic4 != 1 && ic3 != 1)
+    requant_output(output, toutput_);
 
   if (inference_acc_)
     is_first_run_ = false;

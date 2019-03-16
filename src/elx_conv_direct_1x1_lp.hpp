@@ -56,7 +56,7 @@ public:
 
   void requant_output(OutputType *, ToutputType *);
 
-  void gemm_c160(ToutputType *, uint8_t *, int8_t *,
+  void gemm_c160(ToutputType *, OutputType *, uint8_t *, int8_t *,
       TscaleType *, TscaleType *, BiasType *, int, int, int);
 
   void prepare_quant_calibration(eld_conv_t &);

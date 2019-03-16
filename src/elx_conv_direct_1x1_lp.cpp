@@ -445,7 +445,7 @@ void Instance_elx_conv_direct_1x1_lp_t::requant_output(
 
 Template_elx_conv_direct_1x1_lp_t
 void Instance_elx_conv_direct_1x1_lp_t::gemm_c160(ToutputType *toutput,
-    uint8_t *input_u8, int8_t *weights_s8, TscaleType *input_scale,
+    OutputType *output, uint8_t *input_u8, int8_t *weights_s8, TscaleType *input_scale,
     TscaleType *weights_scale, BiasType *bias, int _ic4, int _oc4, int _t2)
 {
   // weights: oc3, O2, ic4*, ic3, I2, V1, V, Vx
@@ -454,6 +454,8 @@ void Instance_elx_conv_direct_1x1_lp_t::gemm_c160(ToutputType *toutput,
   MD2(uint8_t, ainput_u8, input_u8,
       this->ic3, this->I2 * this->ih * this->iw * V);
   MD2(ToutputType, atoutput, toutput,
+      this->oc3, this->O2 * this->oh * this->ow * V);
+  MD2(OutputType, aoutput, output,
       this->oc3, this->O2 * this->oh * this->ow * V);
   MD3(int8_t, aweights_s8, weights_s8,
       this->oc3, this->ic3, this->O2 * this->I2 * V * V);
@@ -465,6 +467,9 @@ void Instance_elx_conv_direct_1x1_lp_t::gemm_c160(ToutputType *toutput,
   auto ker_gemm = (_t2 == this->t2 - 1)
       ? ker_u8s8_gemm_I_O_Tr_
       : ker_u8s8_gemm_I_O_T_;
+  auto ker_gemm_oo = (_t2 == this->t2 - 1)
+      ? ker_u8s8_gemm_oo_I_O_Tr_
+      : ker_u8s8_gemm_oo_I_O_T_;
 
   iter_each (_ic3, this->ic3) {
     MD2(uint8_t, ainput2_u8, &md2(ainput_u8, _ic3, 0), this->t2, this->T * V);
@@ -479,19 +484,35 @@ void Instance_elx_conv_direct_1x1_lp_t::gemm_c160(ToutputType *toutput,
         : attr;
 
     iter_each (_oc3, this->oc3) {
-      MD2(ToutputType, atoutput2, &md2(atoutput, _oc3, 0), this->t2, this->T * V);
-      ker_gemm(
-          *this,
-          &md2(atoutput2, _t2, 0),
-          nullptr,
-          &md2(ainput2_u8, _t2, 0),
-          &md3(aweights_s8, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0),
-          attr,
-          &md2(ainput_scale, 0, 0),
-          &md2(ainput_scale, 1, 0),
-          &md4(aweights_scale, _oc3, 0, 0, 0),
-          &md4(aweights_scale, _oc3, 1, 0, 0));
+      if (ic4 == 1 && ic3 == 1) {
+        MD2(OutputType, aoutput2, &md2(aoutput, _oc3, 0), this->t2, this->T * V);
+        ker_gemm_oo(
+            *this,
+            nullptr,
+            &md2(aoutput2, _t2, 0),
+            &md2(ainput2_u8, _t2, 0),
+            &md3(aweights_s8, _oc3, _ic3, 0),
+            &md2(abias, _oc3, 0),
+            attr,
+            &md2(ainput_scale, 0, 0),
+            &md2(ainput_scale, 1, 0),
+            &md4(aweights_scale, _oc3, 0, 0, 0),
+            &md4(aweights_scale, _oc3, 1, 0, 0));
+      } else {
+        MD2(ToutputType, atoutput2, &md2(atoutput, _oc3, 0), this->t2, this->T * V);
+        ker_gemm(
+            *this,
+            &md2(atoutput2, _t2, 0),
+            nullptr,
+            &md2(ainput2_u8, _t2, 0),
+            &md3(aweights_s8, _oc3, _ic3, 0),
+            &md2(abias, _oc3, 0),
+            attr,
+            &md2(ainput_scale, 0, 0),
+            &md2(ainput_scale, 1, 0),
+            &md4(aweights_scale, _oc3, 0, 0, 0),
+            &md4(aweights_scale, _oc3, 1, 0, 0));
+      }
     }
   }
 }

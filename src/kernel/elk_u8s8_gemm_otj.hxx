@@ -126,12 +126,13 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
 
   template <const int JO>
   static inline void op_int8_restore_output(elx_conv_params_t &xc,
-      OutputType *output, BiasType *bias, __i<V> res, ScaleType *src_scale,
-      ScaleType *src_factor, ScaleType *weights_scale,
+      OutputType *output, OoutputType *ooutput, BiasType *bias,__i<V> res,
+      ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
       ScaleType *weights_factor, const int _O1, const int _O0, const int _O,
       const int _T, const int attr)
   {
     MD2(OutputType, aoutput2, output, T, V);
+    MD2(OoutputType, aooutput2, ooutput, T, V);
     MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
     MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
     MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
@@ -145,7 +146,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     auto Sw = *(__m<V> *)&md2(aweights_scale, _O, 0);
     fout = Sa * Sw * fout;
 
-    // 1. add bias (direct conv 1x1)
+    // add bias (direct conv 1x1)
     if (get_attr(attr, bias_idx)) {
       MD2(BiasType, abias2, bias, JO, V);
       if (std::is_same<BiasType, float>::value) {
@@ -155,17 +156,36 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
         fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
       }
     }
-    // 2. fuse relu (direct conv 1x1)
+    // requantization
+    if (std::is_same<OoutputType, uint8_t>::value
+        || std::is_same<OoutputType, int8_t>::value) {
+      __m<V> mmorepS = _mm<V>::set1_ps(xc.output_quant_repS);
+      __m<V> mmoz = _mm<V>::set1_ps(xc.output_quant_z);
+      fout = fout * mmorepS + mmoz;
+    }
+    // fuse relu (direct conv 1x1)
     if (get_attr(attr, relu_idx)) {
       fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
     }
-    // 3. store output
-    if (std::is_same<OutputType, float>::value)
-      _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
-    else {
-      auto fp16v = _mm<V>::cvtps_ph(
-          fout, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-      _mm<V / 2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+    // store output
+    if (std::is_same<OoutputType, uint8_t>::value
+        || std::is_same<OoutputType, int8_t>::value) {
+      __i<V> mmress32 = _mm<V>::cvt_roundps_epi32(
+          fout, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
+      __m128i mmresx8;
+      if (std::is_same<OoutputType, int8_t>::value)
+        mmresx8 = _mm<V>::cvtsepi32_epi8(mmress32);
+      else
+        mmresx8 = _mm<V>::cvtusepi32_epi8(mmress32);
+      _mm_store_si128((__m128i *)&md2(aooutput2, _T, 0), mmresx8);
+    } else {
+      if (std::is_same<OutputType, float>::value)
+        _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
+      else {
+        auto fp16v = _mm<V>::cvtps_ph(
+            fout, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        _mm<V / 2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+      }
     }
   }
 
@@ -185,6 +205,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
         = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
 
     MD2(OutputType, aoutput, output, JO, O_stride);
+    MD2(OoutputType, aooutput, ooutput, JO, O_stride);
     MD2(uint8_t, ainput, input, xc.I2, I2_stride);
 
     if (get_attr(attr, has_Ir_idx)) {
@@ -232,8 +253,9 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     if (get_attr(attr, c_output_idx)) {
       unroll_for (_O, JO) {
       unroll_for (_T, T) {
-        op_int8_restore_output<JO>(xc, &md2(aoutput, _O, 0), bias,
-            mmout[_O][_T], src_scale, src_factor, weights_scale,
+        op_int8_restore_output<JO>(xc, &md2(aoutput, _O, 0),
+            &md2(aooutput, _O, 0), bias, mmout[_O][_T],
+            src_scale, src_factor, weights_scale,
             weights_factor, _O1, _O0, _O, _T, attr);
       }}
     } else { // For 1x1/direct. Store accumulated s32 output
