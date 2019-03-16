@@ -280,9 +280,9 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked, output, xc.O1, O * xc.oh * xc.ow * V);
     MD4(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O * V);
 
-    MD2(OoutputType, aooutput_compact, output, xc.O1, O * T * V);
-    MD2(OoutputType, aooutput_blocked, output, xc.O1, O * xc.oh * xc.ow * V);
-    MD4(OoutputType, aooutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O * V);
+    MD2(OoutputType, aooutput_compact, ooutput, xc.O1, O * T * V);
+    MD2(OoutputType, aooutput_blocked, ooutput, xc.O1, O * xc.oh * xc.ow * V);
+    MD4(OoutputType, aooutput_nhwc, ooutput, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O * V);
 
     MD2(WeightsType, aweights, weights, xc.O1, W_stride);
     MD2(BiasType, abias, bias, xc.O1, O * V);
