@@ -61,7 +61,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
   constexpr static int V1 = V / Vx;
   // INT8 gemm kernel
   //
-  static inline __i<V> op_int8_fma(__i<V>& out, __i<V>& a, __i<V>& b) {
+  static inline void op_int8_fma(__i<V>& out, __i<V>& a, __i<V>& b) {
     // TODO: check ISA
 #if defined(WITH_VNNI)
     out = _mm512_dpbusds_epi32(out, a, b);
@@ -71,7 +71,6 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     t0 = _mm<V>::madd_epi16(t0, one);
     out = _mm<V>::add_epi32(t0, out);
 #endif
-    return out;
   }
 
   template <const int P>
@@ -126,7 +125,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
 
   template <const int JO>
   static inline void op_int8_restore_output(elx_conv_params_t &xc,
-      OutputType *output, OoutputType *ooutput, BiasType *bias,__i<V> res,
+      OutputType *output, OoutputType *ooutput, BiasType *bias, __i<V> res,
       ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
       ScaleType *weights_factor, const int _O1, const int _O0, const int _O,
       const int _T, const int attr)
@@ -240,8 +239,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
           unroll_for(_T, T) {
             __i<V> bcast =
                 op_int8_load_input<P>(&md2(ainput, _I2, 0), _V1, _P, _T);
-            unroll_for(_O, JO) mmout[_O][_T] =
-                op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][_P]);
+            unroll_for(_O, JO) op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][_P]);
           }
           unroll_for(_O, JO) mmwei[_O][_P] =
               op_int8_load_weights<JO, P>(xc, weights, _I2, _V1 + 1, _P, _O);

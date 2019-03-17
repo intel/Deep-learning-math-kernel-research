@@ -2,7 +2,7 @@
 
 #if !defined(BUILD_OTJ_TBL)
 #define DECL_U8S8_KGEMM_TBL(type, otype, V, Vx, I, S, F)                       \
-  static kgemm<conv_impl::type, otype>                                                \
+  static kgemm<conv_impl::type, otype>                                         \
       *kgemm_##type##_##otype##_##V##_##Vx##_##I##_##S##_##F[8][32]
 #else
 #define DECL_U8S8_KGEMM_TBL(type, otype, V, Vx, I, S, F)                       \

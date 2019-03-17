@@ -10,10 +10,10 @@ if [ ! -f $src_file ] || [ ! -d $dst_dir ]; then
   exit -1
 fi
 
-__kconv_generate_inst__() {
-  ktype=$1; dtype=$2; V=$3; Vx=$4; I=$5; S=$6; F=$7;
+__u8s8_kconv_generate_inst__() {
+  ktype=$1; dtype=$2; otype=$3; V=$4; Vx=$5; I=$6; S=$7; F=$8;
 
-  cat <<@ > $dst_dir/elk_${ktype}_otj_${dtype}_${V}_${Vx}_${I}_${S}_${F}.cpp
+  cat <<@ > $dst_dir/elk_${ktype}_otj_${dtype}_${otype}_${V}_${Vx}_${I}_${S}_${F}.cpp
 // _generated_kernel_file_
 //
 #include "$src_file"
@@ -25,9 +25,9 @@ namespace euler {
 #undef E
 #define E(O, T, K) \\
   ${ktype}_kernel_binder::conv_ker_cls<conv_impl::$dtype, \\
-      $V, $Vx, $I, $S, $F, O, T, K>::conv
-  ${ktype}_kernel_binder::kconv<conv_impl::$dtype>
-      *${ktype}_kernel_binder::kconv_${dtype}_${V}_${Vx}_${I}_${S}_${F}[8][32][3] =
+      $otype, $V, $Vx, $I, $S, $F, O, T, K>::conv
+  ${ktype}_kernel_binder::kconv<conv_impl::$dtype, $otype>
+      *${ktype}_kernel_binder::kconv_${dtype}_${otype}_${V}_${Vx}_${I}_${S}_${F}[8][32][3] =
   { // 8
     { // 32
       { E(1, 1,  3), E(1, 1,  5), E(1, 1,  7) },
