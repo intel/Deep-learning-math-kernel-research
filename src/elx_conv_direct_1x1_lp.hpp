@@ -64,10 +64,8 @@ public:
   int prepare_execute_opt();
   void bind_execute_functions();
 
-  u8s8_gemm_kernel_binder::kgemm<TarrayTypes, float> *ker_u8s8_gemm_I_O_T_;
-  u8s8_gemm_kernel_binder::kgemm<TarrayTypes, float> *ker_u8s8_gemm_I_O_Tr_;
-  u8s8_gemm_kernel_binder::kgemm<TarrayTypes, OutputType> *ker_u8s8_gemm_oo_I_O_T_;
-  u8s8_gemm_kernel_binder::kgemm<TarrayTypes, OutputType> *ker_u8s8_gemm_oo_I_O_Tr_;
+  u8s8_gemm_kernel_binder::kgemm<TarrayTypes, OutputType> *ker_u8s8_gemm_I_O_T_;
+  u8s8_gemm_kernel_binder::kgemm<TarrayTypes, OutputType> *ker_u8s8_gemm_I_O_Tr_;
 
   void (elx_conv_direct_1x1_lp_t::*execute_opt_)(
       OutputType *, InputType *, WeightsType *, BiasType *);
