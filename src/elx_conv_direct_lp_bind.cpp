@@ -10,11 +10,11 @@ Instance_elx_conv_direct_lp_t::bind_execute_functions()
 
 #define BIND_CONV_KERNEL(S, F, K)                                              \
   if (K == 3) {                                                                \
-    conv_kernel_binder::bind<S, F, 3>(O, T, func);                             \
+    u8s8_conv_kernel_binder::bind<S, F, 3>(O, T, func);                        \
   } else if (K == 5) {                                                         \
-    conv_kernel_binder::bind<S, F, 5>(O, T, func);                             \
+    u8s8_conv_kernel_binder::bind<S, F, 5>(O, T, func);                        \
   } else if (K == 7) {                                                         \
-    conv_kernel_binder::bind<S, F, 7>(O, T, func);                             \
+    u8s8_conv_kernel_binder::bind<S, F, 7>(O, T, func);                        \
   }
 
   auto bind_gemm_kernel = [&](int O, int T,
@@ -35,41 +35,29 @@ Instance_elx_conv_direct_lp_t::bind_execute_functions()
     }
   };
 
-/*  auto bind_conv_kernel = [&](int O, int T,
-      conv_kernel_binder::kconv<TarrayTypes> **func, int K) {
+  auto bind_conv_kernel = [&](int O, int T,
+      u8s8_conv_kernel_binder::kconv<TarrayTypes, OutputType> **func, int K) {
     switch (xopt_) {
-    case (0xa060):
-    case (0xb060):
-      if (this->input_fmt == nchw) {
-        BIND_CONV_KERNEL(1, GKF_ECD, K);
-      } else if (this->input_fmt == nhwc) {
-        if (this->ws == 1) {
-          BIND_CONV_KERNEL(1, GKF_FCF, K);
-        } else if (this->ws == 2) {
-          BIND_CONV_KERNEL(2, GKF_FCF, K);
-        } else {
-          el_error("Stride > 2 not yet bounded");
-        }
+    case (0xa160):
+    //case (0xb160):
+      if (this->ws == 1) {
+        BIND_CONV_KERNEL(1, GKF_DCD, K);
+      } else if (this->ws == 2) {
+        BIND_CONV_KERNEL(2, GKF_DCD, K);
       } else {
-        if (this->ws == 1) {
-          BIND_CONV_KERNEL(1, GKF_DCD, K);
-        } else if (this->ws == 2) {
-          BIND_CONV_KERNEL(2, GKF_DCD, K);
-        } else {
-          el_error("Stride > 2 not yet bounded");
-        }
+        el_error("Stride > 2 not yet bounded");
       }
       break;
     default:
       el_error("Unknown xopt");
       break;
     }
-  };*/
+  };
 
-  /*if (xopt_ == 0xa060 || xopt_ == 0xb060) {
+  if (xopt_ == 0xa160 /*|| xopt_ == 0xb160*/) {
     bind_conv_kernel(this->O, this->T, &ker_conv_, this->kw);
     bind_conv_kernel(this->O, this->Tr, &ker_conv_Tr_, this->kw);
-  } else */if (xopt_ == 0xd160) {
+  } else if (xopt_ == 0xd160) {
     iter_each (_wt, this->wt) {
       int Tz = _wt == this->wt - 1 ? this->Tr : this->T;
       for (int _kw = 0; _kw < this->kw; ++_kw) {
@@ -97,7 +85,7 @@ Instance_elx_conv_direct_lp_t::bind_execute_functions()
     break
 
   switch (xopt_) {
-    //EXECUTE_CASE(a160);
+    EXECUTE_CASE(a160);
     //EXECUTE_CASE(b160);
     EXECUTE_CASE(d160);
   default:

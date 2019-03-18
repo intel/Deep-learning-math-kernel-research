@@ -6,7 +6,7 @@
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
 #include "kernel/elk_u8s8_gemm_otj_binder.hxx"
-//#include "kernel/elk_conv_otj_binder.hxx"
+#include "kernel/elk_u8s8_conv_otj_binder.hxx"
 
 namespace euler {
 
@@ -34,20 +34,18 @@ Template_elx_conv_direct_lp_t class elx_conv_direct_lp_t : public elx_conv_t {
   virtual void execute(void *output, void *input, void *weights, void *bias);
 
   private:
-  /*void __execute_a060(OutputType *output, InputType *input,
+  void __execute_a160(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
-  void __execute_b060(OutputType *output, InputType *input,
-      WeightsType *weights, BiasType *bias);*/
   void __execute_d160(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
 
   void trans_weights_s8(TscaleType *weights_scale, TscaleType * weights_factor,
       int8_t *weights_s8, WeightsType *weights);
 
-  /*void conv_a060(OutputType *output, InputType *input, TweightsType *weights,
-      BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
-  void conv_b060(OutputType *output, InputType *input, TweightsType *weights,
-      BiasType *bias, int _ic4, int _ic3, int _oc4, int _ht, int _wt);*/
+  void conv_a160(OutputType *output, ToutputType *toutput, InputType *input,
+      int8_t *tweights, BiasType *bias, TscaleType *src_scale,
+      TscaleType *weights_scale, TscaleType *weights_factor,
+      int _ic4, int _oc4, int _ht, int _wt);
   void gemm_d160(OutputType *output, ToutputType *toutput, InputType *input,
       int8_t *tweights, BiasType *bias, TscaleType *src_scale,
       TscaleType *weights_scale, TscaleType *weights_factor,
@@ -60,8 +58,8 @@ Template_elx_conv_direct_lp_t class elx_conv_direct_lp_t : public elx_conv_t {
 
   // TODO: optimize it
   u8s8_gemm_kernel_binder::kgemm<TarrayTypes, float> *ker_gemm_[64][8];
-  //conv_kernel_binder::kconv<TarrayTypes> *ker_conv_;
-  //conv_kernel_binder::kconv<TarrayTypes> *ker_conv_Tr_;
+  u8s8_conv_kernel_binder::kconv<TarrayTypes, OutputType> *ker_conv_;
+  u8s8_conv_kernel_binder::kconv<TarrayTypes, OutputType> *ker_conv_Tr_;
 
   void (elx_conv_direct_lp_t::*execute_opt_)(
       OutputType *, InputType *, WeightsType *, BiasType *);

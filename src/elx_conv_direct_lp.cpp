@@ -37,7 +37,7 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
   }
 
   // t3, t2, (T, Tr)
-  if (xopt_ == 0xa160 || xopt_ == 0xb160 || xopt_ == 0xd160) {
+  if (xopt_ == 0xa160 || xopt_ == 0xd160 /*|| xopt_ == 0xb160*/) {
     this->t3 = this->n;
     this->ht = this->oh;
     this->wt = (this->ow + this->T - 1)/ this->T;
@@ -55,7 +55,7 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
       el_error("direct: format not supported");
     }
 
-    if (xopt_ == 0xa160 || xopt_ == 0xb160) {
+    if (xopt_ == 0xa160 /*|| xopt_ == 0xb160*/) {
       bool shape_ok = estl::any_of(this->kh, 3, 5, 7)
           && estl::any_of(this->kw, 3, 5, 7)
           && (this->ws == 1 || this->ws == 2)
@@ -95,6 +95,10 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
   attr_ = 0x0;
   is_first_run_ = true;
   inference_acc_ = this->prop_kind == forward_inference;
+  if (xopt_ == 0xa160) {
+    attr_ = this->with_bias ? set_attr(attr_, bias_idx) : attr_;
+    // attr_ = this->with_ip_sum ? set_attr(attr_, ip_sum_idx) : attr_;
+  }
 
   prepare_quant_calibration(dc);
   prepare_execute_opt();
@@ -134,8 +138,8 @@ int Instance_elx_conv_direct_lp_t::prepare_execute_opt()
   weights_factor_ = nullptr;
 
   switch (xopt_) {
-  /*case 0xb160:
-  case 0xa160:*/
+  /*case 0xb160:*/
+  case 0xa160:
   case 0xd160:
     toutput_size = this->n * this->OC * this->oh * this->ow * sizeof(ToutputType);
     tweights_s8_size = this->kh * this->kw * this->IC * this->OC * sizeof(int8_t);
@@ -299,6 +303,45 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
         *(__m<V> *)&md2(atweights_scale, _oc2, 0), mmscale);
     _mm<V>::store_ps(&md2(atweights_scale, _oc2, 0), t0);
   }, this->oc2);
+}
+
+Template_elx_conv_direct_lp_t
+void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
+    ToutputType *toutput, InputType *input_u8, int8_t *weights_s8,
+    BiasType *bias, TscaleType *src_scale, TscaleType *weights_scale,
+    TscaleType *weights_factor, int _ic4, int _oc4, int _ht, int _wt)
+{
+  MD2(InputType, ainput, input_u8, this->ic3, this->I2 * this->ih * this->iw * V);
+  MD3(int8_t, aweights, weights_s8, this->oc3, this->ic3, this->kh * this->kw *
+      this->O2 * this->I2 * this->V1 * V * this->Vx);
+  MD2(OutputType, aoutput, output, this->oc3, this->O2 * this->ht * this->ow * V);
+  MD2(ToutputType, atoutput, toutput, this->oc3, this->O2 * this->ht * this->ow * V);
+  MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
+  MD2(TscaleType, aweights_scale, weights_scale, this->oc3, this->O2 * V);
+  MD2(TscaleType, aweights_factor, weights_factor, this->oc3, this->O2  * V);
+  MD2(TscaleType, asrc_scale, src_scale, 2, T);
+
+  auto ker_conv = _wt == this->wt - 1 ? ker_conv_Tr_ : ker_conv_;
+
+  int khs = estl::max(0, this->tp - this->hs * _ht);
+  int khe = estl::min(this->kh, this->ih + this->tp - this->hs * _ht);
+  int kws = _wt == 0 ? this->lp : 0;
+  int kwe = _wt == this->wt - 1 ? this->kw - this->lp : this->kw;
+
+  iter_each(_oc3, this->oc3) {
+  iter_each(_ic3, this->ic3) {
+    int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
+
+    if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+      attr = set_attr(attr, c_output_idx);
+      if (this->with_relu) attr = set_attr(attr, relu_idx);
+    }
+    ker_conv(*this, &md2(atoutput, _oc3, 0), &md2(aoutput, _oc3, 0),
+        &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
+        &md2(abias, _oc3, 0), &md2(asrc_scale, 0, 0), &md2(asrc_scale, 1, 0),
+        &md2(aweights_scale, _oc3, 0), &md2(aweights_factor, _oc3, 0),
+        _wt, khs, khe, kws, kwe, attr);
+  }}
 }
 
 // slow path
