@@ -546,8 +546,8 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     MD3(BiasType, abias, bias, xc.O1, O, V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
-      op_conv<JO0, JP0, false>(xc, &md2(aoutput_blocked, _O1, 0),
-          &md2(aroutput_blocked, _O1, 0), input, &md5(aweights, 0, _O1, 0, 0, 0),
+      op_conv<JO0, JP0, false>(xc, &md3(aoutput_blocked, _O1, 0, 0),
+          &md3(aroutput_blocked, _O1, 0, 0), input, &md5(aweights, 0, _O1, 0, 0, 0),
           &md3(abias, _O1, 0, 0), src_scale, src_factor, weights_scale,
           weights_factor, _wt, khs, khe, kws, kwe, attr, _O1, 0);
       op_conv<JO1, JP1, false>(xc, &md3(aoutput_blocked, _O1, JO0, 0),
