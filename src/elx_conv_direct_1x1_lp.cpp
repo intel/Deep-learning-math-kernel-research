@@ -404,6 +404,22 @@ void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked_oc(
         aweights_scale, _oc4, _oc3, 0, _O2, 0);
     mmqs = mmqs / mmscale;
   }, this->oc4, this->oc3, this->O2);
+
+  // combine
+  __m<V> mmorepS = _mm<V>::set1_ps(this->output_quant_repS);
+  __m<V> mmoz = _mm<V>::set1_ps(this->output_quant_z);
+  __m<V> mmiS = _mm<V>::set1_ps(this->input_quant_S);
+  __m<V> mmiz = _mm<V>::set1_ps(this->input_quant_z);
+  parallel_for<3>(mthr_, [&](int _oc4, int _oc3, int _O2) {
+    MD5(TscaleType, aweights_scale, weights_scale,
+        this->oc4, this->oc3, 2, this->O2, V);
+    __m<V> &mmqs = *(__m<V> *)&md5(
+        aweights_scale, _oc4, _oc3, 0, _O2, 0);
+    __m<V> &mmqf = *(__m<V> *)&md5(
+        aweights_scale, _oc4, _oc3, 1, _O2, 0);
+    mmqs = mmiS * mmqs * mmorepS;
+    mmqf = mmoz - mmiz * mmqf * mmqs;
+  }, this->oc4, this->oc3, this->O2);
 }
 
 Template_elx_conv_direct_1x1_lp_t
