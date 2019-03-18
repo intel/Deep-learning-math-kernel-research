@@ -766,6 +766,81 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     }
   }
 
+  template <int O = O, int T = T> static inline
+      typename std::enable_if<(J_traits<O, T, WeightsType>::J == 2) &&
+      (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
+      conv(elx_conv_params_t &xc, OutputType *output, InputType *input,
+          WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
+          int kws, int kwe, int attr)
+  {
+    int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V;
+    MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
+        xc.I2 * Vr, O, V); // compact
+    MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
+    MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O, V);
+    MD3(BiasType, abias, bias, xc.O1, O, V);
+
+    for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
+      auto aout = F_traits<F>::is_nhwc_output
+          ? &md5(aoutput_nhwc, 0, 0, _O1, 0, 0)
+          : &md3(aoutput_blocked, _O1, 0, 0);
+      op_conv<JO0, JP0, false>(xc, aout, input, &md5(aweights, 0, _O1, 0, 0, 0),
+          &md3(abias, _O1, 0, 0), _wt, khs, khe, kws, kwe, attr);
+      aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, JO0, 0)
+                                         : &md3(aoutput_blocked, _O1, JO0, 0);
+      if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
+          && _O1 == xc.O1 - 1) {
+        op_conv<JO1, JP1, true>(xc, aout, input,
+            &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0), _wt,
+            khs, khe, kws, kwe, attr);
+      } else {
+        op_conv<JO1, JP1, false>(xc, aout, input,
+            &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0), _wt,
+            khs, khe, kws, kwe, attr);
+      }
+    }
+  }
+
+  template <int O = O, int T = T> static inline
+      typename std::enable_if<(J_traits<O, T, WeightsType>::J == 3) &&
+      (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
+      conv(elx_conv_params_t &xc, OutputType *output, InputType *input,
+          WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
+          int kws, int kwe, int attr)
+  {
+    int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V;
+    MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
+        xc.I2 * Vr, O, V); // compact
+    MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
+    MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O, V);
+    MD3(BiasType, abias, bias, xc.O1, O, V);
+
+    for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
+      auto aout = F_traits<F>::is_nhwc_output
+          ? &md5(aoutput_nhwc, 0, 0, _O1, 0, 0)
+          : &md3(aoutput_blocked, _O1, 0, 0);
+      op_conv<JO0, JP0, false>(xc, aout, input, &md5(aweights, 0, _O1, 0, 0, 0),
+          &md3(abias, _O1, 0, 0), _wt, khs, khe, kws, kwe, attr);
+      aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, JO0, 0)
+                                         : &md3(aoutput_blocked, _O1, JO0, 0);
+      op_conv<JO1, JP1, false>(xc, aout, input, &md5(aweights, 0, _O1, 0, JO0, 0),
+          &md3(abias, _O1, JO0, 0), _wt, khs, khe, kws, kwe, attr);
+      aout = F_traits<F>::is_nhwc_output
+          ? &md5(aoutput_nhwc, 0, 0, _O1, JO0 + JO1, 0)
+          : &md3(aoutput_blocked, _O1, JO0 + JO1, 0);
+      if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
+          && _O1 == xc.O1 - 1) {
+        op_conv<JO2, JP2, true>(xc, aout, input,
+            &md5(aweights, 0, _O1, 0, JO0 + JO1, 0),
+            &md3(abias, _O1, JO0 + JO1, 0), _wt, khs, khe, kws, kwe, attr);
+      } else {
+        op_conv<JO2, JP2, false>(xc, aout, input,
+            &md5(aweights, 0, _O1, 0, JO0 + JO1, 0),
+            &md3(abias, _O1, JO0 + JO1, 0), _wt, khs, khe, kws, kwe, attr);
+      }
+    }
+  }
+
 };
 
 } // namespace euler
