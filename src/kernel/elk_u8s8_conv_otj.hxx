@@ -100,9 +100,15 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
   {
     MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
+    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
+    MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0),
+        xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+
+    auto aout = F_traits<F>::is_blocked_output ? &md2(aoutput_blocked1, _T, 0)
+                                               : &md3(aoutput_nhwc1, 0, _O, 0);
     __i<V> res;
     if (std::is_same<OutputType, float>::value) {
-      res = _mm<V>::load_epi32((__i<V> *)&md2(aoutput_blocked1, _T, 0));
+      res = _mm<V>::load_epi32((__i<V> *)aout);
     } else {
       el_error("load output in conv kernel: not supported output type");
     }
@@ -114,9 +120,17 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       const int _ih, const int _iw, const int _I2, const int _V1,
       const int _P, const int _T)
   {
-    MD4(InputType, ainput0, input, xc.I2, xc.ih, xc.iw, V);
-    MD5(InputType, ainput1, &md4(ainput0, _I2, _ih, _iw, 0), T, S, V1 / P, P, Vx);
-    return _mm<V>::set1_epi32(*(int32_t*)&md5(ainput1, _T, 0, _V1, _P, 0));
+    if (F_traits<F>::is_nhwc_input) {
+      MD3(InputType, ainput0, input, xc.ih, xc.iw, xc.ic);
+      MD4(InputType, ainput1, &md3(ainput0, _ih, _iw, 0), xc.wt, T, S, xc.ic);
+      MD6(InputType, ainput2, &md4(ainput1, 0, _T, 0, 0), xc.ic4, xc.ic3,
+          xc.I2, V1 / P, P, Vx);
+      return _mm<V>::set1_epi32(*(int32_t*)&md6(ainput2, 0, 0, _I2, _V1, _P, 0));
+    } else { // blocked
+      MD4(InputType, ainput0, input, xc.I2, xc.ih, xc.iw, V);
+      MD5(InputType, ainput1, &md4(ainput0, _I2, _ih, _iw, 0), T, S, V1 / P, P, Vx);
+      return _mm<V>::set1_epi32(*(int32_t*)&md5(ainput1, _T, 0, _V1, _P, 0));
+    }
   }
 
   template <int JO, int P>
@@ -139,9 +153,15 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
   {
     MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
+    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
+    MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0),
+        xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+
+    auto aout = F_traits<F>::is_blocked_output ? &md2(aoutput_blocked1, _T, 0)
+                                               : &md3(aoutput_nhwc1, 0, _O, 0);
+
     if (std::is_same<OutputType, float>::value) {
-      MD2(int, aoutput2, output, T, V);
-      _mm<V>::store_epi32(&md2(aoutput_blocked1, _T, 0), res);
+      _mm<V>::store_epi32(aout, res);
     } else {
       el_error("store output in conv kernel: not supported output type");
     }
@@ -158,10 +178,22 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     MD2(RoutputType, aroutput_blocked0, routput, JO, xc.oh * xc.ow * V);
     MD2(RoutputType, aroutput_blocked1, &md2(aroutput_blocked0, _O, 0), T, V);
 
+    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
+    MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0),
+        xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD2(RoutputType, aroutput_nhwc0, routput, T, xc.oc);
+    MD3(RoutputType, aroutput_nhwc1, &md2(aroutput_nhwc0, _T, 0),
+        xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+
     MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
     MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
     MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
     MD2(float, aweights_factor, &md3(aweights_factor3, _O1, _O0, 0), JO, V);
+
+    auto aout = F_traits<F>::is_blocked_output ? &md2(aoutput_blocked1, _T, 0)
+                                               : &md3(aoutput_nhwc1, 0, _O, 0);
+    auto rout = F_traits<F>::is_blocked_output ? &md2(aroutput_blocked1, _T, 0)
+                                               : &md3(aroutput_nhwc1, 0, _O, 0);
 
     // restore
     __m<V> fout = _mm<V>::cvtepi32_ps(res);
@@ -202,14 +234,14 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
         x8 = _mm<V>::cvtsepi32_epi8(s32);
       else
         x8 = _mm<V>::cvtusepi32_epi8(s32);
-      _mm_store_si128((__m128i *)&md2(aroutput_blocked1, _T, 0), x8);
+      _mm_store_si128((__m128i *)rout, x8);
     } else {
       if (std::is_same<OutputType, float>::value)
-        _mm<V>::store_ps(&md2(aoutput_blocked1, _T, 0), fout);
+        _mm<V>::store_ps(aout, fout);
       else {
         auto fp16v = _mm<V>::cvtps_ph(
             fout, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-        _mm<V / 2>::store_si256((__m256i *)&md2(aoutput_blocked1, _T, 0), fp16v);
+        _mm<V / 2>::store_si256((__m256i *)aout, fp16v);
       }
     }
   }
@@ -377,10 +409,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
             _O1, _O0, _O, _T, attr);
       }}
     } else {
-      unroll_for (_O, JO) {
-      unroll_for (_T, T) {
-        op_store_output<JO>(xc, output, mmout[_O][_T], _O, _T);
-      }}
     }
   }
 
@@ -504,10 +532,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
             _O1, _O0, _O, _T, attr);
       }}
     } else {
-      unroll_for (_O, JO) {
-      unroll_for (_T, T) {
-        op_store_output<JO>(xc, output, mmout[_O][_T], _O, _T);
-      }}
     }
   }
 
@@ -521,14 +545,20 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
   {
     MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1, xc.I2 * V1, O, V * Vx); // compact
     MD2(OutputType, aoutput_blocked, output, xc.O1, O * xc.oh * xc.ow * V);
+    MD4(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O *V);
     MD2(RoutputType, aroutput_blocked, routput, xc.O1, O * xc.oh * xc.ow * V);
+    MD4(RoutputType, aroutput_nhwc, routput, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O *V);
     MD2(BiasType, abias, bias, xc.O1, O * V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
-      op_conv<JO0, JP0, true>(xc, &md2(aoutput_blocked, _O1, 0),
-          &md2(aroutput_blocked, _O1, 0), input, &md5(aweights, 0, _O1, 0, 0, 0),
-          &md2(abias, _O1, 0), src_scale, src_factor, weights_scale,
-          weights_factor, _wt, khs, khe, kws, kwe, attr, _O1, 0);
+      auto aout = F_traits<F>::is_nhwc_output ? &md4(aoutput_nhwc, 0, 0, _O1, 0)
+                                              : &md2(aoutput_blocked, _O1, 0);
+      auto rout = F_traits<F>::is_nhwc_output ? &md4(aroutput_nhwc, 0, 0, _O1, 0)
+                                              : &md2(aroutput_blocked, _O1, 0);
+      op_conv<JO0, JP0, true>(xc, aout, rout, input,
+          &md5(aweights, 0, _O1, 0, 0, 0), &md2(abias, _O1, 0),
+          src_scale, src_factor, weights_scale, weights_factor,
+          _wt, khs, khe, kws, kwe, attr, _O1, 0);
     }
   }
 
@@ -542,16 +572,26 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
   {
     MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1, xc.I2 * V1, O, V * Vx); // compact
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
+    MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O, V);
     MD3(RoutputType, aroutput_blocked, routput, xc.O1, O, xc.oh * xc.ow * V);
+    MD5(RoutputType, aroutput_nhwc, routput, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O, V);
     MD3(BiasType, abias, bias, xc.O1, O, V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
-      op_conv<JO0, JP0, false>(xc, &md3(aoutput_blocked, _O1, 0, 0),
-          &md3(aroutput_blocked, _O1, 0, 0), input, &md5(aweights, 0, _O1, 0, 0, 0),
-          &md3(abias, _O1, 0, 0), src_scale, src_factor, weights_scale,
-          weights_factor, _wt, khs, khe, kws, kwe, attr, _O1, 0);
-      op_conv<JO1, JP1, false>(xc, &md3(aoutput_blocked, _O1, JO0, 0),
-          &md3(aroutput_blocked, _O1, JO0, 0), input,
+      auto aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, 0, 0)
+                                              : &md3(aoutput_blocked, _O1, 0, 0);
+      auto rout = F_traits<F>::is_nhwc_output ? &md5(aroutput_nhwc, 0, 0, _O1, 0, 0)
+                                              : &md3(aroutput_blocked, _O1, 0, 0);
+      op_conv<JO0, JP0, false>(xc, aout, rout, input,
+          &md5(aweights, 0, _O1, 0, 0, 0), &md3(abias, _O1, 0, 0),
+          src_scale, src_factor, weights_scale, weights_factor,
+          _wt, khs, khe, kws, kwe, attr, _O1, 0);
+
+      aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, JO0, 0)
+                                         : &md3(aoutput_blocked, _O1, JO0, 0);
+      rout = F_traits<F>::is_nhwc_output ? &md5(aroutput_nhwc, 0, 0, _O1, JO0, 0)
+                                         : &md3(aroutput_blocked, _O1, JO0, 0);
+      op_conv<JO1, JP1, false>(xc, aout, rout, input,
           &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
           src_scale, src_factor, weights_scale, weights_factor,
           _wt, khs, khe, kws, kwe, attr, _O1, JO0);
@@ -568,22 +608,35 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
   {
     MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1, xc.I2 * V1, O, V * Vx); // compact
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
+    MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O, V);
     MD3(RoutputType, aroutput_blocked, routput, xc.O1, O, xc.oh * xc.ow * V);
+    MD5(RoutputType, aroutput_nhwc, routput, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O, V);
     MD3(BiasType, abias, bias, xc.O1, O, V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
-      op_conv<JO0, JP0, false>(xc, &md3(aoutput_blocked, _O1, 0, 0),
-          &md3(aroutput_blocked, _O1, 0, 0), input,
+      auto aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, 0, 0)
+                                              : &md3(aoutput_blocked, _O1, 0, 0);
+      auto rout = F_traits<F>::is_nhwc_output ? &md5(aroutput_nhwc, 0, 0, _O1, 0, 0)
+                                              : &md3(aroutput_blocked, _O1, 0, 0);
+      op_conv<JO0, JP0, false>(xc, aout, rout, input,
           &md5(aweights, 0, _O1, 0, 0, 0), &md3(abias, _O1, 0, 0),
           src_scale, src_factor, weights_scale, weights_factor,
           _wt, khs, khe, kws, kwe, attr, _O1, 0);
-      op_conv<JO1, JP1, false>(xc, &md3(aoutput_blocked, _O1, JO0, 0),
-          &md3(aroutput_blocked, _O1, JO0, 0), input,
+
+      aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, JO0, 0)
+                                         : &md3(aoutput_blocked, _O1, JO0, 0);
+      rout = F_traits<F>::is_nhwc_output ? &md5(aroutput_nhwc, 0, 0, _O1, JO0, 0)
+                                         : &md3(aroutput_blocked, _O1, JO0, 0);
+      op_conv<JO1, JP1, false>(xc, aout, rout, input,
           &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
           src_scale, src_factor, weights_scale, weights_factor,
           _wt, khs, khe, kws, kwe, attr, _O1, JO0);
-      op_conv<JO2, JP2, false>(xc, &md3(aoutput_blocked, _O1, JO0 + JO1, 0),
-          &md3(aroutput_blocked, _O1, JO0 + JO1, 0), input,
+
+      aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, JO0 + JO1, 0)
+                                         : &md3(aoutput_blocked, _O1, JO0 + JO1, 0);
+      rout = F_traits<F>::is_nhwc_output ? &md5(aroutput_nhwc, 0, 0, _O1, JO0 + JO1, 0)
+                                         : &md3(aroutput_blocked, _O1, JO0 + JO1, 0);
+      op_conv<JO2, JP2, false>(xc, aout, rout, input,
           &md5(aweights, 0, _O1, 0, JO0 + JO1, 0), &md3(abias, _O1, JO0 + JO1, 0),
           src_scale, src_factor, weights_scale, weights_factor,
           _wt, khs, khe, kws, kwe, attr, _O1, JO0 + JO1);

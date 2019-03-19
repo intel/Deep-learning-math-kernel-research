@@ -49,8 +49,9 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
     if (this->T <= this->lp || this->Tr <= this->rp) {
       el_error("Unimplemented T: (T,Tr) must greater than (lp,rp)");
     }
-    bool format_ok = (this->weights_fmt == OIhw16i16o)
-        && (this->input_fmt == nChw16c) && (this->output_fmt == nChw16c);
+    bool format_ok = (this->weights_fmt == OIhw16i16o) &&
+        ((this->input_fmt == nChw16c && this->output_fmt == nChw16c) ||
+         (xopt_ == 0xa160 && this->input_fmt == nhwc && this->output_fmt == nhwc));
     if (!format_ok) {
       el_error("direct: format not supported");
     }
@@ -311,11 +312,8 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
     BiasType *bias, TscaleType *src_scale, TscaleType *weights_scale,
     TscaleType *weights_factor, int _ic4, int _oc4, int _ht, int _wt)
 {
-  MD2(InputType, ainput, input_u8, this->ic3, this->I2 * this->ih * this->iw * V);
   MD3(int8_t, aweights, weights_s8, this->oc3, this->ic3, this->kh * this->kw *
       this->O2 * this->I2 * this->V1 * V * this->Vx);
-  MD2(OutputType, aoutput, output, this->oc3, this->O2 * this->ht * this->ow * V);
-  MD2(ToutputType, atoutput, toutput, this->oc3, this->O2 * this->ht * this->ow * V);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
   MD2(TscaleType, aweights_scale, weights_scale, this->oc3, this->O2 * V);
   MD2(TscaleType, aweights_factor, weights_factor, this->oc3, this->O2  * V);
@@ -328,20 +326,45 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
   int kws = _wt == 0 ? this->lp : 0;
   int kwe = _wt == this->wt - 1 ? this->kw - this->lp : this->kw;
 
-  iter_each(_oc3, this->oc3) {
-  iter_each(_ic3, this->ic3) {
-    int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
+  if (this->input_fmt == nhwc) {
+    MD2(InputType, ainput, input_u8, this->ic3, this->I2 * V);
+    MD2(OutputType, aoutput, output, this->oc3, this->O2 * V);
+    MD2(ToutputType, atoutput, toutput, this->oc3, this->O2 * V);
 
-    if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
-      attr = set_attr(attr, c_output_idx);
-      if (this->with_relu) attr = set_attr(attr, relu_idx);
-    }
-    ker_conv(*this, &md2(atoutput, _oc3, 0), &md2(aoutput, _oc3, 0),
-        &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-        &md2(abias, _oc3, 0), &md2(asrc_scale, 0, 0), &md2(asrc_scale, 1, 0),
-        &md2(aweights_scale, _oc3, 0), &md2(aweights_factor, _oc3, 0),
-        _wt, khs, khe, kws, kwe, attr);
-  }}
+    iter_each(_oc3, this->oc3) {
+    iter_each(_ic3, this->ic3) {
+      int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
+
+      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+        attr = set_attr(attr, c_output_idx);
+        if (this->with_relu) attr = set_attr(attr, relu_idx);
+      }
+      ker_conv(*this, &md2(atoutput, _oc3, 0), &md2(aoutput, _oc3, 0),
+          &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
+          &md2(abias, _oc3, 0), &md2(asrc_scale, 0, 0), &md2(asrc_scale, 1, 0),
+          &md2(aweights_scale, _oc3, 0), &md2(aweights_factor, _oc3, 0),
+          _wt, khs, khe, kws, kwe, attr);
+    }}
+  } else { // blocked
+    MD2(InputType, ainput, input_u8, this->ic3, this->I2 * this->ih * this->iw * V);
+    MD2(OutputType, aoutput, output, this->oc3, this->O2 * this->ht * this->ow * V);
+    MD2(ToutputType, atoutput, toutput, this->oc3, this->O2 * this->ht * this->ow * V);
+
+    iter_each(_oc3, this->oc3) {
+    iter_each(_ic3, this->ic3) {
+      int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
+
+      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+        attr = set_attr(attr, c_output_idx);
+        if (this->with_relu) attr = set_attr(attr, relu_idx);
+      }
+      ker_conv(*this, &md2(atoutput, _oc3, 0), &md2(aoutput, _oc3, 0),
+          &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
+          &md2(abias, _oc3, 0), &md2(asrc_scale, 0, 0), &md2(asrc_scale, 1, 0),
+          &md2(aweights_scale, _oc3, 0), &md2(aweights_factor, _oc3, 0),
+          _wt, khs, khe, kws, kwe, attr);
+    }}
+  }
 }
 
 // slow path

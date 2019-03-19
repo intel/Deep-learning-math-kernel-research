@@ -40,12 +40,22 @@ Instance_elx_conv_direct_lp_t::bind_execute_functions()
     switch (xopt_) {
     case (0xa160):
     //case (0xb160):
-      if (this->ws == 1) {
-        BIND_CONV_KERNEL(1, GKF_DCD, K);
-      } else if (this->ws == 2) {
-        BIND_CONV_KERNEL(2, GKF_DCD, K);
-      } else {
-        el_error("Stride > 2 not yet bounded");
+      if (this->input_fmt == nhwc) {
+        if (this->ws == 1) {
+          BIND_CONV_KERNEL(1, GKF_FCF, K);
+        } else if (this->ws == 2) {
+          BIND_CONV_KERNEL(2, GKF_FCF, K);
+        } else {
+          el_error("Stride > 2 not yet bounded");
+        }
+      } else { // blocked
+        if (this->ws == 1) {
+          BIND_CONV_KERNEL(1, GKF_DCD, K);
+        } else if (this->ws == 2) {
+          BIND_CONV_KERNEL(2, GKF_DCD, K);
+        } else {
+          el_error("Stride > 2 not yet bounded");
+        }
       }
       break;
     default:
