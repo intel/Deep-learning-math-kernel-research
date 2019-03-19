@@ -282,11 +282,13 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
       exit(1);
     }
 
-    float abs_max = _output_ref[0] > 0 ? _output_ref[0] : -_output_ref[0];
+    float min = _output_ref[0], max = _output_ref[0];
     for (size_t i = 1; i < desc_ref.sizes.output; i++) {
-      auto abs_cur = _output_ref[i] > 0 ? _output_ref[i] : -_output_ref[i];
-      abs_max = abs_cur > abs_max ? abs_cur : abs_max;
+      min = _output_ref[i] < min ? _output_ref[i] : min;
+      max = _output_ref[i] > max ? _output_ref[i] : max;
     }
+    float abs_cur = min > 0 ? min : -min;
+    float abs_max = max > abs_cur ? max : abs_cur;
 
     if (desc_ref.with_relu) {
       oscale = abs_max / PRECISION_REPRESENTATION_8B;
@@ -299,7 +301,9 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
       desc.output_quant.scale = oscale;
       desc.output_quant.z = oz;
     } else {
-      ; // TODO: without relu && U8
+      auto diff = max - min + 0.000001;
+      desc.output_quant.scale = diff / PRECISION_REPRESENTATION_8B;
+      desc.output_quant.z = -min * PRECISION_REPRESENTATION_8B / diff;
     }
 
     printf("output abs_max %f scale %f\n", abs_max, desc.output_quant.scale);
