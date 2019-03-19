@@ -28,7 +28,7 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
   // output:  t3*, oc4*, oc3, O2, t2*, T(Tr), V
 
   if (is_first_run_) {
-    trans_weights_s8_oc(weights_scale_, tweights_s8_, weights);
+    trans_weights_s8_oc(weights_scale_, tweights_s8_, weights, bias);
     MD2(TscaleType, ainput_scale, input_scale_, 2, this->T);
     iter_each (_T, this->T) {
       md2(ainput_scale, 0, _T) = this->input_quant_S;

@@ -240,7 +240,8 @@ Instance_elx_conv_direct_1x1_lp_t::~elx_conv_direct_1x1_lp_t()
 
 Template_elx_conv_direct_1x1_lp_t
 void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked_ocic4(
-    TscaleType *weights_scale, int8_t *tweights_s8, WeightsType *weights)
+    TscaleType *weights_scale, int8_t *tweights_s8, WeightsType *weights,
+    BiasType *bias)
 {
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
 
@@ -318,17 +319,19 @@ void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked_ocic4(
 
 Template_elx_conv_direct_1x1_lp_t
 void Instance_elx_conv_direct_1x1_lp_t::trans_weights_s8_ocic4(
-    TscaleType *weights_scale, int8_t *tweights, WeightsType *weights)
+    TscaleType *weights_scale, int8_t *tweights, WeightsType *weights,
+    BiasType *bias)
 {
   if (weights_is_bfmt_ || weights_as_bfmt_)
-    __trans_weights_s8_blocked_ocic4(weights_scale, tweights, weights);
+    __trans_weights_s8_blocked_ocic4(weights_scale, tweights, weights, bias);
   else
     ; // implemented
 }
 
 Template_elx_conv_direct_1x1_lp_t
 void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked_oc(
-    TscaleType *weights_scale, int8_t *tweights_s8, WeightsType *weights)
+    TscaleType *weights_scale, int8_t *tweights_s8, WeightsType *weights,
+    BiasType *bias)
 {
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
 
@@ -413,21 +416,24 @@ void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked_oc(
   parallel_for<3>(mthr_, [&](int _oc4, int _oc3, int _O2) {
     MD5(TscaleType, aweights_scale, weights_scale,
         this->oc4, this->oc3, 2, this->O2, V);
+    MD4(BiasType, abias, bias, this->oc4, this->oc3, this->O2, V);
     __m<V> &mmqs = *(__m<V> *)&md5(
         aweights_scale, _oc4, _oc3, 0, _O2, 0);
     __m<V> &mmqf = *(__m<V> *)&md5(
         aweights_scale, _oc4, _oc3, 1, _O2, 0);
+    __m<V> &mmbias = *(__m<V> *)&md4(abias, _oc4, _oc3, _O2, 0);
     mmqs = mmiS * mmqs * mmorepS;
-    mmqf = mmoz - mmiz * mmqf * mmqs;
+    mmqf = mmoz - mmiz * mmqf * mmqs + mmbias * mmorepS;
   }, this->oc4, this->oc3, this->O2);
 }
 
 Template_elx_conv_direct_1x1_lp_t
 void Instance_elx_conv_direct_1x1_lp_t::trans_weights_s8_oc(
-    TscaleType *weights_scale, int8_t *tweights, WeightsType *weights)
+    TscaleType *weights_scale, int8_t *tweights, WeightsType *weights,
+    BiasType *bias)
 {
   if (weights_is_bfmt_ || weights_as_bfmt_)
-    __trans_weights_s8_blocked_oc(weights_scale, tweights, weights);
+    __trans_weights_s8_blocked_oc(weights_scale, tweights, weights, bias);
   else
     el_error("Unimplement format");
 }

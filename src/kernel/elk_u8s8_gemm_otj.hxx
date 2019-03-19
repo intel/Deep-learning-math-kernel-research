@@ -157,10 +157,9 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     if (std::is_same<OoutputType, uint8_t>::value
         || std::is_same<OoutputType, int8_t>::value) {
       // global sampling for input/output (direct conv 1x1)
-      __m<V> orepS = _mm<V>::set1_ps(xc.output_quant_repS);
-      __m<V> iS_x_wS_x_orepS = *(__m<V> *)&md2(aweights_scale, _O, 0);
-      __m<V> oz_iz_x_wacc_x_S = *(__m<V> *)&md2(aweights_factor, _O, 0);
-      fout = fout * iS_x_wS_x_orepS + fbias * orepS + oz_iz_x_wacc_x_S;
+      __m<V> S = *(__m<V> *)&md2(aweights_scale, _O, 0);
+      __m<V> z = *(__m<V> *)&md2(aweights_factor, _O, 0);
+      fout = fout * S + z;
     } else {
       auto z = _mm<V>::set1_ps(src_factor[_T]);
       auto acc = *(__m<V> *)&md2(aweights_factor, _O, 0);
