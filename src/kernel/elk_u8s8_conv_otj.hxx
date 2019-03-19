@@ -409,6 +409,10 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
             _O1, _O0, _O, _T, attr);
       }}
     } else {
+      unroll_for (_O, JO) {
+      unroll_for (_T, T) {
+        op_store_output<JO>(xc, output, mmout[_O][_T], _O, _T);
+      }}
     }
   }
 
@@ -532,6 +536,10 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
             _O1, _O0, _O, _T, attr);
       }}
     } else {
+      unroll_for (_O, JO) {
+      unroll_for (_T, T) {
+        op_store_output<JO>(xc, output, mmout[_O][_T], _O, _T);
+      }}
     }
   }
 
