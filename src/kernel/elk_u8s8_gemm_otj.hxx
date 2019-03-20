@@ -53,10 +53,16 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
   constexpr static int J = J_traits<O, T, WeightsType>::J;
   constexpr static int JO0 = J_traits<O, T, WeightsType>::O0;
   constexpr static int JP0 = J_traits<O, T, WeightsType>::P0;
+  constexpr static int MP0 = J_traits<O, T, WeightsType>::P0 == 1
+      ? 2 : J_traits<O, T, WeightsType>::P0;
   constexpr static int JO1 = J_traits<O, T, WeightsType>::O1;
   constexpr static int JP1 = J_traits<O, T, WeightsType>::P1;
+  constexpr static int MP1 = J_traits<O, T, WeightsType>::P1 == 1
+      ? 2 : J_traits<O, T, WeightsType>::P1;
   constexpr static int JO2 = J_traits<O, T, WeightsType>::O2;
   constexpr static int JP2 = J_traits<O, T, WeightsType>::P2;
+  constexpr static int MP2 = J_traits<O, T, WeightsType>::P2 == 1
+      ? 2 : J_traits<O, T, WeightsType>::P2;
 
   constexpr static int V1 = V / Vx;
   // INT8 gemm kernel
@@ -71,6 +77,16 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     t0 = _mm<V>::madd_epi16(t0, one);
     out = _mm<V>::add_epi32(t0, out);
 #endif
+  }
+
+  static inline void op_int8_fma_opt(
+      __i<V>& out, __i<V>& a1, __i<V>& a2, __i<V>& b1, __i<V>& b2) {
+    __i<V> one = _mm<V>::set1_epi16(1);
+    __i<V> t1 = _mm<V>::maddubs_epi16(a1, b1);
+    __i<V> t2 = _mm<V>::maddubs_epi16(a2, b2);
+    t1 = _mm512_adds_epi16(t1, t2);
+    t1 = _mm<V>::madd_epi16(t1, one);
+    out = _mm<V>::add_epi32(t1, out);
   }
 
   template <const int P>
@@ -196,7 +212,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
   }
 
   // u8s8f32 fma
-  template <int JO, int P, bool has_Or>
+  template <int JO, int P, int MP, bool has_Or>
   static inline typename std::enable_if<(P == 1 || P == 2 || P == 4), void>::type
   op_gemm(elx_conv_params_t &xc,
       OutputType *output, OoutputType *ooutput,
@@ -204,7 +220,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
   {
-    __i<V> mmout[JO][T], mmwei[JO][P];
+    __i<V> mmout[JO][T], mmwei[JO][MP];
     const int I2_stride
         = F_traits<F>::is_compact_input ? T * V1 * Vx: xc.ih * xc.iw * V1 * Vx;
     const int O_stride
@@ -219,9 +235,16 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     }
 
     // preload weights
-    unroll_for(_P, P) {
+    if (P == 1) {
       unroll_for(_O, JO) {
-        mmwei[_O][_P] = op_int8_load_weights<JO, P>(xc, weights, 0, 0, _P, _O);
+        mmwei[_O][0] = op_int8_load_weights<JO, P>(xc, weights, 0, 0, 0, _O);
+        mmwei[_O][1] = op_int8_load_weights<JO, P>(xc, weights, 0, 1, 0, _O);
+      }
+    } else {
+      unroll_for(_O, JO) {
+        unroll_for(_P, P) {
+          mmwei[_O][_P] = op_int8_load_weights<JO, P>(xc, weights, 0, 0, _P, _O);
+        }
       }
     }
 
@@ -240,16 +263,43 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     }
 
     for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+      if (P == 1) {
 #pragma nounroll
-      for (int _V1 = 0; _V1 < V1 / P; ++_V1) {
-        unroll_for(_P, P) {
+        for (int _V1 = 0; _V1 < V1; _V1 += 2) {
           unroll_for(_T, T) {
-            __i<V> bcast =
-                op_int8_load_input<P>(&md2(ainput, _I2, 0), _V1, _P, _T);
-            unroll_for(_O, JO) op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][_P]);
+            __i<V> bcast1 =
+                op_int8_load_input<P>(&md2(ainput, _I2, 0), _V1, 0, _T);
+            __i<V> bcast2 =
+                op_int8_load_input<P>(&md2(ainput, _I2, 0), _V1 + 1, 0, _T);
+            unroll_for(_O, JO) op_int8_fma_opt(
+                mmout[_O][_T], bcast1, bcast2, mmwei[_O][0], mmwei[_O][1]);
           }
-          unroll_for(_O, JO) mmwei[_O][_P] =
-              op_int8_load_weights<JO, P>(xc, weights, _I2, _V1 + 1, _P, _O);
+          unroll_for(_O, JO) {
+            mmwei[_O][0] =
+                op_int8_load_weights<JO, P>(xc, weights, _I2, _V1 + 2, 0, _O);
+            mmwei[_O][1] =
+                op_int8_load_weights<JO, P>(xc, weights, _I2, _V1 + 3, 0, _O);
+          }
+        }
+      } else {
+#pragma nounroll
+        for (int _V1 = 0; _V1 < V1 / P; ++_V1) {
+          unroll_for(_P, P / 2) {
+            unroll_for(_T, T) {
+              __i<V> bcast1 =
+                  op_int8_load_input<P>(&md2(ainput, _I2, 0), _V1, _P * 2, _T);
+              __i<V> bcast2 =
+                  op_int8_load_input<P>(&md2(ainput, _I2, 0), _V1, _P * 2 + 1, _T);
+              unroll_for(_O, JO) op_int8_fma_opt(
+                  mmout[_O][_T], bcast1, bcast2, mmwei[_O][_P * 2], mmwei[_O][_P * 2 + 1]);
+            }
+            unroll_for(_O, JO) {
+              mmwei[_O][_P * 2] =
+                  op_int8_load_weights<JO, P>(xc, weights, _I2, _V1 + 1, _P * 2, _O);
+              mmwei[_O][_P * 2 + 1] =
+                  op_int8_load_weights<JO, P>(xc, weights, _I2, _V1 + 1, _P * 2 + 1, _O);
+            }
+          }
         }
       }
     }
@@ -303,11 +353,11 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
                                            : &md2(aooutput_blocked, _O1, 0);
       if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
           && _O1 == xc.O1 - 1) {
-        op_gemm<JO0, JP0, true>(xc, aout, aoout, input, &md2(aweights, _O1, 0),
+        op_gemm<JO0, JP0, MP0, true>(xc, aout, aoout, input, &md2(aweights, _O1, 0),
             &md2(abias, _O1, 0), attr, src_scale, src_factor, weights_scale,
             weights_factor, _O1, 0);
       } else {
-        op_gemm<JO0, JP0, false>(xc, aout, aoout, input, &md2(aweights, _O1, 0),
+        op_gemm<JO0, JP0, MP0, false>(xc, aout, aoout, input, &md2(aweights, _O1, 0),
             &md2(abias, _O1, 0), attr, src_scale, src_factor, weights_scale,
             weights_factor, _O1, 0);
       }
@@ -346,7 +396,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
           ? &md5(aooutput_nhwc, 0, 0, _O1, 0, 0)
           : F_traits<F>::is_compact_output ? &md3(aooutput_compact, _O1, 0, 0)
                                            : &md3(aooutput_blocked, _O1, 0, 0);
-      op_gemm<JO0, JP0, false>(xc, aout, aoout, input, &md4(aweights, _O1, 0, 0, 0),
+      op_gemm<JO0, JP0, MP0, false>(xc, aout, aoout, input, &md4(aweights, _O1, 0, 0, 0),
           &md3(abias, _O1, 0, 0), attr, src_scale, src_factor, weights_scale,
           weights_factor, _O1, 0);
       aout = F_traits<F>::is_nhwc_output
@@ -359,11 +409,11 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
                                            : &md3(aooutput_blocked, _O1, JO0, 0);
       if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
           && _O1 == xc.O1 - 1) {
-        op_gemm<JO1, JP1, true>(xc, aout, aoout, input, &md4(aweights, _O1, 0, JO0, 0),
+        op_gemm<JO1, JP1, MP1, true>(xc, aout, aoout, input, &md4(aweights, _O1, 0, JO0, 0),
             &md3(abias, _O1, JO0, 0), attr, src_scale, src_factor,
             weights_scale, weights_factor, _O1, JO0);
       } else {
-        op_gemm<JO1, JP1, false>(xc, aout, aoout, input, &md4(aweights, _O1, 0, JO0, 0),
+        op_gemm<JO1, JP1, MP1, false>(xc, aout, aoout, input, &md4(aweights, _O1, 0, JO0, 0),
             &md3(abias, _O1, JO0, 0), attr, src_scale, src_factor,
             weights_scale, weights_factor, _O1, JO0);
       }
@@ -402,7 +452,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
           ? &md5(aooutput_nhwc, 0, 0, _O1, 0, 0)
           : F_traits<F>::is_compact_output ? &md3(aooutput_compact, _O1, 0, 0)
                                            : &md3(aooutput_blocked, _O1, 0, 0);
-      op_gemm<JO0, JP0, false>(xc, aout, aoout, input, &md4(aweights, _O1, 0, 0, 0),
+      op_gemm<JO0, JP0, MP0, false>(xc, aout, aoout, input, &md4(aweights, _O1, 0, 0, 0),
           &md3(abias, _O1, 0, 0), attr, src_scale, src_factor, weights_scale,
           weights_factor, _O1, 0);
       aout = F_traits<F>::is_nhwc_output
@@ -413,7 +463,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
           ? &md5(aooutput_nhwc, 0, 0, _O1, JO0, 0)
           : F_traits<F>::is_compact_output ? &md3(aooutput_compact, _O1, JO0, 0)
                                            : &md3(aooutput_blocked, _O1, JO0, 0);
-      op_gemm<JO1, JP1, false>(xc, aout, aoout, input, &md4(aweights, _O1, 0, JO0, 0),
+      op_gemm<JO1, JP1, MP1, false>(xc, aout, aoout, input, &md4(aweights, _O1, 0, JO0, 0),
           &md3(abias, _O1, JO0, 0), attr, src_scale, src_factor, weights_scale,
           weights_factor, _O1, JO0);
       aout = F_traits<F>::is_nhwc_output
@@ -428,12 +478,12 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
               : &md3(aooutput_blocked, _O1, JO0 + JO1, 0);
       if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
           && _O1 == xc.O1 - 1) {
-        op_gemm<JO2, JP2, true>(xc, aout, aoout, input,
+        op_gemm<JO2, JP2, MP2, true>(xc, aout, aoout, input,
             &md4(aweights, _O1, 0, JO0 + JO1, 0),
             &md3(abias, _O1, JO0 + JO1, 0), attr, src_scale, src_factor,
             weights_scale, weights_factor, _O1, JO0 + JO1);
       } else {
-        op_gemm<JO2, JP2, false>(xc, aout, aoout, input,
+        op_gemm<JO2, JP2, MP2, false>(xc, aout, aoout, input,
             &md4(aweights, _O1, 0, JO0 + JO1, 0),
             &md3(abias, _O1, JO0 + JO1, 0), attr, src_scale, src_factor,
             weights_scale, weights_factor, _O1, JO0 + JO1);
