@@ -236,8 +236,8 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
     }
 
     auto diff = max - min + 0.000001;
-    desc.wino_tinput_quant.scale = diff / PRECISION_REPRESENTATION_8B;
-    desc.wino_tinput_quant.z = -min * PRECISION_REPRESENTATION_8B / diff;
+    desc.wino_tinput_quant.scale = diff / PRECISION_REPRESENTATION_7B;
+    desc.wino_tinput_quant.z = -min * PRECISION_REPRESENTATION_7B / diff;
 
     printf("tinput max %f min %f scale %f z %f\n", max, min,
            desc.wino_tinput_quant.scale, desc.wino_tinput_quant.z);
@@ -256,7 +256,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
     if (data_type_cfg == euler::test::U8F32U8F32 ||
         data_type_cfg == euler::test::U8F32S8F32 ||
         data_type_cfg == euler::test::U8F32F32F32)
-      iscale = abs_max / PRECISION_REPRESENTATION_8B;
+      iscale = abs_max / PRECISION_REPRESENTATION_7B;
     // S8
     else
       iscale = abs_max / PRECISION_REPRESENTATION_7B;
@@ -291,7 +291,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
     float abs_max = max > abs_cur ? max : abs_cur;
 
     if (desc_ref.with_relu) {
-      oscale = abs_max / PRECISION_REPRESENTATION_8B;
+      oscale = abs_max / PRECISION_REPRESENTATION_7B;
       oz = 0.0;
       desc.output_quant.scale = oscale;
       desc.output_quant.z = oz;
@@ -302,8 +302,8 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
       desc.output_quant.z = oz;
     } else {
       auto diff = max - min + 0.000001;
-      desc.output_quant.scale = diff / PRECISION_REPRESENTATION_8B;
-      desc.output_quant.z = -min * PRECISION_REPRESENTATION_8B / diff;
+      desc.output_quant.scale = diff / PRECISION_REPRESENTATION_7B;
+      desc.output_quant.z = -min * PRECISION_REPRESENTATION_7B / diff;
     }
 
     printf("output abs_max %f scale %f\n", abs_max, desc.output_quant.scale);

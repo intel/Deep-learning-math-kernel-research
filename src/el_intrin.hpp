@@ -227,6 +227,9 @@ template <> struct _mm<16> {
   static inline __i<V> set1_epi16(short e) noexcept {
     return _mm512_set1_epi16(e);
   }
+  static inline __i<V> add_epi16(__i<V> m0, __i<V> m1) noexcept {
+    return _mm512_add_epi16(m0, m1);
+  }
   static inline __i<V> maddubs_epi16(__i<V> m0, __i<V> m1) noexcept {
     return _mm512_maddubs_epi16(m0, m1);
   }
