@@ -60,8 +60,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
 
   constexpr static int V1 = V / Vx;
 
-    // TODO: check ISA
-#if defined(WITH_VNNI)
   constexpr static int JP0 = (K > 3 || F_traits<F>::is_compact_ir_weights)
                            ? 1
                            : J_traits<O, T, WeightsType>::P0;
@@ -71,11 +69,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
   constexpr static int JP2 = (K > 3 || F_traits<F>::is_compact_ir_weights)
                            ? 1
                            : J_traits<O, T, WeightsType>::P2;
-#else
-  constexpr static int JP0 = 1;
-  constexpr static int JP1 = 1;
-  constexpr static int JP2 = 1;
-#endif
 
   // INT8 gemm kernel
 #if !defined(WITH_VNNI)
@@ -567,7 +560,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     }
   }
 
-#if defined(WITH_VNNI)
   template <int JO, int P, bool has_Or>
   static inline typename std::enable_if<(P == 2 || P == 4), void>::type
   op_conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
@@ -581,7 +573,11 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
 
     MD3(int8_t, aweights, weights, xc.kh, xc.kw, xc.O1 * xc.I2 * V1 * O * V * Vx); // compact
 
+#if defined(WITH_VNNI)
     __i<V> mmout[JO][T], mmwei[JO][P];
+#else
+    __i<V> mmout[JO][T], mmwei[JO][P * 2];
+#endif
 
     if (get_attr(attr, r_output_idx)) {
       // clear output
@@ -601,25 +597,54 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       // mid
       for (int _kw = kws; _kw < kwe; ++_kw) {
         // preload weights
+#if defined(WITH_VNNI)
         unroll_for(_P, P) {
         unroll_auto(_O, JO) {
           mmwei[_O][_P] = op_load_weights<JO, P>(
               xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P, _O);
         }}
+#else
+        unroll_for(_P, P / 2) {
+        unroll_auto(_O, JO) {
+          mmwei[_O][_P * 2] = op_load_weights<JO, P>(
+              xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P * 2, _O);
+          mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
+              xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P * 2 + 1, _O);
+        }}
+#endif
         for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
 #pragma nounroll
           for (int _V1 = 0; _V1 < V1 / P; ++_V1) {
+#if defined(WITH_VNNI)
             unroll_for(_P, P) {
               unroll_for(_T, T) {
                 auto mmbcst = op_load_input<P>(
                     xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P, _T);
                 unroll_for(_O, JO)
-                  op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][_P]);
+                  mmout[_O][_T] = _mm512_dpbusds_epi32(mmout[_O][_T], mmbcst, mmwei[_O][_P]);
               }
               unroll_auto(_O, JO)
                 mmwei[_O][_P] = op_load_weights<JO, P>(
                   xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P, _O);
             }
+#else
+            unroll_for(_P, P / 2) {
+              unroll_for(_T, T) {
+                auto mmbcst1 = op_load_input<P>(
+                    xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2, _T);
+                auto mmbcst2 = op_load_input<P>(
+                    xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2 + 1, _T);
+                unroll_for(_O, JO)
+                  op_int8_fma(mmout[_O][_T], mmbcst1, mmbcst2, mmwei[_O][_P * 2], mmwei[_O][_P * 2 + 1]);
+              }
+              unroll_auto(_O, JO) {
+                mmwei[_O][_P * 2] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P * 2, _O);
+                mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P * 2 + 1, _O);
+              }
+            }
+#endif
           } // _V1
         }
       } // _kw loop, mid
@@ -628,25 +653,54 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       if (_wt == 0) {
         constexpr int _kw = 0;
 
+#if defined(WITH_VNNI)
         unroll_for(_P, P) {
         unroll_auto(_O, JO) {
           mmwei[_O][_P] = op_load_weights<JO, P>(
               xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P, _O);
         }}
+#else
+        unroll_for(_P, P / 2) {
+        unroll_auto(_O, JO) {
+          mmwei[_O][_P * 2] = op_load_weights<JO, P>(
+              xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P * 2, _O);
+          mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
+              xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P * 2 + 1, _O);
+        }}
+#endif
         for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
 #pragma nounroll
           for (int _V1 = 0; _V1 < V1 / P; ++_V1) {
+#if defined(WITH_VNNI)
             unroll_for(_P, P) {
               unroll_from_to(_T, 1, T) {
                 auto mmbcst = op_load_input<P>(
                     xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P, _T);
                 unroll_for(_O, JO)
-                  op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][_P]);
+                  mmout[_O][_T] = _mm512_dpbusds_epi32(mmout[_O][_T], mmbcst, mmwei[_O][_P]);
               }
               unroll_auto(_O, JO)
                 mmwei[_O][_P] = op_load_weights<JO, P>(
                   xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P, _O);
             }
+#else
+            unroll_for(_P, P / 2) {
+              unroll_from_to(_T, 1, T) {
+                auto mmbcst1 = op_load_input<P>(
+                    xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2, _T);
+                auto mmbcst2 = op_load_input<P>(
+                    xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2 + 1, _T);
+                unroll_for(_O, JO)
+                  op_int8_fma(mmout[_O][_T], mmbcst1, mmbcst2, mmwei[_O][_P * 2], mmwei[_O][_P * 2 + 1]);
+              }
+              unroll_auto(_O, JO) {
+                mmwei[_O][_P * 2] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P * 2, _O);
+                mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P * 2 + 1, _O);
+              }
+            }
+#endif
           } // _V1
         }
       } // left
@@ -655,25 +709,54 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       if (_wt == xc.wt - 1) {
         constexpr int _kw = 2;
 
+#if defined(WITH_VNNI)
         unroll_for(_P, P) {
         unroll_auto(_O, JO) {
           mmwei[_O][_P] = op_load_weights<JO, P>(
               xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P, _O);
         }}
+#else
+        unroll_for(_P, P / 2) {
+        unroll_auto(_O, JO) {
+          mmwei[_O][_P * 2] = op_load_weights<JO, P>(
+              xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P * 2, _O);
+          mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
+              xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P * 2 + 1, _O);
+        }}
+#endif
         for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
 #pragma nounroll
           for (int _V1 = 0; _V1 < V1 / P; ++_V1) {
+#if defined(WITH_VNNI)
             unroll_for(_P, P) {
               unroll_for(_T, T - 1 + S - 1) {
                 auto mmbcst = op_load_input<P>(
                     xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P, _T);
                 unroll_for(_O, JO)
-                  op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][_P]);
+                  mmout[_O][_T] = _mm512_dpbusds_epi32(mmout[_O][_T], mmbcst, mmwei[_O][_P]);
               }
               unroll_auto(_O, JO)
                 mmwei[_O][_P] = op_load_weights<JO, P>(
                   xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P, _O);
             }
+#else
+            unroll_for(_P, P / 2) {
+              unroll_for(_T, T - 1 + S - 1) {
+                auto mmbcst1 = op_load_input<P>(
+                    xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2, _T);
+                auto mmbcst2 = op_load_input<P>(
+                    xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2 + 1, _T);
+                unroll_for(_O, JO)
+                  op_int8_fma(mmout[_O][_T], mmbcst1, mmbcst2, mmwei[_O][_P * 2], mmwei[_O][_P * 2 + 1]);
+              }
+              unroll_auto(_O, JO) {
+                mmwei[_O][_P * 2] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P * 2, _O);
+                mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P * 2 + 1, _O);
+              }
+            }
+#endif
           } // _V1
         }
       } // right
@@ -694,7 +777,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       }}
     }
   }
-#endif
 
   template <int O = O, int T = T> static inline
       typename std::enable_if<(J_traits<O, T, WeightsType>::J == 1) &&
