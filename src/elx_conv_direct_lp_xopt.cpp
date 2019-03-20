@@ -27,7 +27,7 @@ void Instance_elx_conv_direct_lp_t::__execute_a160(
   if (is_first_run_) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
     {
-      trans_weights_s8(weights_scale_, weights_factor_, tweights_s8_, weights);
+      trans_weights_s8(weights_scale_, weights_factor_, tweights_s8_, weights, bias);
     }
     if (this->sampling_kind == CALIBRATED) {
       MD2(TscaleType, atinput_scale, input_scale_, 2, this->T);
@@ -113,7 +113,7 @@ void Instance_elx_conv_direct_lp_t::__execute_d160(
   if (is_first_run_) {
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
     {
-      trans_weights_s8(weights_scale_, weights_factor_, tweights_s8_, weights);
+      trans_weights_s8(weights_scale_, weights_factor_, tweights_s8_, weights, bias);
     }
     if (this->sampling_kind == CALIBRATED) {
       MD2(TscaleType, atinput_scale, input_scale_, 2, this->T);

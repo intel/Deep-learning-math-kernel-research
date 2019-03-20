@@ -195,30 +195,31 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     auto rout = F_traits<F>::is_blocked_output ? &md2(aroutput_blocked1, _T, 0)
                                                : &md3(aroutput_nhwc1, 0, _O, 0);
 
-    // restore
     __m<V> fout = _mm<V>::cvtepi32_ps(res);
-    auto z = _mm<V>::set1_ps(src_factor[_T]);
-    auto acc = *(__m<V> *)&md2(aweights_factor, _O, 0);
-    fout -= (z * acc);
-    auto Sa = _mm<V>::set1_ps(src_scale[_T]);
-    auto Sw = *(__m<V> *)&md2(aweights_scale, _O, 0);
-    fout = Sa * Sw * fout;
-    // add bias
-    if (get_attr(attr, bias_idx)) {
-      MD2(BiasType, abias2, bias, JO, V);
-      if (std::is_same<BiasType, float>::value) {
-        fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(abias2, _O, 0)));
-      } else {
-        auto fp16v = _mm<V / 2>::load_si256((__m256i *)&md2(abias2, _O, 0));
-        fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
-      }
-    }
-    // requantization
+
+    // restore and requantization
     if (std::is_same<RoutputType, uint8_t>::value
         || std::is_same<RoutputType, int8_t>::value) {
-      __m<V> out_repS = _mm<V>::set1_ps(xc.output_quant_repS);
-      __m<V> out_z = _mm<V>::set1_ps(xc.output_quant_z);
-      fout = fout * out_repS + out_z;
+      auto scale = *(__m<V> *)&md2(aweights_scale, _O, 0);
+      auto factor = *(__m<V> *)&md2(aweights_factor, _O, 0);
+      fout = fout * scale + factor;
+    } else {
+      auto z = _mm<V>::set1_ps(src_factor[_T]);
+      auto acc = *(__m<V> *)&md2(aweights_factor, _O, 0);
+      fout -= (z * acc);
+      auto Sa = _mm<V>::set1_ps(src_scale[_T]);
+      auto Sw = *(__m<V> *)&md2(aweights_scale, _O, 0);
+      fout = Sa * Sw * fout;
+      // add bias
+      if (get_attr(attr, bias_idx)) {
+        MD2(BiasType, abias2, bias, JO, V);
+        if (std::is_same<BiasType, float>::value) {
+          fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(abias2, _O, 0)));
+        } else {
+          auto fp16v = _mm<V / 2>::load_si256((__m256i *)&md2(abias2, _O, 0));
+          fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
+        }
+      }
     }
     // fuse relu
     if (get_attr(attr, relu_idx)) {

@@ -221,7 +221,7 @@ Instance_elx_conv_direct_lp_t::~elx_conv_direct_lp_t()
 // tweights: oc4, ic4, oc3, _ic3, kh, kw, O1, I2, V1, O, V, Vx
 Template_elx_conv_direct_lp_t
 void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
-    TscaleType *weights_factor, int8_t *tweights_s8, WeightsType *weights)
+    TscaleType *weights_factor, int8_t *tweights_s8, WeightsType *weights, BiasType *bias)
 {
   _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
@@ -303,6 +303,24 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
     auto t0 = _mm<V>::div_ps(
         *(__m<V> *)&md2(atweights_scale, _oc2, 0), mmscale);
     _mm<V>::store_ps(&md2(atweights_scale, _oc2, 0), t0);
+  }, this->oc2);
+#pragma omp barrier
+
+  auto out_repS = _mm<V>::set1_ps(this->output_quant_repS);
+  auto out_z = _mm<V>::set1_ps(this->output_quant_z);
+  auto input_S = _mm<V>::set1_ps(this->input_quant_S);
+  auto input_z = _mm<V>::set1_ps(this->input_quant_z);
+
+  // combine output restore and requantization scale and factor
+  thread_parallel_for<1>(mthr_, ithr, [&](int _oc2) {
+    MD2(TscaleType, atweights_scale, weights_scale, this->oc2, V);
+    MD2(TscaleType, atweights_factor, weights_factor, this->oc2, V);
+    MD2(BiasType, abias, bias, this->oc2, V);
+    __m<V> &qs = *(__m<V> *)&md2(atweights_scale, _oc2, 0);
+    __m<V> &qf = *(__m<V> *)&md2(atweights_factor, _oc2, 0);
+    __m<V> &b = *(__m<V> *)&md2(abias, _oc2, 0);
+    qs = input_S * qs * out_repS;
+    qf = out_z - input_z * qf * qs + b * out_repS;
   }, this->oc2);
 }
 
@@ -433,23 +451,21 @@ void Instance_elx_conv_direct_lp_t::gemm_d160(OutputType *output,
         if (I == ISA_SKX_AVX512 && std::is_same<ToutputType, float>::value) {
           __m<V> tout = _mm<V>::cvtepi32_ps(
               *(__i<V> *)&md5(atoutput, _oc3, _O2, _ht, ows0 + _T, 0));
-          // output restore
-          auto z = _mm<V>::set1_ps(md2(asrc_scale, 1, _T));
-          auto acc = *(__m<V> *)&md3(aweights_factor, _oc3, _O2, 0);
-          tout -= (z * acc);
-          auto Sa = _mm<V>::set1_ps(md2(asrc_scale, 0, _T));
-          auto Sw = *(__m<V> *)&md3(aweights_scale, _oc3, _O2, 0);
-          tout = Sa * Sw * tout;
-          // add bias
-          if (this->with_bias)
-            tout = _mm<V>::add_ps(tout, _mm<V>::load_ps(&md3(abias, _oc3, _O2, 0)));
+          // restore and requantization
+          if (std::is_same<OutputType, uint8_t>::value
+              || std::is_same<OutputType, int8_t>::value) {
+            auto scale = *(__m<V> *)&md3(aweights_scale, _oc3, _O2, 0);
+            auto factor = *(__m<V> *)&md3(aweights_factor, _oc3, _O2, 0);
+            tout = tout * scale + factor;
+          } else {
+            el_error("Unsupported output type for int8 direct 1x1");
+          }
           // fuse relu
           if (this->with_relu)
             tout = _mm<V>::max_ps(tout, _mm<V>::setzero_ps());
-          // requantize
-          __m<V> quant_tout = tout * out_repS + out_z;
+          // rounding
           __i<V> s_out = _mm<V>::cvt_roundps_epi32(
-              quant_tout, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
+              tout, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
           __m128i x8_out;
           if (std::is_same<OutputType, int8_t>::value)
             x8_out = _mm<V>::cvtsepi32_epi8(s_out);
