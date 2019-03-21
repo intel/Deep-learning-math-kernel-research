@@ -57,14 +57,14 @@ enum {
   STORE_STREAMING = 2
 };
 
-typedef enum {
+enum data_type_t: uint8_t {
   data_type_undef = 0,
   f32,
   f16,
   u8,
   s8,
   s32
-} data_type_t;
+};
 
 // Data formats
 enum format {
@@ -109,7 +109,12 @@ struct EULER_API eld_conv_t {
   struct { int h, w; } dilations;
 
   // Data Type
-  struct { data_type_t input, weights, output, bias; } data_type;
+  struct {
+    union {
+      struct { data_type_t input, weights, output, bias; };
+      uint32_t flat;
+    };
+  } data_type;
 
   // Data layout supported:
   // - plain: nchw, oihw, nchw

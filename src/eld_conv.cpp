@@ -81,51 +81,16 @@ int eld_conv_t::setup()
   sizes.weights = dims.weights.h * dims.weights.w;
   sizes.output = dims.output.n * dims.output.h * dims.output.w;
 
-  enum {
-    user_type_f32 = 0,
-    user_type_f16,
-    user_type_f16o,
-    user_type_u8f32f32f32,
-    user_type_u8f32u8f32,
-    user_type_u8f32s8f32,
-  };
-
-  // Analyze data type pattern
-  int user_type;
-  if (data_type.input == f32 &&
-      data_type.weights == f32 &&
-      data_type.output == f32 &&
-      data_type.bias == f32) {
-    user_type = user_type_f32;
-  } else if (data_type.input == f16 &&
-      data_type.weights == f16 &&
-      data_type.output == f16 &&
-      data_type.bias == f16) {
-    user_type = user_type_f16;
-  } else if (data_type.input == f32 &&
-      data_type.weights == f32 &&
-      data_type.output == f16 &&
-      data_type.bias == f32) {
-    user_type = user_type_f16o;
-  } else if (data_type.input == u8 &&
-      data_type.weights == f32 &&
-      data_type.output == f32 &&
-      data_type.bias == f32) {
-    user_type = user_type_u8f32f32f32;
-  } else if (data_type.input == u8 &&
-      data_type.weights == f32 &&
-      data_type.output == u8 &&
-      data_type.bias == f32) {
-    user_type = user_type_u8f32u8f32;
-  } else if (data_type.input == u8 &&
-      data_type.weights == f32 &&
-      data_type.output == s8 &&
-      data_type.bias == f32) {
-    user_type = user_type_u8f32s8f32;
-  } else {
-    el_error("Unsupported data type");
-    return ELX_GENERAL_ERROR;
-  }
+  using dt = decltype(data_type);
+  uint32_t user_type = data_type.flat;
+  uint32_t user_type_f32 = dt{ { { f32, f32, f32, f32 } } }.flat;
+  uint32_t user_type_f16o = dt{ { { f32, f32, f16, f32 } } }.flat;
+  uint32_t user_type_u8f32f32f32 = dt{ { { u8, f32, f32, f32 } } }.flat;
+  uint32_t user_type_u8f32u8f32 = dt{ { { u8, f32, u8, f32 } } }.flat;
+  uint32_t user_type_u8f32s8f32 = dt{ { { u8, f32, s8, f32 } } }.flat;
+#ifdef ENABLE_USER_FP16
+  uint32_t user_type_f16 = dt{ { { f16, f16, f16, f16 } } }.flat;
+#endif
 
   sizes.input *= (formats.input == fmt_blocked_data) ? IC : ic;
   sizes.weights
