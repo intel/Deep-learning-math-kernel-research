@@ -88,26 +88,6 @@ template <int N, int M = -1> struct thread_parallel_for {
 
     // right close set??? How about open to save a op
     end = start + base + static_cast<int>(ithr < more) -1;
-
-    /*
-    if (mthr <= 1) {
-      start = 0;
-      end = n - 1;
-      return;
-    }
-
-    int n2 = n / mthr;
-    int n1 = n2 + 1;
-    int th_n1 = n - n2 * mthr;
-
-    if (ithr < th_n1) {
-      start = ithr * n1;
-      end = start + n1 - 1;
-    } else {
-      start = th_n1 * n1 + (ithr - th_n1) * n2;
-      end = start + n2 - 1;
-    }
-    */
   }
 
   inline void build_loop_index(int taskid, int indices[N])

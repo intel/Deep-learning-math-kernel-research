@@ -3,6 +3,7 @@
 #include <float.h>
 #include "euler.hpp"
 #include "el_def.hpp"
+#include "el_isa.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
 #include "elx_conv_wino.hpp"
@@ -60,22 +61,24 @@ int eld_conv_t::setup()
     return ELD_GENERAL_ERROR;
   }
 
-  const int V = 16; // TODO: AVX2
-  const int fmt_blocked_data = nChw16c;
-  const int fmt_blocked_weights = OIhw16i16o;
-
-  bool format_okay
-      = estl::any_of(formats.input, nchw, nhwc, fmt_blocked_data)
-      && estl::any_of(formats.weights, oihw, hwio, fmt_blocked_weights)
-      && estl::any_of(formats.output, nchw, nhwc, fmt_blocked_data);
-
-  if (!format_okay) {
-    el_error("Data format error");
-    return ELD_UNIMPLEMENTED;
+  const int V = cpu_vector_length() / 4;
+  const int ic = dims.input.c, IC = ALIGNUP(ic, V);
+  const int oc = dims.output.c, OC = ALIGNUP(oc, V);
+  if (V != 16) {
+    // TODO: V == 8
+    el_error("CPU vector not support");
   }
 
-  int ic = dims.input.c, IC = ALIGNUP(ic, V);
-  int oc = dims.output.c, OC = ALIGNUP(oc, V);
+  // Select format
+  if (formats.input == format_undef) {
+    formats.input = ic < V ? nchw : V == 16 ? nChw16c : nChw8c;
+  }
+  if (formats.weights == format_undef) {
+    formats.weights = hwio;
+  }
+  if (formats.output == format_undef) {
+    formats.output = V == 16 ? nChw16c : nChw8c;
+  }
 
   sizes.input = dims.input.n * dims.input.h * dims.input.w;
   sizes.weights = dims.weights.h * dims.weights.w;
@@ -92,12 +95,12 @@ int eld_conv_t::setup()
   uint32_t user_type_f16 = dt{ { { f16, f16, f16, f16 } } }.flat;
 #endif
 
-  sizes.input *= (formats.input == fmt_blocked_data) ? IC : ic;
-  sizes.weights
-      *= (formats.weights == fmt_blocked_weights) ? OC * IC : oc * ic;
+  sizes.input *= estl::any_of(formats.input, nChw16c, nChw8c) ? IC : ic;
+  sizes.weights *= estl::any_of(formats.weights, OIhw16i16o, OIhw8i8o)
+      ? OC * IC : oc * ic;
   sizes.weights += 4 * V; // for weights pipeline
-  sizes.output *= (formats.output == fmt_blocked_data) ? OC : oc;
-  sizes.bias = (formats.output == fmt_blocked_data) ? OC : oc;
+  sizes.output *= estl::any_of(formats.output, nChw16c, nChw8c) ? OC : oc;
+  sizes.bias = estl::any_of(formats.output, nChw16c, nChw8c) ? OC : oc;
 
   auto get_elem_size = [](uint8_t dtype) -> size_t {
     switch (dtype) {
@@ -122,14 +125,9 @@ int eld_conv_t::setup()
     return ELX_GENERAL_ERROR;
   }
 
-  // TODO: Check CPUID
   xc = nullptr;
 
-  if (estl::none_of(prop_kind,
-        forward_training,
-        forward_inference,
-        backward_data,
-        backward_weights)) {
+  if (prop_kind != forward_inference) {
     el_error("Propagation kind error");
     return ELD_GENERAL_ERROR;
   }
@@ -137,9 +135,10 @@ int eld_conv_t::setup()
   if (algorithm == CONV_AUTO) {
     if (dims.weights.h == 1 && dims.weights.w == 1) {
       algorithm = CONV_DIRECT_1X1;
-    } else if (dims.weights.h == 3 && dims.weights.w == 3 && dilations.h == 1
-        && dilations.w == 1 && strides.h == 1 && strides.w == 1 && pads.l == 1
-        && pads.r == 1 && pads.t == 1 && pads.b == 1) {
+    } else if (ic >= V && dims.weights.h == 3 && dims.weights.w == 3
+        && dilations.h == 1 && dilations.w == 1 && strides.h == 1
+        && strides.w == 1 && pads.l == 1 && pads.r == 1 && pads.t == 1
+        && pads.b == 1) {
       algorithm = CONV_WINOGRAD;
     } else {
       algorithm = CONV_DIRECT;

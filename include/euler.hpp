@@ -72,9 +72,11 @@ enum {
   nchw,
   nhwc,
   nChw16c,
+  nChw8c,
   oihw,
   hwio,
-  OIhw16i16o
+  OIhw16i16o,
+  OIhw8i8o
 };
 
 // Propagation kind
