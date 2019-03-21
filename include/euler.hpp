@@ -58,16 +58,17 @@ enum {
 };
 
 typedef enum {
-  euler_unknown = 0,
-  euler_f32,
-  euler_f16,
-  euler_u8,
-  euler_s8,
-  euler_s32
+  data_type_undef = 0,
+  f32,
+  f16,
+  u8,
+  s8,
+  s32
 } data_type_t;
 
 // Data formats
-enum formats{
+enum format {
+  format_undef = 0,
   nchw,
   nhwc,
   nChw16c,

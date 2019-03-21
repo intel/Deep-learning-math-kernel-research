@@ -92,35 +92,35 @@ int eld_conv_t::setup()
 
   // Analyze data type pattern
   int user_type;
-  if (data_type.input == euler_f32 &&
-      data_type.weights == euler_f32 &&
-      data_type.output == euler_f32 &&
-      data_type.bias == euler_f32) {
+  if (data_type.input == f32 &&
+      data_type.weights == f32 &&
+      data_type.output == f32 &&
+      data_type.bias == f32) {
     user_type = user_type_f32;
-  } else if (data_type.input == euler_f16 &&
-      data_type.weights == euler_f16 &&
-      data_type.output == euler_f16 &&
-      data_type.bias == euler_f16) {
+  } else if (data_type.input == f16 &&
+      data_type.weights == f16 &&
+      data_type.output == f16 &&
+      data_type.bias == f16) {
     user_type = user_type_f16;
-  } else if (data_type.input == euler_f32 &&
-      data_type.weights == euler_f32 &&
-      data_type.output == euler_f16 &&
-      data_type.bias == euler_f32) {
+  } else if (data_type.input == f32 &&
+      data_type.weights == f32 &&
+      data_type.output == f16 &&
+      data_type.bias == f32) {
     user_type = user_type_f16o;
-  } else if (data_type.input == euler_u8 &&
-      data_type.weights == euler_f32 &&
-      data_type.output == euler_f32 &&
-      data_type.bias == euler_f32) {
+  } else if (data_type.input == u8 &&
+      data_type.weights == f32 &&
+      data_type.output == f32 &&
+      data_type.bias == f32) {
     user_type = user_type_u8f32f32f32;
-  } else if (data_type.input == euler_u8 &&
-      data_type.weights == euler_f32 &&
-      data_type.output == euler_u8 &&
-      data_type.bias == euler_f32) {
+  } else if (data_type.input == u8 &&
+      data_type.weights == f32 &&
+      data_type.output == u8 &&
+      data_type.bias == f32) {
     user_type = user_type_u8f32u8f32;
-  } else if (data_type.input == euler_u8 &&
-      data_type.weights == euler_f32 &&
-      data_type.output == euler_s8 &&
-      data_type.bias == euler_f32) {
+  } else if (data_type.input == u8 &&
+      data_type.weights == f32 &&
+      data_type.output == s8 &&
+      data_type.bias == f32) {
     user_type = user_type_u8f32s8f32;
   } else {
     el_error("Unsupported data type");
@@ -136,10 +136,10 @@ int eld_conv_t::setup()
 
   auto get_elem_size = [](data_type_t dtype) -> size_t {
     switch (dtype) {
-    case euler_f32: return sizeof(float);
-    case euler_f16: return sizeof(short);
-    case euler_u8:
-    case euler_s8: return sizeof(uint8_t);
+    case f32: return sizeof(float);
+    case f16: return sizeof(short);
+    case u8:
+    case s8: return sizeof(uint8_t);
     default: return 0;
     }
   };

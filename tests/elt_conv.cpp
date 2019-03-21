@@ -289,22 +289,22 @@ static inline eld_conv_t create_conv_desc(int _data_type_cfg) {
   eld_conv_t desc;
   if (_data_type_cfg == euler::test::FP32) {
     desc.data_type = {
-        euler::euler_f32, euler::euler_f32, euler::euler_f32, euler::euler_f32 };
+        euler::f32, euler::f32, euler::f32, euler::f32 };
   } else if (_data_type_cfg == euler::test::FP16) {
     desc.data_type = {
-        euler::euler_f16, euler::euler_f16, euler::euler_f16, euler::euler_f16 };
+        euler::f16, euler::f16, euler::f16, euler::f16 };
   } else if (_data_type_cfg == euler::test::FP16O) {
     desc.data_type = {
-        euler::euler_f32, euler::euler_f32, euler::euler_f16, euler::euler_f32 };
+        euler::f32, euler::f32, euler::f16, euler::f32 };
   } else if (_data_type_cfg == euler::test::U8F32U8F32) {
     desc.data_type = {
-        euler::euler_u8, euler::euler_f32, euler::euler_u8, euler::euler_f32 };
+        euler::u8, euler::f32, euler::u8, euler::f32 };
   } else if (_data_type_cfg == euler::test::U8F32S8F32) {
     desc.data_type = {
-        euler::euler_u8, euler::euler_f32, euler::euler_s8, euler::euler_f32 };
+        euler::u8, euler::f32, euler::s8, euler::f32 };
   } else if (_data_type_cfg == euler::test::U8F32F32F32) {
     desc.data_type = {
-        euler::euler_u8, euler::euler_f32, euler::euler_f32, euler::euler_f32 };
+        euler::u8, euler::f32, euler::f32, euler::f32 };
   } else {
     test::error("Fail: Unsupported user data type ...\n");
     exit(1);
