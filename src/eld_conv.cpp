@@ -99,7 +99,7 @@ int eld_conv_t::setup()
   sizes.output *= (formats.output == fmt_blocked_data) ? OC : oc;
   sizes.bias = (formats.output == fmt_blocked_data) ? OC : oc;
 
-  auto get_elem_size = [](data_type_t dtype) -> size_t {
+  auto get_elem_size = [](uint8_t dtype) -> size_t {
     switch (dtype) {
     case f32: return sizeof(float);
     case f16: return sizeof(short);
