@@ -77,7 +77,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     auto one = _mm<V>::set1_epi16(1);
     auto t1 = _mm<V>::maddubs_epi16(a1, b1);
     auto t2 = _mm<V>::maddubs_epi16(a2, b2);
-    t1 = _mm<V>::add_epi16(t1, t2);
+    t1 = _mm<V>::adds_epi16(t1, t2);
     t1 = _mm<V>::madd_epi16(t1, one);
     out = _mm<V>::add_epi32(t1, out);
   }
@@ -573,11 +573,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
 
     MD3(int8_t, aweights, weights, xc.kh, xc.kw, xc.O1 * xc.I2 * V1 * O * V * Vx); // compact
 
-#if defined(WITH_VNNI)
     __i<V> mmout[JO][T], mmwei[JO][P];
-#else
-    __i<V> mmout[JO][T], mmwei[JO][P * 2];
-#endif
 
     if (get_attr(attr, r_output_idx)) {
       // clear output
