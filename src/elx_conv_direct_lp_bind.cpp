@@ -6,7 +6,7 @@ Template_elx_conv_direct_lp_t void
 Instance_elx_conv_direct_lp_t::bind_execute_functions()
 {
 #define BIND_GEMM_KERNEL(S, F)                                                 \
-  u8s8_gemm_kernel_binder::bind<S, F>(O, T, func);
+  u8s8_gemm_kernel_binder::bind<S, F, true>(O, T, func);
 
 #define BIND_CONV_KERNEL(S, F, K)                                              \
   if (K == 3) {                                                                \
