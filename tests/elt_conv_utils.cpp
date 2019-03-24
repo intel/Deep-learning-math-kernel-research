@@ -108,9 +108,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
 // ref input
 #pragma omp parallel for
     for (size_t i = 0; i < desc_ref.sizes.input; i++) {
-      if (data_type_cfg == euler::test::FP32 && !f16c_opt) {
-        input_ref[i] = RAND() % 20 - 4;
-      } else if (data_type_cfg == euler::test::FP16 || f16c_opt) {
+      if (data_type_cfg == euler::test::FP32 || data_type_cfg == euler::test::FP16) {
         input_ref[i] = RAND() % 20 - 12; // (-12, 8)
       } else if (data_type_cfg == euler::test::U8F32U8F32 ||
                  data_type_cfg == euler::test::U8F32S8F32 ||
@@ -127,9 +125,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
 // ref weights
 #pragma omp parallel for
     for (size_t i = 0; i < desc_ref.sizes.weights; i++) {
-      if (data_type_cfg == euler::test::FP32 && !f16c_opt) {
-        weights_ref[i] = -RAND() % 32;
-      } else if (data_type_cfg == euler::test::FP16 || f16c_opt) {
+      if (data_type_cfg == euler::test::FP32 || data_type_cfg == euler::test::FP16) {
         weights_ref[i] = dWeights(gen);
       } else if (data_type_cfg == euler::test::U8F32U8F32 ||
                  data_type_cfg == euler::test::U8F32S8F32 ||

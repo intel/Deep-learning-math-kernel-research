@@ -224,32 +224,44 @@ int eld_conv_t::setup()
         break; \
       }
 
-    // TODO: forward, backward_data, backward_weights
-    if ((execution_mode & 0xF00) != 0x100) {
-      if (f16c_opt && user_type == user_type_f32) {
-        create_conv_wino(conv::FP32, conv_impl::FP32_F16iwo, F_5_3_ON, wino);
-#ifdef ENABLE_USER_FP16
-      } else if (user_type == user_type_f16) {
-        create_conv_wino(conv::FP16, conv_impl::FP32_F16wob, F_5_3_ON, wino);
-#endif
-      } else if (user_type != user_type_f16o) {
-        create_conv_wino(conv::FP32, conv_impl::FP32, F_5_3_ON, wino);
-      }
+    if (!disable_autoparam) f16c_opt = true;
+
+    // User int8
+    if (user_type == user_type_u8f32u8f32) {
+      create_conv_wino(
+          conv::U8F32U8F32, conv_impl::INT8_F32, F_5_3_OFF, wino_lp);
+    } else if (user_type == user_type_u8f32s8f32) {
+      create_conv_wino(
+          conv::U8F32S8F32, conv_impl::INT8_F32, F_5_3_OFF, wino_lp);
+    } else if (user_type == user_type_u8f32f32f32) {
+      create_conv_wino(
+          conv::U8F32F32F32, conv_impl::INT8_F32, F_5_3_OFF, wino_lp);
     } else {
-      if (f16c_opt && user_type == user_type_f32) {
-        create_conv_wino(conv::FP32, conv_impl::INT8_F16o, F_5_3_OFF, wino_lp);
+      // User fp32
+      if ((execution_mode & 0xF00) != 0x100) {
+        // Impl. fp32
+        if (f16c_opt && user_type == user_type_f32) {
+          create_conv_wino(conv::FP32, conv_impl::FP32_F16iwo, F_5_3_ON, wino);
 #ifdef ENABLE_USER_FP16
-      } else if (user_type == user_type_f16) {
-        create_conv_wino(conv::FP16, conv_impl::INT8_F16b, F_5_3_OFF, wino_lp);
+        } else if (user_type == user_type_f16) {
+          create_conv_wino(conv::FP16, conv_impl::FP32_F16wob, F_5_3_ON, wino);
 #endif
-      } else if (user_type == user_type_u8f32u8f32) {
-        create_conv_wino(conv::U8F32U8F32, conv_impl::INT8_F32, F_5_3_OFF, wino_lp);
-      } else if (user_type == user_type_u8f32s8f32) {
-        create_conv_wino(conv::U8F32S8F32, conv_impl::INT8_F32, F_5_3_OFF, wino_lp);
-      } else if (user_type == user_type_u8f32f32f32) {
-        create_conv_wino(conv::U8F32F32F32, conv_impl::INT8_F32, F_5_3_OFF, wino_lp);
-      } else if (user_type != user_type_f16o) {
-        create_conv_wino(conv::FP32, conv_impl::INT8_F32, F_5_3_ON, wino_lp);
+        } else if (user_type != user_type_f16o) {
+          create_conv_wino(conv::FP32, conv_impl::FP32, F_5_3_ON, wino);
+        }
+      } else {
+        // Impl. int8
+        if (f16c_opt && user_type == user_type_f32) {
+          create_conv_wino(
+              conv::FP32, conv_impl::INT8_F16o, F_5_3_OFF, wino_lp);
+#ifdef ENABLE_USER_FP16
+        } else if (user_type == user_type_f16) {
+          create_conv_wino(
+              conv::FP16, conv_impl::INT8_F16b, F_5_3_OFF, wino_lp);
+#endif
+        } else if (user_type != user_type_f16o) {
+          create_conv_wino(conv::FP32, conv_impl::INT8_F32, F_5_3_ON, wino_lp);
+        }
       }
     }
   }

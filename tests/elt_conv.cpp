@@ -15,16 +15,16 @@ namespace po = boost::program_options;
 // Covolution options
 int mb = 0, ic = 0, ih = 0, iw = 0, oc = 0, oh = 0, ow = 0, kh = 3, kw = 3;
 int ph = 1, pw = 1, sh = 1, sw = 1, dh = 1, dw = 1;
-bool with_bias = true, with_relu = false, with_ip_sum = false, f16c_opt = false;
+bool with_bias = true, with_relu = false, with_ip_sum = false, f16c_opt = false, disable_autoparam = true;
 int data_type_cfg = 0;
-int prop_kind = forward_inference, alg = CONV_WINOGRAD;
+int prop_kind = forward_inference, alg = CONV_AUTO;
 int input_format = nChw16c, weights_format = OIhw16i16o, output_format = nChw16c;
 int nthreads = 0;
 int execution_mode = 0;
 int flt_o = 1, flt_t = 1;
 int blk_i = 1, blk_o = 1;
 int pat_i = 1, pat_o = 1;
-int tile_size = 7;
+int tile_size = 0;
 int streaming_input = 0, streaming_output = 0;
 bool input_as_blocked = false, weights_as_blocked = false, output_as_blocked = false;
 const char *input_file = nullptr, *weights_file = nullptr, *bias_file = nullptr;
@@ -92,7 +92,8 @@ int parse_cmd_options(int argc, char **argv) {
     ("tinput-cali-z", po::value<float>(&tinput_cali_z), "calibration zero for tinput quantization, Default: 0")
     ("input-data-file", po::value<std::string>(), "Input data file(nchw)")
     ("weights-data-file", po::value<std::string>(), "Weights data file(oihw)")
-    ("bias-data-file", po::value<std::string>(), "Bias data file");
+    ("bias-data-file", po::value<std::string>(), "Bias data file")
+    ("disable-autoparam", po::value<bool>(&disable_autoparam), "Disable autoparam");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -336,6 +337,7 @@ static inline eld_conv_t create_conv_desc(int _data_type_cfg) {
       = { input_as_blocked, weights_as_blocked, output_as_blocked };
   desc.sampling_kind = sampling_kind;
   desc.use_scratch_pad = false;
+  desc.disable_autoparam = disable_autoparam;
   return desc;
 }
 

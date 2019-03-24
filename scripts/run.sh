@@ -37,6 +37,7 @@ function conv_test() {
   with_ip_sum=0; f16c_opt=0; data_type_cfg=0
   input_file=""; weights_file=""; bias_file=""
   sampling_kind=2; tinput_cali_s=0; tinput_cali_z=0
+  disable_autoparam=1
 
   OPTIND=1
   while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:f:l:B:A:a:-:" opt; do
@@ -171,6 +172,10 @@ function conv_test() {
             ;;
           tinput-cali-z=*) tinput_cali_z=${OPTARG#*=}
             ;;
+          disable-autoparam) disable_autoparam="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          disable-autoparam=*) disable_autoparam=${OPTARG#*=}
+            ;;
        esac
        ;;
     esac
@@ -203,6 +208,7 @@ function conv_test() {
     --sampling-kind=$sampling_kind \
     --tinput-cali-s=$tinput_cali_s \
     --tinput-cali-z=$tinput_cali_z \
+    --disable-autoparam=$disable_autoparam \
     $input_file_opt \
     $weights_file_opt \
     $bias_file_opt

@@ -137,6 +137,7 @@ struct EULER_API eld_conv_t {
   bool f16c_opt;
   bool is_inference;
   bool use_scratch_pad;
+  bool disable_autoparam;
 
   // Performance:
   // Number of thread teams, number of threads per team
