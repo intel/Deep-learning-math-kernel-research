@@ -25,9 +25,11 @@ static inline bool cpu_has(int isa)
     return _may_i_use_cpu_feature(_FEATURE_AVX512F);
   case avx512_core:
     return _may_i_use_cpu_feature(_FEATURE_AVX512F | _FEATURE_AVX512BW);
+#if defined(WITH_VNNI)
   case avx512_core_vnni:
     return _may_i_use_cpu_feature(
         _FEATURE_AVX512F | _FEATURE_AVX512BW | _FEATURE_AVX512_VNNI);
+#endif
   default:
     return false;
   }

@@ -8,7 +8,7 @@ echo
 nsockets=$NSOCKETS
 ncores_per_socket=
 nthreads_per_core=1
-nthreads=
+nthreads=$NTHREADS
 build_dir=build
 
 nsockets=${nsockets:=$( lscpu | grep 'Socket(s)' | cut -d: -f2 )}
