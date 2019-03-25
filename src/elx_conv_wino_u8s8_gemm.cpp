@@ -6,7 +6,7 @@ namespace euler {
 template <typename GarrayTypes, const int A, const int V, const int I>
 void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::setup(elx_conv_params_t *conv_xc)
 {
-  attr_ = A != 6 ? set_attr(attr_, fma_opt_idx) : 0x0;
+  attr_ = A != 6 ? set_attr(0x0, fma_opt_idx) : 0x0;
   xc    = conv_xc;
   mthr_ = xc->nthreads;
 
