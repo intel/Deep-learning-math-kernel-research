@@ -17,8 +17,7 @@
 
 namespace euler {
 
-template <typename GarrayTypes, typename OoutputType,
-          bool FmaOpt, int V, int Vx, int I, typename KP>
+template <typename GarrayTypes, typename OoutputType, int V, int Vx, int I, typename KP>
 struct u8s8_gemm_kernel_otj {
   static inline void gemm(
       elx_conv_params_t &, typename GarrayTypes::OutputType *,
@@ -32,9 +31,8 @@ struct u8s8_gemm_kernel_otj {
       typename GarrayTypes::ScaleType *) {}
 };
 
-template <typename GarrayTypes, typename OoutputType,
-          bool FmaOpt, int V, int Vx, int ...Kp>
-struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, FmaOpt, V, Vx, ISA_SKX_AVX512,
+template <typename GarrayTypes, typename OoutputType, int V, int Vx, int ...Kp>
+struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     estl::integer_sequence<Kp...>> {
   using kparams = estl::integer_sequence<Kp...>;
   static_assert(sizeof...(Kp) == 5,
@@ -55,16 +53,16 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, FmaOpt, V, Vx, ISA_SKX_AVX
   constexpr static int J = J_traits<O, T, WeightsType>::J;
   constexpr static int JO0 = J_traits<O, T, WeightsType>::O0;
   constexpr static int JP0 = J_traits<O, T, WeightsType>::P0;
-  constexpr static int MP0 = FmaOpt ? (J_traits<O, T, WeightsType>::P0 == 1
-      ? 2 : J_traits<O, T, WeightsType>::P0) : J_traits<O, T, WeightsType>::P0;
+  constexpr static int MP0 = J_traits<O, T, WeightsType>::P0 == 1
+      ? 2 : J_traits<O, T, WeightsType>::P0;
   constexpr static int JO1 = J_traits<O, T, WeightsType>::O1;
   constexpr static int JP1 = J_traits<O, T, WeightsType>::P1;
-  constexpr static int MP1 = FmaOpt ? (J_traits<O, T, WeightsType>::P1 == 1
-      ? 2 : J_traits<O, T, WeightsType>::P1) : J_traits<O, T, WeightsType>::P1;
+  constexpr static int MP1 = J_traits<O, T, WeightsType>::P1 == 1
+      ? 2 : J_traits<O, T, WeightsType>::P1;
   constexpr static int JO2 = J_traits<O, T, WeightsType>::O2;
   constexpr static int JP2 = J_traits<O, T, WeightsType>::P2;
-  constexpr static int MP2 = FmaOpt ? (J_traits<O, T, WeightsType>::P2 == 1
-      ? 2 : J_traits<O, T, WeightsType>::P2) : J_traits<O, T, WeightsType>::P2;
+  constexpr static int MP2 = J_traits<O, T, WeightsType>::P2 == 1
+      ? 2 : J_traits<O, T, WeightsType>::P2;
 
   constexpr static int V1 = V / Vx;
   // INT8 gemm kernel
@@ -237,7 +235,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, FmaOpt, V, Vx, ISA_SKX_AVX
     }
 
     // preload weights
-    if (FmaOpt) {
+    if (get_attr(attr, fma_opt_idx)) {
       if (P == 1) {
         unroll_for(_O, JO) {
           mmwei[_O][0] = op_int8_load_weights<JO, P>(xc, weights, 0, 0, 0, _O);
@@ -272,7 +270,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, FmaOpt, V, Vx, ISA_SKX_AVX
       }
     }
 
-    if (FmaOpt) {
+    if (get_attr(attr, fma_opt_idx)) {
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
         if (P == 1) {
 #pragma nounroll

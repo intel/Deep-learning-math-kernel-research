@@ -6,7 +6,7 @@ namespace euler {
 template <typename GarrayTypes, const int A, const int V, const int I>
 void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::setup(elx_conv_params_t *conv_xc)
 {
-  attr_ = 0x0;
+  attr_ = A != 6 ? set_attr(attr_, fma_opt_idx) : 0x0;
   xc    = conv_xc;
   mthr_ = xc->nthreads;
 
@@ -16,10 +16,8 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::setup(elx_conv_params_t *c
 template <typename GarrayTypes, const int A, const int V, const int I>
 void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::bind_kernel_functions()
 {
-  u8s8_gemm_kernel_binder::bind<
-      1, GKF_CCC, A == 6 ? false : true>(xc->O, xc->T, &ker_u8s8_gemm_);
-  u8s8_gemm_kernel_binder::bind<
-      1, GKF_CCC, A == 6 ? false : true>(xc->O, xc->Tr, &ker_u8s8_gemm0_);
+  u8s8_gemm_kernel_binder::bind<1, GKF_CCC>(xc->O, xc->T, &ker_u8s8_gemm_);
+  u8s8_gemm_kernel_binder::bind<1, GKF_CCC>(xc->O, xc->Tr, &ker_u8s8_gemm0_);
 }
 
 // tweights:      oc4 | oc3, ic3, A, A, O2, I2, V1, V, Vx

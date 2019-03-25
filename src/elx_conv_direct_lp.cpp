@@ -93,7 +93,7 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
     el_error("IC blocking error");
   }
 
-  attr_ = 0x0;
+  attr_ = set_attr(attr_, fma_opt_idx);
   is_first_run_ = true;
   inference_acc_ = this->prop_kind == forward_inference;
   if (xopt_ == 0xa160) {

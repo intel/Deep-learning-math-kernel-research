@@ -58,6 +58,7 @@ enum {
   c_output_idx = 0x40,    // convert and restore output for int8 gemm
   has_Ir_idx = 0x100,     // has Ir
   has_Or_idx = 0x200,     // has_Or
+  fma_opt_idx = 0x400,    // fma optimization
 };
 
 inline int set_attr(int attr, int index) {

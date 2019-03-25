@@ -72,7 +72,7 @@ Instance_elx_conv_direct_1x1_lp_t::elx_conv_direct_1x1_lp_t(eld_conv_t &dc)
   if (this->ic4 * this->ic3 * this->I2 * V != this->IC)
     el_error("IC blocking error");
 
-  attr_ = 0x0;
+  attr_ = set_attr(attr_, fma_opt_idx);
   is_first_run_ = true;
   inference_acc_ = false;
   mthr_ = omp_get_max_threads();

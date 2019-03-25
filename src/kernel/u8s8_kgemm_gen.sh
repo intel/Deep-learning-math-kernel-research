@@ -11,9 +11,9 @@ if [ ! -f $src_file ] || [ ! -d $dst_dir ]; then
 fi
 
 __u8s8_kgemm_generate_inst__() {
-  ktype=$1; dtype=$2; otype=$3; fmaopt=$4; V=$5; Vx=$6; I=$7; S=$8; F=$9;
+  ktype=$1; dtype=$2; otype=$3; V=$4; Vx=$5; I=$6; S=$7; F=$8;
 
-  cat <<@ > $dst_dir/elk_${ktype}_otj_${dtype}_${otype}_${fmaopt}_${V}_${Vx}_${I}_${S}_${F}.cpp
+  cat <<@ > $dst_dir/elk_${ktype}_otj_${dtype}_${otype}_${V}_${Vx}_${I}_${S}_${F}.cpp
 // _generated_kgemm_file_
 //
 #include "$src_file"
@@ -25,9 +25,9 @@ namespace euler {
 #undef E
 #define E(O, T) \\
   ${ktype}_kernel_binder::gemm_ker_cls<conv_impl::$dtype, \\
-      $otype, $fmaopt, $V, $Vx, $I, $S, $F, O, T, 1>::gemm
+      $otype, $V, $Vx, $I, $S, $F, O, T, 1>::gemm
   ${ktype}_kernel_binder::kgemm<conv_impl::$dtype, $otype>
-      *${ktype}_kernel_binder::kgemm_${dtype}_${otype}_${fmaopt}_${V}_${Vx}_${I}_${S}_${F}[8][32] =
+      *${ktype}_kernel_binder::kgemm_${dtype}_${otype}_${V}_${Vx}_${I}_${S}_${F}[8][32] =
   { // 8
     { // 32
       E(1, 1),
