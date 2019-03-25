@@ -56,6 +56,9 @@ template <> struct _mm<16> {
   static inline __m<V> load_ps(void const *adrs) noexcept {
     return _mm512_load_ps(adrs);
   }
+  static inline __m<V> loadu_ps(void const *adrs) noexcept {
+    return _mm512_loadu_ps(adrs);
+  }
   static inline void store_ps(void *adrs, __m<V> m) noexcept {
     _mm512_store_ps(adrs, m);
   }
@@ -316,6 +319,7 @@ template <> struct _mm<16> {
 /* ICC Bug! */
 template <> struct _mm<16> {
   static constexpr auto load_ps = _mm512_load_ps;
+  static constexpr auto loadu_ps = _mm512_loadu_ps;
   static constexpr auto store_ps = _mm512_store_ps;
   static constexpr auto setzero_ps = _mm512_setzero_ps;
   static constexpr auto set1_ps = _mm512_set1_ps;
@@ -339,6 +343,9 @@ template <> struct _mm<8> {
   static constexpr int V = 8;
   static inline __m<V> load_ps(float const *adrs) noexcept {
     return _mm256_load_ps(adrs);
+  }
+  static inline __m<V> loadu_ps(float const *adrs) noexcept {
+    return _mm256_loadu_ps(adrs);
   }
   static inline void store_ps(float *adrs, __m<V> m) noexcept {
     _mm256_store_ps(adrs, m);

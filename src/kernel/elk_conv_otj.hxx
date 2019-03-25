@@ -157,7 +157,7 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         if (O == 2) { // bf16 type weights
           res = (_O == 0)
               ? _mm<V>::load_ps(&md4(aweights, _I2, _V, 0, 0))
-              : _mm<V>::load_ps(&md4(aweights, _I2, _V, 0, 0) - 1);
+              : _mm<V>::loadu_ps(&md4(aweights, _I2, _V, 0, 0) - 1);
         } else {      // fp16 type weights
           auto fp16v = _mm<V / 2>::load_si256(
               (__m256i *)&md4(aweights, _I2, _V, _O, 0));
@@ -172,7 +172,7 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         if (O == 2) { // bf16 type weights
           res = (_O == 0)
               ? _mm<V>::load_ps(&md5(aweights5, _I2, _V, _P, 0, 0))
-              : _mm<V>::load_ps(&md5(aweights5, _I2, _V, _P, 0, 0) - 1);
+              : _mm<V>::loadu_ps(&md5(aweights5, _I2, _V, _P, 0, 0) - 1);
         } else {      // fp16 type weights
           auto fp16v = _mm<V / 2>::load_si256(
               (__m256i *)&md5(aweights5, _I2, _V, _P, _O, 0));

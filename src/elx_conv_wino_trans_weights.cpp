@@ -420,11 +420,11 @@ void elx_conv_wino_trans_weights_t<TweightsType, WeightsType, I, A, K, V>
 ::execute(TweightsType *__restrict tweights,
     WeightsType *__restrict weights, int oc4) {
   if (weights_is_bfmt_ || weights_as_bfmt_)
-    __execute_blocked(tweights, weights, oc4);
+    this->__execute_blocked(tweights, weights, oc4);
   else if (xc->weights_fmt == hwio)
-    __execute_hwio(tweights, weights, oc4);
+    this->__execute_hwio(tweights, weights, oc4);
   else
-    __execute_oihw(tweights, weights, oc4);
+    this->__execute_oihw(tweights, weights, oc4);
 }
 
 template <typename TweightsType, typename WeightsType, int I, int A, int K, int V>
@@ -432,11 +432,11 @@ void elx_conv_wino_trans_weights_t<TweightsType, WeightsType, I, A, K, V>
 ::execute(TweightsType *__restrict tweights,
     WeightsType *__restrict weights, int _ic4, int _oc4) {
   if (weights_is_bfmt_ || weights_as_bfmt_)
-    __execute_blocked(tweights, weights, _ic4, _oc4);
+    this->__execute_blocked(tweights, weights, _ic4, _oc4);
   else if (xc->weights_fmt == hwio)
-    __execute_hwio(tweights, weights, _ic4, _oc4);
+    this->__execute_hwio(tweights, weights, _ic4, _oc4);
   else
-    __execute_oihw(tweights, weights, _ic4, _oc4);
+    this->__execute_oihw(tweights, weights, _ic4, _oc4);
 }
 
 template <typename WeightsType, int I, int A, int K, int V>
@@ -550,9 +550,9 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
     TweightsType *__restrict tweights,
     WeightsType *__restrict weights, int oc4) {
   if (weights_is_bfmt_ || weights_as_bfmt_)
-    __execute_blocked(tweights, weights, oc4);
+    this->__execute_blocked(tweights, weights, oc4);
   else
-    __execute_oihw(tweights, weights, oc4);
+    this->__execute_oihw(tweights, weights, oc4);
 #pragma omp barrier
   quantization(
       tweights_quant_scale, tweights_quant_factor, tweights_s8, tweights, oc4);
