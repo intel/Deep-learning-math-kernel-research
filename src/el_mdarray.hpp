@@ -93,7 +93,7 @@ template <typename F, const int N> class mdarray {
 
 #define __COMMA(n, ...) __COMMA_##n(__VA_ARGS__)
 
-#ifdef __INTEL_COMPILER
+#if (__INTEL_COMPILER || __GCC_COMPILER)
 
 #define __MD(type, n, array, ptr, ...)                                         \
   auto &array = *reinterpret_cast<type(*) __SQUARE(n, __VA_ARGS__)>(ptr)
