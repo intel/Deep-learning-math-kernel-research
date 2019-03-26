@@ -363,7 +363,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
 
 template <typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
-::__execute_blocked(TscaleType *__restrict tinput_quant_scale,
+::__execute_blocked(TscaleType *tinput_quant_scale,
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input)
 {
@@ -713,13 +713,92 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 
 template <typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
-::execute(TscaleType *tinput_quant_scale,
+::__execute_nchw(TscaleType *__restrict tinput_quant_scale,
+    uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
+    InputType *__restrict input, int _t2, int Tz) {
+  // n, IC, ih, iw => t2 | hA, wA, ic3, I2, T, V
+  alignas(64) op_type aout[A][A][V];
+  alignas(64) InputType ain[A][A][V];
+  SET_EPI32(xc->ih * xc->iw);
+
+  auto readin = [&](InputType ain[A][A][V], int _ic3, int _I2, int _T, bool is_Ir) {
+    MD2(InputType, ainput0, input, xc->n, xc->ic * xc->ih * xc->iw);
+    int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
+    t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
+    MD5(InputType, ainput5, &md2(ainput0, _n, 0), xc->ic3,
+        xc->I2, V, xc->ih, xc->iw);
+
+    if (is_Ir) {
+      iter_each (_hA, A) {
+      iter_each (_wA, A) {
+        if (_hA < _hA_start || _hA > _hA_end || _wA < _wA_start
+            || _wA > _wA_end) {
+#pragma omp simd
+          iter_each (_V, V) ain[_hA][_wA][_V] = 0;
+        } else {
+          iter_each(_V, xc->Ir) {
+            ain[_hA][_wA][_V] =
+                md5(ainput5, _ic3, _I2, _V, _ih + _hA, _iw + _wA);
+          }
+          iter_each(_V, V - xc->Ir) {
+            ain[_hA][_wA][_V + xc->Ir] = 0;
+          }
+        }
+      }}
+    } else {
+      iter_each (_hA, A) {
+      iter_each (_wA, A) {
+        if (_hA < _hA_start || _hA > _hA_end || _wA < _wA_start
+            || _wA > _wA_end) {
+#pragma omp simd
+          iter_each (_V, V) ain[_hA][_wA][_V] = 0;
+        } else {
+#pragma omp simd
+          iter_each (_V, V)
+            ain[_hA][_wA][_V] =
+                md5(ainput5, _ic3, _I2, _V, _ih + _hA, _iw + _wA);
+        }
+      }}
+    }
+  };
+
+  __m<V> mrepS = _mm<V>::set1_ps(xc->input_quant_S * xc->tinput_quant_repS);
+  __m<V> mz = _mm<V>::set1_ps(xc->tinput_quant_z);
+  MD6(uint8_t, atinput_u8, tinput_u8, A, A, xc->ic3, xc->I2, Tz, V);
+
+  iter_each (_ic3, xc->ic3) {
+  iter_each (_I2, xc->I2) {
+    bool is_Ir = xc->Ir != V && _ic3 == xc->ic3 - 1 && _I2 == xc->I2 - 1;
+    iter_each (_T, Tz) {
+      readin(ain, _ic3, _I2, _T, is_Ir);
+      ker_trans_input_(*xc, aout, (InputType *)ain, 0, 0, 0, -1);
+
+      iter_each (_hA, A) {
+      iter_each (_wA, A) {
+        // Min-Max quantization
+        __m<V> a = *(__m<V> *)&aout[_hA][_wA][0];
+        __m<V> mresf32 = a * mrepS + mz;
+        // convert to uint8
+        __i<V> mresu32 = _mm<V>::cvt_roundps_epu32(
+            mresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
+        __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mresu32);
+        // store
+        _mm_store_si128((__m128i *)&md6(
+            atinput_u8, _hA, _wA, _ic3, _I2, _T, 0), mmresu8);
+      }}
+    }
+  }}
+}
+
+template <typename InputType, int I, int A, int K, int V>
+void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
+::execute(TscaleType *__restrict tinput_quant_scale,
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input, int _t2, int Tz) {
   if (input_is_bfmt_ || input_as_bfmt_)
     __execute_blocked(tinput_quant_scale, tinput_u8, tinput, input, _t2, Tz);
   else
-    el_error("Unimplemented: plain format input for int8");
+    __execute_nchw(tinput_quant_scale, tinput_u8, tinput, input, _t2, Tz);
 }
 
 } // namespace euler

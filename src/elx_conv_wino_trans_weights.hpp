@@ -41,6 +41,25 @@ protected:
   decltype(elk_conv_wino_trans_weights<
       op_type, WeightsType, I, A, K, V>::execute) *ker_trans_weights_;
 
+  inline void __execute_blocked(TweightsType *__restrict tweights,
+      WeightsType *__restrict weights, int oc4);
+  inline void __execute_oihw(TweightsType *__restrict tweights,
+      WeightsType *__restrict weights, int oc4);
+  inline void __execute_hwio(TweightsType *__restrict tweights,
+      WeightsType *__restrict weights, int oc4);
+
+  inline void __execute_blocked(TweightsType *__restrict tweights,
+      WeightsType *__restrict weights, int _ic4, int _oc4);
+  inline void __execute_oihw(TweightsType *__restrict tweights,
+      WeightsType *__restrict weights, int _ic4, int _oc4);
+  inline void __execute_hwio(TweightsType *__restrict tweights,
+      WeightsType *__restrict weights, int _ic4, int _oc4);
+
+  inline void __execute_post(TweightsType * __restrict tweights,
+      op_type at[A][A][V][V],
+      int _oc4, int _ic4, int _oc3, int _ic3,
+      int _O1, int _I2, int _O);
+
   bool weights_is_bfmt_, weights_as_bfmt_;
   int mthr_;
 };
@@ -77,27 +96,6 @@ protected:
   using super::weights_is_bfmt_;
   using super::weights_as_bfmt_;
   using super::mthr_;
-
-  inline void __execute_blocked(TweightsType *__restrict tweights,
-      WeightsType *__restrict weights, int oc4);
-
-  inline void __execute_blocked(TweightsType *__restrict tweights,
-      WeightsType *__restrict weights, int _ic4, int _oc4);
-
-  inline void __execute_post(TweightsType * __restrict tweights,
-      op_type at[A][A][V][V],
-      int _oc4, int _ic4, int _oc3, int _ic3,
-      int _O1, int _I2, int _O);
-
-  inline void __execute_oihw(TweightsType *__restrict tweights,
-      WeightsType *__restrict weights, int oc4);
-  inline void __execute_hwio(TweightsType *__restrict tweights,
-      WeightsType *__restrict weights, int oc4);
-
-  inline void __execute_oihw(TweightsType *__restrict tweights,
-      WeightsType *__restrict weights, int _ic4, int _oc4);
-  inline void __execute_hwio(TweightsType *__restrict tweights,
-      WeightsType *__restrict weights, int _ic4, int _oc4);
 };
 
 template <typename WeightsType, int I, int A, int K, int V>
@@ -107,13 +105,7 @@ public:
   using TweightsType = float;
   using TscaleType = float;
   using super = elx_conv_wino_trans_weights_base<float, WeightsType, I, A, K, V>;
-
-protected:
-  using super::xc;
   using op_type = typename super::op_type;
-  using super::weights_is_bfmt_;
-  using super::weights_as_bfmt_;
-  using super::mthr_;
 
 public:
   elx_conv_wino_trans_weights_t() {}
@@ -133,14 +125,18 @@ public:
     execute(tweights_quant_scale, tweights_factor,
         t_input_s8, t_input, input, oc4);
   }
-protected:
-  void __execute_blocked(TscaleType *__restrict tweights_quant_scale,
-      TscaleType *__restrict tweights_factor,
-      int8_t *__restrict t_input_s8,
-      TweightsType *__restrict t_input,
-      WeightsType *__restrict input, int oc4);
 
+  inline void quantization(TscaleType *__restrict tweights_quant_scale,
+    TscaleType *__restrict tweights_quant_factor,
+    int8_t *__restrict tweights_s8,
+    TweightsType *__restrict tweights, int oc4);
+
+protected:
+  using super::xc;
   using super::ker_trans_weights_;
+  using super::weights_is_bfmt_;
+  using super::weights_as_bfmt_;
+  using super::mthr_;
 };
 
 template class elx_conv_wino_trans_weights_t<float, float, ISA_SKX_AVX512, 4, 3, 16>;

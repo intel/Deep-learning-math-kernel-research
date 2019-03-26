@@ -189,6 +189,12 @@ protected:
       InputType *__restrict input,
       int _t2, int Tz);
 
+  inline void __execute_nchw(TscaleType *__restrict tinput_quant_scale,
+      uint8_t *__restrict t_input_u8,
+      TinputType *__restrict t_input,
+      InputType *__restrict input,
+      int _t2, int Tz);
+
   using super::ker_trans_input_;
   using super::ker_trans_input0_;
 };
