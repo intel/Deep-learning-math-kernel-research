@@ -150,18 +150,17 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   {
     __m<V> res;
     if (F_traits<F>::is_compact_ir_weights) {
-      assert(_I2 == 0 && _P == 0);
-      MD3(WeightsType, aweights, weights, xc.Ir, O, V);
+      MD4(WeightsType, aweights, weights, xc.I2, xc.Ir, O, V);
       if (std::is_same<WeightsType, float>::value) {
-        res = _mm<V>::load_ps(&md3(aweights, _V, _O, 0));
+        res = _mm<V>::load_ps(&md4(aweights, _I2, _V, _O, 0));
       } else {
         if (O == 2) { // bf16 type weights
           res = (_O == 0)
-              ? _mm<V>::load_ps(&md3(aweights, _V, 0, 0))
-              : _mm<V>::load_ps(&md3(aweights, _V, 0, 0) - 1);
+              ? _mm<V>::load_ps(&md4(aweights, _I2, _V, 0, 0))
+              : _mm<V>::load_ps(&md4(aweights, _I2, _V, 0, 0) - 1);
         } else {      // fp16 type weights
           auto fp16v = _mm<V / 2>::load_si256(
-              (__m256i *)&md3(aweights, _V, _O, 0));
+              (__m256i *)&md4(aweights, _I2, _V, _O, 0));
           res = _mm<V>::cvtph_ps(fp16v);
         }
       }
