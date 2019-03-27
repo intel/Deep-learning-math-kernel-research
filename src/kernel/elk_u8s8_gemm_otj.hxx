@@ -230,10 +230,6 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     MD2(OoutputType, aooutput, ooutput, JO, O_stride);
     MD2(uint8_t, ainput, input, xc.I2, I2_stride);
 
-    if (get_attr(attr, has_Ir_idx)) {
-      el_error("Unimplement non-16x IC for int8 gemm");
-    }
-
     // preload weights
     if (get_attr(attr, fma_opt_idx)) {
       if (P == 1) {

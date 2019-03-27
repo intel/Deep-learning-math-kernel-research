@@ -107,6 +107,13 @@ void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
     int _ic2 = _ic4 * xc->ic3 * xc->I2 + _ic3 * xc->I2 + _I2;
     int iV = is_Ir ? xc->Ir : V;
 
+    __m<V> z = _mm<V>::set1_ps(0.0);
+    iter_each (_hK, K) {
+    iter_each (_wK, K) {
+    iter_each (_iV, V) {
+      _mm<V>::store_ps(ain[_hK][_wK][_iV], z);
+    }}}
+
     if (is_Or) {
       iter_each (_hK, K) {
       iter_each (_wK, K) {
@@ -545,7 +552,7 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
   if (weights_is_bfmt_ || weights_as_bfmt_)
     __execute_blocked(tweights, weights, oc4);
   else
-    el_error("Unimplemented: plain format weights for int8");
+    __execute_oihw(tweights, weights, oc4);
 #pragma omp barrier
   quantization(
       tweights_quant_scale, tweights_quant_factor, tweights_s8, tweights, oc4);

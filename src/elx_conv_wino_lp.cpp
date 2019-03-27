@@ -37,9 +37,6 @@ Template_elx_conv_wino_lp_t Instance_elx_conv_wino_lp_t::elx_conv_wino_lp_t(
   this->Ir = this->ic % V ? this->ic % V : V;
   this->Or = this->oc % V ? this->oc % V : V;
 
-  if (this->Ir != V)
-    el_error("ic / 16 != 0 is not implement while doing int8 gemm");
-
   is_first_run_ = true;
   inference_acc_ = false;
   mthr_ = omp_get_max_threads();

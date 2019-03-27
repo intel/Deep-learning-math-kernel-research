@@ -357,7 +357,7 @@ static inline int conv_ref_setup(eld_conv_t &desc) {
         / (desc.tile_size - 3 + 1) * desc.dims.output.n;
     size_t A = desc.tile_size;
     size_t K = 3;
-    size_t IC = desc.dims.input.c;
+    size_t IC = ALIGNUP(desc.dims.input.c, 16);
     size_t tinput_byte_size = A * A * IC * t * sizeof(float);
 
     MEMALIGN64(&desc.scratch_pad, tinput_byte_size);
