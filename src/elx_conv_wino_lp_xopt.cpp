@@ -57,7 +57,7 @@ void Instance_elx_conv_wino_lp_t::__execute_a133(
     iter_each (_oc4, this->oc4) {
       if (_ic4 != last_ic4) {
         trans_input_u8(
-            tinput_quant_scale_, tinput_u8_, tinput_, &md3(ainput, 0, _ic4, 0));
+            tinput_quant_scale_, tinput_u8_, tinput_, &md3(ainput, 0, _ic4, 0), _ic4);
         last_ic4 = _ic4;
       }
 #pragma omp barrier

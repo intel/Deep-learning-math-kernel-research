@@ -207,7 +207,7 @@ template <typename TinputType, typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
 ::__execute_nchw(TinputType *__restrict tinput,
     InputType *__restrict input, int _ic4) {
-  SET_EPI32(xc->ih * xc->iw)
+  SET_EPI32(xc->ih * xc->iw);
 
   auto readin = [&](InputType ain[A][A][V], int _t2, int _ic3, int _I2, int _T,
                     bool is_Ir) {
@@ -497,13 +497,101 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 
 template <typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
+::__execute_nchw(TscaleType *tinput_quant_scale,
+    uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
+    InputType *__restrict input, int _ic4) {
+  SET_EPI32(xc->ih * xc->iw);
+
+  auto readin = [&](InputType ain[A][A][V], int _t2, int _ic3, int _I2, int _T,
+                    bool is_Ir) {
+    MD2(InputType, ainput0, input, xc->n, xc->ic * xc->ih * xc->iw);
+    int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
+    t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
+    MD6(InputType, ainput1, &md2(ainput0, _n, 0), xc->ic4, xc->ic3,
+        xc->I2, V, xc->ih, xc->iw);
+
+    if (is_Ir) {
+      iter_each (_hA, A) {
+        iter_each(_wA, A) {
+          if (_hA < _hA_start || _hA > _hA_end || _wA < _wA_start ||
+              _wA > _wA_end) {
+#pragma omp simd
+            iter_each(_V, V) ain[_hA][_wA][_V] = 0.0f;
+          } else {
+#pragma omp simd
+            iter_each(_V, xc->Ir) ain[_hA][_wA][_V] =
+              md6(ainput1, 0, _ic3, _I2, _V, _ih + _hA, _iw + _wA);
+          }
+        }
+      }
+    } else {
+      iter_each (_hA, A) {
+        iter_each(_wA, A) {
+          if (_hA < _hA_start || _hA > _hA_end || _wA < _wA_start ||
+              _wA > _wA_end) {
+#pragma omp simd
+            iter_each(_V, V) ain[_hA][_wA][_V] = 0.0f;
+          } else {
+            if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
+              constexpr int scale = sizeof(InputType);
+              __m<V> t = _mm<V>::i32gather_ps(vindex,
+                  &md6(ainput1, 0, _ic3, _I2, 0, _ih + _hA, _iw + _wA), scale);
+              _mm<V>::store_ps(ain[_hA][_wA], t);
+            } else {
+#pragma omp simd
+              iter_each(_V, V) ain[_hA][_wA][_V] =
+                  md6(ainput1, 0, _ic3, _I2, _V, _ih + _hA, _iw + _wA);
+            }
+          }
+        }
+      }
+    }
+  };
+
+  __m<V> mrepS = _mm<V>::set1_ps(xc->input_quant_S * xc->tinput_quant_repS);
+  __m<V> mz = _mm<V>::set1_ps(xc->tinput_quant_z);
+  int ithr = omp_get_thread_num();
+  thread_parallel_for<3>(mthr_, ithr, [&](int _t2, int _ic3, int _I2) {
+    // n, ic2, ih, iw, V => t2, hA, wA, ic3, I2, T, V
+    MD2(uint8_t, atinput2_u8, tinput_u8,
+        xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * V);
+    bool is_Ir = xc->Ir != V && _ic4 == xc->ic4 - 1 &&
+         _ic3 == xc->ic3 - 1 && _I2 == xc->I2 - 1;
+    int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
+    alignas(64) op_type aout[A][A][V];
+    alignas(64) InputType ain[A][A][V];
+    iter_each(_T, Tz) {
+      readin(ain, _t2, _ic3, _I2, _T, is_Ir);
+      ker_trans_input_(*xc, aout, (InputType *)ain, 0, 0, 0, -1);
+
+      MD6(uint8_t, atinput_u8, &md2(atinput2_u8, _t2, 0),
+          A, A, xc->ic3, xc->I2, Tz, V);
+      iter_each (_hA, A) {
+      iter_each (_wA, A) {
+        // Min-Max quantization
+        __m<V> a = *(__m<V> *)&aout[_hA][_wA][0];
+        __m<V> mresf32 = a * mrepS + mz;
+        // convert to uint8
+        __i<V> mresu32 = _mm<V>::cvt_roundps_epu32(
+            mresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
+        __m128i mmresu8 = _mm<V>::cvtusepi32_epi8(mresu32);
+        // store
+        _mm_store_si128((__m128i *)&md6(
+            atinput_u8, _hA, _wA, _ic3, _I2, _T, 0), mmresu8);
+      }}
+    }
+  }, xc->t2, xc->ic3, xc->I2);
+}
+
+template <typename InputType, int I, int A, int K, int V>
+void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 ::execute(TscaleType *__restrict tinput_quant_scale,
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
-    InputType *__restrict input) {
+    InputType *__restrict input, int _ic4) {
   if (input_is_bfmt_ || input_as_bfmt_)
     __execute_blocked(tinput_quant_scale, tinput_u8, tinput, input);
   else
-    el_error("Unimplemented: plain format input for int8");
+    __execute_nchw(tinput_quant_scale, tinput_u8, tinput, input, _ic4);
 }
 
 template <typename InputType, int I, int A, int K, int V>

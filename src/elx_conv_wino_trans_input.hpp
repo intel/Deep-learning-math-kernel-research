@@ -154,7 +154,7 @@ public:
   void execute(TscaleType *__restrict tinput_quant_scale,
       uint8_t *__restrict t_input_u8,
       TinputType *__restrict t_input,
-      InputType *__restrict input);
+      InputType *__restrict input, int _ic4);
 
   void execute(TscaleType *__restrict tinput_quant_scale,
       uint8_t *__restrict t_input_u8,
@@ -165,8 +165,8 @@ public:
   void operator() (TscaleType *__restrict tinput_quant_scale,
       uint8_t *__restrict t_input_u8,
       TinputType *__restrict t_input,
-      InputType *__restrict input) {
-    execute(tinput_quant_scale, t_input_u8, t_input, input);
+      InputType *__restrict input, int _ic4) {
+    execute(tinput_quant_scale, t_input_u8, t_input, input, _ic4);
   }
 
   void operator () (TscaleType *__restrict tinput_quant_scale,
@@ -182,6 +182,11 @@ protected:
       uint8_t *__restrict t_input_u8,
       TinputType *__restrict t_input,
       InputType *__restrict input);
+
+  inline void __execute_nchw(TscaleType *__restrict tinput_quant_scale,
+      uint8_t *__restrict t_input_u8,
+      TinputType *__restrict t_input,
+      InputType *__restrict input, int _ic4);
 
   inline void __execute_blocked(TscaleType *__restrict tinput_quant_scale,
       uint8_t *__restrict t_input_u8,
