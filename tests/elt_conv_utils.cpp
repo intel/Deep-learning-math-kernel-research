@@ -993,6 +993,125 @@ int ref_convolution2d_block16(eld_conv_t &desc, OutputType *output,
   return 0;
 }
 
+template <typename InputType, typename WeightsType, typename OutputType,
+          typename BiasType>
+int ref_deconvolution2d(eld_conv_t &desc, OutputType *output, InputType *input,
+                      WeightsType *weights, BiasType *bias) {
+  int n = desc.dims.input.n;
+  int ic = desc.dims.input.c;
+  int oc = desc.dims.output.c;
+  int ih = desc.dims.input.h;
+  int iw = desc.dims.input.w;
+  int oh = desc.dims.output.h;
+  int ow = desc.dims.output.w;
+  int kh = desc.dims.weights.h;
+  int kw = desc.dims.weights.w;
+  int sh = desc.strides.h;
+  int sw = desc.strides.w;
+  int pt = desc.pads.t;
+  int pl = desc.pads.l;
+  int dh = desc.dilations.h;
+  int dw = desc.dilations.w;
+
+  if (desc.dims.input.n != desc.dims.output.n ||
+      desc.dims.input.c != desc.dims.weights.i ||
+      desc.dims.output.c != desc.dims.weights.o ||
+      desc.dims.output.c != desc.dims.bias.c) {
+    printf("Dimension error!");
+    return -1;
+  }
+
+  InputType *tinput = nullptr, *tweights = nullptr, *toutput = nullptr;
+  if (desc.formats.input == nChw16c) {
+    tinput = (InputType *)malloc(desc.byte_sizes.input);
+    reorder<InputType, nchw, nChw16c>(tinput, input, n, ic, ih, iw);
+  } else if (desc.formats.input == nhwc) {
+    tinput = (InputType *)malloc(desc.byte_sizes.input);
+    reorder<InputType, nchw, nhwc>(tinput, input, n, ic, ih, iw);
+  }
+  if (desc.formats.weights == OIhw16i16o) {
+    tweights = (WeightsType *)malloc(desc.byte_sizes.weights);
+    reorder<WeightsType, oihw, OIhw16i16o>(tweights, weights, oc, ic, kh, kw);
+  } else if (desc.formats.weights == hwio) {
+    tweights = (WeightsType *)malloc(desc.byte_sizes.weights);
+    reorder<WeightsType, oihw, hwio>(tweights, weights, oc, ic, kh, kw);
+  }
+  if (desc.formats.output == nChw16c) {
+    toutput = (OutputType *)malloc(desc.byte_sizes.output);
+    reorder<OutputType, nchw, nChw16c>(toutput, output, n, oc, oh, ow);
+  } else if (desc.formats.output == nhwc) {
+    toutput = (OutputType *)malloc(desc.byte_sizes.output);
+    reorder<OutputType, nchw, nhwc>(toutput, output, n, oc, oh, ow);
+  }
+
+  MD4(InputType, ainput, desc.formats.input == nchw ? input : tinput, n, ic, ih,
+      iw);
+  MD4(WeightsType, aweights, desc.formats.weights == oihw ? weights : tweights,
+      oc, ic, kh, kw);
+  MD4(OutputType, atoutput, desc.formats.output == nchw ? output : toutput, n,
+      oc, oh, ow);
+
+#pragma omp parallel for collapse(4)
+  iter_each(_n, n) {
+    iter_each(_oc, oc) {
+      iter_each(_oh, oh) {
+        iter_each(_ow, ow) {
+          md4(atoutput, _n, _oc, _oh, _ow) =
+              desc.with_bias ? bias[_oc] : 0.0f;
+
+          iter_each(_ic, ic) {
+            iter_each(_kh, kh) {
+              int _ih = (_oh + pt - _kh) / sh;
+              if (_ih < 0 || _ih >= ih)
+                continue;
+              iter_each(_kw, kw) {
+                int _iw = (_ow + pl - _kw) / sw;
+                if (_iw < 0 || _iw >= iw)
+                  continue;
+                md4(atoutput, _n, _oc, _oh, _ow) +=
+                    md4(ainput, _n, _ic, _ih, _iw) *
+                    md4(aweights, _oc, _ic, _kh, _kw);
+              }
+            }
+          }
+          md4(atoutput, _n, _oc, _oh, _ow) =
+              desc.with_relu && md4(atoutput, _n, _oc, _oh, _ow) < 0.0f
+                  ? 0.0f
+                  : md4(atoutput, _n, _oc, _oh, _ow);
+        }
+      }
+    }
+  }
+
+  if (desc.formats.output == nChw16c) {
+    reorder<OutputType, nChw16c, nchw>(output, toutput, n, oc, oh, ow);
+  } else if (desc.formats.output == nhwc) {
+    reorder<OutputType, nhwc, nchw>(output, toutput, n, oc, oh, ow);
+  }
+
+  if (tinput != nullptr)
+    free(tinput);
+  if (tweights != nullptr)
+    free(tweights);
+  if (toutput != nullptr)
+    free(toutput);
+
+  return 0;
+}
+
+template <typename InputType, typename WeightsType, typename OutputType,
+          typename BiasType>
+int ref_conv_deconv_2d(eld_conv_t &desc, OutputType *output, InputType *input,
+                      WeightsType *weights, BiasType *bias) {
+  if (desc.algorithm == DECONV_DIRECT) {
+    return ref_deconvolution2d<InputType, WeightsType, OutputType, BiasType>(
+        desc, output, input, weights, bias);
+  } else {
+    return ref_convolution2d<InputType, WeightsType, OutputType, BiasType>(
+        desc, output, input, weights, bias);
+  }
+}
+
 void post_process_conv_results(float *output_ref, eld_conv_t &desc,
                                void *output_res, int data_type_cfg) {
   if (data_type_cfg == euler::test::FP32 ||
@@ -1023,6 +1142,10 @@ void post_process_conv_results(float *output_ref, eld_conv_t &desc,
     }
   }
 }
+
+template int ref_conv_deconv_2d<float, float, float, float>(eld_conv_t &,
+                                                            float *, float *,
+                                                            float *, float *);
 
 template int ref_convolution2d<float, float, float, float>(eld_conv_t &,
                                                            float *, float *,

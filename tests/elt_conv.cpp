@@ -66,7 +66,7 @@ int parse_cmd_options(int argc, char **argv) {
     ("repeated-layer,l", po::value<int>(&repeated_layer), "Number of repeated layers. Default: 16")
     ("double-buffering,B", po::value<bool>(&double_buffering), "Double buffering. Default: off")
     ("output-as-input,A", po::value<bool>(&output_as_input), "Output of layer n used as input of layer n+1. Default: off")
-    ("alg,a", po::value<std::string>(), "auto|wino|direct|direct_1x1. Algorithm. Default: wino")
+    ("alg,a", po::value<std::string>(), "deconv|auto|wino|direct|direct_1x1. Algorithm. Default: wino")
     ("tile-size", po::value<int>(&tile_size), "Winograd tile size: 5")
     ("nthreads", po::value<int>(&nthreads), "Number of threads per team")
     ("execution-mode", po::value<std::string>(), "Execution mode")
@@ -107,7 +107,9 @@ int parse_cmd_options(int argc, char **argv) {
     std::string alg_str = vm["alg"].as<std::string>();
     std::transform(
         alg_str.begin(), alg_str.end(), alg_str.begin(), ::toupper);
-    if (alg_str == "AUTO")
+    if (alg_str == "DECONV")
+      alg = DECONV_DIRECT;
+    else if (alg_str == "AUTO")
       alg = CONV_AUTO;
     else if (alg_str == "WINO")
       alg = CONV_WINOGRAD;
@@ -116,7 +118,7 @@ int parse_cmd_options(int argc, char **argv) {
     else if (alg_str == "DIRECT_1X1")
       alg = CONV_DIRECT_1X1;
     else {
-      printf("Error: convolution options: alg should be auto|wino|direct|direct_1x1\n");
+      printf("Error: convolution options: alg should be deconv|auto|wino|direct|direct_1x1\n");
       return -1;
     }
   }
@@ -522,7 +524,7 @@ int main(int argc, char **argv)
     void *output_val = output[C - 1];
 
     printf("Validation: ");
-    if (test::ref_convolution2d<float>(
+    if (test::ref_conv_deconv_2d<float>(
         conv_ref, output_ref, input_ref, weights_ref, bias_ref)) {
       printf("Fail: Convolution ref execution error!\n");
     } else {

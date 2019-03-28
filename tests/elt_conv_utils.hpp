@@ -88,13 +88,12 @@ namespace test {
   };
 
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  int ref_convolution2d(eld_conv_t &desc,
+  int ref_conv_deconv_2d(eld_conv_t &desc,
       OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
 
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
-  int ref_convolution2d_block16(eld_conv_t &desc,
+  int ref_convolution2d(eld_conv_t &desc,
       OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
-
 }
 }
 

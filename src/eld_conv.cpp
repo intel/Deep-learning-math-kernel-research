@@ -12,6 +12,7 @@
 #include "elx_conv_direct_1x1_lp.hpp"
 #include "elx_conv_direct.hpp"
 #include "elx_conv_direct_lp.hpp"
+#include "elx_deconv_direct.hpp"
 
 namespace euler {
 
@@ -118,8 +119,14 @@ int eld_conv_t::setup()
   byte_sizes.bias = get_elem_size(data_type.bias) * sizes.bias;
 
   // Validate padding
-  int oh = (dims.input.h + pads.t + pads.b - dims.weights.h) / strides.h + 1;
-  int ow = (dims.input.w + pads.l + pads.r - dims.weights.w) / strides.w + 1;
+  int oh, ow;
+  if (algorithm == DECONV_DIRECT) {
+    oh = (dims.input.h - 1) * strides.h + dims.weights.h - pads.t - pads.b;
+    ow = (dims.input.w - 1) * strides.w + dims.weights.w - pads.l - pads.r;
+  } else { // CONV
+    oh = (dims.input.h + pads.t + pads.b - dims.weights.h) / strides.h + 1;
+    ow = (dims.input.w + pads.l + pads.r - dims.weights.w) / strides.w + 1;
+  }
   if (oh != dims.output.h || ow != dims.output.w) {
     el_error("Padding parameter error");
     return ELX_GENERAL_ERROR;
@@ -264,6 +271,11 @@ int eld_conv_t::setup()
         }
       }
     }
+  } else if (algorithm == DECONV_DIRECT) {
+    if (user_type == user_type_f32) {
+      xc = new elx_deconv_direct_t<conv::FP32, conv_impl::FP32, 16, ISA_SKX_AVX512>(*this);
+    } else
+      el_error("TODO: FP16 UserTypes for DECONV_DIRECT.");
   }
 
   return ELD_OK;
