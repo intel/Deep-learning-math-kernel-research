@@ -14,35 +14,31 @@ enum {
 
 static inline bool cpu_has(int isa)
 {
+#if __ICC_COMPILER
   switch (isa) {
   case sse42:
-    // return _may_i_use_cpu_feature(_FEATURE_SSE4_2);
-    return __builtin_cpu_supports("sse4.2");
+    return _may_i_use_cpu_feature(_FEATURE_SSE4_2);
   case avx:
-    // return _may_i_use_cpu_feature(_FEATURE_AVX);
-    return __builtin_cpu_supports("avx");
+     return _may_i_use_cpu_feature(_FEATURE_AVX);
   case avx2:
-    // return _may_i_use_cpu_feature(_FEATURE_AVX2);
-    return __builtin_cpu_supports("avx2");
+    return _may_i_use_cpu_feature(_FEATURE_AVX2);
   case avx512_common:
-    // return _may_i_use_cpu_feature(_FEATURE_AVX512F);
-    return __builtin_cpu_supports("avx512f");
+    return _may_i_use_cpu_feature(_FEATURE_AVX512F);
   case avx512_core:
-    // return _may_i_use_cpu_feature(_FEATURE_AVX512F | _FEATURE_AVX512BW);
-    return __builtin_cpu_supports("avx512f")
-        && __builtin_cpu_supports("avx512bw");
+    return _may_i_use_cpu_feature(_FEATURE_AVX512F | _FEATURE_AVX512BW);
 #if defined(WITH_VNNI)
   case avx512_core_vnni:
-    // return _may_i_use_cpu_feature(
-    //    _FEATURE_AVX512F | _FEATURE_AVX512BW | _FEATURE_AVX512_VNNI);
-    return __builtin_cpu_supports("avx512f")
-        && __builtin_cpu_supports("avx512bw")
-        && __builtin_cpu_supports("avx512vnni");
+    return _may_i_use_cpu_feature(
+        _FEATURE_AVX512F | _FEATURE_AVX512BW | _FEATURE_AVX512_VNNI);
 #endif
   default:
     return false;
   }
   return false;
+#else
+  // TODO
+  return true;
+#endif
 }
 
 // CPU V length by byte
