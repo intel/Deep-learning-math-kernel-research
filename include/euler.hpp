@@ -164,6 +164,8 @@ struct EULER_API eld_conv_t {
   // Defaults
   eld_conv_t();
   ~eld_conv_t();
+  eld_conv_t(const eld_conv_t&) = delete;
+  eld_conv_t& operator=(const eld_conv_t&) = delete;
   int setup();
 
   // Auto computed by setup()

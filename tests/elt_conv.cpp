@@ -199,15 +199,18 @@ int parse_cmd_options(int argc, char **argv) {
     }
   }
   if (vm.count("input-data-file")) {
-    input_file = strdup(vm["input-data-file"].as<std::string>().c_str());
+    const char *t = vm["input-data-file"].as<std::string>().c_str();
+    input_file = t == nullptr ? nullptr : strdup(t);
     with_real_data = true;
   }
   if (vm.count("weights-data-file")) {
-    weights_file = strdup(vm["weights-data-file"].as<std::string>().c_str());
+    const char *t = vm["weights-data-file"].as<std::string>().c_str();
+    weights_file = t == nullptr ? nullptr : strdup(t);
     with_real_data = true;
   }
   if (vm.count("bias-data-file")) {
-    bias_file = strdup(vm["bias-data-file"].as<std::string>().c_str());
+    const char *t = vm["bias-data-file"].as<std::string>().c_str();
+    bias_file = t == nullptr ? nullptr : strdup(t);
   }
   printf("input-data-file: %s\n", input_file);
   printf("weights-data-file: %s\n", weights_file);
@@ -288,8 +291,7 @@ int parse_cmd_options(int argc, char **argv) {
   return 0;
 }
 
-static inline eld_conv_t create_conv_desc(int _data_type_cfg) {
-  eld_conv_t desc;
+static inline eld_conv_t &create_conv_desc(eld_conv_t &desc, int _data_type_cfg) {
   if (_data_type_cfg == euler::test::FP32) {
     desc.data_type = {
         euler::f32, euler::f32, euler::f32, euler::f32 };
@@ -446,12 +448,10 @@ int main(int argc, char **argv)
     return 0;
 
   // 1, create convolution desc
-  auto desc = create_conv_desc(data_type_cfg);
-  auto desc_ref = create_conv_desc(euler::test::FP32);
-
-  // 2. setup convolution
+  //    setup convolution
   eld_conv_t convs[RL_MAX];
-  eld_conv_t conv_ref = desc_ref;
+  eld_conv_t conv_ref;
+  create_conv_desc(conv_ref, euler::test::FP32);
   if (conv_ref_setup(conv_ref) != ELD_OK) {
     printf("Fail: Convolution setup error!\n");
     return 0;
@@ -473,7 +473,7 @@ int main(int argc, char **argv)
 #define _prepare_conv_data(itype, wtype, otype, btype)                         \
   do {                                                                         \
     for (auto c = 0; c < C; ++c) {                                             \
-      convs[c] = desc;                                                         \
+      create_conv_desc(convs[c], data_type_cfg);                               \
       input[c] = nullptr;                                                      \
       output[c] = nullptr;                                                     \
       itype **in = (itype **)&input[c];                                        \
@@ -511,15 +511,14 @@ int main(int argc, char **argv)
   }
 #endif
   else {
-    printf("unsupported UserTypes\n");
-    return 0;
+    test::error("unsupported UserTypes\n");
   }
 
-  // 3. execute convolution
+  // 2. execute convolution
   conv_execute(convs, input, weights, output, bias, C);
 
   if (validate_results) {
-    // 4. validate results
+    // 3. validate results
     eld_conv_t &conv_val = convs[C - 1];
     void *output_val = output[C - 1];
 
@@ -541,11 +540,11 @@ int main(int argc, char **argv)
       free(_output);
     }
   } else {
-    // 5. bench
+    // 4. bench
     conv_bench(convs, conv_ref, input, weights, output, bias, C);
   }
 
-  // 6. setdown
+  // 5. setdown
   free(input_ref);
   free(output_ref);
   free(weights_ref);

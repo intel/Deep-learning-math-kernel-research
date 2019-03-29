@@ -459,8 +459,10 @@ void Instance_elx_conv_direct_1x1_lp_t::requant_output(
       mmresx8 = _mm<V>::cvtsepi32_epi8(mmress32);
     else if (std::is_same<OutputType, uint8_t>::value)
       mmresx8 = _mm<V>::cvtusepi32_epi8(mmress32);
-    else
+    else {
+      mmresx8 = _mm_setzero_si128();
       el_error("Unsupported output type for int8 direct 1x1");
+    }
     _mm_store_si128((__m128i *)&md5(aoutput, _t3, _o, _oh, _ow, 0), mmresx8);
   }, this->t3, this->OC / V, this->oh, this->ow);
 }
