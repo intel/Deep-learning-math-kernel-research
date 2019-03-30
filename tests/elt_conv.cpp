@@ -201,20 +201,16 @@ int parse_cmd_options(int argc, char **argv) {
   if (vm.count("input-data-file")) {
     const char *t = vm["input-data-file"].as<std::string>().c_str();
     input_file = t == nullptr ? nullptr : strdup(t);
-    with_real_data = true;
   }
   if (vm.count("weights-data-file")) {
     const char *t = vm["weights-data-file"].as<std::string>().c_str();
     weights_file = t == nullptr ? nullptr : strdup(t);
-    with_real_data = true;
   }
   if (vm.count("bias-data-file")) {
     const char *t = vm["bias-data-file"].as<std::string>().c_str();
     bias_file = t == nullptr ? nullptr : strdup(t);
   }
-  printf("input-data-file: %s\n", input_file);
-  printf("weights-data-file: %s\n", weights_file);
-  printf("bias-data-file: %s\n", bias_file);
+  with_real_data = (input_file != nullptr) && (weights_file != nullptr);
 
   if (output_as_input && double_buffering) {
     printf("Error: convolution options: output-as-input is exclusive with "
