@@ -1,36 +1,23 @@
-# Euler: accelerator for DL inference
+# Euler: convolution kernel research
 
-## Prerequisites:
+## Prerequisites
     ICC > 18.0
-    IOMP5
-    Linux OS
+    (or GCC > 7.2)
 
-## Build Instructions:
-    ; most simply
-    ; (build release version of libel.so and tests with multiple jobs)
-    make -j
-    ;
-    ; build libel.so only
-    make lib
-    ; build test
-    make test
-    ; clean the build
-    make clean
-    ; debug build
-    make DEBUG=1
-    make DEBUG=1 lib -j
-    make DEBUG=1 clean
+## Build
+    ; GCC
+    mkdir -p build && cd build && cmake .. && make -j && cd -
+    ; ICC
+    cmake .. -DCMAKE_C_COMPILER=icc -DCMAKE_CXX_COMPILER=icpc
 
-## Run Tests:
+## Run Tests
     ; using run script
     ./script/run.sh
-    ; or
-    build/<release|debug>/bin/el_xxx
 
-## Link to Euler:
+## Link to Euler
     CFLAGS += /path/to/euler/include
     #include "euler.hpp"
-    LDFLAGS += libel -L/path/to/euler/<build|release>/lib
+    LDFLAGS += libel
 
-## Examples:
-    See test/elt_xxx.cpp
+## License
+    Apache License Version 2.0. 
