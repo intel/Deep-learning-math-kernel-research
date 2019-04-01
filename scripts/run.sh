@@ -190,25 +190,25 @@ function conv_test() {
   set -v
   eval $OMP_ENV $ROOT_DIR/$build_dir/tests/elt_conv \
     -mb=$n -ic=$i -oc=$o -ih=$h -iw=$w -oh=$H -ow=$W -kh=$k -kw=$K -ph=$p -pw=$P -sh=$s -sw=$S \
-    --with-bias=$b --with-relu=$r --validate-results=$v -alg=$a --repeated-layer=$l -dbuffering=$B --output-as-input=$A \
-    --flt-o=$flt_o --flt-t=$flt_t --blk-i=$blk_i --blk-o=$blk_o \
-    --pat-i=$pat_i --pat-o=$pat_o --tile-size=$tile_size \
-    --nthreads=$nthreads --execution-mode=$execution_mode \
-    --streaming-input=$streaming_input \
-    --streaming-output=$streaming_output \
-    --input-format=$input_format \
-    --weights-format=$weights_format \
-    --output-format=$output_format \
-    --input-as-blocked=$input_as_blocked \
-    --weights-as-blocked=$weights_as_blocked \
-    --output-as-blocked=$output_as_blocked   \
-    --with-ip-sum=$with_ip_sum \
-    --f16c-opt=$f16c_opt \
-    --data-type-cfg=$data_type_cfg \
-    --sampling-kind=$sampling_kind \
-    --tinput-cali-s=$tinput_cali_s \
-    --tinput-cali-z=$tinput_cali_z \
-    --disable-autoparam=$disable_autoparam \
+    -with_bias=$b -with_relu=$r -validate_results=$v -alg=$a -repeated_layer=$l -dbuffering=$B -output_as_input=$A \
+    -flt_o=$flt_o -flt_t=$flt_t -blk_i=$blk_i -blk_o=$blk_o \
+    -pat_i=$pat_i -pat_o=$pat_o -tile_size=$tile_size \
+    -nthreads=$nthreads -execution_mode=$execution_mode \
+    -streaming_input=$streaming_input \
+    -streaming_output=$streaming_output \
+    -input_format=$input_format \
+    -weights_format=$weights_format \
+    -output_format=$output_format \
+    -input_as_blocked=$input_as_blocked \
+    -weights_as_blocked=$weights_as_blocked \
+    -output_as_blocked=$output_as_blocked   \
+    -with_ip_sum=$with_ip_sum \
+    -f16c_opt=$f16c_opt \
+    -data_type_cfg=$data_type_cfg \
+    -sampling_kind=$sampling_kind \
+    -tinput_cali_s=$tinput_cali_s \
+    -tinput_cali_z=$tinput_cali_z \
+    -disable_autoparam=$disable_autoparam \
     $input_file_opt \
     $weights_file_opt \
     $bias_file_opt
