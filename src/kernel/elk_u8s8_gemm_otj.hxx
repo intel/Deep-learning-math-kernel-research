@@ -185,7 +185,25 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
       fout = Sa * Sw * fout + fbias;
     }
 
-    // fuse relu (direct conv 1x1)
+    // fuse sum
+    if (get_attr(attr, ip_sum_idx)) {
+      if (std::is_same<OoutputType, uint8_t>::value
+          || std::is_same<OoutputType, int8_t>::value) {
+        __m<V> sum_S = _mm<V>::set1_ps(xc.sum_quant_S);
+        __m128i &mmoo = *(__m128i *)&md2(aooutput2, _T, 0);
+        __i<V> mmoos32;
+        if (std::is_same<OoutputType, int8_t>::value)
+          mmoos32 = _mm<V>::cvtepi8_epi32(mmoo);
+        else
+          mmoos32 = _mm<V>::cvtepu8_epi32(mmoo);
+        auto mmoof32 = _mm<V>::cvtepi32_ps(mmoos32);
+        mmoof32 = mmoof32 * sum_S;
+        fout += mmoof32;
+      } else {
+        // no implementation for FP32 output
+      }
+    }
+    // fuse relu
     if (get_attr(attr, relu_idx)) {
       fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
     }

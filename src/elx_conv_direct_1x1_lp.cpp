@@ -189,6 +189,7 @@ int Instance_elx_conv_direct_1x1_lp_t::prepare_execute_opt()
   printf("input_quant_z = %f\n", this->input_quant_z);
   printf("output_quant_S = %f\n", this->output_quant_S);
   printf("output_quant_z = %f\n", this->output_quant_z);
+  printf("sum_quant_S = %f\n", this->sum_quant_S);
   return 0;
 }
 
@@ -217,6 +218,7 @@ void Instance_elx_conv_direct_1x1_lp_t::prepare_quant_calibration(eld_conv_t &dc
   this->output_quant_S = dc.output_quant.scale;
   this->output_quant_repS = 1 / dc.output_quant.scale;
   this->output_quant_z = dc.output_quant.z;
+  this->sum_quant_S = dc.sum_quant.scale;
 
   if (this->sampling_kind != CALIBRATED)
     el_error("Unsupported quantization mode in int8 direct 1x1");

@@ -82,6 +82,7 @@ struct elx_conv_params_t {
   float output_quant_S;
   float output_quant_z;
   float output_quant_repS;
+  float sum_quant_S;
   sampling_kind_t sampling_kind;
 
   void *scratch_pad;

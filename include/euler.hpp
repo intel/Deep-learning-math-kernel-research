@@ -156,7 +156,7 @@ struct EULER_API eld_conv_t {
 
   // quantization calibration coefficients
   // A_fp32 = scale * (A_quant - z)
-  struct { float scale, z; } input_quant, wino_tinput_quant, output_quant;
+  struct { float scale, z; } input_quant, wino_tinput_quant, output_quant, sum_quant;
   sampling_kind_t sampling_kind;
 
   void *scratch_pad;

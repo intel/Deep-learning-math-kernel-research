@@ -105,7 +105,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
     std::normal_distribution<float> dInput_mu_15_sigma_3(15.0, 3.0);
     std::normal_distribution<float> dWeights_mu_0_sigma_0_1(0.0, 0.1);
 
-// ref input
+    // ref input
 #pragma omp parallel for
     for (size_t i = 0; i < desc_ref.sizes.input; i++) {
       if (data_type_cfg == euler::test::FP32 || data_type_cfg == euler::test::FP16) {
@@ -122,7 +122,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
       }
     }
 
-// ref weights
+    // ref weights
 #pragma omp parallel for
     for (size_t i = 0; i < desc_ref.sizes.weights; i++) {
       if (data_type_cfg == euler::test::FP32 || data_type_cfg == euler::test::FP16) {
@@ -136,7 +136,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
         weights_ref[i] = -weights_ref[i];
     }
 
-// ref bias
+    // ref bias
 #pragma omp parallel for
     for (size_t i = 0; i < desc_ref.sizes.bias; i++)
       bias_ref[i] = RAND() % 100;
@@ -261,7 +261,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
     printf("input abs_max %f scale %f\n", abs_max, iscale);
   };
 
-  auto output_scale = [&](float &oscale, float &oz) {
+  auto output_scale = [&](float &oscale, float &opscale, float &oz) {
     float *_output_ref;
     if (desc_ref.with_ip_sum) {
       MEMALIGN64(&_output_ref, desc_ref.byte_sizes.output);
@@ -303,6 +303,22 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
     }
 
     printf("output abs_max %f scale %f\n", abs_max, desc.output_quant.scale);
+
+    min = output_ref[0];
+    max = output_ref[0];
+    if (desc_ref.with_ip_sum) {
+      for (size_t i = 1; i < desc_ref.sizes.output; i++) {
+        min = output_ref[i] < min ? output_ref[i] : min;
+        max = output_ref[i] > max ? output_ref[i] : max;
+      }
+      abs_cur = min > 0 ? min : -min;
+      abs_max = max > abs_cur ? max : abs_cur;
+      opscale = abs_max / PRECISION_REPRESENTATION_7B;
+      auto sum_operand_scale = abs_max / PRECISION_REPRESENTATION_7B;
+      desc.sum_quant.scale = sum_operand_scale / desc.output_quant.scale;
+
+      printf("sum operand abs_max %f sum scale %f\n", abs_max, desc.sum_quant.scale);
+    }
 
     if (desc_ref.with_ip_sum)
       free(_output_ref);
@@ -381,11 +397,11 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
   }
 
   // output
-  float oscale = 1.0, oz = 0.0;
+  float oscale = 1.0, opscale = 1.0, oz = 0.0;
   if (validate_results) {
     if (data_type_cfg == euler::test::U8F32U8F32 ||
         data_type_cfg == euler::test::U8F32S8F32)
-      output_scale(oscale, oz);
+      output_scale(oscale, opscale, oz);
   }
   if (desc.with_ip_sum) {
 #pragma omp parallel for
@@ -399,7 +415,8 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
       else if (data_type_cfg == euler::test::U8F32U8F32 ||
                data_type_cfg == euler::test::U8F32S8F32) {
         (*output)[i] =
-            (int8_t)rounding_to_nearest_even(output_ref[i] / oscale + oz);
+            (int8_t)rounding_to_nearest_even(
+            output_ref[i] / opscale);
       }
     }
   }
