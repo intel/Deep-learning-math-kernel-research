@@ -189,8 +189,8 @@ function conv_test() {
   if [ "x$bias_file" != "x" ]; then bias_file_opt="--bias-data-file=$bias_file"; fi
   set -v
   eval $OMP_ENV $ROOT_DIR/$build_dir/tests/elt_conv \
-    -n$n -i$i -o$o -h$h -w$w -H$H -W$W -k$k -K$K -p$p -P$P -s$s -S$S \
-    -b$b -r$r -v$v -a$a -l$l -B$B -A$A \
+    -mb=$n -ic=$i -oc=$o -ih=$h -iw=$w -oh=$H -ow=$W -kh=$k -kw=$K -ph=$p -pw=$P -sh=$s -sw=$S \
+    --with-bias=$b --with-relu=$r --validate-results=$v -alg=$a --repeated-layer=$l -dbuffering=$B --output-as-input=$A \
     --flt-o=$flt_o --flt-t=$flt_t --blk-i=$blk_i --blk-o=$blk_o \
     --pat-i=$pat_i --pat-o=$pat_o --tile-size=$tile_size \
     --nthreads=$nthreads --execution-mode=$execution_mode \

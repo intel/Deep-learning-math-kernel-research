@@ -51,8 +51,8 @@ void load_conv_data(eld_conv_t &desc, InputType *input, WeightsType *weights,
       exit(1);
     }
 
-    free(nchw_input);
   }
+  free(nchw_input);
 
   if (weights_file != nullptr && weights != nullptr) {
 
@@ -75,8 +75,8 @@ void load_conv_data(eld_conv_t &desc, InputType *input, WeightsType *weights,
       exit(1);
     }
 
-    free(oihw_weights);
   }
+  free(oihw_weights);
 }
 
 __thread unsigned int seed;
