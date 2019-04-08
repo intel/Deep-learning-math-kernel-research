@@ -1,6 +1,3 @@
 [submodule "tests/unittests/googletest"]
 	path = tests/unittests/googletest
 	url = https://github.com/google/googletest.git
-[submodule "tests/data"]
-	path = tests/data
-	url = 10.239.178.131:/home/euler/workspace/Conv_data
