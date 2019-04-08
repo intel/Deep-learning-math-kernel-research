@@ -5,8 +5,6 @@ include(CMakeDependentOption)
 project(Euler CXX C)
 
 option(WITH_TEST "Build with test cases" ON)
-cmake_dependent_option(WITH_GTEST
-  "Build with gtest/unit tests if WITH_TEST is ON" ON "WITH_TEST" OFF)
 option(WITH_VNNI "With CLX VNNI support" OFF)
 option(ENABLE_USER_FP16 "user fp16 type support" OFF)
 
@@ -36,8 +34,6 @@ if(${CMAKE_BUILD_TYPE} MATCHES "Debug")
   message(STATUS "Build type is Debug")
   set(__debug ON)
   set(WITH_TEST ON)
-  set(WITH_GTEST ON)
-  set(WITH_GK ON)
 elseif(${CMAKE_BUILD_TYPE} MATCHES "Profiling")
   message(STATUS "Build type is Profiling")
   set(__profiling ON)

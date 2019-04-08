@@ -215,10 +215,6 @@ function conv_test() {
   set +v
 }
 
-function unit_test() {
-  eval $OMP_ENV $ROOT_DIR/$build_dir/tests/elt_unitests -t
-}
-
 function show_help() {
 cat <<@
 
@@ -226,13 +222,12 @@ Euler test script:
   -h        display this help and exit.
   -b        rebuild
   -c        convolution test
-  -u        unit test
 
 @
 }
 
 OPTIND=1
-while getopts ":hbuc" opt; do
+while getopts ":hbc" opt; do
   case "$opt" in
     h)
       show_help
@@ -247,10 +242,6 @@ while getopts ":hbuc" opt; do
       shift
       conv_test $@
       exit 0
-      ;;
-    u)
-      echo Run unit tests...
-      unit_test
       ;;
     \?)
       show_help
