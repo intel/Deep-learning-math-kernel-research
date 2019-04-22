@@ -627,7 +627,7 @@ size_t cal_ops(eld_conv_t &desc) {
 
 int cal_iterations(size_t num_ops) {
   float iter = 5e12 / num_ops;
-  return std::max((int)iter, 64);
+  return std::min(1024, std::max((int)iter, 64));
 }
 
 template <typename Type>
