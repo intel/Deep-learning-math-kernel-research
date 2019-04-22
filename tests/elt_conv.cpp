@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <float.h>
-#include <boost/program_options.hpp>
+#include <string>
+#include <string.h>
+#include <sstream>
 #include "elt_utils.hpp"
 #include "elt_conv_utils.hpp"
 #include "euler.hpp"
@@ -12,7 +14,6 @@
 
 
 using namespace euler;
-namespace po = boost::program_options;
 
 // Covolution options
 int mb = 0, ic = 0, ih = 0, iw = 0, oc = 0, oh = 0, ow = 0, kh = 3, kw = 3;
@@ -47,7 +48,7 @@ float tinput_cali_s = FLT_MAX;
 float tinput_cali_z = FLT_MAX;
 
 int parse_cmd_options(int argc, char **argv) {
-  google::ParseCommandLineFlags(&argc, &argv, true);
+  gflags_namespace::ParseCommandLineFlags(&argc, &argv, true);
   mb = FLAGS_mb;
   ic = FLAGS_ic;
   oc = FLAGS_oc;

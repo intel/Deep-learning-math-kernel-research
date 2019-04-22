@@ -1,6 +1,12 @@
 #include "gflags/gflags.h"
 
-using namespace google;
+#ifdef GFLAGS_NAMESPACE
+#define gflags_namespace GFLAGS_NAMESPACE
+#else
+#define gflags_namespace gflags
+#endif
+
+using namespace gflags_namespace;
 
 DECLARE_int32(mb);
 DECLARE_int32(ic);

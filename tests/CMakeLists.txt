@@ -3,6 +3,9 @@ file (GLOB __test_sources
   elt_conv_utils.cpp
   elt_gflag.cpp)
 
+find_package(gflags REQUIRED)
+include_directories("${gflags_INCLUDE_DIR}")
+
 add_executable(elt_conv ${__test_sources})
-target_link_libraries(elt_conv ${lib_name} iomp5 boost_program_options gflags)
+target_link_libraries(elt_conv ${lib_name} iomp5 ${gflags_LIBRARIES})
 add_test(NAME elt_conv COMMAND elt_conv)

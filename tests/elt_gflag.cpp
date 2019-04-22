@@ -1,7 +1,5 @@
 #include "elt_gflag.hpp"
 
-using namespace google;
-
 DEFINE_int32(mb, 0, "Batch size");
 DEFINE_int32(ic, 0, "Input channel size");
 DEFINE_int32(oc, 0, "Output channel size");
