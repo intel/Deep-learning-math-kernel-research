@@ -283,7 +283,7 @@ static inline eld_conv_t &create_conv_desc(eld_conv_t &desc,
     test::error("Fail: Unsupported user data type ...\n");
     exit(1);
   }
-  desc.dims = {{mb, ic, ih, iw}, {oc, ic, kh, kw}, {mb, oc, oh, ow}, {oc}};
+  desc.dims = {mb, 1, ic, oc, ih, iw, oh, ow, kh, kw};
   desc.formats = {input_format, weights_format, output_format};
   desc.pads = {pw, pw, ph, ph};
   desc.strides = {sh, sw};
@@ -321,13 +321,13 @@ static inline int conv_ref_setup(eld_conv_t &desc) {
   };
 
   if (int8_user_interface(data_type_cfg) && desc.algorithm == CONV_WINOGRAD) {
-    size_t t = (desc.dims.output.h + desc.tile_size - 3) /
+    size_t t = (desc.dims.oh + desc.tile_size - 3) /
                (desc.tile_size - 3 + 1) *
-               (desc.dims.output.w + desc.tile_size - 3) /
-               (desc.tile_size - 3 + 1) * desc.dims.output.n;
+               (desc.dims.ow + desc.tile_size - 3) /
+               (desc.tile_size - 3 + 1) * desc.dims.n;
     size_t A = desc.tile_size;
     size_t K = 3;
-    size_t IC = ALIGNUP(desc.dims.input.c, 16);
+    size_t IC = ALIGNUP(desc.dims.ic, 16);
     size_t tinput_byte_size = A * A * IC * t * sizeof(float);
 
     MEMALIGN64(&desc.scratch_pad, tinput_byte_size);

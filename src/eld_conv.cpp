@@ -52,19 +52,10 @@ eld_conv_t::~eld_conv_t()
 int eld_conv_t::setup()
 {
   // Dimensions
-  if (dims.input.c != dims.weights.i || dims.input.n != dims.output.n
-      || dims.output.c != dims.weights.o) {
-    el_error("Dimension error");
-    return ELD_GENERAL_ERROR;
-  }
-  if (with_bias && dims.bias.c != dims.output.c) {
-    el_error("Dimension error");
-    return ELD_GENERAL_ERROR;
-  }
 
   const int V = cpu_vector_length() / 4;
-  const int ic = dims.input.c, IC = ALIGNUP(ic, V);
-  const int oc = dims.output.c, OC = ALIGNUP(oc, V);
+  const int ic = dims.ic, IC = ALIGNUP(ic, V);
+  const int oc = dims.oc, OC = ALIGNUP(oc, V);
   if (V != 16) {
     // TODO: V == 8
     el_error("CPU vector not support");
@@ -81,9 +72,9 @@ int eld_conv_t::setup()
     formats.output = V == 16 ? nChw16c : nChw8c;
   }
 
-  sizes.input = dims.input.n * dims.input.h * dims.input.w;
-  sizes.weights = dims.weights.h * dims.weights.w;
-  sizes.output = dims.output.n * dims.output.h * dims.output.w;
+  sizes.input = dims.n * dims.ih * dims.iw;
+  sizes.weights = dims.kh * dims.kw;
+  sizes.output = dims.n * dims.oh * dims.ow;
 
   using dt = decltype(data_type);
   uint32_t user_type = data_type.flat;
@@ -121,13 +112,13 @@ int eld_conv_t::setup()
   // Validate padding
   int oh, ow;
   if (algorithm == DECONV_DIRECT) {
-    oh = (dims.input.h - 1) * strides.h + dims.weights.h - pads.t - pads.b;
-    ow = (dims.input.w - 1) * strides.w + dims.weights.w - pads.l - pads.r;
+    oh = (dims.ih - 1) * strides.h + dims.kh - pads.t - pads.b;
+    ow = (dims.iw - 1) * strides.w + dims.kw - pads.l - pads.r;
   } else { // CONV
-    oh = (dims.input.h + pads.t + pads.b - dims.weights.h) / strides.h + 1;
-    ow = (dims.input.w + pads.l + pads.r - dims.weights.w) / strides.w + 1;
+    oh = (dims.ih + pads.t + pads.b - dims.kh) / strides.h + 1;
+    ow = (dims.iw + pads.l + pads.r - dims.kw) / strides.w + 1;
   }
-  if (oh != dims.output.h || ow != dims.output.w) {
+  if (oh != dims.oh || ow != dims.ow) {
     el_error("Padding parameter error");
     return ELX_GENERAL_ERROR;
   }
@@ -140,9 +131,9 @@ int eld_conv_t::setup()
   }
 
   if (algorithm == CONV_AUTO) {
-    if (dims.weights.h == 1 && dims.weights.w == 1) {
+    if (dims.kh == 1 && dims.kw == 1) {
       algorithm = CONV_DIRECT_1X1;
-    } else if (ic >= V && dims.weights.h == 3 && dims.weights.w == 3
+    } else if (ic >= V && dims.kh == 3 && dims.kw == 3
         && dilations.h == 1 && dilations.w == 1 && strides.h == 1
         && strides.w == 1 && pads.l == 1 && pads.r == 1 && pads.t == 1
         && pads.b == 1) {
@@ -170,7 +161,7 @@ int eld_conv_t::setup()
     } else
       el_error("TODO: FP16 UserTypes for DIRECT.");
   } else if (algorithm == CONV_DIRECT_1X1) {
-    if (dims.weights.h != 1 || dims.weights.w != 1) {
+    if (dims.kh != 1 || dims.kw != 1) {
       el_error("Algorithm CONV_DIRECT_1X1 not supported for this shape.");
       return ELD_GENERAL_ERROR;
     }
@@ -189,14 +180,13 @@ int eld_conv_t::setup()
     // Winograd
     if (dilations.h > 1 || dilations.w > 1 ||
         strides.h != 1 || strides.w != 1 ||
-        dims.weights.h != 3 || dims.weights.w != 3) {
+        dims.kh != 3 || dims.kw != 3) {
       el_error("Algorithm CONV_WINOGRAD: data shape not supported");
       return ELD_UNIMPLEMENTED;
     }
 
     if (tile_size == 0) {
-      int t = dims.output.n * ((dims.output.h + 3) / 4)
-                            * ((dims.output.w + 3) / 4);
+      int t = dims.n * ((dims.oh + 3) / 4) * ((dims.ow + 3) / 4);
       float mac_per_read = (t * OC) * 1.0f / (t + OC);
 #define MAC_PER_READ_A6_LIMIT (25.0f)
       tile_size = mac_per_read > MAC_PER_READ_A6_LIMIT  ? 6 : 4;

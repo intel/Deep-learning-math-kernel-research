@@ -28,22 +28,20 @@ void load_conv_data(eld_conv_t &desc, InputType *input, WeightsType *weights,
   MEMALIGN64(&nchw_input, desc.byte_sizes.input);
   MEMALIGN64(&oihw_weights, desc.byte_sizes.weights);
 
-  auto input_dims = desc.dims.input;
-  auto weights_dims = desc.dims.weights;
-  auto input_sz = input_dims.n * input_dims.c * input_dims.h * input_dims.w;
+  auto dims = desc.dims;
+  auto input_sz = dims.n * dims.ic * dims.ih * dims.iw;
   auto weights_sz =
-      weights_dims.o * weights_dims.i * weights_dims.h * weights_dims.w;
+      dims.oc * dims.ic * dims.kh * dims.kw;
 
   if (input_file != nullptr && input != nullptr) {
     if (nChw16c == input_format) {
       read_blob_data(nchw_input, input_file, input_sz * sizeof(InputType));
-      reorder<InputType, nChw16c, nchw>(input, nchw_input, input_dims.n,
-                                        input_dims.c, input_dims.h,
-                                        input_dims.w);
+      reorder<InputType, nChw16c, nchw>(input, nchw_input, dims.n,
+                                        dims.ic, dims.ih, dims.iw);
     } else if (nhwc == input_format) {
       read_blob_data(nchw_input, input_file, input_sz * sizeof(InputType));
-      reorder<InputType, nhwc, nchw>(input, nchw_input, input_dims.n,
-                                     input_dims.c, input_dims.h, input_dims.w);
+      reorder<InputType, nhwc, nchw>(input, nchw_input, dims.n,
+                                     dims.ic, dims.ih, dims.iw);
     } else if (nchw == input_format) {
       read_blob_data(input, input_file, input_sz * sizeof(InputType));
     } else {
@@ -60,14 +58,13 @@ void load_conv_data(eld_conv_t &desc, InputType *input, WeightsType *weights,
       read_blob_data(oihw_weights, weights_file,
                      weights_sz * sizeof(WeightsType));
       reorder<WeightsType, OIhw16i16o, oihw>(weights, oihw_weights,
-                                             weights_dims.o, weights_dims.i,
-                                             weights_dims.h, weights_dims.w);
+                                             dims.oc, dims.ic,
+                                             dims.kh, dims.kw);
     } else if (hwio == weights_format) {
       read_blob_data(oihw_weights, weights_file,
                      weights_sz * sizeof(WeightsType));
-      reorder<WeightsType, hwio, oihw>(weights, oihw_weights, weights_dims.o,
-                                       weights_dims.i, weights_dims.h,
-                                       weights_dims.w);
+      reorder<WeightsType, hwio, oihw>(weights, oihw_weights, dims.oc,
+                                       dims.ic, dims.ih, dims.ow);
     } else if (oihw == weights_format) {
       read_blob_data(weights, weights_file, weights_sz * sizeof(WeightsType));
     } else {
@@ -218,13 +215,13 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
 
     float *tinput = (float *)desc_ref.scratch_pad;
     float min = tinput[0], max = tinput[0];
-    size_t t = (desc.dims.output.h + desc.tile_size - 3) /
+    size_t t = (desc.dims.oh + desc.tile_size - 3) /
                (desc.tile_size - 3 + 1) *
-               (desc.dims.output.w + desc.tile_size - 3) /
-               (desc.tile_size - 3 + 1) * desc.dims.output.n;
+               (desc.dims.ow + desc.tile_size - 3) /
+               (desc.tile_size - 3 + 1) * desc.dims.n;
     size_t A = desc.tile_size;
     size_t K = 3;
-    size_t IC = desc.dims.input.c;
+    size_t IC = desc.dims.ic;
     size_t tinput_size = A * A * IC * t;
     for (size_t i = 1; i < tinput_size; i++) {
       min = tinput[i] < min ? tinput[i] : min;
@@ -440,12 +437,12 @@ int compare_conv_results(eld_conv_t &desc, float *out, float *ref,
 int __compare_conv_results_blocked(eld_conv_t &desc, float *out, float *ref,
                                    int data_type_cfg, double acc) {
   const int V = 16;
-  auto dims = desc.dims.output;
-  int C = ALIGNUP(dims.c, V) / V;
-  int Or = dims.c % V ? dims.c % V : V;
+  auto dims = desc.dims;
+  int C = ALIGNUP(dims.oc, V) / V;
+  int Or = dims.oc % V ? dims.oc % V : V;
 
-  MD5(float, aout, out, dims.n, C, dims.h, dims.w, V);
-  MD5(float, aref, ref, dims.n, C, dims.h, dims.w, V);
+  MD5(float, aout, out, dims.n, C, dims.oh, dims.ow, V);
+  MD5(float, aref, ref, dims.n, C, dims.oh, dims.ow, V);
 
 #define MAX_PRINT_ERRORS (20)
   size_t errors = 0;
@@ -453,8 +450,8 @@ int __compare_conv_results_blocked(eld_conv_t &desc, float *out, float *ref,
 #pragma omp parallel for collapse(3)
   iter_each(_n, dims.n) {
     iter_each(_C, C) {
-      iter_each(_h, dims.h) {
-        iter_each(_w, dims.w) {
+      iter_each(_h, dims.oh) {
+        iter_each(_w, dims.ow) {
           int v = _C == C - 1 ? Or : V;
           iter_each(_v, v) {
             auto real = md5(aout, _n, _C, _h, _w, _v);
@@ -499,18 +496,18 @@ int __compare_conv_results_blocked(eld_conv_t &desc, float *out, float *ref,
 
 int __compare_conv_results_nchw(eld_conv_t &desc, float *out, float *ref,
                                 int data_type_cfg, double acc) {
-  auto dims = desc.dims.output;
-  MD4(float, aout, out, dims.n, dims.c, dims.h, dims.w);
-  MD4(float, aref, ref, dims.n, dims.c, dims.h, dims.w);
+  auto dims = desc.dims;
+  MD4(float, aout, out, dims.n, dims.oc, dims.oh, dims.ow);
+  MD4(float, aref, ref, dims.n, dims.oc, dims.oh, dims.ow);
 
 #define MAX_PRINT_ERRORS (20)
   size_t errors = 0;
 
 #pragma omp parallel for collapse(3)
   iter_each(_n, dims.n) {
-    iter_each(_c, dims.c) {
-      iter_each(_h, dims.h) {
-        iter_each(_w, dims.w) {
+    iter_each(_c, dims.oc) {
+      iter_each(_h, dims.oh) {
+        iter_each(_w, dims.ow) {
           auto real = md4(aout, _n, _c, _h, _w);
           double delta = fabs(real - md4(aref, _n, _c, _h, _w));
           if (real == 0 || md4(aref, _n, _c, _h, _w) == 0) {
@@ -552,18 +549,18 @@ int __compare_conv_results_nchw(eld_conv_t &desc, float *out, float *ref,
 
 int __compare_conv_results_nhwc(eld_conv_t &desc, float *out, float *ref,
                                 int data_type_cfg, double acc) {
-  auto dims = desc.dims.output;
-  MD4(float, aout, out, dims.n, dims.h, dims.w, dims.c);
-  MD4(float, aref, ref, dims.n, dims.h, dims.w, dims.c);
+  auto dims = desc.dims;
+  MD4(float, aout, out, dims.n, dims.oh, dims.ow, dims.oc);
+  MD4(float, aref, ref, dims.n, dims.oh, dims.ow, dims.oc);
 
 #define MAX_PRINT_ERRORS (20)
   size_t errors = 0;
 
 #pragma omp parallel for collapse(3)
   iter_each(_n, dims.n) {
-    iter_each(_c, dims.c) {
-      iter_each(_h, dims.h) {
-        iter_each(_w, dims.w) {
+    iter_each(_c, dims.oc) {
+      iter_each(_h, dims.oh) {
+        iter_each(_w, dims.ow) {
           auto real = md4(aout, _n, _h, _w, _c);
           double delta = fabs(real - md4(aref, _n, _h, _w, _c));
           if (real == 0 || md4(aref, _n, _h, _w, _c) == 0) {
@@ -606,23 +603,22 @@ int __compare_conv_results_nhwc(eld_conv_t &desc, float *out, float *ref,
 size_t cal_ops(eld_conv_t &desc) {
   size_t num_ops = 0;
 
-  iter_each(_oh, desc.dims.output.h) {
-    iter_each(_ow, desc.dims.output.w) {
-      iter_each(_kh, desc.dims.weights.h) {
+  iter_each(_oh, desc.dims.oh) {
+    iter_each(_ow, desc.dims.ow) {
+      iter_each(_kh, desc.dims.kh) {
         int _ih = _oh * desc.strides.h - desc.pads.t + _kh * desc.dilations.h;
-        if (_ih < 0 || _ih >= desc.dims.input.h)
+        if (_ih < 0 || _ih >= desc.dims.ih)
           continue;
-        iter_each(_kw, desc.dims.weights.w) {
+        iter_each(_kw, desc.dims.kw) {
           int _iw = _ow * desc.strides.w - desc.pads.l + _kw * desc.dilations.w;
-          if (_iw < 0 || _iw >= desc.dims.input.w)
+          if (_iw < 0 || _iw >= desc.dims.iw)
             continue;
           num_ops += 1;
         }
       }
     }
   }
-  return num_ops * desc.dims.input.n * desc.dims.weights.i *
-         desc.dims.weights.o * 2;
+  return num_ops * desc.dims.n * desc.dims.ic * desc.dims.oc * 2;
 }
 
 int cal_iterations(size_t num_ops) {
@@ -819,29 +815,21 @@ template <typename InputType, typename WeightsType, typename OutputType,
           typename BiasType>
 int ref_convolution2d(eld_conv_t &desc, OutputType *output, InputType *input,
                       WeightsType *weights, BiasType *bias) {
-  int n = desc.dims.input.n;
-  int ic = desc.dims.input.c;
-  int oc = desc.dims.output.c;
-  int ih = desc.dims.input.h;
-  int iw = desc.dims.input.w;
-  int oh = desc.dims.output.h;
-  int ow = desc.dims.output.w;
-  int kh = desc.dims.weights.h;
-  int kw = desc.dims.weights.w;
+  int n = desc.dims.n;
+  int ic = desc.dims.ic;
+  int oc = desc.dims.oc;
+  int ih = desc.dims.ih;
+  int iw = desc.dims.iw;
+  int oh = desc.dims.oh;
+  int ow = desc.dims.ow;
+  int kh = desc.dims.kh;
+  int kw = desc.dims.kw;
   int sh = desc.strides.h;
   int sw = desc.strides.w;
   int pt = desc.pads.t;
   int pl = desc.pads.l;
   int dh = desc.dilations.h;
   int dw = desc.dilations.w;
-
-  if (desc.dims.input.n != desc.dims.output.n ||
-      desc.dims.input.c != desc.dims.weights.i ||
-      desc.dims.output.c != desc.dims.weights.o ||
-      desc.dims.output.c != desc.dims.bias.c) {
-    printf("Dimension error!");
-    return -1;
-  }
 
   InputType *tinput = nullptr, *tweights = nullptr, *toutput = nullptr;
   if (desc.formats.input == nChw16c) {
@@ -930,15 +918,15 @@ template <typename InputType, typename WeightsType, typename OutputType,
 int ref_convolution2d_block16(eld_conv_t &desc, OutputType *output,
                               InputType *input, WeightsType *weights,
                               BiasType *bias) {
-  int n = desc.dims.input.n;
-  int IC = ALIGNUP(desc.dims.input.c, 16) / 16;
-  int OC = ALIGNUP(desc.dims.output.c, 16) / 16;
-  int ih = desc.dims.input.h;
-  int iw = desc.dims.input.w;
-  int oh = desc.dims.output.h;
-  int ow = desc.dims.output.w;
-  int kh = desc.dims.weights.h;
-  int kw = desc.dims.weights.w;
+  int n = desc.dims.n;
+  int IC = ALIGNUP(desc.dims.ic, 16) / 16;
+  int OC = ALIGNUP(desc.dims.oc, 16) / 16;
+  int ih = desc.dims.ih;
+  int iw = desc.dims.iw;
+  int oh = desc.dims.oh;
+  int ow = desc.dims.ow;
+  int kh = desc.dims.kh;
+  int kw = desc.dims.kw;
   int sh = desc.strides.h;
   int sw = desc.strides.w;
   int pt = desc.pads.t;
@@ -950,21 +938,13 @@ int ref_convolution2d_block16(eld_conv_t &desc, OutputType *output,
   MD6(WeightsType, aweights, weights, OC, IC, kh, kw, 16, 16);
   MD5(OutputType, aoutput, output, n, OC, oh, ow, 16);
 
-  if (desc.dims.input.n != desc.dims.output.n ||
-      desc.dims.input.c != desc.dims.weights.i ||
-      desc.dims.output.c != desc.dims.weights.o ||
-      desc.dims.output.c != desc.dims.bias.c) {
-    printf("Dimension error!");
-    return -1;
-  }
-
   if (desc.formats.input != nChw16c || desc.formats.weights != OIhw16i16o ||
       desc.formats.output != nChw16c) {
     printf("Format error!");
     return -1;
   }
-  int Or = desc.dims.output.c % 16 ? desc.dims.output.c % 16 : 16;
-  int Ir = desc.dims.input.c % 16 ? desc.dims.input.c % 16 : 16;
+  int Or = desc.dims.oc % 16 ? desc.dims.oc % 16 : 16;
+  int Ir = desc.dims.ic % 16 ? desc.dims.ic % 16 : 16;
 
 #pragma omp parallel for collapse(4)
   iter_each(_n, n) {
@@ -1014,29 +994,21 @@ template <typename InputType, typename WeightsType, typename OutputType,
           typename BiasType>
 int ref_deconvolution2d(eld_conv_t &desc, OutputType *output, InputType *input,
                       WeightsType *weights, BiasType *bias) {
-  int n = desc.dims.input.n;
-  int ic = desc.dims.input.c;
-  int oc = desc.dims.output.c;
-  int ih = desc.dims.input.h;
-  int iw = desc.dims.input.w;
-  int oh = desc.dims.output.h;
-  int ow = desc.dims.output.w;
-  int kh = desc.dims.weights.h;
-  int kw = desc.dims.weights.w;
+  int n = desc.dims.n;
+  int ic = desc.dims.ic;
+  int oc = desc.dims.oc;
+  int ih = desc.dims.ih;
+  int iw = desc.dims.iw;
+  int oh = desc.dims.oh;
+  int ow = desc.dims.ow;
+  int kh = desc.dims.kh;
+  int kw = desc.dims.kw;
   int sh = desc.strides.h;
   int sw = desc.strides.w;
   int pt = desc.pads.t;
   int pl = desc.pads.l;
   int dh = desc.dilations.h;
   int dw = desc.dilations.w;
-
-  if (desc.dims.input.n != desc.dims.output.n ||
-      desc.dims.input.c != desc.dims.weights.i ||
-      desc.dims.output.c != desc.dims.weights.o ||
-      desc.dims.output.c != desc.dims.bias.c) {
-    printf("Dimension error!");
-    return -1;
-  }
 
   InputType *tinput = nullptr, *tweights = nullptr, *toutput = nullptr;
   if (desc.formats.input == nChw16c) {

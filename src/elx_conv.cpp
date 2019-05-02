@@ -8,15 +8,15 @@ namespace euler {
 
 elx_conv_t::elx_conv_t(eld_conv_t &dc)
 {
-  this->n = dc.dims.input.n;
-  this->ic = dc.dims.input.c;
-  this->oc = dc.dims.output.c;
-  this->ih = dc.dims.input.h;
-  this->iw = dc.dims.input.w;
-  this->oh = dc.dims.output.h;
-  this->ow = dc.dims.output.w;
-  this->kh = dc.dims.weights.h;
-  this->kw = dc.dims.weights.w;
+  this->n = dc.dims.n;
+  this->ic = dc.dims.ic;
+  this->oc = dc.dims.oc;
+  this->ih = dc.dims.ih;
+  this->iw = dc.dims.iw;
+  this->oh = dc.dims.oh;
+  this->ow = dc.dims.ow;
+  this->kh = dc.dims.kh;
+  this->kw = dc.dims.kw;
   this->lp = dc.pads.l;
   this->rp = dc.pads.r;
   this->tp = dc.pads.t;

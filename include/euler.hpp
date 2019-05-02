@@ -102,10 +102,7 @@ struct elx_conv_t;
 struct EULER_API eld_conv_t {
   // Conv parameters
   struct {
-    struct { int n, c, h, w; } input;
-    struct { int o, i, h, w; } weights;
-    struct { int n, c, h, w; } output;
-    struct { int c;          } bias;
+    int n, g, ic, oc, ih, iw, oh, ow, kh, kw;
   } dims;
   struct { int l, r, t, b; } pads;
   struct { int h, w; } strides;
