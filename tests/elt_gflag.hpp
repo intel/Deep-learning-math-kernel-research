@@ -9,6 +9,7 @@
 using namespace gflags_namespace;
 
 DECLARE_int32(mb);
+DECLARE_int32(g);
 DECLARE_int32(ic);
 DECLARE_int32(oc);
 DECLARE_int32(ih);

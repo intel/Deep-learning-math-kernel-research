@@ -16,7 +16,7 @@
 using namespace euler;
 
 // Covolution options
-int mb = 0, ic = 0, ih = 0, iw = 0, oc = 0, oh = 0, ow = 0, kh = 3, kw = 3;
+int mb = 0, g = 1, ic = 0, ih = 0, iw = 0, oc = 0, oh = 0, ow = 0, kh = 3, kw = 3;
 int ph = 1, pw = 1, sh = 1, sw = 1, dh = 1, dw = 1;
 bool with_bias = true, with_relu = false, with_ip_sum = false, f16c_opt = false,
      disable_autoparam = true;
@@ -50,6 +50,7 @@ float tinput_cali_z = FLT_MAX;
 int parse_cmd_options(int argc, char **argv) {
   gflags_namespace::ParseCommandLineFlags(&argc, &argv, true);
   mb = FLAGS_mb;
+  g  = FLAGS_g;
   ic = FLAGS_ic;
   oc = FLAGS_oc;
   ih = FLAGS_ih;
@@ -198,7 +199,7 @@ int parse_cmd_options(int argc, char **argv) {
   ow = ow == 0 ? oh : ow;
 
   printf("Convolution options:\n"
-         "mb:%d, ic:%d, ih:%d, iw:%d, oc:%d, oh:%d, ow:%d, kh:%d, kw:%d, "
+         "mb:%d, g:%d, ic:%d, ih:%d, iw:%d, oc:%d, oh:%d, ow:%d, kh:%d, kw:%d, "
          "ph:%d, pw:%d, sh:%d, sw:%d, dh:%d, dw:%d\n"
          "with_bias:%d, with_relu:%d, with_ip_sum:%d, f16c_opt=%d, "
          "data_type_cfg=%d, validate_results:%d\n"
@@ -206,7 +207,7 @@ int parse_cmd_options(int argc, char **argv) {
          "streaming-hint:%d, %d\n"
          "nthreads:%d\n"
          "execution-mode:%x\n",
-         mb, ic, ih, iw, oc, oh, ow, kh, kw, ph, pw, sh, sw, dh, dw, with_bias,
+         mb, g, ic, ih, iw, oc, oh, ow, kh, kw, ph, pw, sh, sw, dh, dw, with_bias,
          with_relu, with_ip_sum, f16c_opt, data_type_cfg, validate_results,
          flt_o, flt_t, blk_i, blk_o, pat_i, pat_o, streaming_input,
          streaming_output, nthreads, execution_mode);
@@ -255,9 +256,9 @@ int parse_cmd_options(int argc, char **argv) {
     printf("sampling-kind<FINE>\n");
   }
 
-  if (mb <= 0 || ic <= 0 || ih <= 0 || iw <= 0 || oc <= 0 || oh <= 0 ||
-      ow <= 0 || kh <= 0 || kw <= 0) {
-    printf("Error: convolution options: mb|ic|ih|iw|oc|oh|ow|kh|kw should "
+  if (mb <= 0 || g <= 0 || ic <= 0 || ih <= 0 || iw <= 0 || oc <= 0 ||
+      oh <= 0 || ow <= 0 || kh <= 0 || kw <= 0) {
+    printf("Error: convolution options: mb|g|ic|ih|iw|oc|oh|ow|kh|kw should "
            "greater than 0\n");
     return -1;
   }
@@ -283,7 +284,7 @@ static inline eld_conv_t &create_conv_desc(eld_conv_t &desc,
     test::error("Fail: Unsupported user data type ...\n");
     exit(1);
   }
-  desc.dims = {mb, 1, ic, oc, ih, iw, oh, ow, kh, kw};
+  desc.dims = {mb, g, ic, oc, ih, iw, oh, ow, kh, kw};
   desc.formats = {input_format, weights_format, output_format};
   desc.pads = {pw, pw, ph, ph};
   desc.strides = {sh, sw};

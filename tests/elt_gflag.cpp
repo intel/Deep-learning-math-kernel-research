@@ -1,6 +1,7 @@
 #include "elt_gflag.hpp"
 
 DEFINE_int32(mb, 0, "Batch size");
+DEFINE_int32(g,  1, "Groups size");
 DEFINE_int32(ic, 0, "Input channel size");
 DEFINE_int32(oc, 0, "Output channel size");
 DEFINE_int32(ih, 0, "Input height");

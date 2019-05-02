@@ -52,13 +52,20 @@ eld_conv_t::~eld_conv_t()
 int eld_conv_t::setup()
 {
   // Dimensions
-
   const int V = cpu_vector_length() / 4;
   const int ic = dims.ic, IC = ALIGNUP(ic, V);
   const int oc = dims.oc, OC = ALIGNUP(oc, V);
+  const int g = dims.g;
   if (V != 16) {
     // TODO: V == 8
     el_error("CPU vector not support");
+  }
+  if ((ic % g != 0) || (oc % g != 0)) {
+    el_error("dims: groups: ic|oc != g * x");
+  }
+  if ((g > 1) && (ic != IC || oc != OC)) {
+    // TODO: raise it only for blocked format
+    el_error("dims: group: padding not support for g > 1");
   }
 
   // Select format
@@ -73,7 +80,7 @@ int eld_conv_t::setup()
   }
 
   sizes.input = dims.n * dims.ih * dims.iw;
-  sizes.weights = dims.kh * dims.kw;
+  sizes.weights = dims.g * dims.kh * dims.kw;
   sizes.output = dims.n * dims.oh * dims.ow;
 
   using dt = decltype(data_type);
@@ -89,7 +96,7 @@ int eld_conv_t::setup()
 
   sizes.input *= estl::any_of(formats.input, nChw16c, nChw8c) ? IC : ic;
   sizes.weights *= estl::any_of(formats.weights, OIhw16i16o, OIhw8i8o)
-      ? OC * IC : oc * ic;
+      ? OC/g * IC/g : oc/g * ic/g;
   sizes.weights += 4 * V; // for weights pipeline
   sizes.output *= estl::any_of(formats.output, nChw16c, nChw8c) ? OC : oc;
   sizes.bias = estl::any_of(formats.output, nChw16c, nChw8c) ? OC : oc;

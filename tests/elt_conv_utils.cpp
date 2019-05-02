@@ -31,8 +31,11 @@ void load_conv_data(eld_conv_t &desc, InputType *input, WeightsType *weights,
   auto dims = desc.dims;
   auto input_sz = dims.n * dims.ic * dims.ih * dims.iw;
   auto weights_sz =
-      dims.oc * dims.ic * dims.kh * dims.kw;
+      dims.g * dims.oc/dims.g * dims.ic/dims.g * dims.kh * dims.kw;
 
+  if (dims.g != 1) {
+    error("groups not support in load real data");
+  }
   if (input_file != nullptr && input != nullptr) {
     if (nChw16c == input_format) {
       read_blob_data(nchw_input, input_file, input_sz * sizeof(InputType));
@@ -816,6 +819,7 @@ template <typename InputType, typename WeightsType, typename OutputType,
 int ref_convolution2d(eld_conv_t &desc, OutputType *output, InputType *input,
                       WeightsType *weights, BiasType *bias) {
   int n = desc.dims.n;
+  int g = desc.dims.g;
   int ic = desc.dims.ic;
   int oc = desc.dims.oc;
   int ih = desc.dims.ih;
@@ -854,53 +858,60 @@ int ref_convolution2d(eld_conv_t &desc, OutputType *output, InputType *input,
     reorder<OutputType, nchw, nhwc>(toutput, output, n, oc, oh, ow);
   }
 
-  MD4(InputType, ainput, desc.formats.input == nchw ? input : tinput, n, ic, ih,
-      iw);
-  MD4(WeightsType, aweights, desc.formats.weights == oihw ? weights : tweights,
-      oc, ic, kh, kw);
-  MD4(OutputType, atoutput, desc.formats.output == nchw ? output : toutput, n,
-      oc, oh, ow);
+  ic = ic / g;
+  oc = oc / g;
 
-#pragma omp parallel for collapse(4)
+  MD5(InputType, ainput, desc.formats.input == nchw ? input : tinput, n, g, ic,
+      ih, iw);
+  MD5(WeightsType, aweights,
+      desc.formats.weights == (oihw || goihw) ? weights : tweights, g, oc, ic,
+      kh, kw);
+  MD5(OutputType, atoutput, desc.formats.output == nchw ? output : toutput, n,
+      g, oc, oh, ow);
+  MD2(BiasType, abias, bias, g, oc);
+
+#pragma omp parallel for collapse(5)
   iter_each(_n, n) {
-    iter_each(_oc, oc) {
-      iter_each(_oh, oh) {
-        iter_each(_ow, ow) {
-          if (desc.with_ip_sum)
-            md4(atoutput, _n, _oc, _oh, _ow) +=
-                desc.with_bias ? bias[_oc] : 0.0f;
-          else
-            md4(atoutput, _n, _oc, _oh, _ow) =
-                desc.with_bias ? bias[_oc] : 0.0f;
+    iter_each(_g, g) {
+      iter_each(_oc, oc) {
+        iter_each(_oh, oh) {
+          iter_each(_ow, ow) {
+            if (desc.with_ip_sum)
+              md5(atoutput, _n, _g, _oc, _oh, _ow) +=
+                  desc.with_bias ? md2(abias, _g, _oc) : 0.0f;
+            else
+              md5(atoutput, _n, _g, _oc, _oh, _ow) =
+                  desc.with_bias ? md2(abias, _g, _oc) : 0.0f;
 
-          iter_each(_ic, ic) {
-            iter_each(_kh, kh) {
-              int _ih = _oh * sh - pt + _kh * dh;
-              if (_ih < 0 || _ih >= ih)
-                continue;
-              iter_each(_kw, kw) {
-                int _iw = _ow * sw - pl + _kw * dw;
-                if (_iw < 0 || _iw >= iw)
+            iter_each(_ic, ic) {
+              iter_each(_kh, kh) {
+                int _ih = _oh * sh - pt + _kh * dh;
+                if (_ih < 0 || _ih >= ih)
                   continue;
-                md4(atoutput, _n, _oc, _oh, _ow) +=
-                    md4(ainput, _n, _ic, _ih, _iw) *
-                    md4(aweights, _oc, _ic, _kh, _kw);
+                iter_each(_kw, kw) {
+                  int _iw = _ow * sw - pl + _kw * dw;
+                  if (_iw < 0 || _iw >= iw)
+                    continue;
+                  md5(atoutput, _n, _g, _oc, _oh, _ow) +=
+                      md5(ainput, _n, _g, _ic, _ih, _iw) *
+                      md5(aweights, _g, _oc, _ic, _kh, _kw);
+                }
               }
             }
+            md5(atoutput, _n, _g, _oc, _oh, _ow) =
+                desc.with_relu && md5(atoutput, _n, _g, _oc, _oh, _ow) < 0.0f
+                    ? 0.0f
+                    : md5(atoutput, _n, _g, _oc, _oh, _ow);
           }
-          md4(atoutput, _n, _oc, _oh, _ow) =
-              desc.with_relu && md4(atoutput, _n, _oc, _oh, _ow) < 0.0f
-                  ? 0.0f
-                  : md4(atoutput, _n, _oc, _oh, _ow);
         }
       }
     }
   }
 
   if (desc.formats.output == nChw16c) {
-    reorder<OutputType, nChw16c, nchw>(output, toutput, n, oc, oh, ow);
+    reorder<OutputType, nChw16c, nchw>(output, toutput, n, g * oc, oh, ow);
   } else if (desc.formats.output == nhwc) {
-    reorder<OutputType, nhwc, nchw>(output, toutput, n, oc, oh, ow);
+    reorder<OutputType, nhwc, nchw>(output, toutput, n, g * oc, oh, ow);
   }
 
   if (tinput != nullptr)
@@ -909,83 +920,6 @@ int ref_convolution2d(eld_conv_t &desc, OutputType *output, InputType *input,
     free(tweights);
   if (toutput != nullptr)
     free(toutput);
-
-  return 0;
-}
-
-template <typename InputType, typename WeightsType, typename OutputType,
-          typename BiasType>
-int ref_convolution2d_block16(eld_conv_t &desc, OutputType *output,
-                              InputType *input, WeightsType *weights,
-                              BiasType *bias) {
-  int n = desc.dims.n;
-  int IC = ALIGNUP(desc.dims.ic, 16) / 16;
-  int OC = ALIGNUP(desc.dims.oc, 16) / 16;
-  int ih = desc.dims.ih;
-  int iw = desc.dims.iw;
-  int oh = desc.dims.oh;
-  int ow = desc.dims.ow;
-  int kh = desc.dims.kh;
-  int kw = desc.dims.kw;
-  int sh = desc.strides.h;
-  int sw = desc.strides.w;
-  int pt = desc.pads.t;
-  int pl = desc.pads.l;
-  int dh = desc.dilations.h;
-  int dw = desc.dilations.w;
-
-  MD5(InputType, ainput, input, n, IC, ih, iw, 16);
-  MD6(WeightsType, aweights, weights, OC, IC, kh, kw, 16, 16);
-  MD5(OutputType, aoutput, output, n, OC, oh, ow, 16);
-
-  if (desc.formats.input != nChw16c || desc.formats.weights != OIhw16i16o ||
-      desc.formats.output != nChw16c) {
-    printf("Format error!");
-    return -1;
-  }
-  int Or = desc.dims.oc % 16 ? desc.dims.oc % 16 : 16;
-  int Ir = desc.dims.ic % 16 ? desc.dims.ic % 16 : 16;
-
-#pragma omp parallel for collapse(4)
-  iter_each(_n, n) {
-    iter_each(_OC, OC) {
-      iter_each(_oh, oh) {
-        iter_each(_ow, ow) {
-          int ov = _OC == OC - 1 ? Or : 16;
-          iter_each(_ov, ov) {
-            if (desc.with_ip_sum)
-              md5(aoutput, _n, _OC, _oh, _ow, _ov) +=
-                  desc.with_bias ? bias[_OC * 16 + _ov] : 0.0f;
-            else
-              md5(aoutput, _n, _OC, _oh, _ow, _ov) =
-                  desc.with_bias ? bias[_OC * 16 + _ov] : 0.0f;
-            iter_each(_IC, IC) {
-              int iv = _IC == IC - 1 ? Ir : 16;
-              iter_each(_iv, iv) {
-                iter_each(_kh, kh) {
-                  int _ih = _oh * sh - pt + _kh * dh;
-                  if (_ih < 0 || _ih >= ih)
-                    continue;
-                  iter_each(_kw, kw) {
-                    int _iw = _ow * sw - pl + _kw * dw;
-                    if (_iw < 0 || _iw >= iw)
-                      continue;
-                    md5(aoutput, _n, _OC, _oh, _ow, _ov) +=
-                        md5(ainput, _n, _IC, _ih, _iw, _iv) *
-                        md6(aweights, _OC, _IC, _kh, _kw, _iv, _ov);
-                  }
-                }
-              }
-            }
-            md5(aoutput, _n, _OC, _oh, _ow, _ov) =
-                desc.with_relu && md5(aoutput, _n, _OC, _oh, _ow, _ov) < 0.0f
-                    ? 0.0f
-                    : md5(aoutput, _n, _OC, _oh, _ow, _ov);
-          }
-        }
-      }
-    }
-  }
 
   return 0;
 }
@@ -1140,9 +1074,6 @@ template int ref_convolution2d<float, float, float, float>(eld_conv_t &,
                                                            float *, float *,
                                                            float *, float *);
 
-template int ref_convolution2d_block16<float, float, float, float>(
-    eld_conv_t &, float *, float *, float *, float *);
-
 template void prepare_conv_data<float, float, float, float>(
     eld_conv_t &, eld_conv_t &, float *, float *, float *, float *, float **,
     float **, float **, float **, const char *, const char *, const char *,
@@ -1169,4 +1100,3 @@ template void prepare_conv_data<uint8_t, float, float, float>(
     int, int, bool, int, bool, bool);
 }
 }
-
