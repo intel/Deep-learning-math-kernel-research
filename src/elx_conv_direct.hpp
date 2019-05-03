@@ -43,11 +43,11 @@ Template_elx_conv_direct_t class elx_conv_direct_t : public elx_conv_t {
 
   void trans_weights_to_compact(TweightsType *tweights, WeightsType *weights);
   inline void __trans_weights_post(WeightsType *aweights, TweightsType *tweights,
-      int _oc4, int _ic4, int _oc3, int _ic3, int _kh, int _kw, int _O1, int _I2,
-      int _iV, int _O);
+      int _g, int _oc4, int _ic4, int _oc3, int _ic3, int _kh, int _kw, int _O1,
+      int _I2, int _iV, int _O);
   inline void __trans_weights_Or_post(WeightsType *aweights, TweightsType *tweights,
-      int _oc4, int _ic4, int _oc3, int _ic3, int _kh, int _kw, int _O1, int _I2,
-      int _iV, int _O);
+      int _g, int _oc4, int _ic4, int _oc3, int _ic3, int _kh, int _kw, int _O1,
+      int _I2, int _iV, int _O);
 
   void conv_a060(OutputType *output, InputType *input, TweightsType *weights,
       BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
