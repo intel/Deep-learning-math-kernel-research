@@ -27,7 +27,7 @@ function build() {
 
 function conv_test() {
   # Default
-  n=1; i=0; o=0; h=0; w=0; H=0; W=0; k=3; K=3; p=1; P=1; s=1; S=1
+  n=1; g=1; i=0; o=0; h=0; w=0; H=0; W=0; k=3; K=3; p=1; P=1; s=1; S=1
   b=1; r=0; v=1; a=wino; l=16; B=0; A=0; T=0
   flt_o=0; flt_t=0; blk_i=0; blk_o=0; pat_i=1; pat_o=1
   tile_size=5; nthreads=0; execution_mode=0
@@ -40,8 +40,9 @@ function conv_test() {
   disable_autoparam=1
 
   OPTIND=1
-  while getopts ":n:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:f:l:B:A:a:-:" opt; do
+  while getopts ":n:g:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:f:l:B:A:a:-:" opt; do
     case "$opt" in
+      g) g=$OPTARG ;;
       n) n=$OPTARG ;;
       i) i=$OPTARG ;;
       o) o=$OPTARG ;;
@@ -189,7 +190,7 @@ function conv_test() {
   if [ "x$bias_file" != "x" ]; then bias_file_opt="--bias-data-file=$bias_file"; fi
   set -v
   eval $OMP_ENV $ROOT_DIR/$build_dir/tests/elt_conv \
-    -mb=$n -ic=$i -oc=$o -ih=$h -iw=$w -oh=$H -ow=$W -kh=$k -kw=$K -ph=$p -pw=$P -sh=$s -sw=$S \
+    -mb=$n -g=$g -ic=$i -oc=$o -ih=$h -iw=$w -oh=$H -ow=$W -kh=$k -kw=$K -ph=$p -pw=$P -sh=$s -sw=$S \
     -with_bias=$b -with_relu=$r -validate_results=$v -alg=$a -repeated_layer=$l -dbuffering=$B -output_as_input=$A \
     -flt_o=$flt_o -flt_t=$flt_t -blk_i=$blk_i -blk_o=$blk_o \
     -pat_i=$pat_i -pat_o=$pat_o -tile_size=$tile_size \
