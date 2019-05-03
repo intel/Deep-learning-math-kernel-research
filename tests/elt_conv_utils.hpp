@@ -75,16 +75,32 @@ namespace test {
     reorder(Type *dst, Type *src, int o, int i, int h, int w);
   };
 
+  template <typename Type> struct reorder<Type, goihw, gOIhw16i16o> {
+    reorder(Type *dst, Type *src, int g, int o, int i, int h, int w);
+  };
+
   template <typename Type> struct reorder<Type, OIhw16i16o, oihw> {
     reorder(Type *dst, Type *src, int o, int i, int h, int w);
+  };
+
+  template <typename Type> struct reorder<Type, gOIhw16i16o, goihw> {
+    reorder(Type *dst, Type *src, int g, int o, int i, int h, int w);
   };
 
   template <typename Type> struct reorder<Type, oihw, hwio> {
     reorder(Type *dst, Type *src, int o, int i, int h, int w);
   };
 
+  template <typename Type> struct reorder<Type, goihw, ghwio> {
+    reorder(Type *dst, Type *src, int g, int o, int i, int h, int w);
+  };
+
   template <typename Type> struct reorder<Type, hwio, oihw> {
 	reorder(Type *dst, Type *src, int o, int i, int h, int w);
+  };
+
+  template <typename Type> struct reorder<Type, ghwio, goihw> {
+	reorder(Type *dst, Type *src, int g, int o, int i, int h, int w);
   };
 
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
