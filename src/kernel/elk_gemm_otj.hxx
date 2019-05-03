@@ -95,8 +95,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
-    MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD3(OutputType, aoutput_nhwc0, output, T, xc.g, xc.oc);
+    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
               : F_traits<F>::is_blocked_output
@@ -120,7 +120,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
+    MD3(OutputType, aoutput_nhwc0, output, T, xc.g, xc.oc);
     MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
     assert(F_traits<F>::is_nhwc_output);
 
@@ -186,8 +186,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       else
         return _mm<V>::set1_ps(*(float *)(&md5(ainput0, _I2, _T, 0, _V, _P) - 1));
     } else if (F_traits<F>::is_nhwc_input) {
-      MD4(InputType, ainput0, input, xc.wt, T, S, xc.ic);
-      MD5(InputType, ainput1, &md4(ainput0, 0, _T, 0, 0), xc.ic4, xc.ic3, xc.I2, V/P, P);
+      MD5(InputType, ainput0, input, xc.wt, T, S, xc.g, xc.ic);
+      MD5(InputType, ainput1, &md5(ainput0, 0, _T, 0, 0, 0), xc.ic4, xc.ic3, xc.I2, V/P, P);
       if (std::is_same<InputType, float>::value)
         return _mm<V>::set1_ps(md5(ainput1, 0, 0, _I2, _V, _P));
       else
@@ -221,8 +221,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
-    MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD3(OutputType, aoutput_nhwc0, output, T, xc.g, xc.oc);
+    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
               : F_traits<F>::is_blocked_output
@@ -260,8 +260,8 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
-    MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD3(OutputType, aoutput_nhwc0, output, T, xc.g, xc.oc);
+    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
               : F_traits<F>::is_blocked_output
@@ -429,14 +429,14 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     MD2(OutputType, aoutput_compact, output, xc.O1, O * T * V);
     MD2(OutputType, aoutput_blocked, output, xc.O1, O * xc.oh * xc.ow * V);
-    MD4(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O * V);
+    MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.g, xc.oc4 * xc.oc3, xc.O1, O * V);
 
     MD2(WeightsType, aweights, weights, xc.O1, W_stride);
     MD2(BiasType, abias, bias, xc.O1, O * V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       auto aout = F_traits<F>::is_nhwc_output
-          ? &md4(aoutput_nhwc, 0, 0, _O1, 0)
+          ? &md5(aoutput_nhwc, 0, 0, 0, _O1, 0)
           : F_traits<F>::is_compact_output ? &md2(aoutput_compact, _O1, 0)
                                            : &md2(aoutput_blocked, _O1, 0);
       if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
@@ -462,20 +462,20 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     MD3(OutputType, aoutput_compact, output, xc.O1, O, T * V);
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
-    MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O, V);
+    MD6(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.g, xc.oc4 * xc.oc3, xc.O1, O, V);
 
     MD4(WeightsType, aweights, weights, xc.O1, W_stride0, O, W_stride1);
     MD3(BiasType, abias, bias, xc.O1, O, V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       auto aout = F_traits<F>::is_nhwc_output
-          ? &md5(aoutput_nhwc, 0, 0, _O1, 0, 0)
+          ? &md6(aoutput_nhwc, 0, 0, 0, _O1, 0, 0)
           : F_traits<F>::is_compact_output ? &md3(aoutput_compact, _O1, 0, 0)
                                            : &md3(aoutput_blocked, _O1, 0, 0);
       op_gemm<JO0, JP0, false>(xc, aout, input, &md4(aweights, _O1, 0, 0, 0),
           &md3(abias, _O1, 0, 0), attr, _O1, 0);
       aout = F_traits<F>::is_nhwc_output
-          ? &md5(aoutput_nhwc, 0, 0, _O1, JO0, 0)
+          ? &md6(aoutput_nhwc, 0, 0, 0, _O1, JO0, 0)
           : F_traits<F>::is_compact_output ? &md3(aoutput_compact, _O1, JO0, 0)
                                            : &md3(aoutput_blocked, _O1, JO0, 0);
       if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
@@ -501,26 +501,26 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     MD3(OutputType, aoutput_compact, output, xc.O1, O, T * V);
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
-    MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O, V);
+    MD6(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.g, xc.oc4 * xc.oc3, xc.O1, O, V);
 
     MD4(WeightsType, aweights, weights, xc.O1, W_stride0, O, W_stride1);
     MD3(BiasType, abias, bias, xc.O1, O, V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       auto aout = F_traits<F>::is_nhwc_output
-          ? &md5(aoutput_nhwc, 0, 0, _O1, 0, 0)
+          ? &md6(aoutput_nhwc, 0, 0, 0, _O1, 0, 0)
           : F_traits<F>::is_compact_output ? &md3(aoutput_compact, _O1, 0, 0)
                                            : &md3(aoutput_blocked, _O1, 0, 0);
       op_gemm<JO0, JP0, false>(xc, aout, input, &md4(aweights, _O1, 0, 0, 0),
           &md3(abias, _O1, 0, 0), attr, _O1, 0);
       aout = F_traits<F>::is_nhwc_output
-          ? &md5(aoutput_nhwc, 0, 0, _O1, JO0, 0)
+          ? &md6(aoutput_nhwc, 0, 0, 0, _O1, JO0, 0)
           : F_traits<F>::is_compact_output ? &md3(aoutput_compact, _O1, JO0, 0)
                                            : &md3(aoutput_blocked, _O1, JO0, 0);
       op_gemm<JO1, JP1, false>(xc, aout, input, &md4(aweights, _O1, 0, JO0, 0),
           &md3(abias, _O1, JO0, 0), attr, _O1, JO0);
       aout = F_traits<F>::is_nhwc_output
-          ? &md5(aoutput_nhwc, 0, 0, _O1, JO0 + JO1, 0)
+          ? &md6(aoutput_nhwc, 0, 0, 0, _O1, JO0 + JO1, 0)
           : F_traits<F>::is_compact_output
               ? &md3(aoutput_compact, _O1, JO0 + JO1, 0)
               : &md3(aoutput_blocked, _O1, JO0 + JO1, 0);

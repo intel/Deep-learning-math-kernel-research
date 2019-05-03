@@ -16,6 +16,17 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
 
   this->Vx = 1;
   this->V1 = V / this->Vx;
+  this->ocg = this->oc / this->g;
+  this->icg = this->ic / this->g;
+
+  if (this->g > 1) {
+    // nhwc only
+    if ((this->input_fmt != nhwc) || (this->output_fmt != nhwc))
+      el_error("Unimplemented: group conv with non nhwc input/output");
+
+    this->ic /= this->g;
+    this->oc /= this->g;
+  }
   this->IC = ALIGNUP(this->ic, V);
   this->OC = ALIGNUP(this->oc, V);
 
@@ -45,7 +56,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
       el_error("Unimplemented T: (T,Tr) must greater than (lp,rp)");
     }
     bool format_ok =
-        estl::any_of(this->weights_fmt, hwio, OIhw16i16o) &&
+        estl::any_of(this->weights_fmt, hwio, ghwio, OIhw16i16o, gOIhw16i16o) &&
         (((this->input_fmt == nhwc) && (this->output_fmt == nhwc)) ||
          (V == 16 && xopt_ == 0xa060 &&
           (estl::any_of(this->input_fmt, nchw, nChw16c)) &&
@@ -69,7 +80,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
       }
     }
 
-    if (this->ic < V) {
+    if (this->g == 1 && this->ic < V) {
       bool ok = this->input_fmt == nchw
           && this->weights_fmt == hwio
           && xopt_ == 0xa060;
@@ -117,11 +128,11 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
   // dbg
   printf("T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d\n",
       this->T, this->Tr, this->t2, this->ht, this->wt, this->t);
-  printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic4=%d, IC=%d\n",
-      V, this->Ir, this->I2, this->ic3, this->ic4, this->IC);
-  printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), oc3=%d, oc4=%d, O2r=%d, oc3r=%d, OC=%d\n",
+  printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic4=%d, IC=%d, g=%d\n",
+      V, this->Ir, this->I2, this->ic3, this->ic4, this->IC, this->g);
+  printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), oc3=%d, oc4=%d, O2r=%d, oc3r=%d, OC=%d, g=%d\n",
       V, this->Or, this->O2, this->O, this->O1,
-      this->oc3, this->oc4, this->O2r, this->oc3r, this->OC);
+      this->oc3, this->oc4, this->O2r, this->oc3r, this->OC, this->g);
 }
 
 Template_elx_conv_direct_t
@@ -140,10 +151,10 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
 
   switch (xopt_) {
   case 0xb060:
-    toutput_size_ = this->ic4 * this->t3 * this->OC * this->oh * this->ow * sizeof(ToutputType);
+    toutput_size_ = this->ic4 * this->t3 * this->g * this->OC * this->oh * this->ow * sizeof(ToutputType);
   case 0xa060:
   case 0xd060:
-    tweights_size_ = this->kh * this->kw * this->IC * this->OC * sizeof(TweightsType);
+    tweights_size_ = this->g * this->kh * this->kw * this->IC * this->OC * sizeof(TweightsType);
     break;
   default:
     el_error("Unknown xopt!");
@@ -189,7 +200,7 @@ void Instance_elx_conv_direct_t::__trans_weights_post(WeightsType *aweights,
     TweightsType *tweights, int _g, int _oc4, int _ic4, int _oc3, int _ic3,
     int _kh, int _kw, int _O1, int _I2, int _iV, int _O)
 {
-  int Vr = this->ic < V ? this->Ir : V;
+  int Vr = (this->g == 1) && (this->ic < V) ? this->Ir : V;
   MD12(TweightsType, atweights, tweights, this->g, this->oc4, this->ic4, this->oc3,
        this->ic3, this->kh, this->kw, this->O1, this->I2, Vr, this->O, V);
 
@@ -237,7 +248,7 @@ void Instance_elx_conv_direct_t::__trans_weights_Or_post(WeightsType *aweights,
     TweightsType *tweights, int _g, int _oc4, int _ic4, int _oc3, int _ic3,
     int _kh, int _kw, int _O1, int _I2, int _iV, int _O)
 {
-  int Vr = this->ic < V ? this->Ir : V;
+  int Vr = (this->g == 1) && (this->ic < V) ? this->Ir : V;
   MD12(TweightsType, atweights, tweights, this->g, this->oc4, this->ic4, this->oc3,
        this->ic3, this->kh, this->kw, this->O1, this->I2, Vr, this->O, V);
 
@@ -454,8 +465,8 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
   assert(this->Tr > this->rp);
 
   if (this->input_fmt == nhwc) {
-    MD3(InputType, ainput0, input, this->ih, this->iw, this->ic);
-    MD3(OutputType, aoutput0, output, this->ht, this->ow, this->oc);
+    MD4(InputType, ainput0, input, this->ih, this->iw, this->g, this->ic);
+    MD4(OutputType, aoutput0, output, this->ht, this->ow, this->g, this->oc);
 
     iter_each (_oc3, this->oc3) {
     iter_each (_ic3, this->ic3) {
@@ -469,7 +480,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value) {
             __mmask16 k = _mm512_int2mask(O2_has_Or ? this->ormask : 0xFFFF);
             iter_each (_T, Tz) {
-              MD4(OutputType, aoutput1, &md3(aoutput0, _ht, ows0 + _T, 0),
+              MD4(OutputType, aoutput1, &md4(aoutput0, _ht, ows0 + _T, 0, 0),
                   this->oc4, this->oc3, this->O2, V);
               _mm512_mask_store_ps(&md4(aoutput1, 0, _oc3, _O2, 0), k, s);
             }
@@ -491,9 +502,9 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           while (_iws < 0) _iws += this->ws;
           auto _ows = (_iws + this->lp - _kw) / this->ws;
 
-          MD4(InputType, ainput1, &md3(ainput0, _ih, _iws, 0), this->ic4,
+          MD4(InputType, ainput1, &md4(ainput0, _ih, _iws, 0, 0), this->ic4,
               this->ic3, this->I2, V);
-          MD4(OutputType, aoutput1, &md3(aoutput0, _ht, _ows, 0), this->oc4,
+          MD4(OutputType, aoutput1, &md4(aoutput0, _ht, _ows, 0, 0), this->oc4,
               this->oc3, this->O2, V);
           ker_gemm_[_wt][_kw](
               *this, &md4(aoutput1, 0, _oc3, 0, 0), &md4(ainput1, 0, _ic3, 0, 0),
@@ -509,7 +520,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
             __mmask16 k = _mm512_int2mask(O2_has_Or ? this->ormask : 0xFFFF);
             if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value) {
               iter_each (_T, Tz) {
-                MD4(OutputType, aoutput1, &md3(aoutput0, _ht, ows0 + _T, 0),
+                MD4(OutputType, aoutput1, &md4(aoutput0, _ht, ows0 + _T, 0, 0),
                     this->oc4, this->oc3, this->O2, V);
                 auto s = _mm<V>::max_ps(*(__m<V> *)&md4(aoutput1, 0, _oc3, _O2, 0),
                                         _mm<V>::setzero_ps());

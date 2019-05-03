@@ -923,8 +923,8 @@ int ref_convolution2d(eld_conv_t &desc, OutputType *output, InputType *input,
                       WeightsType *weights, BiasType *bias) {
   int n = desc.dims.n;
   int g = desc.dims.g;
-  int ic = desc.dims.ic;
-  int oc = desc.dims.oc;
+  int ic = desc.dims.ic / g;
+  int oc = desc.dims.oc / g;
   int ih = desc.dims.ih;
   int iw = desc.dims.iw;
   int oh = desc.dims.oh;
@@ -941,28 +941,24 @@ int ref_convolution2d(eld_conv_t &desc, OutputType *output, InputType *input,
   InputType *tinput = nullptr, *tweights = nullptr, *toutput = nullptr;
   if (desc.formats.input == nChw16c) {
     tinput = (InputType *)malloc(desc.byte_sizes.input);
-    reorder<InputType, nchw, nChw16c>(tinput, input, n, ic, ih, iw);
+    reorder<InputType, nchw, nChw16c>(tinput, input, n, g * ic, ih, iw);
   } else if (desc.formats.input == nhwc) {
     tinput = (InputType *)malloc(desc.byte_sizes.input);
-    reorder<InputType, nchw, nhwc>(tinput, input, n, ic, ih, iw);
+    reorder<InputType, nchw, nhwc>(tinput, input, n, g * ic, ih, iw);
   }
-  if (desc.formats.output == nChw16c) {
-    toutput = (OutputType *)malloc(desc.byte_sizes.output);
-    reorder<OutputType, nchw, nChw16c>(toutput, output, n, oc, oh, ow);
-  } else if (desc.formats.output == nhwc) {
-    toutput = (OutputType *)malloc(desc.byte_sizes.output);
-    reorder<OutputType, nchw, nhwc>(toutput, output, n, oc, oh, ow);
-  }
-
-  ic = ic / g;
-  oc = oc / g;
-
   if (desc.formats.weights == OIhw16i16o || desc.formats.weights == gOIhw16i16o) {
     tweights = (WeightsType *)malloc(desc.byte_sizes.weights);
     reorder<WeightsType, goihw, gOIhw16i16o>(tweights, weights, g, oc, ic, kh, kw);
   } else if (desc.formats.weights == hwio || desc.formats.weights == ghwio) {
     tweights = (WeightsType *)malloc(desc.byte_sizes.weights);
     reorder<WeightsType, goihw, ghwio>(tweights, weights, g, oc, ic, kh, kw);
+  }
+  if (desc.formats.output == nChw16c) {
+    toutput = (OutputType *)malloc(desc.byte_sizes.output);
+    reorder<OutputType, nchw, nChw16c>(toutput, output, n, g * oc, oh, ow);
+  } else if (desc.formats.output == nhwc) {
+    toutput = (OutputType *)malloc(desc.byte_sizes.output);
+    reorder<OutputType, nchw, nhwc>(toutput, output, n, g * oc, oh, ow);
   }
 
   MD5(InputType, ainput, desc.formats.input == nchw ? input : tinput, n, g, ic,

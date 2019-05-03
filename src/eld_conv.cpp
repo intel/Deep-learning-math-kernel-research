@@ -54,35 +54,28 @@ int eld_conv_t::setup()
 {
   // Dimensions
   const int V = cpu_vector_length() / 4;
-  const int ic = dims.ic, IC = ALIGNUP(ic, V);
-  const int oc = dims.oc, OC = ALIGNUP(oc, V);
   const int g = dims.g;
+  const int ic = dims.ic / g;
+  const int oc = dims.oc / g;
+
   if (V != 16) {
     // TODO: V == 8
     el_error("CPU vector not support");
   }
-  if ((ic % g != 0) || (oc % g != 0)) {
+  if ((dims.ic % g != 0) || (dims.oc % g != 0)) {
     el_error("dims: groups: ic|oc != g * x");
-  }
-  if ((g > 1) && (ic != IC || oc != OC)) {
-    // TODO: raise it only for blocked format
-    el_error("dims: group: padding not support for g > 1");
   }
 
   // Select format
   if (formats.input == format_undef) {
-    formats.input = ic < V ? nchw : V == 16 ? nChw16c : nChw8c;
+    formats.input = (g == 1 && ic < V) ? nchw : V == 16 ? nChw16c : nChw8c;
   }
   if (formats.weights == format_undef) {
-    formats.weights = hwio;
+    formats.weights = g == 1 ? hwio : ghwio;
   }
   if (formats.output == format_undef) {
     formats.output = V == 16 ? nChw16c : nChw8c;
   }
-
-  sizes.input = dims.n * dims.ih * dims.iw;
-  sizes.weights = dims.g * dims.kh * dims.kw;
-  sizes.output = dims.n * dims.oh * dims.ow;
 
   using dt = decltype(data_type);
   uint32_t user_type = data_type.flat;
@@ -95,12 +88,19 @@ int eld_conv_t::setup()
   uint32_t user_type_f16 = dt{ { { f16, f16, f16, f16 } } }.flat;
 #endif
 
-  sizes.input *= estl::any_of(formats.input, nChw16c, nChw8c) ? IC : ic;
-  sizes.weights *= estl::any_of(formats.weights, OIhw16i16o, OIhw8i8o)
-      ? OC/g * IC/g : oc/g * ic/g;
-  sizes.weights += 4 * V; // for weights pipeline
-  sizes.output *= estl::any_of(formats.output, nChw16c, nChw8c) ? OC : oc;
-  sizes.bias = estl::any_of(formats.output, nChw16c, nChw8c) ? OC : oc;
+  sizes.input = dims.n * dims.ih * dims.iw *
+      (estl::any_of(formats.input, nChw16c, nChw8c) ? ALIGNUP(dims.ic, V)
+                                                    : dims.ic);
+  sizes.weights = dims.g * dims.kh * dims.kw *
+    (estl::any_of(formats.weights, OIhw16i16o, OIhw8i8o, gOIhw16i16o, gOIhw8i8o)
+                           ? ALIGNUP(ic, V) * ALIGNUP(oc, V)
+                           : oc * ic) + 4 * V; // for weights pipeline
+  sizes.output = dims.n * dims.oh * dims.ow *
+      (estl::any_of(formats.output, nChw16c, nChw8c) ? ALIGNUP(dims.oc, V)
+                                                     : dims.oc);
+  sizes.bias = estl::any_of(formats.output, nChw16c, nChw8c)
+                   ? ALIGNUP(dims.oc, V)
+                   : dims.oc;
 
   auto get_elem_size = [](uint8_t dtype) -> size_t {
     switch (dtype) {
@@ -195,7 +195,7 @@ int eld_conv_t::setup()
 
     if (tile_size == 0) {
       int t = dims.n * ((dims.oh + 3) / 4) * ((dims.ow + 3) / 4);
-      float mac_per_read = (t * OC) * 1.0f / (t + OC);
+      float mac_per_read = (t * ALIGNUP(oc, 16)) * 1.0f / (t + ALIGNUP(oc, V));
 #define MAC_PER_READ_A6_LIMIT (25.0f)
       tile_size = mac_per_read > MAC_PER_READ_A6_LIMIT  ? 6 : 4;
     }

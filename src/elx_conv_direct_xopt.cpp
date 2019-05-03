@@ -217,22 +217,23 @@ void Instance_elx_conv_direct_t::__execute_d060(
   }
 
   if (this->input_fmt == nhwc) { // nhwc -> nhwc
-    parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
-      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-      MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
+    parallel_for<6, 2>(mthr_, [&](int _t3, int _g, int _ic4, int _oc4, int _ht, int _wt) {
+      MD2(BiasType, abias0, bias, this->g, this->oc);
+      MD2(BiasType, abias1, &md2(abias0, _g, 0), this->oc4, this->oc3 * this->O2 * V);
+      MD4(TweightsType, atweights, tweights_, this->g, this->oc4, this->ic4,
           V * V * this->kh * this->kw * this->ic3 * this->oc3 * this->I2
               * this->O2);
-      MD3(InputType, ainput0, input, this->t3, this->ih * this->iw, this->ic);
-      MD2(InputType, ainput1, &md3(ainput0, _t3, 0, 0), this->ic4,
+      MD4(InputType, ainput0, input, this->t3, this->ih * this->iw, this->g, this->ic);
+      MD2(InputType, ainput1, &md4(ainput0, _t3, 0, _g, 0), this->ic4,
           this->ic3 * this->I2 * V);
-      MD3(OutputType, aoutput0, output, this->t3, this->ht * this->ow,
+      MD4(OutputType, aoutput0, output, this->t3, this->ht * this->ow, this->g,
           this->oc);
-      MD2(OutputType, aoutput1, &md3(aoutput0, _t3, 0, 0), this->oc4,
+      MD2(OutputType, aoutput1, &md4(aoutput0, _t3, 0, _g, 0), this->oc4,
           this->oc3 * this->O2 * V);
       gemm_d060(&md2(aoutput1, _oc4, 0), &md2(ainput1, _ic4, 0),
-          &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _ht,
-          _wt);
-    }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
+          &md4(atweights, _g, _oc4, _ic4, 0), &md2(abias1, _oc4, 0),
+          _ic4, _oc4, _ht, _wt);
+    }, this->t3, this->g, this->ic4, this->oc4, this->ht, this->wt);
   } else { // blocked -> blocked
     parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
       MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
@@ -244,8 +245,8 @@ void Instance_elx_conv_direct_t::__execute_d060(
       MD4(OutputType, aoutput, output, this->t3, this->oc4,
           this->oc3 * this->O2, this->ht * this->ow * V);
       gemm_d060(&md4(aoutput, _t3, _oc4, 0, 0), &md4(ainput, _t3, _ic4, 0, 0),
-          &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _ht,
-          _wt);
+          &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0),
+          _ic4, _oc4, _ht, _wt);
     }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
   }
 

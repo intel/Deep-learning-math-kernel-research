@@ -42,7 +42,7 @@ DEFINE_int32(streaming_output, 0,
 DEFINE_string(input_format, "nChw16c",
               "nchw|nhwc|nChw16c. Input data format. Default: nChw16c");
 DEFINE_string(weights_format, "OIhw16i16o",
-              "oihw|hwio|OIhw16i16o. Weights data format. Default: OIhw16i16o");
+              "oihw|hwio|OIhw16i16o|goihw|ghwio|gOIhw16i16o. Weights data format. Default: OIhw16i16o");
 DEFINE_string(output_format, "nChw16c",
               "nchw|nhwc|nChw16c. Output data format. Default: nChw16c");
 DEFINE_bool(input_as_blocked, false,

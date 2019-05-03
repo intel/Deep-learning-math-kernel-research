@@ -137,13 +137,19 @@ int parse_cmd_options(int argc, char **argv) {
 
   if (FLAGS_weights_format == "oihw")
     weights_format = oihw;
+  else if (FLAGS_weights_format == "goihw")
+    weights_format = goihw;
   else if (FLAGS_weights_format == "hwio")
     weights_format = hwio;
+  else if (FLAGS_weights_format == "ghwio")
+    weights_format = ghwio;
   else if (FLAGS_weights_format == "OIhw16i16o")
     weights_format = OIhw16i16o;
+  else if (FLAGS_weights_format == "gOIhw16i16o")
+    weights_format = gOIhw16i16o;
   else {
     printf("Error: convolution options: weights-format should be "
-           "oihw|hwio|OIhw16i16o\n");
+           "oihw|hwio|OIhw16i16o|goihw|ghwio|gOIhw16i16o\n");
     return -1;
   }
 
@@ -231,7 +237,8 @@ int parse_cmd_options(int argc, char **argv) {
 
   std::unordered_map<int, const char *> fmt_str{
       {nchw, "nchw"}, {nhwc, "nhwc"},       {oihw, "oihw"},
-      {hwio, "hwio"}, {nChw16c, "nChw16c"}, {OIhw16i16o, "OIhw16i16o"}};
+      {hwio, "hwio"}, {nChw16c, "nChw16c"}, {OIhw16i16o, "OIhw16i16o"},
+      {goihw, "goihw"}, {ghwio, "ghwio"},   {gOIhw16i16o, "gOIhw16i16o"}};
   printf("input-fmt:%s, weights-fmt:%s, output-fmt:%s\n", fmt_str[input_format],
          fmt_str[weights_format], fmt_str[output_format]);
   printf("input-as-blocked:%d, weights_as_blocked:%d, output_as_blocked:%d\n",
