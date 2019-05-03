@@ -18,6 +18,7 @@ namespace euler {
 
 eld_conv_t::eld_conv_t()
 {
+  dims.g = 1;
   pads = { 1, 1, 1, 1 };
   strides = { 1, 1 };
   dilations = { 1, 1 };

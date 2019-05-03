@@ -15,7 +15,7 @@ namespace euler {
 
 struct elx_conv_params_t {
   // dimensions
-  int ic, oc, ih, iw, oh, ow, n, t, kh, kw;
+  int g, ic, oc, ih, iw, oh, ow, n, t, kh, kw;
   // dimensions in packed unit
   int ic2, oc2, ih2, iw2, oh2, ow2, t2;
   // dimensions in pack-in-pack unit
@@ -44,6 +44,8 @@ struct elx_conv_params_t {
   int hs, ws;
   // dilation
   int hd, wd;
+  // oc per group
+  int ocg;
   // Or masks
   unsigned int ormask;
 

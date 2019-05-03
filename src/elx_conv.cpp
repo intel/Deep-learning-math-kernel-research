@@ -9,6 +9,7 @@ namespace euler {
 elx_conv_t::elx_conv_t(eld_conv_t &dc)
 {
   this->n = dc.dims.n;
+  this->g = dc.dims.g;
   this->ic = dc.dims.ic;
   this->oc = dc.dims.oc;
   this->ih = dc.dims.ih;

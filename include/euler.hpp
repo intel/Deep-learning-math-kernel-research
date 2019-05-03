@@ -78,7 +78,9 @@ enum {
   hwio,
   OIhw16i16o,
   OIhw8i8o,
-  goihw
+  goihw,
+  ghwio,
+  gOIhw16i16o
 };
 
 // Propagation kind
