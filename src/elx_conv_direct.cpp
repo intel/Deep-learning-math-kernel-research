@@ -354,7 +354,7 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
 {
   // input:   ic3*, I2, V, ht*, hs*, wt*, T, ws
   // output:  oc3*, O2, ht*, wt*, T, V
-  int Vr = this->ic < V ? this->Ir : V;
+  int Vr = (this->g == 1 && this->ic < V) ? this->Ir : V;
   MD3(TweightsType, aweights, weights, this->oc3, this->ic3,
       this->kh * this->kw * this->O2 * this->I2 * V * Vr);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);

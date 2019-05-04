@@ -101,8 +101,8 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
-    MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD3(OutputType, aoutput_nhwc0, output, T, xc.g, xc.oc);
+    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
               : F_traits<F>::is_blocked_output
@@ -126,8 +126,8 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
-    MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD3(OutputType, aoutput_nhwc0, output, T, xc.g, xc.oc);
+    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
     assert(F_traits<F>::is_nhwc_output);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
@@ -201,8 +201,8 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
-    MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD3(OutputType, aoutput_nhwc0, output, T, xc.g, xc.oc);
+    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
               : F_traits<F>::is_blocked_output
@@ -240,8 +240,8 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
-    MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD3(OutputType, aoutput_nhwc0, output, T, xc.g, xc.oc);
+    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
               : F_traits<F>::is_blocked_output
@@ -273,9 +273,9 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       MD3(InputType, ainput2, &md4(ainput1, _V, _P, _ih, _iw), xc.wt, T, S);
       return _mm<V>::set1_ps(md3(ainput2, 0, _T, 0));
     } else if (F_traits<F>::is_nhwc_input) {
-      MD3(InputType, ainput0, input, xc.ih, xc.iw, xc.ic);
-      MD4(InputType, ainput1, &md3(ainput0, _ih, _iw, 0), xc.wt, T, S, xc.ic);
-      MD5(InputType, ainput2, &md4(ainput1, 0, _T, 0, 0), xc.ic4, xc.ic3, xc.I2, V/P, P);
+      MD3(InputType, ainput0, input, xc.ih, xc.iw, xc.g * xc.ic);
+      MD5(InputType, ainput1, &md3(ainput0, _ih, _iw, 0), xc.wt, T, S, xc.g, xc.ic);
+      MD5(InputType, ainput2, &md5(ainput1, 0, _T, 0, 0, 0), xc.ic4, xc.ic3, xc.I2, V/P, P);
       return _mm<V>::set1_ps(md5(ainput2, 0, 0, _I2, _V, _P));
     } else { // blocked
       MD4(InputType, ainput0, input, xc.I2, xc.ih, xc.iw, V);
@@ -748,11 +748,11 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD3(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
         xc.I2 * Vr * O * V); // compact
     MD2(OutputType, aoutput_blocked, output, xc.O1, O * xc.oh * xc.ow * V);
-    MD4(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O * V);
+    MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.g, xc.oc4 * xc.oc3, xc.O1, O * V);
     MD2(BiasType, abias, bias, xc.O1, O * V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
-      auto aout = F_traits<F>::is_nhwc_output ? &md4(aoutput_nhwc, 0, 0, _O1, 0)
+      auto aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, 0, _O1, 0)
                                               : &md2(aoutput_blocked, _O1, 0);
       if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
           && _O1 == xc.O1 - 1) {
@@ -776,16 +776,16 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
         xc.I2 * Vr, O, V); // compact
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
-    MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O, V);
+    MD6(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.g, xc.oc4 * xc.oc3, xc.O1, O, V);
     MD3(BiasType, abias, bias, xc.O1, O, V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       auto aout = F_traits<F>::is_nhwc_output
-          ? &md5(aoutput_nhwc, 0, 0, _O1, 0, 0)
+          ? &md6(aoutput_nhwc, 0, 0, 0, _O1, 0, 0)
           : &md3(aoutput_blocked, _O1, 0, 0);
       op_conv<JO0, JP0, false>(xc, aout, input, &md5(aweights, 0, _O1, 0, 0, 0),
           &md3(abias, _O1, 0, 0), _wt, khs, khe, kws, kwe, attr);
-      aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, JO0, 0)
+      aout = F_traits<F>::is_nhwc_output ? &md6(aoutput_nhwc, 0, 0, 0, _O1, JO0, 0)
                                          : &md3(aoutput_blocked, _O1, JO0, 0);
       if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
           && _O1 == xc.O1 - 1) {
@@ -811,21 +811,21 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
         xc.I2 * Vr, O, V); // compact
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
-    MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O, V);
+    MD6(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.g, xc.oc4 * xc.oc3, xc.O1, O, V);
     MD3(BiasType, abias, bias, xc.O1, O, V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       auto aout = F_traits<F>::is_nhwc_output
-          ? &md5(aoutput_nhwc, 0, 0, _O1, 0, 0)
+          ? &md6(aoutput_nhwc, 0, 0, 0, _O1, 0, 0)
           : &md3(aoutput_blocked, _O1, 0, 0);
       op_conv<JO0, JP0, false>(xc, aout, input, &md5(aweights, 0, _O1, 0, 0, 0),
           &md3(abias, _O1, 0, 0), _wt, khs, khe, kws, kwe, attr);
-      aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, JO0, 0)
+      aout = F_traits<F>::is_nhwc_output ? &md6(aoutput_nhwc, 0, 0, 0, _O1, JO0, 0)
                                          : &md3(aoutput_blocked, _O1, JO0, 0);
       op_conv<JO1, JP1, false>(xc, aout, input, &md5(aweights, 0, _O1, 0, JO0, 0),
           &md3(abias, _O1, JO0, 0), _wt, khs, khe, kws, kwe, attr);
       aout = F_traits<F>::is_nhwc_output
-          ? &md5(aoutput_nhwc, 0, 0, _O1, JO0 + JO1, 0)
+          ? &md6(aoutput_nhwc, 0, 0, 0, _O1, JO0 + JO1, 0)
           : &md3(aoutput_blocked, _O1, JO0 + JO1, 0);
       if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
           && _O1 == xc.O1 - 1) {

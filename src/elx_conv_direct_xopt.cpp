@@ -52,26 +52,27 @@ void Instance_elx_conv_direct_t::__execute_a060(
           _wt);
     }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
   } else if (this->input_fmt == nhwc) { // nhwc => nhwc
-    parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
-      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-      MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
+    parallel_for<6, 2>(mthr_, [&](int _t3, int _g, int _ic4, int _oc4, int _ht, int _wt) {
+      MD2(BiasType, abias0, bias, this->g, this->oc);
+      MD2(BiasType, abias1, &md2(abias0, _g, 0), this->oc4, this->oc3 * this->O2 * V);
+      MD4(TweightsType, atweights, tweights_, this->g, this->oc4, this->ic4,
           V * V * this->kh * this->kw * this->ic3 * this->oc3 * this->I2
               * this->O2);
       MD5(InputType, ainput0, input, this->t3, this->ht, this->hs, this->iw,
-          this->ic);
-      MD4(InputType, ainput1, &md5(ainput0, _t3, _ht, 0, 0, 0), this->wt,
-          this->T, this->ws, this->ic);
-      MD2(InputType, ainput2, &md4(ainput1, _wt, 0, 0, 0), this->ic4,
+          this->g * this->ic);
+      MD5(InputType, ainput1, &md5(ainput0, _t3, _ht, 0, 0, 0), this->wt,
+          this->T, this->ws, this->g, this->ic);
+      MD2(InputType, ainput2, &md5(ainput1, _wt, 0, 0, _g, 0), this->ic4,
           this->ic3 * this->I2 * V);
-      MD4(OutputType, aoutput0, output, this->t3, this->ht, this->ow, this->oc);
-      MD3(OutputType, aoutput1, &md4(aoutput0, _t3, _ht, 0, 0), this->wt,
-          this->T, this->oc);
-      MD2(OutputType, aoutput2, &md3(aoutput1, _wt, 0, 0), this->oc4,
+      MD4(OutputType, aoutput0, output, this->t3, this->ht, this->ow, this->g * this->oc);
+      MD4(OutputType, aoutput1, &md4(aoutput0, _t3, _ht, 0, 0), this->wt,
+          this->T, this->g, this->oc);
+      MD2(OutputType, aoutput2, &md4(aoutput1, _wt, 0, _g, 0), this->oc4,
           this->oc3 * this->O2 * V);
       conv_a060(&md2(aoutput2, _oc4, 0), &md2(ainput2, _ic4, 0),
-          &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _ht,
-          _wt);
-    },  this->t3, this->ic4, this->oc4, this->ht, this->wt);
+          &md4(atweights, _g, _oc4, _ic4, 0), &md2(abias1, _oc4, 0),
+          _ic4, _oc4, _ht, _wt);
+    },  this->t3, this->g, this->ic4, this->oc4, this->ht, this->wt);
   } else { // blocked => blocked
     parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
       MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
