@@ -74,23 +74,24 @@ void Instance_elx_conv_direct_t::__execute_a060(
           _ic4, _oc4, _ht, _wt);
     },  this->t3, this->g, this->ic4, this->oc4, this->ht, this->wt);
   } else { // blocked => blocked
-    parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
-      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-      MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
+    parallel_for<6, 2>(mthr_, [&](int _t3, int _g, int _ic4, int _oc4, int _ht, int _wt) {
+      MD2(BiasType, abias0, bias, this->g, this->oc);
+      MD2(BiasType, abias1, &md2(abias0, _g, 0), this->oc4, this->oc3 * this->O2 * V);
+      MD4(TweightsType, atweights, tweights_, this->g, this->oc4, this->ic4,
           V * V * this->kh * this->kw * this->ic3 * this->oc3 * this->I2
               * this->O2);
-      MD6(InputType, ainput0, input, this->t3, this->ic4, this->ic3 * this->I2,
-          this->ht, this->hs, this->iw * V);
-      MD3(InputType, ainput1, &md6(ainput0, _t3, _ic4, 0, _ht, 0, 0), this->wt,
-          this->T * this->ws, V);
-      MD5(OutputType, aoutput0, output, this->t3, this->oc4,
+      MD7(InputType, ainput0, input, this->t3, this->g, this->ic4,
+          this->ic3 * this->I2, this->ht, this->hs, this->iw * V);
+      MD3(InputType, ainput1, &md7(ainput0, _t3, _g, _ic4, 0, _ht, 0, 0),
+          this->wt, this->T * this->ws, V);
+      MD6(OutputType, aoutput0, output, this->t3, this->g, this->oc4,
           this->oc3 * this->O2, this->ht, this->ow * V);
-      MD3(OutputType, aoutput1, &md5(aoutput0, _t3, _oc4, 0, _ht, 0), this->wt,
-          this->T, V);
+      MD3(OutputType, aoutput1, &md6(aoutput0, _t3, _g, _oc4, 0, _ht, 0),
+          this->wt, this->T, V);
       conv_a060(&md3(aoutput1, _wt, 0, 0), &md3(ainput1, _wt, 0, 0),
-          &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _ht,
-          _wt);
-    }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
+          &md4(atweights, _g, _oc4, _ic4, 0), &md2(abias1, _oc4, 0),
+          _ic4, _oc4, _ht, _wt);
+    }, this->t3, this->g, this->ic4, this->oc4, this->ht, this->wt);
   }
 
   if (inference_acc_)
