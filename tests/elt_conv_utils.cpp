@@ -621,7 +621,9 @@ size_t cal_ops(eld_conv_t &desc) {
       }
     }
   }
-  return num_ops * desc.dims.n * desc.dims.ic * desc.dims.oc * 2;
+  int ic = desc.dims.ic / desc.dims.g;
+  int oc = desc.dims.oc / desc.dims.g;
+  return num_ops * desc.dims.n * desc.dims.g * ic * oc * 2;
 }
 
 int cal_iterations(size_t num_ops) {
