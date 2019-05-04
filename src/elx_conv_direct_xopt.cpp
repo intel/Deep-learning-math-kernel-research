@@ -235,19 +235,21 @@ void Instance_elx_conv_direct_t::__execute_d060(
           _ic4, _oc4, _ht, _wt);
     }, this->t3, this->g, this->ic4, this->oc4, this->ht, this->wt);
   } else { // blocked -> blocked
-    parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
-      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-      MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
+    parallel_for<6, 2>(mthr_, [&](int _t3, int _g, int _ic4, int _oc4, int _ht, int _wt) {
+      MD2(BiasType, abias0, bias, this->g, this->oc);
+      MD2(BiasType, abias1, &md2(abias0, _g, 0), this->oc4, this->oc3 * this->O2 * V);
+      MD4(TweightsType, atweights, tweights_, this->g, this->oc4, this->ic4,
           V * V * this->kh * this->kw * this->ic3 * this->oc3 * this->I2
               * this->O2);
-      MD4(InputType, ainput, input, this->t3, this->ic4, this->ic3 * this->I2,
-          this->ih * this->iw * V);
-      MD4(OutputType, aoutput, output, this->t3, this->oc4,
+      MD5(InputType, ainput, input, this->t3, this->g, this->ic4,
+          this->ic3 * this->I2, this->ih * this->iw * V);
+      MD5(OutputType, aoutput, output, this->t3, this->g, this->oc4,
           this->oc3 * this->O2, this->ht * this->ow * V);
-      gemm_d060(&md4(aoutput, _t3, _oc4, 0, 0), &md4(ainput, _t3, _ic4, 0, 0),
-          &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0),
-          _ic4, _oc4, _ht, _wt);
-    }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
+      gemm_d060(&md5(aoutput, _t3, _g, _oc4, 0, 0),
+                &md5(ainput, _t3, _g, _ic4, 0, 0),
+                &md4(atweights, _g, _oc4, _ic4, 0),
+                &md2(abias1, _oc4, 0), _ic4, _oc4, _ht, _wt);
+    }, this->t3, this->g, this->ic4, this->oc4, this->ht, this->wt);
   }
 
   if (inference_acc_)

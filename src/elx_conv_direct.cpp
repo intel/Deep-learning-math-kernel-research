@@ -21,8 +21,9 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
 
   if (this->g > 1) {
     // nhwc only
-    if ((this->input_fmt != nhwc) || (this->output_fmt != nhwc))
-      el_error("Unimplemented: group conv with non nhwc input/output");
+    if ((this->icg % V != 0 || this->ocg % V != 0) &&
+        (this->input_fmt != nhwc || this->output_fmt != nhwc))
+      el_error("Unimplemented: group conv with tail ic/oc needs nhwc input/output");
 
     this->ic /= this->g;
     this->oc /= this->g;
