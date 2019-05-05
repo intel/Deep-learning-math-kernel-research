@@ -85,6 +85,7 @@ struct elx_conv_params_t {
   float output_quant_z;
   float output_quant_repS;
   float sum_quant_S;
+  float sum_quant_z;
   sampling_kind_t sampling_kind;
 
   bool verbose;
