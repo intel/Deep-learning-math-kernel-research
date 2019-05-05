@@ -62,9 +62,8 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
          (V == 16 && xopt_ == 0xa060 &&
           (estl::any_of(this->input_fmt, nchw, nChw16c)) &&
           (this->output_fmt == nChw16c)) ||
-         (V == 16 && xopt_ == 0xb060 &&
-          (this->input_fmt == nChw16c) &&
-          (this->output_fmt == nChw16c)) ||
+         (V == 16 && xopt_ == 0xb060 && this->g == 1 &&
+          (this->input_fmt == nChw16c) && (this->output_fmt == nChw16c)) ||
          (V == 16 && xopt_ == 0xd060 && (this->input_fmt == nChw16c) &&
           (this->output_fmt == nChw16c)));
     if (!format_ok) {
@@ -86,7 +85,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
           && this->weights_fmt == hwio
           && xopt_ == 0xa060;
       if (!ok) {
-        el_error("direct: first-conv requries a060 with nchw/hwio");
+        el_error("direct: first-conv: support only g=1, xopt=a060 with nchw/hwio");
       }
     }
   }
