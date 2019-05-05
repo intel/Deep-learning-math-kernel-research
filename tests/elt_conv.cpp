@@ -119,7 +119,7 @@ int parse_cmd_options(int argc, char **argv) {
       (execution_mode == 0xa161 || execution_mode == 0xa133 ||
        execution_mode == 0xa173)) {
     is_int8_lp = true;
-  } else if (alg == CONV_DIRECT_1X1 && (execution_mode == 0xc160)) {
+  } else if (alg == CONV_DIRECT_1X1 && (execution_mode == 0xc160 || execution_mode == 0xb161)) {
     is_int8_lp = true;
   } else if (alg == CONV_DIRECT && execution_mode == 0xd160) {
     is_int8_lp = true;
@@ -345,7 +345,10 @@ static inline int conv_ref_setup(eld_conv_t &desc) {
     desc.execution_mode = 0xa033;
   } else if (int8_user_interface(data_type_cfg) &&
              desc.algorithm == CONV_DIRECT_1X1) {
-    desc.execution_mode = 0xc060;
+    if (sh == 1 && sw == 1)
+      desc.execution_mode = 0xc060;
+    else
+      desc.execution_mode = 0xb061;
   } else if (int8_user_interface(data_type_cfg) &&
              desc.algorithm == CONV_DIRECT) {
     desc.execution_mode = 0xd060;

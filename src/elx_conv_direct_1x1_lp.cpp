@@ -11,6 +11,7 @@ Instance_elx_conv_direct_1x1_lp_t::elx_conv_direct_1x1_lp_t(eld_conv_t &dc)
 {
   // user input
   xopt_ = this->execution_mode;
+  attr_ = 0x0;
 
   this->Vx = 4;
   this->V1 = V / this->Vx;
@@ -35,17 +36,29 @@ Instance_elx_conv_direct_1x1_lp_t::elx_conv_direct_1x1_lp_t(eld_conv_t &dc)
     el_error("no support for padding in 1x1 u8s8 conv");
 
   // t3, t2, (T, Tr)
-  bool shape_ok = this->hs == 1 && this->ws == 1 && no_pad_;
+  bool shape_ok = this->hs < 3 && this->ws < 3 && no_pad_;
   if (!shape_ok)
-    el_error("Shape not supported by c160");
+    el_error("direct_1x1_lp: Shape not supported");
 
-  this->t3 = this->n;
-  this->ht = this->oh;
-  this->wt = this->ow;
-  this->nt = this->ht * this->wt;
-  this->t = this->nt * this->n;
-  this->t2 = (this->nt + this->T - 1) / this->T;
-  this->Tr = this->nt % this->T ? this->nt % this->T : this->T;
+  if (xopt_ == 0xc160) {
+    this->t3 = this->n;
+    this->ht = this->oh;
+    this->wt = this->ow;
+    this->nt = this->ht * this->wt;
+    this->t = this->nt * this->n;
+    this->t2 = (this->nt + this->T - 1) / this->T;
+    this->Tr = this->nt % this->T ? this->nt % this->T : this->T;
+  } else if (xopt_ == 0xb161){
+    this->t3 = this->n;
+    this->ht = this->oh;
+    this->wt = this->ow / this->T;
+    this->nt = this->oh * this->ow;
+    this->t2 = this->nt / this->T;
+    this->Tr = this->T; // No Tr support
+    this->t = this->nt * this->n;
+  } else {
+    el_error("direct_1x1_lp: xopt not supported");
+  }
 
   this->Ir = this->ic % V ? this->ic % V : V;
   this->Or = this->oc % V ? this->oc % V : V;
@@ -144,6 +157,14 @@ int Instance_elx_conv_direct_1x1_lp_t::prepare_execute_opt()
 
   switch (xopt_) {
   case 0xc160:
+    input_scale_size = this->T * 2 * sizeof(TscaleType);
+    tweights_s8_size = this->IC * this->OC * sizeof(int8_t);
+    weights_scale_size = this->OC * 2 * sizeof(TscaleType);
+    toutput_size = this->n * this->OC * this->oh * this->ow * sizeof(ToutputType);
+    break;
+  case 0xb161:
+    tinput_msk_ = (unsigned char *)malloc(mthr_ * this->ic4 * this->ht * this->wt);
+    tinput_size = mthr_ * this->ic3 * this->I2 * V * this->ht * this->wt * this->T * sizeof(TinputType);
     input_scale_size = this->T * 2 * sizeof(TscaleType);
     tweights_s8_size = this->IC * this->OC * sizeof(int8_t);
     weights_scale_size = this->OC * 2 * sizeof(TscaleType);
@@ -467,6 +488,100 @@ void Instance_elx_conv_direct_1x1_lp_t::requant_output(
     }
     _mm_store_si128((__m128i *)&md5(aoutput, _t3, _o, _oh, _ow, 0), mmresx8);
   }, this->t3, this->OC / V, this->oh, this->ow);
+}
+
+Template_elx_conv_direct_1x1_lp_t
+void Instance_elx_conv_direct_1x1_lp_t::trans_input(
+    TinputType *tinput, InputType *input, int _ht, int _wt)
+{
+  if (no_pad_) {
+    if (input_is_bfmt_ || input_as_bfmt_)
+      __trans_input_blocked(tinput, input, _ht, _wt);
+    else
+      el_error("not support plain format!");
+  } else {
+      el_error("not support pading!");
+  }
+}
+
+Template_elx_conv_direct_1x1_lp_t
+void Instance_elx_conv_direct_1x1_lp_t::__trans_input_blocked(
+    TinputType *tinput, InputType *input, int _ht, int _wt)
+{
+  // ic3, I2, ht, hs, wt, T, ws, V -> ht, wt | ic3, I2, T, V
+  MD8(InputType, ainput, input, this->ic3, this->I2, this->ht, this->hs,
+      this->wt, this->T, this->ws, V);
+  MD4(TinputType, atinput, tinput, this->ic3, this->I2, this->T, V);
+
+  iter_each (_ic3, this->ic3) {
+  iter_each (_I2, this->I2) {
+  iter_each (_T, this->T) {
+    if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
+      if (stream_in_)
+        _mm<V>::stream_ps(&md4(atinput, _ic3, _I2, _T, 0),
+             *((__m<V> *)&md8(ainput, _ic3, _I2, _ht, 0, _wt, _T, 0, 0)));
+      else
+        _mm<V>::store_ps(&md4(atinput, _ic3, _I2, _T, 0),
+             *((__m<V> *)&md8(ainput, _ic3, _I2, _ht, 0, _wt, _T, 0, 0)));
+    } else {
+      #pragma omp simd
+      iter_each (_V, V) {
+        md4(atinput, _ic3, _I2, _T, _V)
+            = md8(ainput, _ic3, _I2, _ht, 0, _wt, _T, 0, _V);
+      }
+    }
+  }}}
+}
+
+Template_elx_conv_direct_1x1_lp_t
+void Instance_elx_conv_direct_1x1_lp_t::gemm_b161(ToutputType *toutput,
+    OutputType *output, uint8_t *input_u8, int8_t *weights_s8, TscaleType *input_scale,
+    TscaleType *weights_scale, BiasType *bias, int _ic4)
+{
+  // weights: oc3, O2, ic4*, ic3, I2, V1, V, Vx
+  // input:   ic3, I2, t2*, T(Tr), V1, Vx
+  // output:  oc3, O2, t2*, T(Tr), V
+  MD2(uint8_t, ainput_u8, input_u8,
+      this->ic3, this->I2 * this->T * V);
+  MD5(ToutputType, atoutput, toutput,
+      this->oc3, this->O2, this->ht, this->wt,  this->T * V);
+  MD5(OutputType, aoutput, output,
+      this->oc3, this->O2, this->ht, this->wt,  this->T * V);
+  MD3(int8_t, aweights_s8, weights_s8,
+      this->oc3, this->ic3, this->O2 * this->I2 * V * V);
+  MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
+  MD2(TscaleType, ainput_scale, input_scale, 2, this->T);
+  MD4(TscaleType, aweights_scale, weights_scale,
+      this->oc3, 2, this->O2, V);
+
+  auto ker_gemm = ker_u8s8_gemm_I_O_T_;
+
+  iter_each (_ic3, this->ic3) {
+    int attr = _ic4 == 0 && _ic3 == 0
+        ? set_attr(attr_, r_output_idx)
+        : attr_;
+    attr = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
+        ? set_attr(attr, relu_idx)
+        : attr;
+    attr = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
+        ? set_attr(attr, c_output_idx)
+        : attr;
+
+    iter_each (_oc3, this->oc3) {
+      ker_gemm(
+          *this,
+          &md5(atoutput, _oc3, 0, 0, 0, 0),
+          &md5(aoutput, _oc3, 0, 0, 0, 0),
+          &md2(ainput_u8, _ic3, 0),
+          &md3(aweights_s8, _oc3, _ic3, 0),
+          &md2(abias, _oc3, 0),
+          attr,
+          &md2(ainput_scale, 0, 0),
+          &md2(ainput_scale, 1, 0),
+          &md4(aweights_scale, _oc3, 0, 0, 0),
+          &md4(aweights_scale, _oc3, 1, 0, 0));
+    }
+  }
 }
 
 Template_elx_conv_direct_1x1_lp_t

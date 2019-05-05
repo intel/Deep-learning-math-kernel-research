@@ -47,8 +47,11 @@ public:
   virtual void execute(void *, void *, void *, void *);
 
   private:
+  void __execute_b161(OutputType *, InputType *, WeightsType *, BiasType *);
   void __execute_c160(OutputType *, InputType *, WeightsType *, BiasType *);
 
+  inline void __trans_input_blocked(TinputType *tinput, InputType *input, int _ht, int _wt);
+  void trans_input(TinputType *tinput, InputType *input, int _ht, int _wt);
   inline void __trans_weights_s8_blocked_ocic4(TscaleType *, int8_t *, WeightsType *, BiasType *);
   void trans_weights_s8_ocic4(TscaleType *, int8_t *, WeightsType *, BiasType *);
   inline void __trans_weights_s8_blocked_oc(TscaleType *, int8_t *, WeightsType *, BiasType *);
@@ -56,6 +59,9 @@ public:
 
   void requant_output(OutputType *, ToutputType *);
 
+
+  void gemm_b161(ToutputType *, OutputType *, uint8_t *, int8_t *,
+      TscaleType *, TscaleType *, BiasType *, int);
   void gemm_c160(ToutputType *, OutputType *, uint8_t *, int8_t *,
       TscaleType *, TscaleType *, BiasType *, int, int, int);
 

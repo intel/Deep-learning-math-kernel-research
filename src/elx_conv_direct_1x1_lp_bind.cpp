@@ -14,6 +14,9 @@ Instance_elx_conv_direct_1x1_lp_t::bind_execute_functions()
     case (0xc160):                                                             \
       BIND_KERNEL(1, GKF_DCD)                                                  \
       break;                                                                   \
+    case (0xb161):                                                             \
+      BIND_KERNEL(1, GKF_CCD)                                                  \
+      break;                                                                   \
     default:                                                                   \
       el_error("Unknown xopt");                                                \
       break;                                                                   \
@@ -31,6 +34,7 @@ Instance_elx_conv_direct_1x1_lp_t::bind_execute_functions()
 
   switch (xopt_) {
     EXECUTE_CASE(c160);
+    EXECUTE_CASE(b161);
   default:
     el_error("Unimplemented xopt");
     break;
