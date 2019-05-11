@@ -11,6 +11,7 @@
 #include "elx_conv_direct_1x1.hpp"
 #include "elx_conv_direct_1x1_lp.hpp"
 #include "elx_conv_direct.hpp"
+#include "elx_conv_direct_vmg.hpp"
 #include "elx_conv_direct_lp.hpp"
 #include "elx_deconv_direct.hpp"
 
@@ -168,6 +169,19 @@ int eld_conv_t::setup()
 #endif
     } else
       el_error("TODO: FP16 UserTypes for DIRECT.");
+  } else if (algorithm == CONV_DIRECT_VMG) {
+    if (user_type == user_type_f32) {
+      if (f16c_opt)
+        xc = new elx_conv_direct_vmg_t<conv::FP32, conv_impl::FP32_F16w, 16, ISA_SKX_AVX512>(*this);
+      else
+        xc = new elx_conv_direct_vmg_t<conv::FP32, conv_impl::FP32, 16, ISA_SKX_AVX512>(*this);
+#ifdef ENABLE_USER_FP16
+    } else if (user_type == user_type_f16o)
+      xc = new elx_conv_direct_vmg_t<conv::FP16O, conv_impl::FP32_F16o, 16, ISA_SKX_AVX512>(*this);
+#endif
+    } else
+      el_error("TODO: FP16 UserTypes for DIRECT_VMG.");
+
   } else if (algorithm == CONV_DIRECT_1X1) {
     if (dims.kh != 1 || dims.kw != 1) {
       el_error("Algorithm CONV_DIRECT_1X1 not supported for this shape.");

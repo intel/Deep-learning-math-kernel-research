@@ -33,8 +33,9 @@ enum {
   CONV_AUTO = 0,
   CONV_DIRECT_1X1 = 1,
   CONV_DIRECT = 2,
-  CONV_WINOGRAD = 3,
-  DECONV_DIRECT = 4
+  CONV_DIRECT_VMG = 3,
+  CONV_WINOGRAD = 4,
+  DECONV_DIRECT = 5
 };
 
 // Desc setup error

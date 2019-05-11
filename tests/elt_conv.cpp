@@ -101,11 +101,13 @@ int parse_cmd_options(int argc, char **argv) {
     alg = CONV_WINOGRAD;
   else if (FLAGS_alg == "DIRECT")
     alg = CONV_DIRECT;
+  else if (FLAGS_alg == "DIRECT_VMG")
+    alg = CONV_DIRECT_VMG;
   else if (FLAGS_alg == "DIRECT_1X1")
     alg = CONV_DIRECT_1X1;
   else {
     printf("Error: convolution options: alg should be "
-           "deconv|auto|wino|direct|direct_1x1\n");
+           "deconv|auto|wino|direct|direct_vmg|direct_1x1\n");
     return -1;
   }
 
