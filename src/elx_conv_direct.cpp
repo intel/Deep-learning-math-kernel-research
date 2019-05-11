@@ -14,6 +14,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
   xopt_ = this->execution_mode;
   mthr_ = omp_get_max_threads();
 
+  this->vmg = 1;
   this->Vx = 1;
   this->V1 = V / this->Vx;
   this->ocg = this->oc / this->g;

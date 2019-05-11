@@ -44,8 +44,8 @@ struct elx_conv_params_t {
   int hs, ws;
   // dilation
   int hd, wd;
-  // ic, oc per group
-  int icg, ocg;
+  // saved group number, ic, oc per group, kernel multi-group number
+  int grp, icg, ocg, vmg;
   // Or masks
   unsigned int ormask;
 
