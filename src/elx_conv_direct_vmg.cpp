@@ -222,9 +222,8 @@ Instance_elx_conv_direct_vmg_t::conv_a060(OutputType *output,
 {
   // input:   ic3*, I2, V, ht*, hs*, wt*, T, ws
   // output:  oc3*, O2, ht*, wt*, T, V
-  int Vr = (this->g == 1 && this->ic < C) ? this->Ir : C;
   MD3(TweightsType, aweights, weights, this->oc3, this->ic3,
-      this->kh * this->kw * this->O2 * this->I2 * V * Vr);
+      this->kh * this->kw * this->O2 * this->I2 * V * C);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
 
   auto ker_conv = _wt == this->wt - 1 ? ker_conv_Tr_ : ker_conv_;
@@ -243,7 +242,7 @@ Instance_elx_conv_direct_vmg_t::conv_a060(OutputType *output,
     iter_each(_ic3, this->ic3) {
       int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
       if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
-        if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+        if (this->Ir != C) attr = set_attr(attr, has_Ir_idx);
         if (this->with_relu) attr = set_attr(attr, relu_idx);
       }
       if (this->Or != V && _oc4 == this->oc4 - 1 && _oc3 == this->oc3 - 1) {
@@ -262,7 +261,7 @@ Instance_elx_conv_direct_vmg_t::conv_a060(OutputType *output,
     iter_each(_ic3, this->ic3) {
       int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
       if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
-        if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+        if (this->Ir != C) attr = set_attr(attr, has_Ir_idx);
         if (this->with_relu) attr = set_attr(attr, relu_idx);
       }
       ker_conv(*this, &md2(aoutput, _oc3, 0),
