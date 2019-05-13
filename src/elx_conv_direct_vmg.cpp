@@ -22,18 +22,26 @@ Instance_elx_conv_direct_vmg_t::elx_conv_direct_vmg_t(eld_conv_t &dc)
   this->ocg = this->oc / this->g;
   this->icg = this->ic / this->g;
 
-  // opt: g > 1 && oc = ic = 16x && ocg = 1|2|4|8 (V=16)
-  if ((this->g > 1) && (this->ocg < V) && (V % this->ocg == 0) &&
-      (this->oc % V == 0) && (this->ic == this->oc)) {
-    // compute multiple groups in one FMA
-    // vector multi-group number
-    // C: ocg; G: vmg, V = C * G
-    this->vmg = V / this->ocg;
-    this->g /= this->vmg;
-    if (this->O != 1) {
-      this->O = 1;
-      el_warn("conv: group: O!=1 found for vector multi-group");
-    }
+  // oc = ic = 16x && ocg = icg = 1|2|4|8|16 (V=16)
+  bool shape_ok = this->ic % this->g == 0 && this->oc % this->g == 0 &&
+                  (this->ocg <= V) && (V % this->ocg == 0) &&
+                  (this->oc % V == 0) && (this->ic == this->oc) &&
+                  estl::any_of(this->kh, 3, 5, 7) &&
+                  estl::any_of(this->kw, 3, 5, 7) && (this->ws == 1) &&
+                  this->lp == (this->kw / 2) && (this->tp == this->kh / 2);
+  if (!shape_ok) {
+    el_error("direct_vmg: shape not supported");
+  }
+
+  // compute multiple groups in one FMA
+  // vector multi-group number
+  // C = ocg|icg; G = vmg, V = C * G
+  // grp = g * G
+  this->vmg = V / this->ocg;
+  this->g /= this->vmg;
+  if (this->O != 1) {
+    this->O = 1;
+    el_warn("conv: group: O!=1 found for vector multi-group");
   }
   this->ic /= this->g;
   this->oc /= this->g;
@@ -44,85 +52,55 @@ Instance_elx_conv_direct_vmg_t::elx_conv_direct_vmg_t(eld_conv_t &dc)
   this->IC = ALIGNUP(this->ic, V);
   this->OC = ALIGNUP(this->oc, V);
 
-  if (this->I2 == 0) this->I2 = 1;
-  if (this->T == 0)  this->T = 1;
-  if (this->O == 0)  this->O = 1;
-  if (this->O1 == 0) this->O1 = 1;
-  this->O2 = this->O * this->O1;
+  if (this->T == 0) this->T = 1;
+  this->I2 = 1;
 
-  this->oc4 = this->oc4 == 0 ? 1 : this->oc4;
-  this->ic4 = this->ic4 == 0 ? 1 : this->ic4;
+  this->oc4 = 1;
+  this->oc3 = 1;
+  this->O = 1;
+  this->O1 = 1;
+  this->O2 = this->O * this->O1;
+  
+  this->ic4 = 1;
+  this->ic3 = 1;
+  this->I2 = 1;
 
   this->ic2 = this->IC / V;
   this->oc2 = this->OC / V;
 
+  xopt_ = 0xa060;
+
   // t3, t2, (T, Tr)
-  if (xopt_ == 0xa060 || xopt_ == 0xb060) {
-    this->t3 = this->n;
-    this->ht = this->oh;
-    this->wt = (this->ow + this->T - 1)/ this->T;
-    this->Tr = this->ow % this->T ? this->ow % this->T : this->T;
-    this->nt = this->oh * this->ow;
-    this->t2 = this->nt / this->T;
-    this->t = this->nt * this->n;
+  this->t3 = this->n;
+  this->ht = this->oh;
+  this->wt = (this->ow + this->T - 1) / this->T;
+  this->Tr = this->ow % this->T ? this->ow % this->T : this->T;
+  this->nt = this->oh * this->ow;
+  this->t2 = this->nt / this->T;
+  this->t  = this->nt * this->n;
 
-    if (this->T <= this->lp || this->Tr <= this->rp) {
-      el_error("Unimplemented T: (T,Tr) must greater than (lp,rp)");
-    }
-    bool format_ok =
-        estl::any_of(this->weights_fmt, hwio, ghwio, OIhw16i16o, gOIhw16i16o) &&
-        (((this->input_fmt == nhwc) && (this->output_fmt == nhwc)) ||
-         (V == 16 && xopt_ == 0xa060 &&
-          (estl::any_of(this->input_fmt, nchw, nChw16c)) &&
-          (this->output_fmt == nChw16c)) ||
-         (V == 16 && xopt_ == 0xb060 && this->g == 1 &&
-          (this->input_fmt == nChw16c) && (this->output_fmt == nChw16c)));
-    if (!format_ok) {
-      el_error("direct: format not supported");
-    }
-
-    if (xopt_ == 0xa060 || xopt_ == 0xb060) {
-      bool shape_ok = estl::any_of(this->kh, 3, 5, 7)
-          && estl::any_of(this->kw, 3, 5, 7)
-          && (this->ws == 1 || this->ws == 2)
-          && this->lp == (this->kw / 2) && (this->tp == this->kh / 2);
-      if (!shape_ok) {
-        el_error("direct: a060: shape not supported");
-      }
-    }
-
-    if (this->g == 1 && this->ic < V) {
-      bool ok = this->input_fmt == nchw
-          && this->weights_fmt == hwio
-          && xopt_ == 0xa060;
-      if (!ok) {
-        el_error("direct: first-conv: support only g=1, xopt=a060 with nchw/hwio");
-      }
-    }
+  if (this->T <= this->lp || this->Tr <= this->rp) {
+    el_error("Unimplemented T: (T,Tr) must greater than (lp,rp)");
+  }
+  bool format_ok = estl::any_of(this->weights_fmt, ghwio) &&
+                   estl::any_of(this->input_fmt, nchw, nChw16c) &&
+                   estl::any_of(this->output_fmt, nchw, nChw16c);
+  if (!format_ok) {
+    el_error("direct: format not supported");
   }
 
+  // TODO: Ir/Or support?
   this->Ir = this->ic % C ? this->ic % C : C;
   this->Or = this->oc % V ? this->oc % V : V;
   this->ormask = (1 << this->Or) - 1;
 
-  // oc4, (oc3, oc3r), (O2, O2r)
-  this->oc34 = (this->oc2 + this->O2 - 1) / this->O2;
-  this->O2r = this->oc2 % this->O2;
-  if (this->O2r == 0) this->O2r = this->O2;
-  this->oc3 = this->oc4; // FIXME, swap order
-  this->oc4 = (this->oc34 + this->oc3 - 1) / this->oc3;
-  this->oc3r = this->oc34 % this->oc3;
-  if (this->oc3r == 0) this->oc3r = this->oc3;
-
-  if (this->O2r != this->O2 || this->oc3r != this->oc3) {
-    el_error("No oc tailing support");
-  }
-
-  // ic4, ic3, I3
-  this->ic34 = this->ic2 / this->I2;
-  this->ic3 = this->ic34 / this->ic4;
+  // IC = V = G * C; ic_orig = g * G * C
   if (this->ic4 * this->ic3 * this->I2 * V != this->IC) {
     el_error("IC blocking error");
+  }
+  // OC = V = G * C; oc_orig = g * G * C
+  if (this->oc4 * this->oc3 * this->O2 * V != this->OC) {
+    el_error("OC blocking error");
   }
 
   attr_ = 0x0;
@@ -161,8 +139,6 @@ int Instance_elx_conv_direct_vmg_t::prepare_execute_opt()
   workspace_ = nullptr;
 
   switch (xopt_) {
-  case 0xb060:
-    toutput_size_ = this->ic4 * this->t3 * this->g * this->OC * this->oh * this->ow * sizeof(ToutputType);
   case 0xa060:
     tweights_size_ = this->g * G * this->kh * this->kw * C * C * sizeof(TweightsType);
     break;
@@ -182,7 +158,7 @@ int Instance_elx_conv_direct_vmg_t::prepare_execute_opt()
     MEMALIGN64(&workspace_, workspace_size);
     tweights_ = (TweightsType *)workspace_;
   }
-  size_t scratchpad_size = toutput_size_;
+  size_t scratchpad_size = 0;
   if (scratchpad_size != 0) {
     scratch_ = galloc::acquire(scratchpad_size);
   }
@@ -193,7 +169,6 @@ int Instance_elx_conv_direct_vmg_t::prepare_execute_opt()
 Template_elx_conv_direct_vmg_t
 void Instance_elx_conv_direct_vmg_t::set_trans_buffers()
 {
-  toutput_ = (ToutputType*)galloc::get();
 }
 
 Template_elx_conv_direct_vmg_t
@@ -296,49 +271,5 @@ Instance_elx_conv_direct_vmg_t::conv_a060(OutputType *output,
     }}
   }
 }
-
-// kh,kw=odd, lp=rp=standard, ih=oh*hs, iw=ow*ws, hs=ws=1
-Template_elx_conv_direct_vmg_t void
-Instance_elx_conv_direct_vmg_t::conv_b060(OutputType *output,
-    InputType *input, TweightsType *weights, BiasType *bias, int _ic4, int _ic3,
-    int _oc4, int _ht, int _wt)
-{
-  // input:   ic3*, I2, V, ht*, hs*, wt*, T, ws
-  // output:  oc3*, O2, ht*, wt*, T, V
-  MD3(TweightsType, aweights, weights, this->oc3, this->ic3,
-      this->kh * this->kw * this->O2 * this->I2 * C * V);
-  MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
-
-  auto ker_conv = _wt == this->wt - 1 ? ker_conv_Tr_ : ker_conv_;
-
-  int khs = estl::max(0, this->tp - this->hs * _ht);
-  int khe = estl::min(this->kh, this->ih + this->tp - this->hs * _ht);
-  int kws = _wt == 0 ? this->lp : 0;
-  int kwe = _wt == this->wt - 1 ? this->kw - this->lp : this->kw;
-  assert(this->T > this->lp && this->Tr > this->rp);
-
-  MD2(OutputType, aoutput_nhwc, output, this->oc3, this->O2 * V);
-  MD2(OutputType, aoutput_blocked, output, this->oc3, this->O2 * this->ht * this->ow * V);
-
-  iter_each(_oc3, this->oc3) {
-    OutputType *aout = this->input_fmt == nhwc ? &md2(aoutput_nhwc, _oc3, 0)
-                                              : &md2(aoutput_blocked, _oc3, 0);
-    int attr = 0;
-    if (_ic3 == 0) {
-      attr = (_ic4 == 0) ? attr_ : attr;
-      attr = set_attr(attr, r_output_idx);
-    }
-    if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
-      if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
-    }
-    if (this->output_fmt == nhwc && this->Or != V && _oc4 == this->oc4 - 1 &&
-        _oc3 == this->oc3 - 1) {
-      attr = set_attr(attr, has_Or_idx);
-    }
-    ker_conv(*this, aout, input, &md3(aweights, _oc3, 0, 0),
-             &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
-  }
-}
-
 
 } // namespace euler

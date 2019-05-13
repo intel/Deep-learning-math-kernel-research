@@ -35,16 +35,10 @@ Template_elx_conv_direct_vmg_t class elx_conv_direct_vmg_t : public elx_conv_t {
   private:
   void __execute_a060(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
-  void __execute_b060(OutputType *output, InputType *input,
-      WeightsType *weights, BiasType *bias);
 
   void trans_weights_to_compact(TweightsType *tweights, WeightsType *weights);
 
   void conv_a060(OutputType *output, InputType *input, TweightsType *weights,
-      BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
-  void conv_b060(OutputType *output, InputType *input, TweightsType *weights,
-      BiasType *bias, int _ic4, int _ic3, int _oc4, int _ht, int _wt);
-  void gemm_d060(OutputType *toutput, InputType *tinput, TweightsType *tweights,
       BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
 
   void set_trans_buffers();

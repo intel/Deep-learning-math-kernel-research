@@ -47,10 +47,8 @@ Instance_elx_conv_direct_vmg_t::bind_execute_functions() {
     }
   };
 
-  if (xopt_ == 0xa060 || xopt_ == 0xb060) {
-    bind_conv_kernel(this->O, this->T, &ker_conv_, this->kw, this->G);
-    bind_conv_kernel(this->O, this->Tr, &ker_conv_Tr_, this->kw, this->G);
-  }
+  bind_conv_kernel(this->O, this->T, &ker_conv_, this->kw, this->G);
+  bind_conv_kernel(this->O, this->Tr, &ker_conv_Tr_, this->kw, this->G);
 #define EXECUTE_CASE(n)                                                        \
   case 0x##n:                                                                  \
     printf("execute_opt=" #n "\n");                                            \
@@ -59,7 +57,6 @@ Instance_elx_conv_direct_vmg_t::bind_execute_functions() {
 
   switch (xopt_) {
     EXECUTE_CASE(a060);
-    EXECUTE_CASE(b060);
   default:
     el_error("Unimplemented xopt");
     break;
