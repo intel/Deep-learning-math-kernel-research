@@ -31,6 +31,7 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
 
   this->ic2 = this->IC / V;
   this->oc2 = this->OC / V;
+  attr_ = 0x0;
 
   if(this->sampling_kind != CALIBRATED) {
       el_error("int8 direct: non-calibrated sampling_kind not supported");

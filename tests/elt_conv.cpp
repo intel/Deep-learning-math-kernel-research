@@ -348,7 +348,7 @@ static inline int conv_ref_setup(eld_conv_t &desc) {
     desc.execution_mode = 0xc060;
   } else if (int8_user_interface(data_type_cfg) &&
              desc.algorithm == CONV_DIRECT) {
-    desc.execution_mode = 0xa060;
+    desc.execution_mode = 0xd060;
   }
 
   return desc.setup();
