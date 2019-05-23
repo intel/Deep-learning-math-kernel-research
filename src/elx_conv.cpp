@@ -1,4 +1,6 @@
 #include <assert.h>
+#include <string.h>
+#include <chrono>
 #include "euler.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
@@ -69,6 +71,11 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   this->sampling_kind = dc.sampling_kind;
 
   this->ormask = (unsigned int)-1;
+
+  this->verbose = false;
+  auto env = getenv("EULER_VERBOSE");
+  if (env && strlen(env) == 1 && env[0] == '1')
+    this->verbose = true;
 }
 
 int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *bias)
@@ -82,7 +89,15 @@ int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *b
     return ELX_GENERAL_ERROR;
   }
 
+  typedef std::chrono::high_resolution_clock hrc;
+  typedef std::chrono::duration<float, std::milli> hrc_duration;
+  hrc::time_point start_ts;
+  if (xc.verbose) start_ts = hrc::now();
   xc.execute(output, input, weights, bias);
+  if (xc.verbose) {
+    printf("Verbose: Euler kernel execution Duration: %lf(ms)\n",
+        hrc_duration(hrc::now() - start_ts).count());
+  }
   return ELX_OK;
 }
 
