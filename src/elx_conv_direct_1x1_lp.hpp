@@ -50,8 +50,6 @@ public:
   void __execute_b161(OutputType *, InputType *, WeightsType *, BiasType *);
   void __execute_c160(OutputType *, InputType *, WeightsType *, BiasType *);
 
-  inline void __trans_input_blocked(TinputType *tinput, InputType *input, int _ht, int _wt);
-  void trans_input(TinputType *tinput, InputType *input, int _ht, int _wt);
   inline void __trans_weights_s8_blocked_ocic4(TscaleType *, int8_t *, WeightsType *, BiasType *);
   void trans_weights_s8_ocic4(TscaleType *, int8_t *, WeightsType *, BiasType *);
   inline void __trans_weights_s8_blocked_oc(TscaleType *, int8_t *, WeightsType *, BiasType *);
@@ -94,7 +92,6 @@ public:
   TweightsType *tweights_;
   TinputType *tinput_;
   ToutputType *toutput_;
-  unsigned char *tinput_msk_;
   InputType *binput_; // blocked input
   WeightsType *bweights_;
   OutputType *boutput_;

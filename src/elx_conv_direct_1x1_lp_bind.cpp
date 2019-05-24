@@ -15,7 +15,7 @@ Instance_elx_conv_direct_1x1_lp_t::bind_execute_functions()
       BIND_KERNEL(1, GKF_DCD)                                                  \
       break;                                                                   \
     case (0xb161):                                                             \
-      BIND_KERNEL(1, GKF_CCD)                                                  \
+      BIND_KERNEL(2, GKF_DCD)                                                  \
       break;                                                                   \
     default:                                                                   \
       el_error("Unknown xopt");                                                \

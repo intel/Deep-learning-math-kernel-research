@@ -150,21 +150,13 @@ int Instance_elx_conv_direct_1x1_lp_t::prepare_execute_opt()
   tweights_ = nullptr;
   tinput_ = nullptr;
   toutput_ = nullptr;
-  tinput_msk_ = nullptr;
   binput_ = nullptr;
   bweights_ = nullptr;
   boutput_ = nullptr;
 
   switch (xopt_) {
   case 0xc160:
-    input_scale_size = this->T * 2 * sizeof(TscaleType);
-    tweights_s8_size = this->IC * this->OC * sizeof(int8_t);
-    weights_scale_size = this->OC * 2 * sizeof(TscaleType);
-    toutput_size = this->n * this->OC * this->oh * this->ow * sizeof(ToutputType);
-    break;
   case 0xb161:
-    tinput_msk_ = (unsigned char *)malloc(mthr_ * this->ic4 * this->ht * this->wt);
-    tinput_size = mthr_ * this->ic3 * this->I2 * V * this->ht * this->wt * this->T * sizeof(TinputType);
     input_scale_size = this->T * 2 * sizeof(TscaleType);
     tweights_s8_size = this->IC * this->OC * sizeof(int8_t);
     weights_scale_size = this->OC * 2 * sizeof(TscaleType);
@@ -248,11 +240,6 @@ void Instance_elx_conv_direct_1x1_lp_t::prepare_quant_calibration(eld_conv_t &dc
 Template_elx_conv_direct_1x1_lp_t
 Instance_elx_conv_direct_1x1_lp_t::~elx_conv_direct_1x1_lp_t()
 {
-  if (tinput_msk_ != nullptr) {
-    ::free(tinput_msk_);
-    tinput_msk_ = nullptr;
-  }
-
   if (workspace_ != nullptr) {
     ::free(workspace_);
     workspace_ = nullptr;
@@ -491,58 +478,11 @@ void Instance_elx_conv_direct_1x1_lp_t::requant_output(
 }
 
 Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::trans_input(
-    TinputType *tinput, InputType *input, int _ht, int _wt)
-{
-  if (no_pad_) {
-    if (input_is_bfmt_ || input_as_bfmt_)
-      __trans_input_blocked(tinput, input, _ht, _wt);
-    else
-      el_error("not support plain format!");
-  } else {
-      el_error("not support pading!");
-  }
-}
-
-Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::__trans_input_blocked(
-    TinputType *tinput, InputType *input, int _ht, int _wt)
-{
-  // ic3, I2, ht, hs, wt, T, ws, V -> ht, wt | ic3, I2, T, V
-  MD8(InputType, ainput, input, this->ic3, this->I2, this->ht, this->hs,
-      this->wt, this->T, this->ws, V);
-  MD4(TinputType, atinput, tinput, this->ic3, this->I2, this->T, V);
-
-  iter_each (_ic3, this->ic3) {
-  iter_each (_I2, this->I2) {
-  iter_each (_T, this->T) {
-    if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
-      if (stream_in_)
-        _mm<V>::stream_ps(&md4(atinput, _ic3, _I2, _T, 0),
-             *((__m<V> *)&md8(ainput, _ic3, _I2, _ht, 0, _wt, _T, 0, 0)));
-      else
-        _mm<V>::store_ps(&md4(atinput, _ic3, _I2, _T, 0),
-             *((__m<V> *)&md8(ainput, _ic3, _I2, _ht, 0, _wt, _T, 0, 0)));
-    } else {
-      #pragma omp simd
-      iter_each (_V, V) {
-        md4(atinput, _ic3, _I2, _T, _V)
-            = md8(ainput, _ic3, _I2, _ht, 0, _wt, _T, 0, _V);
-      }
-    }
-  }}}
-}
-
-Template_elx_conv_direct_1x1_lp_t
 void Instance_elx_conv_direct_1x1_lp_t::gemm_b161(ToutputType *toutput,
     OutputType *output, uint8_t *input_u8, int8_t *weights_s8, TscaleType *input_scale,
     TscaleType *weights_scale, BiasType *bias, int _ic4)
 {
-  // weights: oc3, O2, ic4*, ic3, I2, V1, V, Vx
-  // input:   ic3, I2, t2*, T(Tr), V1, Vx
-  // output:  oc3, O2, t2*, T(Tr), V
-  MD2(uint8_t, ainput_u8, input_u8,
-      this->ic3, this->I2 * this->T * V);
+  MD2(uint8_t, ainput_u8, input_u8, this->ic3, this->I2 * this->ih * this->iw * V);
   MD5(ToutputType, atoutput, toutput,
       this->oc3, this->O2, this->ht, this->wt,  this->T * V);
   MD5(OutputType, aoutput, output,
