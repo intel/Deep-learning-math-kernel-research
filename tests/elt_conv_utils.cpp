@@ -428,7 +428,7 @@ int compare_conv_results(eld_conv_t &desc, float *out, float *ref,
   double acc = is_int8_lp ? (with_real_data ? 1e-1 : 1e-2) : 1e-5;
 
   if (desc.formats.output == nhwc) {
-    acc = desc.with_relu ? 1.0 : 1e-5;
+    acc = desc.with_relu ? 1.0 : acc;
     return __compare_conv_results_nhwc(desc, out, ref, data_type_cfg, acc);
   } else if (desc.formats.output == nchw) {
     return __compare_conv_results_nchw(desc, out, ref, data_type_cfg, acc);
