@@ -22,7 +22,6 @@ Instance_elx_conv_direct_1x1_lp_t::elx_conv_direct_1x1_lp_t(eld_conv_t &dc)
   if (this->T == 0)  this->T = 1;
   if (this->O == 0)  this->O = 1;
   if (this->O1 == 0) this->O1 = 1;
-  if (this->O1 != 1) el_error("blk-o != 1 is not supported");
   this->O2 = this->O * this->O1;
 
   this->oc4 = this->oc4 == 0 ? 1 : this->oc4;
@@ -248,6 +247,7 @@ Instance_elx_conv_direct_1x1_lp_t::~elx_conv_direct_1x1_lp_t()
   galloc::release();
 }
 
+// TODO: support O1 > 1
 Template_elx_conv_direct_1x1_lp_t
 void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked_ocic4(
     TscaleType *weights_scale, int8_t *tweights_s8, WeightsType *weights,
@@ -367,47 +367,47 @@ void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked_oc(
   // oc4, (oc3, oc3r), (O2, O2r), ic4, ic3, I2, V1, Vx, V ->
   // oc4, ic4, (oc3, oc3r), ic3, I2, V1, (O2, O2r), V, Vx
   // quantization
-  parallel_for<8>(mthr_, [&](int _oc4, int _ic4, int _oc3,
-    int _ic3, int _I2, int _iV1, int _O2, int _iVx) {
-    MD9(WeightsType, aweights, weights, this->oc4, this->oc3, this->O2,
+  parallel_for<9>(mthr_, [&](int _oc4, int _ic4, int _oc3,
+    int _ic3, int _O1, int _I2, int _iV1, int _O, int _iVx) {
+    MD10(WeightsType, aweights, weights, this->oc4, this->oc3, this->O1, this->O,
         this->ic4, this->ic3, this->I2, this->V1, this->Vx, V);
-    MD9(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4,
-        this->oc3, this->ic3, this->I2, this->V1, this->O2, V, this->Vx);
-    MD5(TscaleType, aweights_scale, weights_scale,
-        this->oc4, this->oc3, 2, this->O2, V);
+    MD10(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4,
+        this->oc3, this->ic3, this->O1, this->I2, this->V1, this->O, V, this->Vx);
+    MD6(TscaleType, aweights_scale, weights_scale,
+        this->oc4, this->oc3, 2, this->O1, this->O, V);
 
     auto mmresf32 = _mm<V>::mul_ps(
-        *(__m<V> *)&md9(aweights, _oc4, _oc3, _O2, _ic4, _ic3, _I2, _iV1, _iVx, 0),
+        *(__m<V> *)&md10(aweights, _oc4, _oc3, _O1, _O, _ic4, _ic3, _I2, _iV1, _iVx, 0),
         mmscale);
     mmresf32 = _mm<V>::div_ps(mmresf32,
-        *(__m<V> *)&md5(aweights_scale, _oc4, _oc3, 0, _O2, 0));
+        *(__m<V> *)&md6(aweights_scale, _oc4, _oc3, 0, _O1, _O, 0));
     mmresf32 = _mm<V>::roundscale_ps(
         mmresf32, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
     TscaleType *resf32 = (TscaleType *)&mmresf32;
 #pragma omp simd
     iter_each (_oV, V) {
-      md9(atweights_s8, _oc4, _ic4, _oc3, _ic3, _I2, _iV1, _O2, _oV, _iVx) =
+      md10(atweights_s8, _oc4, _ic4, _oc3, _ic3, _O1, _I2, _iV1, _O, _oV, _iVx) =
           (int8_t)resf32[_oV];
     }
-  }, this->oc4, this->ic4, this->oc3, this->ic3, this->I2, this->V1, this->O2, this->Vx);
+  }, this->oc4, this->ic4, this->oc3, this->ic3, this->O1, this->I2, this->V1, this->O, this->Vx);
 
   // accumulation
-  parallel_for<4>(mthr_, [&](int _oc4, int _oc3, int _O2, int _oV) {
-    MD9(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4,
-        this->oc3, this->ic3, this->I2, this->V1, this->O2, V, this->Vx);
-    MD5(TscaleType, aweights_scale, weights_scale,
-        this->oc4, this->oc3, 2, this->O2, V);
+  parallel_for<5>(mthr_, [&](int _oc4, int _oc3, int _O1, int _O, int _oV) {
+    MD10(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4,
+        this->oc3, this->ic3, this->O1, this->I2, this->V1, this->O, V, this->Vx);
+    MD6(TscaleType, aweights_scale, weights_scale,
+        this->oc4, this->oc3, 2, this->O1, this->O, V);
     TscaleType acc = 0;
     iter_each (_ic4, this->ic4) {
     iter_each (_ic3, this->ic3) {
     iter_each (_I2, this->I2) {
     iter_each (_iV1, this->V1) {
     iter_each (_iVx, this->Vx) {
-      acc += (TscaleType)md9(atweights_s8,
-          _oc4, _ic4, _oc3, _ic3, _I2, _iV1, _O2, _oV, _iVx);
+      acc += (TscaleType)md10(atweights_s8,
+          _oc4, _ic4, _oc3, _ic3, _O1, _I2, _iV1, _O, _oV, _iVx);
     }}}}}
-    md5(aweights_scale, _oc4, _oc3, 1, _O2, _oV) = acc;
-  }, this->oc4, this->oc3, this->O2, V);
+    md6(aweights_scale, _oc4, _oc3, 1, _O1, _O, _oV) = acc;
+  }, this->oc4, this->oc3, this->O1, this->O, V);
 
   // scale
   parallel_for<3>(mthr_, [&](int _oc4, int _oc3, int _O2) {
