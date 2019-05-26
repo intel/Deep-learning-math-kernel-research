@@ -966,8 +966,10 @@ int ref_convolution2d(eld_conv_t &desc, OutputType *output, InputType *input,
   MD5(InputType, ainput, desc.formats.input == nchw ? input : tinput, n, g, ic,
       ih, iw);
   MD5(WeightsType, aweights,
-      desc.formats.weights == (oihw || goihw) ? weights : tweights, g, oc, ic,
-      kh, kw);
+      (desc.formats.weights == oihw || desc.formats.weights == goihw)
+          ? weights
+          : tweights,
+      g, oc, ic, kh, kw);
   MD5(OutputType, atoutput, desc.formats.output == nchw ? output : toutput, n,
       g, oc, oh, ow);
   MD2(BiasType, abias, bias, g, oc);
