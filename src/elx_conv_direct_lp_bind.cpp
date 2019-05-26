@@ -21,12 +21,22 @@ Instance_elx_conv_direct_lp_t::bind_execute_functions()
       u8s8_gemm_kernel_binder::kgemm<TarrayTypes, float> **func) {
     switch (xopt_) {
     case (0xd160):
-      if (this->ws == 1) {
-        BIND_GEMM_KERNEL(1, GKF_DCD)
-      } else if (this->ws == 2) {
-        BIND_GEMM_KERNEL(2, GKF_DCD)
-      } else {
-        el_error("Stride > 2 not yet bounded");
+      if (this->input_fmt == nhwc) {
+        if (this->ws == 1) {
+          BIND_GEMM_KERNEL(1, GKF_FCF)
+        } else if (this->ws == 2) {
+          BIND_GEMM_KERNEL(2, GKF_FCF)
+        } else {
+          el_error("Stride > 2 not yet bounded");
+        }
+      } else { // blocked
+        if (this->ws == 1) {
+          BIND_GEMM_KERNEL(1, GKF_DCD)
+        } else if (this->ws == 2) {
+          BIND_GEMM_KERNEL(2, GKF_DCD)
+        } else {
+          el_error("Stride > 2 not yet bounded");
+        }
       }
       break;
     default:

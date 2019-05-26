@@ -90,14 +90,21 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
   }
 
   template <const int P>
-  static inline __i<V> op_int8_load_input(
-      uint8_t *input, const int _V1, const int _P, const int _T)
-  {
-    static_assert(F_traits<F>::is_compact_input || F_traits<F>::is_blocked_input,
-                  "only compact and blocked format input enabled");
-
-    MD5(uint8_t, ainput5, input, T, S, V1 / P, P, Vx);
-    return _mm<V>::set1_epi32(*(int32_t*)&md5(ainput5, _T, 0, _V1, _P, 0));
+  static inline __i<V> op_int8_load_input(elx_conv_params_t &xc, uint8_t *input,
+      const int _I2, const int _V1, const int _P, const int _T) {
+    if (F_traits<F>::is_compact_input) {
+      MD6(uint8_t, ainput, input, xc.I2, T, S, V1 / P, P, Vx);
+      return _mm<V>::set1_epi32(*(int32_t*)&md6(ainput, _I2, _T, 0, _V1, _P, 0));
+    } else if (F_traits<F>::is_blocked_input) {
+      MD3(uint8_t, ainput0, input, xc.I2, xc.ih * xc.iw, V);
+      MD5(uint8_t, ainput1, &md3(ainput0, _I2, 0, 0), T, S, V1 / P, P, Vx);
+      return _mm<V>::set1_epi32(*(int32_t*)&md5(ainput1, _T, 0, _V1, _P, 0));
+    } else {
+      assert(F_traits<F>::is_nhwc_input);
+      MD4(uint8_t, ainput0, input, xc.wt, T, S, xc.ic);
+      MD6(uint8_t, ainput1, &md4(ainput0, 0, _T, 0, 0), xc.ic4, xc.ic3, xc.I2, V1 / P, P, Vx);
+      return _mm<V>::set1_epi32(*(int32_t*)&md6(ainput1, 0, 0, _I2, _V1, _P, 0));
+    }
   }
 
   template <const int JO, const int P>
@@ -115,27 +122,50 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     return res;
   }
 
-  static inline __i<V> op_int8_load_output(OutputType *output, const int _T)
+  template <int JO>
+  static inline __i<V> op_int8_load_output(elx_conv_params_t &xc,
+    OutputType *output, const int _O, const int _T)
   {
-    MD2(OutputType, aoutput2, output, T, V);
+    MD3(OutputType, aoutput_compact0, output, JO, T, V);
+
+    MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
+    MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
+
+    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
+    MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+
+    auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
+              : F_traits<F>::is_blocked_output
+              ? &md2(aoutput_blocked1, _T, 0) : &md3(aoutput_nhwc1, 0, _O, 0);
+
     if (std::is_same<OutputType, float>::value) {
-      return _mm<V>::load_epi32((__i<V> *)&md2(aoutput2, _T, 0));
+      return _mm<V>::load_epi32((__i<V> *)aout);
     } else {
-      auto fp16v = _mm<V / 2>::load_si256((__i<V/2> *)&md2(aoutput2, _T, 0));
+      auto fp16v = _mm<V / 2>::load_si256((__i<V/2> *)aout);
       return _mm<V>::cvtepi16_epi32(fp16v);
     }
   }
 
-  static inline void op_int8_store_output(
-      OutputType *output, __i<V> res, const int _T)
+  template <int JO>
+  static inline void op_int8_store_output(elx_conv_params_t &xc,
+      OutputType *output, __i<V> res, const int _O, const int _T)
   {
+    MD3(OutputType, aoutput_compact0, output, JO, T, V);
+
+    MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
+    MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
+
+    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
+    MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+
+    auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
+              : F_traits<F>::is_blocked_output
+              ? &md2(aoutput_blocked1, _T, 0) : &md3(aoutput_nhwc1, 0, _O, 0);
+
     if (std::is_same<OutputType, float>::value) {
-      MD2(int, aoutput2, output, T, V);
-      _mm<V>::store_epi32(&md2(aoutput2, _T, 0), res);
+      _mm<V>::store_epi32((__i<V> *)aout, res);
     } else {
-      MD2(OutputType, aoutput2, output, T, V);
-      _mm<V / 2>::store_si256(
-          (__i<V / 2> *)&md2(aoutput2, _T, 0), _mm<V>::cvtepi32_epi16(res));
+      _mm<V / 2>::store_si256((__i<V / 2> *)aout, _mm<V>::cvtepi32_epi16(res));
     }
   }
 
@@ -146,8 +176,26 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
       ScaleType *weights_factor, const int _O1, const int _O0, const int _O,
       const int _T, const int attr)
   {
-    MD2(OutputType, aoutput2, output, T, V);
-    MD2(OoutputType, aooutput2, ooutput, T, V);
+    MD3(OutputType, aoutput_compact0, output, JO, T, V);
+    MD3(OoutputType, aooutput_compact0, ooutput, JO, T, V);
+
+    MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
+    MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
+    MD2(OoutputType, aooutput_blocked0, ooutput, JO, xc.oh * xc.ow * V);
+    MD2(OoutputType, aooutput_blocked1, &md2(aooutput_blocked0, _O, 0), T, V);
+
+    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
+    MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD2(OoutputType, aooutput_nhwc0, ooutput, T, xc.oc);
+    MD3(OoutputType, aooutput_nhwc1, &md2(aooutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+
+    auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
+              : F_traits<F>::is_blocked_output
+              ? &md2(aoutput_blocked1, _T, 0) : &md3(aoutput_nhwc1, 0, _O, 0);
+    auto aoout = F_traits<F>::is_compact_output ? &md3(aooutput_compact0, _O, _T, 0)
+              : F_traits<F>::is_blocked_output
+              ? &md2(aooutput_blocked1, _T, 0) : &md3(aooutput_nhwc1, 0, _O, 0);
+
     MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
     MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
     MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
@@ -190,7 +238,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
       if (std::is_same<OoutputType, uint8_t>::value
           || std::is_same<OoutputType, int8_t>::value) {
         __m<V> sum_S = _mm<V>::set1_ps(xc.sum_quant_S);
-        __m128i &mmoo = *(__m128i *)&md2(aooutput2, _T, 0);
+        __m128i &mmoo = *(__m128i *)aoout;
         __i<V> mmoos32;
         if (std::is_same<OoutputType, int8_t>::value)
           mmoos32 = _mm<V>::cvtepi8_epi32(mmoo);
@@ -217,14 +265,14 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
         mmresx8 = _mm<V>::cvtsepi32_epi8(mmress32);
       else
         mmresx8 = _mm<V>::cvtusepi32_epi8(mmress32);
-      _mm_store_si128((__m128i *)&md2(aooutput2, _T, 0), mmresx8);
+      _mm_store_si128((__m128i *)aoout, mmresx8);
     } else {
       if (std::is_same<OutputType, float>::value)
-        _mm<V>::store_ps(&md2(aoutput2, _T, 0), fout);
+        _mm<V>::store_ps(aout, fout);
       else {
         auto fp16v = _mm<V>::cvtps_ph(
             fout, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-        _mm<V / 2>::store_si256((__m256i *)&md2(aoutput2, _T, 0), fp16v);
+        _mm<V / 2>::store_si256((__m256i *)aout, fp16v);
       }
     }
   }
@@ -239,14 +287,6 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
   {
     __i<V> mmout[JO][T], mmwei[JO][MP];
-    const int I2_stride
-        = F_traits<F>::is_compact_input ? T * V1 * Vx: xc.ih * xc.iw * V1 * Vx;
-    const int O_stride
-        = F_traits<F>::is_compact_output ? T * V : xc.oh * xc.ow * V;
-
-    MD2(OutputType, aoutput, output, JO, O_stride);
-    MD2(OoutputType, aooutput, ooutput, JO, O_stride);
-    MD2(uint8_t, ainput, input, xc.I2, I2_stride);
 
     // preload weights
 #if !defined(WITH_VNNI)
@@ -283,7 +323,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
       // load accumulated s32 output
       unroll_for (_O, JO) {
         unroll_for (_T, T)
-          mmout[_O][_T] = op_int8_load_output(&md2(aoutput, _O, 0), _T);
+          mmout[_O][_T] = op_int8_load_output<JO>(xc, output, _O, _T);
       }
     }
 
@@ -295,9 +335,9 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
           for (int _V1 = 0; _V1 < V1; _V1 += 2) {
             unroll_for(_T, T) {
               __i<V> bcast1 =
-                  op_int8_load_input<P>(&md2(ainput, _I2, 0), _V1, 0, _T);
+                  op_int8_load_input<P>(xc, input, _I2, _V1, 0, _T);
               __i<V> bcast2 =
-                  op_int8_load_input<P>(&md2(ainput, _I2, 0), _V1 + 1, 0, _T);
+                  op_int8_load_input<P>(xc, input, _I2, _V1 + 1, 0, _T);
               unroll_for(_O, JO) op_int8_fma_opt(
                   mmout[_O][_T], bcast1, bcast2, mmwei[_O][0], mmwei[_O][1]);
             }
@@ -314,9 +354,9 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
             unroll_for(_P, P / 2) {
               unroll_for(_T, T) {
                 __i<V> bcast1 =
-                    op_int8_load_input<P>(&md2(ainput, _I2, 0), _V1, _P * 2, _T);
+                    op_int8_load_input<P>(xc, input, _I2, _V1, _P * 2, _T);
                 __i<V> bcast2 =
-                    op_int8_load_input<P>(&md2(ainput, _I2, 0), _V1, _P * 2 + 1, _T);
+                    op_int8_load_input<P>(xc, input, _I2, _V1, _P * 2 + 1, _T);
                 unroll_for(_O, JO) op_int8_fma_opt(
                     mmout[_O][_T], bcast1, bcast2, mmwei[_O][_P * 2], mmwei[_O][_P * 2 + 1]);
               }
@@ -338,7 +378,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
           unroll_for(_P, P) {
             unroll_for(_T, T) {
               __i<V> bcast =
-                  op_int8_load_input<P>(&md2(ainput, _I2, 0), _V1, _P, _T);
+                  op_int8_load_input<P>(xc, input, _I2, _V1, _P, _T);
               unroll_for(_O, JO) op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][_P]);
             }
             unroll_for(_O, JO) mmwei[_O][_P] =
@@ -352,15 +392,14 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     if (get_attr(attr, c_output_idx)) {
       unroll_for (_O, JO) {
       unroll_for (_T, T) {
-        op_int8_restore_output<JO>(xc, &md2(aoutput, _O, 0),
-            &md2(aooutput, _O, 0), bias, mmout[_O][_T],
+        op_int8_restore_output<JO>(xc, output, ooutput, bias, mmout[_O][_T],
             src_scale, src_factor, weights_scale,
             weights_factor, _O1, _O0, _O, _T, attr);
       }}
     } else { // For 1x1/direct. Store accumulated s32 output
       unroll_for (_O, JO) {
       unroll_for (_T, T)
-        op_int8_store_output(&md2(aoutput, _O, 0), mmout[_O][_T], _T);
+        op_int8_store_output<JO>(xc, output, mmout[_O][_T], _O, _T);
       }
     }
   }

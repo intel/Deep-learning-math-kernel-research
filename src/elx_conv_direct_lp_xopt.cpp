@@ -124,27 +124,54 @@ void Instance_elx_conv_direct_lp_t::__execute_d160(
     }
   }
 
-  parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
-    MD3(InputType, ainput, input, this->t3, this->ic4, this->ic3
-        * this->I2 * this->ih * this->iw * V);
-    MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
-        V * V * this->kh * this->kw * this->ic3 * this->oc3
-        * this->I2 * this->O2);
-    MD3(OutputType, aoutput, output, this->t3, this->oc4,
-        this->oc3 * this->O2 * this->ht * this->ow * V);
-    MD3(ToutputType, atoutput, toutput_, this->t3, this->oc4,
-        this->oc3 * this->O2 * this->ht * this->ow * V);
-    MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-    MD2(TscaleType, atweights_scale, weights_scale_, this->oc4,
-        this->oc3 * this->O2 * V);
-    MD2(TscaleType, aweights_factor, weights_factor_, this->oc4,
-        this->oc3 * this->O2 * V);
+  if (this->input_fmt == nhwc) {
+    parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
+      MD4(InputType, ainput0, input, this->t3, this->ih, this->iw, this->ic);
+      MD2(InputType, ainput1, &md4(ainput0, _t3, 0, 0, 0),
+          this->ic4, this->ic3 * this->I2 * V);
+      MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
+          V * V * this->kh * this->kw * this->ic3 * this->oc3
+          * this->I2 * this->O2);
+      MD4(OutputType, aoutput0, output, this->t3, this->ht, this->ow, this->oc);
+      MD2(OutputType, aoutput1, &md4(aoutput0, _t3, 0, 0, 0),
+          this->oc4, this->oc3 * this->O2 * V);
+      MD4(OutputType, atoutput0, toutput_, this->t3, this->ht, this->ow, this->oc);
+      MD2(ToutputType, atoutput1, &md4(atoutput0, _t3, 0, 0, 0),
+          this->oc4, this->oc3 * this->O2 * V);
+      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+      MD2(TscaleType, atweights_scale, weights_scale_, this->oc4,
+          this->oc3 * this->O2 * V);
+      MD2(TscaleType, aweights_factor, weights_factor_, this->oc4,
+          this->oc3 * this->O2 * V);
 
-    gemm_d160(&md3(aoutput, _t3, _oc4, 0), &md3(atoutput, _t3, _oc4, 0),
-              &md3(ainput, _t3, _ic4, 0), &md3(atweights_s8, _oc4, _ic4, 0),
-              &md2(abias, _oc4, 0), input_scale_, &md2(atweights_scale, _oc4, 0),
-              &md2(aweights_factor, _oc4, 0), _ic4, _oc4, _ht, _wt);
-  }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
+      gemm_d160(&md2(aoutput1, _oc4, 0), &md2(atoutput1, _oc4, 0),
+                &md2(ainput1, _ic4, 0), &md3(atweights_s8, _oc4, _ic4, 0),
+                &md2(abias, _oc4, 0), input_scale_, &md2(atweights_scale, _oc4, 0),
+                &md2(aweights_factor, _oc4, 0), _ic4, _oc4, _ht, _wt);
+    }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
+  } else { // blocked
+    parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
+      MD3(InputType, ainput, input, this->t3, this->ic4, this->ic3
+          * this->I2 * this->ih * this->iw * V);
+      MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
+          V * V * this->kh * this->kw * this->ic3 * this->oc3
+          * this->I2 * this->O2);
+      MD3(OutputType, aoutput, output, this->t3, this->oc4,
+          this->oc3 * this->O2 * this->ht * this->ow * V);
+      MD3(ToutputType, atoutput, toutput_, this->t3, this->oc4,
+          this->oc3 * this->O2 * this->ht * this->ow * V);
+      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+      MD2(TscaleType, atweights_scale, weights_scale_, this->oc4,
+          this->oc3 * this->O2 * V);
+      MD2(TscaleType, aweights_factor, weights_factor_, this->oc4,
+          this->oc3 * this->O2 * V);
+
+      gemm_d160(&md3(aoutput, _t3, _oc4, 0), &md3(atoutput, _t3, _oc4, 0),
+                &md3(ainput, _t3, _ic4, 0), &md3(atweights_s8, _oc4, _ic4, 0),
+                &md2(abias, _oc4, 0), input_scale_, &md2(atweights_scale, _oc4, 0),
+                &md2(aweights_factor, _oc4, 0), _ic4, _oc4, _ht, _wt);
+    }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
+  }
 
   if (inference_acc_)
     is_first_run_ = false;
