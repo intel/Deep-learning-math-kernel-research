@@ -50,19 +50,19 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
   constexpr static auto T = estl::get<3, int, kparams>();
 
   // Jamming components
-  constexpr static int J = J_traits<O, T, WeightsType>::J;
-  constexpr static int JO0 = J_traits<O, T, WeightsType>::O0;
-  constexpr static int JP0 = J_traits<O, T, WeightsType>::P0;
-  constexpr static int MP0 = J_traits<O, T, WeightsType>::P0 == 1
-      ? 2 : J_traits<O, T, WeightsType>::P0;
-  constexpr static int JO1 = J_traits<O, T, WeightsType>::O1;
-  constexpr static int JP1 = J_traits<O, T, WeightsType>::P1;
-  constexpr static int MP1 = J_traits<O, T, WeightsType>::P1 == 1
-      ? 2 : J_traits<O, T, WeightsType>::P1;
-  constexpr static int JO2 = J_traits<O, T, WeightsType>::O2;
-  constexpr static int JP2 = J_traits<O, T, WeightsType>::P2;
-  constexpr static int MP2 = J_traits<O, T, WeightsType>::P2 == 1
-      ? 2 : J_traits<O, T, WeightsType>::P2;
+  constexpr static int J   = J_traits<O, T, K_GEMM, WeightsType>::J;
+  constexpr static int JO0 = J_traits<O, T, K_GEMM, WeightsType>::O0;
+  constexpr static int JP0 = J_traits<O, T, K_GEMM, WeightsType>::P0;
+  constexpr static int MP0 = J_traits<O, T, K_GEMM, WeightsType>::P0 == 1
+      ? 2 : J_traits<O, T, K_GEMM, WeightsType>::P0;
+  constexpr static int JO1 = J_traits<O, T, K_GEMM, WeightsType>::O1;
+  constexpr static int JP1 = J_traits<O, T, K_GEMM, WeightsType>::P1;
+  constexpr static int MP1 = J_traits<O, T, K_GEMM, WeightsType>::P1 == 1
+      ? 2 : J_traits<O, T, K_GEMM, WeightsType>::P1;
+  constexpr static int JO2 = J_traits<O, T, K_GEMM, WeightsType>::O2;
+  constexpr static int JP2 = J_traits<O, T, K_GEMM, WeightsType>::P2;
+  constexpr static int MP2 = J_traits<O, T, K_GEMM, WeightsType>::P2 == 1
+      ? 2 : J_traits<O, T, K_GEMM, WeightsType>::P2;
 
   constexpr static int V1 = V / Vx;
   // INT8 gemm kernel
@@ -286,32 +286,12 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
       ScaleType *src_scale, ScaleType *src_factor,
       ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
   {
-    __i<V> mmout[JO][T], mmwei[JO][MP];
-
-    // preload weights
-#if !defined(WITH_VNNI)
-    if (get_attr(attr, fma_opt_idx)) {
-      if (P == 1) {
-        unroll_for(_O, JO) {
-          mmwei[_O][0] = op_int8_load_weights<JO, P>(xc, weights, 0, 0, 0, _O);
-          mmwei[_O][1] = op_int8_load_weights<JO, P>(xc, weights, 0, 1, 0, _O);
-        }
-      } else {
-        unroll_for(_O, JO) {
-          unroll_for(_P, P) {
-            mmwei[_O][_P] = op_int8_load_weights<JO, P>(xc, weights, 0, 0, _P, _O);
-          }
-        }
-      }
-    } else
+    __i<V> mmout[JO][T];
+#if defined(WITH_VNNI)
+    __i<V> mmwei[JO][P];
+#else
+    __i<V> mmwei[JO][MP];
 #endif
-    {
-      unroll_for(_P, P) {
-        unroll_for(_O, JO) {
-          mmwei[_O][_P] = op_int8_load_weights<JO, P>(xc, weights, 0, 0, _P, _O);
-        }
-      }
-    }
 
     if (get_attr(attr, r_output_idx)) {
       // clear output
@@ -333,6 +313,13 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
         if (P == 1) {
 #pragma nounroll
           for (int _V1 = 0; _V1 < V1; _V1 += 2) {
+            unroll_for(_O, JO) {
+              mmwei[_O][0] =
+                  op_int8_load_weights<JO, P>(xc, weights, _I2, _V1, 0, _O);
+              mmwei[_O][1] =
+                  op_int8_load_weights<JO, P>(xc, weights, _I2, _V1 + 1, 0, _O);
+            }
+
             unroll_for(_T, T) {
               __i<V> bcast1 =
                   op_int8_load_input<P>(xc, input, _I2, _V1, 0, _T);
@@ -341,17 +328,18 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
               unroll_for(_O, JO) op_int8_fma_opt(
                   mmout[_O][_T], bcast1, bcast2, mmwei[_O][0], mmwei[_O][1]);
             }
-            unroll_for(_O, JO) {
-              mmwei[_O][0] =
-                  op_int8_load_weights<JO, P>(xc, weights, _I2, _V1 + 2, 0, _O);
-              mmwei[_O][1] =
-                  op_int8_load_weights<JO, P>(xc, weights, _I2, _V1 + 3, 0, _O);
-            }
           }
         } else {
 #pragma nounroll
           for (int _V1 = 0; _V1 < V1 / P; ++_V1) {
             unroll_for(_P, P / 2) {
+              unroll_for(_O, JO) {
+                mmwei[_O][_P * 2] =
+                    op_int8_load_weights<JO, P>(xc, weights, _I2, _V1, _P * 2, _O);
+                mmwei[_O][_P * 2 + 1] =
+                    op_int8_load_weights<JO, P>(xc, weights, _I2, _V1, _P * 2 + 1, _O);
+              }
+
               unroll_for(_T, T) {
                 __i<V> bcast1 =
                     op_int8_load_input<P>(xc, input, _I2, _V1, _P * 2, _T);
@@ -359,12 +347,6 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
                     op_int8_load_input<P>(xc, input, _I2, _V1, _P * 2 + 1, _T);
                 unroll_for(_O, JO) op_int8_fma_opt(
                     mmout[_O][_T], bcast1, bcast2, mmwei[_O][_P * 2], mmwei[_O][_P * 2 + 1]);
-              }
-              unroll_for(_O, JO) {
-                mmwei[_O][_P * 2] =
-                    op_int8_load_weights<JO, P>(xc, weights, _I2, _V1 + 1, _P * 2, _O);
-                mmwei[_O][_P * 2 + 1] =
-                    op_int8_load_weights<JO, P>(xc, weights, _I2, _V1 + 1, _P * 2 + 1, _O);
               }
             }
           }
@@ -374,15 +356,17 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
 #endif
     {
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+#pragma nounroll
         for (int _V1 = 0; _V1 < V1 / P; ++_V1) {
           unroll_for(_P, P) {
+            unroll_for(_O, JO) mmwei[_O][_P] =
+                op_int8_load_weights<JO, P>(xc, weights, _I2, _V1, _P, _O);
+
             unroll_for(_T, T) {
               __i<V> bcast =
                   op_int8_load_input<P>(xc, input, _I2, _V1, _P, _T);
               unroll_for(_O, JO) op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][_P]);
             }
-            unroll_for(_O, JO) mmwei[_O][_P] =
-                op_int8_load_weights<JO, P>(xc, weights, _I2, _V1 + 1, _P, _O);
           }
         }
       }
@@ -405,7 +389,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<J_traits<O, T, WeightsType>::J == 1>::type
+  static inline typename std::enable_if<J_traits<O, T, K_GEMM, WeightsType>::J == 1>::type
   gemm(elx_conv_params_t &xc, OutputType *output, OoutputType *ooutput,
       InputType *input, WeightsType *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
@@ -448,7 +432,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<J_traits<O, T, WeightsType>::J == 2>::type
+  static inline typename std::enable_if<J_traits<O, T, K_GEMM, WeightsType>::J == 2>::type
   gemm(elx_conv_params_t &xc, OutputType *output, OoutputType *ooutput,
       InputType *input, WeightsType *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,
@@ -504,7 +488,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<J_traits<O, T, WeightsType>::J == 3>::type
+  static inline typename std::enable_if<J_traits<O, T, K_GEMM, WeightsType>::J == 3>::type
   gemm(elx_conv_params_t &xc, OutputType *output, OoutputType *ooutput,
       InputType *input, WeightsType *weights, BiasType *bias, int attr,
       ScaleType *src_scale, ScaleType *src_factor,

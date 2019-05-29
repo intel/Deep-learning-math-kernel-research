@@ -45,13 +45,13 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   constexpr static auto T = estl::get<3, int, kparams>();
 
   // Jamming components
-  constexpr static int J = J_traits<O, T, WeightsType>::J;
-  constexpr static int JO0 = J_traits<O, T, WeightsType>::O0;
-  constexpr static int JP0 = J_traits<O, T, WeightsType>::P0;
-  constexpr static int JO1 = J_traits<O, T, WeightsType>::O1;
-  constexpr static int JP1 = J_traits<O, T, WeightsType>::P1;
-  constexpr static int JO2 = J_traits<O, T, WeightsType>::O2;
-  constexpr static int JP2 = J_traits<O, T, WeightsType>::P2;
+  constexpr static int J   = J_traits<O, T, K_GEMM, WeightsType>::J;
+  constexpr static int JO0 = J_traits<O, T, K_GEMM, WeightsType>::O0;
+  constexpr static int JP0 = J_traits<O, T, K_GEMM, WeightsType>::P0;
+  constexpr static int JO1 = J_traits<O, T, K_GEMM, WeightsType>::O1;
+  constexpr static int JP1 = J_traits<O, T, K_GEMM, WeightsType>::P1;
+  constexpr static int JO2 = J_traits<O, T, K_GEMM, WeightsType>::O2;
+  constexpr static int JP2 = J_traits<O, T, K_GEMM, WeightsType>::P2;
 
 
   // FP32 gemm kernel
@@ -420,7 +420,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<J_traits<O, T, WeightsType>::J == 1>::type
+  static inline typename std::enable_if<J_traits<O, T, K_GEMM, WeightsType>::J == 1>::type
   gemm(elx_conv_params_t &xc, OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias, int attr)
   {
@@ -451,7 +451,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<J_traits<O, T, WeightsType>::J == 2>::type
+  static inline typename std::enable_if<J_traits<O, T, K_GEMM, WeightsType>::J == 2>::type
   gemm(elx_conv_params_t &xc, OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias, int attr)
   {
@@ -490,7 +490,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T>
-  static inline typename std::enable_if<J_traits<O, T, WeightsType>::J == 3>::type
+  static inline typename std::enable_if<J_traits<O, T, K_GEMM, WeightsType>::J == 3>::type
   gemm(elx_conv_params_t &xc, OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias, int attr)
   {

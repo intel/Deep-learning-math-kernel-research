@@ -71,17 +71,17 @@ struct vmg_conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   constexpr static int JP0 =
       _MIN(C, ((K > 3 || F_traits<F>::is_compact_ir_weights)
                    ? 1
-                   : J_traits<O, T, WeightsType>::P0));
+                   : J_traits<O, T, K_CONV, WeightsType>::P0));
   constexpr static int JO1 = 1;
   constexpr static int JP1 =
       _MIN(C, ((K > 3 || F_traits<F>::is_compact_ir_weights)
                    ? 1
-                   : J_traits<O, T, WeightsType>::P1));
+                   : J_traits<O, T, K_CONV, WeightsType>::P1));
   constexpr static int JO2 = 1;
   constexpr static int JP2 =
       _MIN(C, ((K > 3 || F_traits<F>::is_compact_ir_weights)
                    ? 1
-                   : J_traits<O, T, WeightsType>::P2));
+                   : J_traits<O, T, K_CONV, WeightsType>::P2));
 
   template <int JO>
   static inline __m<V> op_load_bias(BiasType *bias, const int _O)
@@ -793,7 +793,7 @@ struct vmg_conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T> static inline
-      typename std::enable_if<(J_traits<O, T, WeightsType>::J == 1) &&
+      typename std::enable_if<(J_traits<O, T, K_CONV, WeightsType>::J == 1) &&
       (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
       conv(elx_conv_params_t &xc, OutputType *output, InputType *input,
           WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,

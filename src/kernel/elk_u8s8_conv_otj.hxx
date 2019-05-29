@@ -53,22 +53,22 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
   constexpr static auto K = estl::get<4, int, kparams>();
 
   // Jamming components
-  constexpr static int J = J_traits<O, T, WeightsType>::J;
-  constexpr static int JO0 = J_traits<O, T, WeightsType>::O0;
-  constexpr static int JO1 = J_traits<O, T, WeightsType>::O1;
-  constexpr static int JO2 = J_traits<O, T, WeightsType>::O2;
+  constexpr static int J   = J_traits<O, T, K_CONV, WeightsType>::J;
+  constexpr static int JO0 = J_traits<O, T, K_CONV, WeightsType>::O0;
+  constexpr static int JO1 = J_traits<O, T, K_CONV, WeightsType>::O1;
+  constexpr static int JO2 = J_traits<O, T, K_CONV, WeightsType>::O2;
 
   constexpr static int V1 = V / Vx;
 
   constexpr static int JP0 = (K > 3 || F_traits<F>::is_compact_ir_weights)
                            ? 1
-                           : J_traits<O, T, WeightsType>::P0;
+                           : J_traits<O, T, K_CONV, WeightsType>::P0;
   constexpr static int JP1 = (K > 3 || F_traits<F>::is_compact_ir_weights)
                            ? 1
-                           : J_traits<O, T, WeightsType>::P1;
+                           : J_traits<O, T, K_CONV, WeightsType>::P1;
   constexpr static int JP2 = (K > 3 || F_traits<F>::is_compact_ir_weights)
                            ? 1
-                           : J_traits<O, T, WeightsType>::P2;
+                           : J_traits<O, T, K_CONV, WeightsType>::P2;
 
   // INT8 gemm kernel
 #if !defined(WITH_VNNI)
@@ -284,6 +284,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     auto gemm_OVT = [&](InputType *input_, WeightsType *weights_,
                         int V1_, int _kh, int _kw) {
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+#pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -298,6 +299,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     auto gemm_OVxT = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw) {
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+#pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -312,6 +314,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     auto gemm_OVxxT = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw) {
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+#pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -326,6 +329,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     auto gemm_OVxxxT = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw) {
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+#pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -340,6 +344,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     auto gemm_OVTx = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw) {
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+#pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -354,6 +359,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     auto gemm_OVTxx = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw) {
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+#pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -368,6 +374,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     auto gemm_OVTxxx = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw) {
       for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+#pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -598,38 +605,31 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     for (int _kh = khs; _kh < khe; ++_kh) {
       // mid
       for (int _kw = kws; _kw < kwe; ++_kw) {
-        // preload weights
-#if defined(WITH_VNNI)
-        unroll_for(_P, P) {
-        unroll_auto(_O, JO) {
-          mmwei[_O][_P] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P, _O);
-        }}
-#else
-        unroll_for(_P, P / 2) {
-        unroll_auto(_O, JO) {
-          mmwei[_O][_P * 2] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P * 2, _O);
-          mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P * 2 + 1, _O);
-        }}
-#endif
         for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+#pragma nounroll
           for (int _V1 = 0; _V1 < V1 / P; ++_V1) {
 #if defined(WITH_VNNI)
             unroll_for(_P, P) {
+              unroll_auto(_O, JO)
+                mmwei[_O][_P] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P, _O);
+
               unroll_for(_T, T) {
                 auto mmbcst = op_load_input<P>(
                     xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P, _T);
                 unroll_for(_O, JO)
                   mmout[_O][_T] = _mm512_dpbusds_epi32(mmout[_O][_T], mmbcst, mmwei[_O][_P]);
               }
-              unroll_auto(_O, JO)
-                mmwei[_O][_P] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P, _O);
             }
 #else
             unroll_for(_P, P / 2) {
+              unroll_auto(_O, JO) {
+                mmwei[_O][_P * 2] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2, _O);
+                mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2 + 1, _O);
+              }
+
               unroll_for(_T, T) {
                 auto mmbcst1 = op_load_input<P>(
                     xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2, _T);
@@ -637,12 +637,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
                     xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2 + 1, _T);
                 unroll_for(_O, JO)
                   op_int8_fma(mmout[_O][_T], mmbcst1, mmbcst2, mmwei[_O][_P * 2], mmwei[_O][_P * 2 + 1]);
-              }
-              unroll_auto(_O, JO) {
-                mmwei[_O][_P * 2] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P * 2, _O);
-                mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P * 2 + 1, _O);
               }
             }
 #endif
@@ -654,37 +648,31 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       if (_wt == 0) {
         constexpr int _kw = 0;
 
-#if defined(WITH_VNNI)
-        unroll_for(_P, P) {
-        unroll_auto(_O, JO) {
-          mmwei[_O][_P] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P, _O);
-        }}
-#else
-        unroll_for(_P, P / 2) {
-        unroll_auto(_O, JO) {
-          mmwei[_O][_P * 2] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P * 2, _O);
-          mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P * 2 + 1, _O);
-        }}
-#endif
         for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+#pragma nounroll
           for (int _V1 = 0; _V1 < V1 / P; ++_V1) {
 #if defined(WITH_VNNI)
             unroll_for(_P, P) {
+              unroll_auto(_O, JO)
+                mmwei[_O][_P] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P, _O);
+
               unroll_from_to(_T, 1, T) {
                 auto mmbcst = op_load_input<P>(
                     xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P, _T);
                 unroll_for(_O, JO)
                   mmout[_O][_T] = _mm512_dpbusds_epi32(mmout[_O][_T], mmbcst, mmwei[_O][_P]);
               }
-              unroll_auto(_O, JO)
-                mmwei[_O][_P] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P, _O);
             }
 #else
             unroll_for(_P, P / 2) {
+              unroll_auto(_O, JO) {
+                mmwei[_O][_P * 2] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2, _O);
+                mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2 + 1, _O);
+              }
+
               unroll_from_to(_T, 1, T) {
                 auto mmbcst1 = op_load_input<P>(
                     xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2, _T);
@@ -692,12 +680,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
                     xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2 + 1, _T);
                 unroll_for(_O, JO)
                   op_int8_fma(mmout[_O][_T], mmbcst1, mmbcst2, mmwei[_O][_P * 2], mmwei[_O][_P * 2 + 1]);
-              }
-              unroll_auto(_O, JO) {
-                mmwei[_O][_P * 2] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P * 2, _O);
-                mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P * 2 + 1, _O);
               }
             }
 #endif
@@ -709,37 +691,31 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       if (_wt == xc.wt - 1) {
         constexpr int _kw = 2;
 
-#if defined(WITH_VNNI)
-        unroll_for(_P, P) {
-        unroll_auto(_O, JO) {
-          mmwei[_O][_P] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P, _O);
-        }}
-#else
-        unroll_for(_P, P / 2) {
-        unroll_auto(_O, JO) {
-          mmwei[_O][_P * 2] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P * 2, _O);
-          mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
-              xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P * 2 + 1, _O);
-        }}
-#endif
         for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+#pragma nounroll
           for (int _V1 = 0; _V1 < V1 / P; ++_V1) {
 #if defined(WITH_VNNI)
             unroll_for(_P, P) {
+              unroll_auto(_O, JO)
+                mmwei[_O][_P] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P, _O);
+
               unroll_for(_T, T - 1 + S - 1) {
                 auto mmbcst = op_load_input<P>(
                     xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P, _T);
                 unroll_for(_O, JO)
                   mmout[_O][_T] = _mm512_dpbusds_epi32(mmout[_O][_T], mmbcst, mmwei[_O][_P]);
               }
-              unroll_auto(_O, JO)
-                mmwei[_O][_P] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P, _O);
             }
 #else
             unroll_for(_P, P / 2) {
+              unroll_auto(_O, JO) {
+                mmwei[_O][_P * 2] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2, _O);
+                mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
+                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2 + 1, _O);
+              }
+
               unroll_for(_T, T - 1 + S - 1) {
                 auto mmbcst1 = op_load_input<P>(
                     xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2, _T);
@@ -747,12 +723,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
                     xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2 + 1, _T);
                 unroll_for(_O, JO)
                   op_int8_fma(mmout[_O][_T], mmbcst1, mmbcst2, mmwei[_O][_P * 2], mmwei[_O][_P * 2 + 1]);
-              }
-              unroll_auto(_O, JO) {
-                mmwei[_O][_P * 2] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P * 2, _O);
-                mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1 + 1, _P * 2 + 1, _O);
               }
             }
 #endif
@@ -778,7 +748,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T> static inline
-      typename std::enable_if<(J_traits<O, T, WeightsType>::J == 1) &&
+      typename std::enable_if<(J_traits<O, T, K_CONV, WeightsType>::J == 1) &&
       (F_traits<F>::is_compact_weights)>::type
       conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
           InputType *input, WeightsType *weights, BiasType *bias,
@@ -805,7 +775,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T> static inline
-      typename std::enable_if<(J_traits<O, T, WeightsType>::J == 2) &&
+      typename std::enable_if<(J_traits<O, T, K_CONV, WeightsType>::J == 2) &&
       (F_traits<F>::is_compact_weights)>::type
       conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
           InputType *input, WeightsType *weights, BiasType *bias,
@@ -841,7 +811,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
   }
 
   template <int O = O, int T = T> static inline
-      typename std::enable_if<(J_traits<O, T, WeightsType>::J == 3) &&
+      typename std::enable_if<(J_traits<O, T, K_CONV, WeightsType>::J == 3) &&
       (F_traits<F>::is_compact_weights)>::type
       conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
           InputType *input, WeightsType *weights, BiasType *bias,
