@@ -207,6 +207,13 @@ int eld_conv_t::setup()
       return ELD_UNIMPLEMENTED;
     }
 
+    if ((user_type == user_type_u8f32u8f32 ||
+        user_type == user_type_u8f32s8f32 ||
+        user_type == user_type_u8f32f32f32) &&
+        input_quant.z != 0) {
+      el_error("Support abs-max scaling for input only in Conv Winograd ...");
+    }
+
     if (tile_size == 0) {
       int t = dims.n * ((dims.oh + 3) / 4) * ((dims.ow + 3) / 4);
       float mac_per_read = (t * ALIGNUP(oc, 16)) * 1.0f / (t + ALIGNUP(oc, V));
