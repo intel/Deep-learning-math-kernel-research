@@ -51,7 +51,7 @@ eld_conv_t::~eld_conv_t()
   }
 }
 
-int eld_conv_t::setup()
+int eld_conv_t::setup(bool fully_setup)
 {
   // Dimensions
   const int V = cpu_vector_length() / 4;
@@ -150,6 +150,10 @@ int eld_conv_t::setup()
     } else {
       algorithm = CONV_DIRECT;
     }
+  }
+
+  if (!fully_setup) {
+    return ELD_OK;
   }
 
   // Direct

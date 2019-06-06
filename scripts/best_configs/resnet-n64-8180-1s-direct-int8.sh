@@ -6,6 +6,7 @@
 
 source ./scripts/best_configs/common.sh $@
 
+NSOCKETS=1 ./scripts/run.sh -c -i3 -h224 -o64 -H112 -k7 -K7 -s2 -S2 -p3 -P3 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=2 --flt-o=2 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
 # resnet50_res2a_branch2b, 5.2T
 NSOCKETS=1 ./scripts/run.sh -c -i64 -h56 -o64 -H56 -n64 -adirect --execution-mode=0xa160 --blk-i=4 --blk-o=1 --flt-o=2 --flt-t=12 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
 sleep 1

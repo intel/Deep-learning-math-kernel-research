@@ -168,7 +168,7 @@ struct EULER_API eld_conv_t {
   ~eld_conv_t();
   eld_conv_t(const eld_conv_t&) = delete;
   eld_conv_t& operator=(const eld_conv_t&) = delete;
-  int setup();
+  int setup(bool fully_setup = true);
 
   // Auto computed by setup()
   struct { size_t input, weights, output, bias; } byte_sizes;

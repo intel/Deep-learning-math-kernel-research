@@ -53,7 +53,8 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
 
     bool format_ok = (this->weights_fmt == OIhw16i16o) &&
                      estl::any_of(this->input_fmt, nChw16c, nhwc) &&
-                     estl::any_of(this->output_fmt, nChw16c, nhwc);
+                     estl::any_of(this->output_fmt, nChw16c, nhwc) &&
+                     this->input_fmt == this->output_fmt;
     if (!format_ok) {
       el_error("direct: format not supported");
     }
@@ -69,7 +70,8 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
     }
   }
 
-  this->Ir = this->ic % V ? this->ic % V : V;
+  int V1r = ALIGNUP(this->ic % V, 4) / this->V1;
+  this->Ir = V1r % this->V1 ? V1r % this->V1 : this->V1;
   this->Or = this->oc % V ? this->oc % V : V;
 
   // oc4, (oc3, oc3r), (O2, O2r)
@@ -80,9 +82,6 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
   this->oc4 = (this->oc34 + this->oc3 - 1) / this->oc3;
   this->oc3r = this->oc34 % this->oc3;
   if (this->oc3r == 0) this->oc3r = this->oc3;
-
-  if (this->Ir != V)
-    el_error("ic / 16 != 0 is not implement while doing int8 gemm");
 
   if (this->Or != V || this->O2r != this->O2 || this->oc3r != this->oc3) {
     el_error("No oc tailing support");
@@ -229,6 +228,7 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
 
   int ithr = omp_get_thread_num();
+  auto Vr = this->ic % V ? this->ic % V : V;
 
   // abs-max
   thread_parallel_for<1>(mthr_, ithr, [&](int _oc2) {
@@ -237,12 +237,14 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
 
     __m<V> abs_max = _mm<V>::set1_ps(0.0);
     iter_each (_ic2, this->ic2) {
-    iter_each (_kh, this->kh) {
-    iter_each (_kw, this->kw) {
-    iter_each (_iV, V) {
-      abs_max = _mm<V>::max_ps(abs_max, _mm512_abs_ps(
-          *(__m<V> *)&md6(aweights, _oc2, _ic2, _kh, _kw, _iV, 0)));
-    }}}}
+      auto IV = _ic2 == this->ic2 - 1 ? Vr : V;
+      iter_each (_kh, this->kh) {
+      iter_each (_kw, this->kw) {
+      iter_each (_iV, IV) {
+        abs_max = _mm<V>::max_ps(abs_max, _mm512_abs_ps(
+            *(__m<V> *)&md6(aweights, _oc2, _ic2, _kh, _kw, _iV, 0)));
+      }}}
+    }
     _mm512_store_ps(&md2(atweights_scale, _oc2, 0), abs_max);
   }, this->oc2);
 #pragma omp barrier
@@ -257,22 +259,31 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
          this->ic4, this->ic3, this->I2, this->kh, this->kw, this->V1, this->Vx, V);
     MD5(TscaleType, atweights_scale, weights_scale, this->oc4, this->oc3,
         this->O1, this->O, V);
+    bool last_IV = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 && _I2 == this->I2 - 1;
 
-    __m<V> t0;
-    // multi scal
-    t0 = _mm<V>::mul_ps(*(__m<V> *)&md12(aweights, _oc4, _oc3, _O1, _O,
-                            _ic4, _ic3, _I2, _kh, _kw, _V1, _Vx, 0), mmscale);
-    t0 = _mm<V>::div_ps(t0, *(__m<V> *)&md5(atweights_scale, _oc4, _oc3, _O1, _O, 0));
+    if (!last_IV || _V1 * this->Vx + _Vx < Vr) {
+      __m<V> t0;
+      // multi scal
+      t0 = _mm<V>::mul_ps(*(__m<V> *)&md12(aweights, _oc4, _oc3, _O1, _O,
+                              _ic4, _ic3, _I2, _kh, _kw, _V1, _Vx, 0), mmscale);
+      t0 = _mm<V>::div_ps(t0, *(__m<V> *)&md5(atweights_scale, _oc4, _oc3, _O1, _O, 0));
 
-    // rounding
-    t0 = _mm<V>::roundscale_ps(t0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-    // int8_t
-    TweightsType *rounded = (TweightsType *)&t0;
-    #pragma omp simd
-    iter_each (_oV, V) {
-      md12(atweights_s8,
-          _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _V1, _O, _oV, _Vx) =
-          (int8_t)rounded[_oV];
+      // rounding
+      t0 = _mm<V>::roundscale_ps(t0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+      // int8_t
+      TweightsType *rounded = (TweightsType *)&t0;
+      #pragma omp simd
+      iter_each (_oV, V) {
+        md12(atweights_s8,
+            _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _V1, _O, _oV, _Vx) =
+            (int8_t)rounded[_oV];
+      }
+    } else {
+      #pragma omp simd
+      iter_each (_oV, V) {
+        md12(atweights_s8,
+            _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _V1, _O, _oV, _Vx) = 0;
+      }
     }
   }, this->oc4, this->oc3, this->O1, this->O, this->ic4, this->ic3, this->I2,
      this->kh, this->kw, this->V1, this->Vx);
@@ -357,6 +368,7 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
 
       if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
         attr = set_attr(attr, c_output_idx);
+        if (this->Ir != this->V1) attr = set_attr(attr, has_Ir_idx);
         if (this->with_relu) attr = set_attr(attr, relu_idx);
       }
       ker_conv(*this, &md2(atoutput, _oc3, 0), &md2(aoutput, _oc3, 0),
@@ -376,6 +388,7 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
 
       if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
         attr = set_attr(attr, c_output_idx);
+        if (this->Ir != this->V1) attr = set_attr(attr, has_Ir_idx);
         if (this->with_relu) attr = set_attr(attr, relu_idx);
       }
       ker_conv(*this, &md2(atoutput, _oc3, 0), &md2(aoutput, _oc3, 0),

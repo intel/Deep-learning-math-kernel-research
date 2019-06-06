@@ -330,6 +330,7 @@ static inline int conv_ref_setup(eld_conv_t &desc) {
     };
   };
 
+  bool fully_setup = false;
   if (int8_user_interface(data_type_cfg) && desc.algorithm == CONV_WINOGRAD) {
     size_t t = (desc.dims.oh + desc.tile_size - 3) /
                (desc.tile_size - 3 + 1) *
@@ -343,6 +344,7 @@ static inline int conv_ref_setup(eld_conv_t &desc) {
     MEMALIGN64(&desc.scratch_pad, tinput_byte_size);
     desc.use_scratch_pad = true;
     desc.execution_mode = 0xa033;
+    fully_setup = true;
   } else if (int8_user_interface(data_type_cfg) &&
              desc.algorithm == CONV_DIRECT_1X1) {
     if (sh == 1 && sw == 1)
@@ -355,7 +357,7 @@ static inline int conv_ref_setup(eld_conv_t &desc) {
     desc.execution_mode = 0xd060;
   }
 
-  return desc.setup();
+  return desc.setup(fully_setup);
 }
 
 static inline void conv_execute(eld_conv_t convs[], void **input,

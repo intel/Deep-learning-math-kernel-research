@@ -258,6 +258,12 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     const int AKH = xc.kh / 2;
     constexpr int AKW = K / 2;
 
+    int I2 = xc.I2, Ir = 0;
+    if (get_attr(attr, has_Ir_idx)) {
+      I2 = xc.I2 - 1;
+      Ir = xc.Ir;
+    }
+
     MD3(int8_t, aweights, weights, xc.kh, xc.kw, xc.O1 * xc.I2 * V1 * O * V * Vx); // compact
 
 #if defined(WITH_VNNI)
@@ -282,8 +288,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
 
 #if defined(WITH_VNNI)
     auto gemm_OVT = [&](InputType *input_, WeightsType *weights_,
-                        int V1_, int _kh, int _kw) {
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+                        int V1_, int _kh, int _kw, int _I2) {
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
@@ -294,11 +299,10 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           unroll_for(_O, JO)
             mmout[_O][_T] = _mm512_dpbusds_epi32(mmout[_O][_T], mmbcst, mmwei[_O][0]);
         }
-      }}
+      }
     };
     auto gemm_OVxT = [&](InputType *input_, WeightsType *weights_,
-                         int V1_, int _kh, int _kw) {
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+                         int V1_, int _kh, int _kw, int _I2) {
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
@@ -309,11 +313,10 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           unroll_for(_O, JO)
             mmout[_O][_T] = _mm512_dpbusds_epi32(mmout[_O][_T], mmbcst, mmwei[_O][0]);
         }
-      }}
+      }
     };
     auto gemm_OVxxT = [&](InputType *input_, WeightsType *weights_,
-                         int V1_, int _kh, int _kw) {
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+                         int V1_, int _kh, int _kw, int _I2) {
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
@@ -324,11 +327,10 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           unroll_for(_O, JO)
             mmout[_O][_T] = _mm512_dpbusds_epi32(mmout[_O][_T], mmbcst, mmwei[_O][0]);
         }
-      }}
+      }
     };
     auto gemm_OVxxxT = [&](InputType *input_, WeightsType *weights_,
-                         int V1_, int _kh, int _kw) {
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+                         int V1_, int _kh, int _kw, int _I2) {
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
@@ -339,11 +341,10 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           unroll_for(_O, JO)
             mmout[_O][_T] = _mm512_dpbusds_epi32(mmout[_O][_T], mmbcst, mmwei[_O][0]);
         }
-      }}
+      }
     };
     auto gemm_OVTx = [&](InputType *input_, WeightsType *weights_,
-                         int V1_, int _kh, int _kw) {
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+                         int V1_, int _kh, int _kw, int _I2) {
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
@@ -354,11 +355,10 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           unroll_for(_O, JO)
             mmout[_O][_T] = _mm512_dpbusds_epi32(mmout[_O][_T], mmbcst, mmwei[_O][0]);
         }
-      }}
+      }
     };
     auto gemm_OVTxx = [&](InputType *input_, WeightsType *weights_,
-                         int V1_, int _kh, int _kw) {
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+                         int V1_, int _kh, int _kw, int _I2) {
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
@@ -369,11 +369,10 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           unroll_for(_O, JO)
             mmout[_O][_T] = _mm512_dpbusds_epi32(mmout[_O][_T], mmbcst, mmwei[_O][0]);
         }
-      }}
+      }
     };
     auto gemm_OVTxxx = [&](InputType *input_, WeightsType *weights_,
-                         int V1_, int _kh, int _kw) {
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+                         int V1_, int _kh, int _kw, int _I2) {
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
@@ -384,15 +383,14 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           unroll_for(_O, JO)
             mmout[_O][_T] = _mm512_dpbusds_epi32(mmout[_O][_T], mmbcst, mmwei[_O][0]);
         }
-      }}
+      }
     };
 
 #else
 
     auto gemm_OVT = [&](InputType *input_, WeightsType *weights_,
-                        int V1_, int _kh, int _kw) {
+                        int V1_, int _kh, int _kw, int _I2) {
 #pragma nounroll
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -406,12 +404,11 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           unroll_for(_O, JO)
             op_int8_fma(mmout[_O][_T], mmbcst0, mmbcst1, mmwei[_O][0], mmwei[_O][1]);
         }
-      }}
+      }
     };
     auto gemm_OVxT = [&](InputType *input_, WeightsType *weights_,
-                         int V1_, int _kh, int _kw) {
+                         int V1_, int _kh, int _kw, int _I2) {
 #pragma nounroll
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -425,12 +422,11 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           unroll_for(_O, JO)
             op_int8_fma(mmout[_O][_T], mmbcst0, mmbcst1, mmwei[_O][0], mmwei[_O][1]);
         }
-      }}
+      }
     };
     auto gemm_OVxxT = [&](InputType *input_, WeightsType *weights_,
-                         int V1_, int _kh, int _kw) {
+                         int V1_, int _kh, int _kw, int _I2) {
 #pragma nounroll
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -444,12 +440,11 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           unroll_for(_O, JO)
             op_int8_fma(mmout[_O][_T], mmbcst0, mmbcst1, mmwei[_O][0], mmwei[_O][1]);
         }
-      }}
+      }
     };
     auto gemm_OVxxxT = [&](InputType *input_, WeightsType *weights_,
-                         int V1_, int _kh, int _kw) {
+                         int V1_, int _kh, int _kw, int _I2) {
 #pragma nounroll
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -463,12 +458,11 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           unroll_for(_O, JO)
             op_int8_fma(mmout[_O][_T], mmbcst0, mmbcst1, mmwei[_O][0], mmwei[_O][1]);
         }
-      }}
+      }
     };
     auto gemm_OVTx = [&](InputType *input_, WeightsType *weights_,
-                         int V1_, int _kh, int _kw) {
+                         int V1_, int _kh, int _kw, int _I2) {
 #pragma nounroll
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -482,12 +476,11 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           unroll_for(_O, JO)
             op_int8_fma(mmout[_O][_T], mmbcst0, mmbcst1, mmwei[_O][0], mmwei[_O][1]);
         }
-      }}
+      }
     };
     auto gemm_OVTxx = [&](InputType *input_, WeightsType *weights_,
-                         int V1_, int _kh, int _kw) {
+                         int V1_, int _kh, int _kw, int _I2) {
 #pragma nounroll
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -501,12 +494,11 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           unroll_for(_O, JO)
             op_int8_fma(mmout[_O][_T], mmbcst0, mmbcst1, mmwei[_O][0], mmwei[_O][1]);
         }
-      }}
+      }
     };
     auto gemm_OVTxxx = [&](InputType *input_, WeightsType *weights_,
-                         int V1_, int _kh, int _kw) {
+                         int V1_, int _kh, int _kw, int _I2) {
 #pragma nounroll
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -520,39 +512,74 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           unroll_for(_O, JO)
             op_int8_fma(mmout[_O][_T], mmbcst0, mmbcst1, mmwei[_O][0], mmwei[_O][1]);
         }
-      }}
+      }
     };
 #endif
 
     for (int _kh = khs; _kh < khe; ++_kh) {
-      // mid
-      for (int _kw = kws; _kw < kwe; ++_kw) {
-        gemm_OVT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw);
+      for (int _I2 = 0; _I2 < I2; ++_I2) {
+        // mid
+        for (int _kw = kws; _kw < kwe; ++_kw) {
+          gemm_OVT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+        }
+        // left
+        if (_wt == 0) {
+          int _kw = 0; // K = 3, 5, 7
+          gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+          if (K > 3) {
+            _kw = 1; // K = 5, 7
+            gemm_OVxxT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+          }
+          if (K > 5) {
+            _kw = 2; // K = 7
+            gemm_OVxxxT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+          }
+        }
+        // right
+        if (_wt == xc.wt - 1) {
+          int _kw = K - 1; // K = 3, 5, 7
+          gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+          if (K > 3) {
+            _kw = K - 2; // K = 5, 7
+            gemm_OVTxx(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+          }
+          if (K > 5) {
+            _kw = K - 3; // K = 7
+            gemm_OVTxxx(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+          }
+        }
       }
-      // left
-      if (_wt == 0) {
-        int _kw = 0; // K = 3, 5, 7
-        gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw);
-        if (K > 3) {
-          _kw = 1; // K = 5, 7
-          gemm_OVxxT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw);
+      if (Ir > 0) {
+        int _I2 = xc.I2 - 1;
+        // mid
+        for (int _kw = kws; _kw < kwe; ++_kw) {
+          gemm_OVT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
         }
-        if (K > 5) {
-          _kw = 2; // K = 7
-          gemm_OVxxxT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw);
+        // left
+        if (_wt == 0) {
+          int _kw = 0; // K = 3, 5, 7
+          gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+          if (K > 3) {
+            _kw = 1; // K = 5, 7
+            gemm_OVxxT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+          }
+          if (K > 5) {
+            _kw = 2; // K = 7
+            gemm_OVxxxT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+          }
         }
-      }
-      // right
-      if (_wt == xc.wt - 1) {
-        int _kw = K - 1; // K = 3, 5, 7
-        gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw);
-        if (K > 3) {
-          _kw = K - 2; // K = 5, 7
-          gemm_OVTxx(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw);
-        }
-        if (K > 5) {
-          _kw = K - 3; // K = 7
-          gemm_OVTxxx(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw);
+        // right
+        if (_wt == xc.wt - 1) {
+          int _kw = K - 1; // K = 3, 5, 7
+          gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+          if (K > 3) {
+            _kw = K - 2; // K = 5, 7
+            gemm_OVTxx(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+          }
+          if (K > 5) {
+            _kw = K - 3; // K = 7
+            gemm_OVTxxx(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+          }
         }
       }
     }
