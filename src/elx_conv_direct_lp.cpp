@@ -233,12 +233,11 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
   _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
 
-  int ithr = omp_get_thread_num();
   auto Vr = this->ic % V ? this->ic % V : V;
   auto V1 = compact_ir_weights_ ? this->Ir : this->V1;
 
   // abs-max
-  thread_parallel_for<1>(mthr_, ithr, [&](int _oc2) {
+  parallel_for<1>(mthr_, [&](int _oc2) {
     MD6(WeightsType, aweights, weights, this->oc2, this->ic2, this->kh, this->kw, V, V);
     MD2(TscaleType, atweights_scale, weights_scale, this->oc2, V);
 
@@ -254,10 +253,9 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
     }
     _mm512_store_ps(&md2(atweights_scale, _oc2, 0), abs_max);
   }, this->oc2);
-#pragma omp barrier
 
   // quantization
-  thread_parallel_for<11>(mthr_, ithr, [&](int _oc4, int _oc3, int _O1,
+  parallel_for<11>(mthr_, [&](int _oc4, int _oc3, int _O1,
       int _O, int _ic4, int _ic3, int _I2, int _kh, int _kw, int _V1, int _Vx) {
     MD12(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4, this->oc3,
          this->ic3, this->kh, this->kw, this->O1, this->I2, V1, this->O, V, this->Vx);
@@ -293,10 +291,9 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
     }
   }, this->oc4, this->oc3, this->O1, this->O, this->ic4, this->ic3, this->I2,
      this->kh, this->kw, V1, this->Vx);
-#pragma omp barrier
 
   // weights-acc
-  thread_parallel_for<5>(mthr_, ithr, [&](int _oc4, int _oc3, int _O1, int _O, int _oV) {
+  parallel_for<5>(mthr_, [&](int _oc4, int _oc3, int _O1, int _O, int _oV) {
     MD12(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4, this->oc3,
          this->ic3, this->kh, this->kw, this->O1, this->I2, V1, this->O,
          V, this->Vx);
@@ -322,13 +319,12 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
   }, this->oc4, this->oc3, this->O1, this->O, V);
 
   // weights-scale
-  thread_parallel_for<1>(mthr_, ithr, [&](int _oc2) {
+  parallel_for<1>(mthr_, [&](int _oc2) {
     MD2(TscaleType, atweights_scale, weights_scale, this->oc2, V);
     auto t0 = _mm<V>::div_ps(
         *(__m<V> *)&md2(atweights_scale, _oc2, 0), mmscale);
     _mm<V>::store_ps(&md2(atweights_scale, _oc2, 0), t0);
   }, this->oc2);
-#pragma omp barrier
 
   auto out_repS = _mm<V>::set1_ps(this->output_quant_repS);
   auto out_z = _mm<V>::set1_ps(this->output_quant_z);
@@ -336,7 +332,7 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
   auto input_z = _mm<V>::set1_ps(this->input_quant_z);
 
   // combine output restore and requantization scale and factor
-  thread_parallel_for<1>(mthr_, ithr, [&](int _oc2) {
+  parallel_for<1>(mthr_, [&](int _oc2) {
     MD2(TscaleType, atweights_scale, weights_scale, this->oc2, V);
     MD2(TscaleType, atweights_factor, weights_factor, this->oc2, V);
     MD2(BiasType, abias, bias, this->oc2, V);
