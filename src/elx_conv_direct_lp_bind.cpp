@@ -59,12 +59,22 @@ Instance_elx_conv_direct_lp_t::bind_execute_functions()
           el_error("Stride > 2 not yet bounded");
         }
       } else { // blocked
-        if (this->ws == 1) {
-          BIND_CONV_KERNEL(1, GKF_DCD, K);
-        } else if (this->ws == 2) {
-          BIND_CONV_KERNEL(2, GKF_DCD, K);
+        if (compact_ir_weights_) {
+          if (this->ws == 1) {
+            BIND_CONV_KERNEL(1, GKF_DBD, K);
+          } else if (this->ws == 2) {
+            BIND_CONV_KERNEL(2, GKF_DBD, K);
+          } else {
+            el_error("Stride > 2 not yet bounded");
+          }
         } else {
-          el_error("Stride > 2 not yet bounded");
+          if (this->ws == 1) {
+            BIND_CONV_KERNEL(1, GKF_DCD, K);
+          } else if (this->ws == 2) {
+            BIND_CONV_KERNEL(2, GKF_DCD, K);
+          } else {
+            el_error("Stride > 2 not yet bounded");
+          }
         }
       }
       break;

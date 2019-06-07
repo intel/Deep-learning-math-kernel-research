@@ -66,6 +66,7 @@ Template_elx_conv_direct_lp_t class elx_conv_direct_lp_t : public elx_conv_t {
 
   bool is_first_run_;
   bool inference_acc_;
+  bool compact_ir_weights_;
 
   size_t tweights_s8_size_;
   size_t toutput_size_;

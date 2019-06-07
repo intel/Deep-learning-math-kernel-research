@@ -8,11 +8,9 @@
 // ------+-----+--------+-----+------------------------------------------------
 //       | ker | fusion | dup |             notes
 // ------+-----+--------+-----+------------------------------------------------
-//  a160 |conv |   t+o  |  -  | blocked, Tr, K=3,5,7 S=1,2
+//  a160 |conv |   t+o  |  -  | blocked/nhwc, Ir, Tr, K=3,5,7 S=1,2
 // ------+-----+--------+-----+------------------------------------------------
-//  b160 |conv |   t+o  |  -  | blocked, Tr, K=3,5,7 S=1,2 small spatial
-// ------+-----+--------+-----+------------------------------------------------
-//  d160 |gemm |   t+o  |  -  | blocked, Tr
+//  d160 |gemm |   t+o  |  -  | blocked/nhwc, Ir, Tr
 // ------+-----+--------+-----+------------------------------------------------
 //
 namespace euler {
@@ -38,6 +36,7 @@ void Instance_elx_conv_direct_lp_t::__execute_a160(
     }
   }
 
+  auto V1 = compact_ir_weights_ ? this->Ir : this->V1;
   if (this->input_fmt == nhwc) {
     parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
       MD5(InputType, ainput0, input, this->t3, this->ht, this->hs, this->iw,
@@ -46,8 +45,9 @@ void Instance_elx_conv_direct_lp_t::__execute_a160(
           this->T, this->ws, this->ic);
       MD2(InputType, ainput2, &md4(ainput1, _wt, 0, 0, 0), this->ic4,
           this->ic3 * this->I2 * V);
-      MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4, V * V
-          * this->kh * this->kw * this->ic3 * this->oc3 * this->I2 * this->O2);
+      MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
+          V1 * this->Vx * V * this->kh * this->kw * this->ic3 * this->oc3
+          * this->I2 * this->O2);
       MD4(OutputType, aoutput0, output, this->t3, this->ht, this->ow, this->oc);
       MD3(OutputType, aoutput1, &md4(aoutput0, _t3, _ht, 0, 0), this->wt,
           this->T, this->oc);
@@ -76,7 +76,7 @@ void Instance_elx_conv_direct_lp_t::__execute_a160(
       MD3(InputType, ainput1, &md6(ainput0, _t3, _ic4, 0, _ht, 0, 0), this->wt,
           this->T * this->ws, V);
       MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
-          V * V * this->kh * this->kw * this->ic3 * this->oc3
+          V1 * this->Vx * V * this->kh * this->kw * this->ic3 * this->oc3
           * this->I2 * this->O2);
       MD5(OutputType, aoutput0, output, this->t3, this->oc4, this->oc3 * this->O2,
           this->ht, this->ow * V);

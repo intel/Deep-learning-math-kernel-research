@@ -139,7 +139,10 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       WeightsType *weights, const int _I2, const int _V1, const int _P, const int _O)
   {
     __i<V> res;
-    if (F_traits<F>::is_compact_weights) {
+    if (F_traits<F>::is_compact_ir_weights) {
+      MD4(int8_t, aweights5, weights, xc.I2, xc.Ir, O, V * Vx);
+      res = _mm<V>::load_epi32(&md4(aweights5, _I2, _V1, _O, 0));
+    } else if (F_traits<F>::is_compact_weights) {
       MD5(int8_t, aweights5, weights, xc.I2, V1 / P, P, O, V * Vx);
       res = _mm<V>::load_epi32(&md5(aweights5, _I2, _V1, _P, _O, 0));
     } else {
@@ -264,7 +267,8 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       Ir = xc.Ir;
     }
 
-    MD3(int8_t, aweights, weights, xc.kh, xc.kw, xc.O1 * xc.I2 * V1 * O * V * Vx); // compact
+    int V1r = F_traits<F>::is_compact_ir_weights ? xc.Ir : V1;
+    MD3(int8_t, aweights, weights, xc.kh, xc.kw, xc.O1 * xc.I2 * V1r * O * V * Vx); // compact
 
 #if defined(WITH_VNNI)
     __i<V> mmout[JO][T], mmwei[JO][1];
@@ -776,13 +780,14 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
 
   template <int O = O, int T = T> static inline
       typename std::enable_if<(J_traits<O, T, K_CONV, WeightsType>::J == 1) &&
-      (F_traits<F>::is_compact_weights)>::type
+      (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
       conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
           InputType *input, WeightsType *weights, BiasType *bias,
           ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
           ScaleType *weights_factor, int _wt, int khs, int khe, int kws, int kwe, int attr)
   {
-    MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1, xc.I2 * V1, O, V * Vx); // compact
+    int V1r = F_traits<F>::is_compact_ir_weights ? xc.Ir : V1;
+    MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1, xc.I2 * V1r, O, V * Vx); // compact
     MD2(OutputType, aoutput_blocked, output, xc.O1, O * xc.oh * xc.ow * V);
     MD4(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O *V);
     MD2(RoutputType, aroutput_blocked, routput, xc.O1, O * xc.oh * xc.ow * V);
@@ -803,13 +808,14 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
 
   template <int O = O, int T = T> static inline
       typename std::enable_if<(J_traits<O, T, K_CONV, WeightsType>::J == 2) &&
-      (F_traits<F>::is_compact_weights)>::type
+      (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
       conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
           InputType *input, WeightsType *weights, BiasType *bias,
           ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
           ScaleType *weights_factor, int _wt, int khs, int khe, int kws, int kwe, int attr)
   {
-    MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1, xc.I2 * V1, O, V * Vx); // compact
+    int V1r = F_traits<F>::is_compact_ir_weights ? xc.Ir : V1;
+    MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1, xc.I2 * V1r, O, V * Vx); // compact
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
     MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O, V);
     MD3(RoutputType, aroutput_blocked, routput, xc.O1, O, xc.oh * xc.ow * V);
@@ -839,13 +845,14 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
 
   template <int O = O, int T = T> static inline
       typename std::enable_if<(J_traits<O, T, K_CONV, WeightsType>::J == 3) &&
-      (F_traits<F>::is_compact_weights)>::type
+      (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
       conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
           InputType *input, WeightsType *weights, BiasType *bias,
           ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
           ScaleType *weights_factor, int _wt, int khs, int khe, int kws, int kwe, int attr)
   {
-    MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1, xc.I2 * V1, O, V * Vx); // compact
+    int V1r = F_traits<F>::is_compact_ir_weights ? xc.Ir : V1;
+    MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1, xc.I2 * V1r, O, V * Vx); // compact
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
     MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.oc4 * xc.oc3, xc.O1, O, V);
     MD3(RoutputType, aroutput_blocked, routput, xc.O1, O, xc.oh * xc.ow * V);

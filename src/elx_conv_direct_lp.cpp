@@ -74,6 +74,11 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
   this->Ir = V1r % this->V1 ? V1r % this->V1 : this->V1;
   this->Or = this->oc % V ? this->oc % V : V;
 
+  compact_ir_weights_ = false;
+  if (this->ic < V && xopt_ == 0xa160 && this->input_fmt == nChw16c) {
+    compact_ir_weights_ = true;
+  }
+
   // oc4, (oc3, oc3r), (O2, O2r)
   this->oc34 = (this->oc2 + this->O2 - 1) / this->O2;
   this->O2r = this->oc2 % this->O2;
@@ -229,6 +234,7 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
 
   int ithr = omp_get_thread_num();
   auto Vr = this->ic % V ? this->ic % V : V;
+  auto V1 = compact_ir_weights_ ? this->Ir : this->V1;
 
   // abs-max
   thread_parallel_for<1>(mthr_, ithr, [&](int _oc2) {
@@ -253,8 +259,7 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
   thread_parallel_for<11>(mthr_, ithr, [&](int _oc4, int _oc3, int _O1,
       int _O, int _ic4, int _ic3, int _I2, int _kh, int _kw, int _V1, int _Vx) {
     MD12(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4, this->oc3,
-         this->ic3, this->kh, this->kw, this->O1, this->I2, this->V1, this->O,
-         V, this->Vx);
+         this->ic3, this->kh, this->kw, this->O1, this->I2, V1, this->O, V, this->Vx);
     MD12(WeightsType, aweights, weights, this->oc4, this->oc3, this->O1, this->O,
          this->ic4, this->ic3, this->I2, this->kh, this->kw, this->V1, this->Vx, V);
     MD5(TscaleType, atweights_scale, weights_scale, this->oc4, this->oc3,
@@ -286,13 +291,13 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
       }
     }
   }, this->oc4, this->oc3, this->O1, this->O, this->ic4, this->ic3, this->I2,
-     this->kh, this->kw, this->V1, this->Vx);
+     this->kh, this->kw, V1, this->Vx);
 #pragma omp barrier
 
   // weights-acc
   thread_parallel_for<5>(mthr_, ithr, [&](int _oc4, int _oc3, int _O1, int _O, int _oV) {
     MD12(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4, this->oc3,
-         this->ic3, this->kh, this->kw, this->O1, this->I2, this->V1, this->O,
+         this->ic3, this->kh, this->kw, this->O1, this->I2, V1, this->O,
          V, this->Vx);
     MD5(TscaleType, atweights_factor, weights_factor, this->oc4, this->oc3,
         this->O1, this->O, V);
@@ -348,8 +353,10 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
     BiasType *bias, TscaleType *src_scale, TscaleType *weights_scale,
     TscaleType *weights_factor, int _ic4, int _oc4, int _ht, int _wt)
 {
+  auto V1 = compact_ir_weights_ ? this->Ir : this->V1;
+
   MD3(int8_t, aweights, weights_s8, this->oc3, this->ic3, this->kh * this->kw *
-      this->O2 * this->I2 * this->V1 * V * this->Vx);
+      this->O2 * this->I2 * V1 * V * this->Vx);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
   MD2(TscaleType, aweights_scale, weights_scale, this->oc3, this->O2 * V);
   MD2(TscaleType, aweights_factor, weights_factor, this->oc3, this->O2  * V);
