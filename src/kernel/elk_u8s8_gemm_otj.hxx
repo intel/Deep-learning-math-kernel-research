@@ -293,6 +293,12 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     __i<V> mmwei[JO][MP];
 #endif
 
+    int I2 = xc.I2, Ir = 0;
+    if (get_attr(attr, has_Ir_idx)) {
+      I2 = xc.I2 - 1;
+      Ir = xc.Ir;
+    }
+
     if (get_attr(attr, r_output_idx)) {
       // clear output
       __i<V> tmp = _mm<V>::setzero_epi32();
@@ -309,7 +315,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
 
 #if !defined(WITH_VNNI)
     if (get_attr(attr, fma_opt_idx)) {
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+      for (int _I2 = 0; _I2 < I2; ++_I2) {
         if (P == 1) {
 #pragma nounroll
           for (int _V1 = 0; _V1 < V1; _V1 += 2) {
@@ -355,7 +361,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     } else
 #endif
     {
-      for (int _I2 = 0; _I2 < xc.I2; ++_I2) {
+      for (int _I2 = 0; _I2 < I2; ++_I2) {
 #pragma nounroll
         for (int _V1 = 0; _V1 < V1 / P; ++_V1) {
           unroll_for(_P, P) {
@@ -368,6 +374,20 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
               unroll_for(_O, JO) op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][_P]);
             }
           }
+        }
+      }
+    }
+
+    if (Ir > 0) {
+#pragma nounroll
+      for (int _V1 = 0; _V1 < Ir; ++_V1) {
+        unroll_for(_O, JO) mmwei[_O][0] =
+            op_int8_load_weights<JO, 1>(xc, weights, xc.I2 - 1, _V1, 0, _O);
+
+        unroll_for(_T, T) {
+          __i<V> bcast =
+              op_int8_load_input<1>(xc, input, xc.I2 - 1, _V1, 0, _T);
+          unroll_for(_O, JO) op_int8_fma(mmout[_O][_T], bcast, mmwei[_O][0]);
         }
       }
     }

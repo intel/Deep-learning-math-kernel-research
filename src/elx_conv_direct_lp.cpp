@@ -303,10 +303,15 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
     iter_each (_kh, this->kh) {
     iter_each (_kw, this->kw) {
     iter_each (_I2, this->I2) {
-    iter_each (_V1, this->V1) {
-    iter_each (_Vx, this->Vx) {
-      acc += md12(atweights_s8, _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2, _V1, _O, _oV, _Vx);
-    }}}}}}}
+      bool last_IV = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 &&
+        _I2 == this->I2 - 1;
+      auto V1r = last_IV ? Ir : this->V1;
+      iter_each (_V1, V1r) {
+      iter_each (_Vx, this->Vx) {
+        acc += md12(atweights_s8, _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2,
+                    _V1, _O, _oV, _Vx);
+      }}
+    }}}}}
     md5(atweights_factor, _oc4, _oc3, _O1, _O, _oV) = acc;
   }, this->oc4, this->oc3, this->O1, this->O, V);
 
@@ -442,6 +447,10 @@ void Instance_elx_conv_direct_lp_t::gemm_d160(OutputType *output,
             el_error("direct: d160: unimplemented");
         }}
       }
+      int attr = attr_;
+      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+        if (this->Ir != this->V1) attr = set_attr(attr, has_Ir_idx);
+      }
 
       for (int _kh = khs; _kh < khe; ++_kh) {
         auto _ih = this->hs * _ht + _kh - this->tp;
@@ -459,7 +468,7 @@ void Instance_elx_conv_direct_lp_t::gemm_d160(OutputType *output,
               nullptr,
               &md4(ainput1, 0, _ic3, 0, 0),
               &md5(aweights, _oc3, _ic3, _kh, _kw, 0),
-              &md3(abias, _oc3, 0, 0), attr_,
+              &md3(abias, _oc3, 0, 0), attr,
               nullptr, nullptr, nullptr, nullptr);
         }
       }
@@ -523,6 +532,10 @@ void Instance_elx_conv_direct_lp_t::gemm_d160(OutputType *output,
             el_error("direct: d160: unimplemented");
         }}
       }
+      int attr = attr_;
+      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+        if (this->Ir != this->V1) attr = set_attr(attr, has_Ir_idx);
+      }
 
       for (int _kh = khs; _kh < khe; ++_kh) {
         auto _ih = this->hs * _ht + _kh - this->tp;
@@ -536,7 +549,7 @@ void Instance_elx_conv_direct_lp_t::gemm_d160(OutputType *output,
               nullptr,
               &md5(ainput, _ic3, 0, _ih, _iws, 0),
               &md5(aweights, _oc3, _ic3, _kh, _kw, 0),
-              &md3(abias, _oc3, 0, 0), attr_,
+              &md3(abias, _oc3, 0, 0), attr,
               nullptr, nullptr, nullptr, nullptr);
         }
       }
