@@ -208,8 +208,8 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
 
     MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
     MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
-    MD3(float, aweights_factor3, weights_factor, xc.O1, O, V);
-    MD2(float, aweights_factor, &md3(aweights_factor3, _O1, _O0, 0), JO, V);
+    MD3(float, aweights_factor3, weights_factor, xc.O1, O, T * V);
+    MD3(float, aweights_factor, &md3(aweights_factor3, _O1, _O0, 0), JO, T, V);
 
     auto aout = F_traits<F>::is_blocked_output ? &md2(aoutput_blocked1, _T, 0)
                                                : &md3(aoutput_nhwc1, 0, _O, 0);
@@ -222,11 +222,11 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     if (std::is_same<RoutputType, uint8_t>::value
         || std::is_same<RoutputType, int8_t>::value) {
       auto scale = *(__m<V> *)&md2(aweights_scale, _O, 0);
-      auto factor = *(__m<V> *)&md2(aweights_factor, _O, 0);
+      auto factor = *(__m<V> *)&md3(aweights_factor, _O, _T, 0);
       fout = fout * scale + factor;
     } else {
       auto z = _mm<V>::set1_ps(src_factor[_T]);
-      auto acc = *(__m<V> *)&md2(aweights_factor, _O, 0);
+      auto acc = *(__m<V> *)&md3(aweights_factor, _O, _T, 0);
       fout -= (z * acc);
       auto Sa = _mm<V>::set1_ps(src_scale[_T]);
       auto Sw = *(__m<V> *)&md2(aweights_scale, _O, 0);

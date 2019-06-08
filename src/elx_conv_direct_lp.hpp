@@ -1,6 +1,8 @@
 #ifndef __ELX_CONV_DIRECT_LP_HPP__
 #define __ELX_CONV_DIRECT_LP_HPP__
 
+#include <vector>
+#include <tuple>
 #include "euler.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
@@ -39,7 +41,9 @@ Template_elx_conv_direct_lp_t class elx_conv_direct_lp_t : public elx_conv_t {
   void __execute_d160(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
 
-  void trans_weights_s8(TscaleType *weights_scale, TscaleType * weights_factor,
+  void __trans_weights_acc(TscaleType *weights_scale, TscaleType * weights_factor,
+      int8_t *weights_s8, BiasType *bias);
+  void trans_weights(TscaleType *weights_scale, TscaleType * weights_factor,
       int8_t *weights_s8, WeightsType *weights, BiasType *bias);
 
   void conv_a160(OutputType *output, ToutputType *toutput, InputType *input,
@@ -54,6 +58,7 @@ Template_elx_conv_direct_lp_t class elx_conv_direct_lp_t : public elx_conv_t {
   int prepare_execute_opt();
   void set_trans_buffers();
   void bind_execute_functions();
+  void prepare_weights_acc();
   void prepare_quant_calibration(eld_conv_t &);
 
   // TODO: optimize it
@@ -68,6 +73,16 @@ Template_elx_conv_direct_lp_t class elx_conv_direct_lp_t : public elx_conv_t {
   bool inference_acc_;
   bool compact_ir_weights_;
 
+  // asymmetric quantization support
+  std::vector<std::tuple<int, int>> wacc_h_ranges_, wacc_w_ranges_;
+  int wacc_h_, wacc_w_; // size of wacc
+  int _wacc_hf_, _wacc_wf_, _wacc_hfr_, _wacc_wfr_; // index/reverse-index of acc-full
+  int _wacc_ohfs_, _wacc_ohfe_; // _oh range of acc-full
+  int wacc_wT_, wacc_wt_; // wT: T: a160
+                          //     1: d160
+                          // wt: number of T
+                          //     3: left/middle/right, for input-z != 0
+                          //     1: input-z = 0
   size_t tweights_s8_size_;
   size_t toutput_size_;
   size_t input_scale_size_;

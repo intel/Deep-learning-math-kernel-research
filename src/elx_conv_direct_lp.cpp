@@ -108,6 +108,7 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
     // attr_ = this->with_ip_sum ? set_attr(attr_, ip_sum_idx) : attr_;
   }
 
+  prepare_weights_acc();
   prepare_quant_calibration(dc);
   prepare_execute_opt();
   bind_execute_functions();
@@ -153,7 +154,7 @@ int Instance_elx_conv_direct_lp_t::prepare_execute_opt()
     tweights_s8_size = this->kh * this->kw * this->IC * this->OC * sizeof(int8_t);
     input_scale_size = 2 * this->T * sizeof(TscaleType);
     weights_scale_size = this->OC * sizeof(TscaleType);
-    weights_factor_size = this->OC * sizeof(TscaleType);
+    weights_factor_size = wacc_h_ * wacc_wt_ * wacc_wT_ * this->OC * sizeof(TscaleType);
     break;
   default:
     el_error("Unknown xopt!");
@@ -224,12 +225,177 @@ Instance_elx_conv_direct_lp_t::~elx_conv_direct_lp_t()
   galloc::release();
 }
 
+Template_elx_conv_direct_lp_t void
+Instance_elx_conv_direct_lp_t::prepare_weights_acc() {
+  if (xopt_ == 0xa160) {
+    wacc_wT_ = T;
+  } else {
+    wacc_wT_ = 1;
+    if (this->input_quant_z != 0) {
+      el_error("d160: input_quant_z !=0 does not support");
+    }
+  }
+  if (this->input_quant_z == 0) {
+    wacc_h_ranges_.push_back(std::make_tuple(0, this->kh - 1));
+    wacc_w_ranges_.push_back(std::make_tuple(0, this->kw - 1));
+    wacc_wt_ = 1;
+    wacc_h_ = 1;
+    wacc_w_ = 1;
+    _wacc_hf_ = 0;
+    _wacc_hfr_ = 0;
+    _wacc_wf_ = 0;
+    _wacc_wfr_ = 0;
+    _wacc_ohfs_ = 0;
+    _wacc_ohfe_ = this->oh - 1;
+  } else {
+    wacc_wt_ = 3; // left T, middle T (full), right Tr
+    // kh-ranges
+    for (int khs = this->tp; khs > 0; khs -= this->hs) {
+      wacc_h_ranges_.push_back(std::make_tuple(khs, this->kh - 1));
+    }
+    _wacc_hf_ = wacc_h_ranges_.size();
+    wacc_h_ranges_.push_back(std::make_tuple(0, this->kh - 1));
+
+    std::vector<std::tuple<int, int>> kh_ranges_tmp;
+    for (int khe = this->bp; khe > 0; khe -= this->hs) {
+      kh_ranges_tmp.push_back(std::make_tuple(0, this->kh - khe - 1));
+    }
+    _wacc_hfr_ = kh_ranges_tmp.size();
+    for (auto t = kh_ranges_tmp.rbegin(); t != kh_ranges_tmp.rend(); ++t) {
+      wacc_h_ranges_.push_back(*t);
+    }
+    for (auto i : wacc_h_ranges_) {
+      printf("kh_ranges: %d, %d\n", std::get<0>(i), std::get<1>(i));
+    }
+
+    // kw-ranges
+    for (int kws = this->lp; kws > 0; kws -= this->ws) {
+      wacc_w_ranges_.push_back(std::make_tuple(kws, this->kw - 1));
+    }
+    _wacc_wf_ = wacc_w_ranges_.size();
+    wacc_w_ranges_.push_back(std::make_tuple(0, this->kw - 1));
+
+    std::vector<std::tuple<int, int>> kw_ranges_tmp;
+    for (int kwe = this->rp; kwe > 0; kwe -= this->ws) {
+      kw_ranges_tmp.push_back(std::make_tuple(0, this->kw - kwe - 1));
+    }
+    _wacc_wfr_ = kw_ranges_tmp.size();
+    for (auto t = kw_ranges_tmp.rbegin(); t != kw_ranges_tmp.rend(); ++t) {
+      wacc_w_ranges_.push_back(*t);
+    }
+    for (auto i : wacc_w_ranges_) {
+      printf("kw_ranges: %d, %d\n", std::get<0>(i), std::get<1>(i));
+    }
+
+    wacc_h_ = wacc_h_ranges_.size();
+    wacc_w_ = wacc_w_ranges_.size();
+    _wacc_ohfs_ = _wacc_hf_;
+    _wacc_ohfe_ = this->oh - _wacc_hfr_ - 1;
+  }
+}
+
+Template_elx_conv_direct_lp_t void
+Instance_elx_conv_direct_lp_t::__trans_weights_acc(TscaleType *weights_scale,
+                                                   TscaleType *weights_factor,
+                                                   int8_t *tweights_s8,
+                                                   BiasType *bias) {
+  TscaleType *weights_factor_buf =
+      (TscaleType *)malloc(wacc_h_ * wacc_w_ * this->OC * sizeof(TscaleType));
+
+  // weights-acc
+  parallel_for<7>(mthr_, [&](int _wacc_h, int _wacc_w, int _oc4, int _oc3, int _O1, int _O, int _oV) {
+    MD12(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4, this->oc3,
+         this->ic3, this->kh, this->kw, this->O1, this->I2, V1, this->O,
+         V, this->Vx);
+    MD7(TscaleType, atweights_factor, weights_factor_buf, wacc_h_, wacc_w_, this->oc4,
+        this->oc3, this->O1, this->O, V);
+
+    auto khs = std::get<0>(wacc_h_ranges_[_wacc_h]);
+    auto khe = std::get<1>(wacc_h_ranges_[_wacc_h]);
+    auto kws = std::get<0>(wacc_w_ranges_[_wacc_w]);
+    auto kwe = std::get<1>(wacc_w_ranges_[_wacc_w]);
+    int acc  = 0;
+    iter_each(_ic4, this->ic4) {
+      iter_each(_ic3, this->ic3) {
+        for (int _kh = khs; _kh <= khe; ++_kh) {
+          // iter_each (_kh, this->kh) {
+          for (int _kw = kws; _kw <= kwe; ++_kw) {
+            // iter_each (_kw, this->kw) {
+            iter_each(_I2, this->I2) {
+              bool last_IV = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 &&
+                             _I2 == this->I2 - 1;
+              auto V1r = last_IV ? Ir : this->V1;
+              iter_each(_V1, V1r) {
+                iter_each(_Vx, this->Vx) {
+                  acc += md12(atweights_s8, _oc4, _ic4, _oc3, _ic3, _kh, _kw,
+                              _O1, _I2, _V1, _O, _oV, _Vx);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    md7(atweights_factor, _wacc_h, _wacc_w, _oc4, _oc3, _O1, _O, _oV) = acc;
+  }, wacc_h_, wacc_w_, this->oc4, this->oc3, this->O1, this->O, V);
+
+  auto out_repS = _mm<V>::set1_ps(this->output_quant_repS);
+  auto out_z = _mm<V>::set1_ps(this->output_quant_z);
+  auto input_S = _mm<V>::set1_ps(this->input_quant_S);
+  auto input_z = _mm<V>::set1_ps(this->input_quant_z);
+
+  // Combine output restore and requantization scale and factor
+  parallel_for<1>(mthr_, [&](int _oc2) {
+    MD2(TscaleType, atweights_scale, weights_scale, this->oc2, V);
+    MD2(BiasType, abias, bias, this->oc2, V);
+    __m<V> &qs = *(__m<V> *)&md2(atweights_scale, _oc2, 0);
+    qs = input_S * qs * out_repS;
+  }, this->oc2);
+
+  parallel_for<1>(mthr_, [&](int _oc2) {
+    MD2(BiasType, abias, bias, this->oc2, V);
+    MD2(TscaleType, atweights_scale, weights_scale, this->oc2, V);
+    MD5(TscaleType, atweights_factor, weights_factor, wacc_h_, wacc_wt_, this->oc2, wacc_wT_, V);
+    MD4(TscaleType, atweights_factor_buf, weights_factor_buf, wacc_h_, wacc_w_, this->oc2, V);
+
+    __m<V> qs = *(__m<V> *)&md2(atweights_scale, _oc2, 0);
+    __m<V> b = this->with_bias ? *(__m<V> *)&md2(abias, _oc2, 0) : _mm<V>::setzero_ps();
+
+    iter_each(_wacc_h, wacc_h_) {
+      iter_each(_wt, wacc_wt_) {
+        iter_each(_T, wacc_wT_) {
+          __m<V> &qf =
+              *(__m<V> *)&md5(atweights_factor, _wacc_h, _wt, _oc2, _T, 0);
+          int _wacc_w = _wacc_wf_;
+          if (wacc_wt_ == 1) {
+            _wacc_w = _wacc_wf_;
+          } else if (_wt == 0) {
+            _wacc_w = _T < _wacc_wf_ ? _T : _wacc_wf_;
+          } else if (_wt == 2) {
+            _wacc_w = _T < (this->Tr - _wacc_wfr_)
+                       ? _wacc_wf_
+                       : _T - (this->Tr - _wacc_wfr_) + _wacc_wf_ + 1;
+          } else {
+            _wacc_w = _wacc_wf_;
+          }
+          __m<V> qf_tmp =
+              *(__m<V> *)&md4(atweights_factor_buf, _wacc_h, _wacc_w, _oc2, 0);
+          qf = out_z - input_z * qf_tmp * qs + b * out_repS;
+        }
+      }
+    }
+
+  }, this->oc2);
+
+  if (weights_factor_buf)
+    free(weights_factor_buf);
+}
+
 // weights (blocked): oc2, ic2, kh, kw, V, V
 // tweights: oc4, ic4, oc3, _ic3, kh, kw, O1, I2, V1, O, V, Vx
-Template_elx_conv_direct_lp_t
-void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
-    TscaleType *weights_factor, int8_t *tweights_s8, WeightsType *weights, BiasType *bias)
-{
+Template_elx_conv_direct_lp_t void Instance_elx_conv_direct_lp_t::trans_weights(
+    TscaleType *weights_scale, TscaleType *weights_factor, int8_t *tweights_s8,
+    WeightsType *weights, BiasType *bias) {
   _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
 
@@ -292,32 +458,6 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
   }, this->oc4, this->oc3, this->O1, this->O, this->ic4, this->ic3, this->I2,
      this->kh, this->kw, V1, this->Vx);
 
-  // weights-acc
-  parallel_for<5>(mthr_, [&](int _oc4, int _oc3, int _O1, int _O, int _oV) {
-    MD12(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4, this->oc3,
-         this->ic3, this->kh, this->kw, this->O1, this->I2, V1, this->O,
-         V, this->Vx);
-    MD5(TscaleType, atweights_factor, weights_factor, this->oc4, this->oc3,
-        this->O1, this->O, V);
-
-    int acc = 0;
-    iter_each (_ic4, this->ic4) {
-    iter_each (_ic3, this->ic3) {
-    iter_each (_kh, this->kh) {
-    iter_each (_kw, this->kw) {
-    iter_each (_I2, this->I2) {
-      bool last_IV = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1 &&
-        _I2 == this->I2 - 1;
-      auto V1r = last_IV ? Ir : this->V1;
-      iter_each (_V1, V1r) {
-      iter_each (_Vx, this->Vx) {
-        acc += md12(atweights_s8, _oc4, _ic4, _oc3, _ic3, _kh, _kw, _O1, _I2,
-                    _V1, _O, _oV, _Vx);
-      }}
-    }}}}}
-    md5(atweights_factor, _oc4, _oc3, _O1, _O, _oV) = acc;
-  }, this->oc4, this->oc3, this->O1, this->O, V);
-
   // weights-scale
   parallel_for<1>(mthr_, [&](int _oc2) {
     MD2(TscaleType, atweights_scale, weights_scale, this->oc2, V);
@@ -326,22 +466,7 @@ void Instance_elx_conv_direct_lp_t::trans_weights_s8(TscaleType *weights_scale,
     _mm<V>::store_ps(&md2(atweights_scale, _oc2, 0), t0);
   }, this->oc2);
 
-  auto out_repS = _mm<V>::set1_ps(this->output_quant_repS);
-  auto out_z = _mm<V>::set1_ps(this->output_quant_z);
-  auto input_S = _mm<V>::set1_ps(this->input_quant_S);
-  auto input_z = _mm<V>::set1_ps(this->input_quant_z);
-
-  // combine output restore and requantization scale and factor
-  parallel_for<1>(mthr_, [&](int _oc2) {
-    MD2(TscaleType, atweights_scale, weights_scale, this->oc2, V);
-    MD2(TscaleType, atweights_factor, weights_factor, this->oc2, V);
-    MD2(BiasType, abias, bias, this->oc2, V);
-    __m<V> &qs = *(__m<V> *)&md2(atweights_scale, _oc2, 0);
-    __m<V> &qf = *(__m<V> *)&md2(atweights_factor, _oc2, 0);
-    __m<V> &b = *(__m<V> *)&md2(abias, _oc2, 0);
-    qs = input_S * qs * out_repS;
-    qf = out_z - input_z * qf * qs + b * out_repS;
-  }, this->oc2);
+  __trans_weights_acc(weights_scale, weights_factor, tweights_s8, bias);
 }
 
 Template_elx_conv_direct_lp_t
@@ -356,7 +481,7 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
       this->O2 * this->I2 * V1 * V * this->Vx);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
   MD2(TscaleType, aweights_scale, weights_scale, this->oc3, this->O2 * V);
-  MD2(TscaleType, aweights_factor, weights_factor, this->oc3, this->O2  * V);
+  MD4(TscaleType, aweights_factor, weights_factor, wacc_h_, wacc_wt_, this->oc3, this->O2 * T * V);
   MD2(TscaleType, asrc_scale, src_scale, 2, T);
   // nhwc
   MD2(InputType, ainput_nhwc, input_u8, this->ic3, this->I2 * V);
@@ -373,6 +498,12 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
   int khe = estl::min(this->kh, this->ih + this->tp - this->hs * _ht);
   int kws = _wt == 0 ? this->lp : 0;
   int kwe = _wt == this->wt - 1 ? this->kw - this->lp : this->kw;
+
+  int _wacc_wt = (_wt == 0 || wacc_wt_ == 1) ? 0 : _wt == this->wt - 1 ? 2 : 1;
+  int _wacc_h =
+      _ht < _wacc_ohfs_
+          ? _ht
+          : _ht <= _wacc_ohfe_ ? _wacc_hf_ : _wacc_ohfs_ + _ht - _wacc_ohfe_;
 
   iter_each(_oc3, this->oc3) {
     iter_each(_ic3, this->ic3) {
@@ -396,7 +527,8 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
       ker_conv(*this, atoutput, aoutput, ainput, &md3(aweights, _oc3, _ic3, 0),
                &md2(abias, _oc3, 0), &md2(asrc_scale, 0, 0),
                &md2(asrc_scale, 1, 0), &md2(aweights_scale, _oc3, 0),
-               &md2(aweights_factor, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
+               &md4(aweights_factor, _wacc_h, _wacc_wt, _oc3, 0),
+               _wt, khs, khe, kws, kwe, attr);
     }
   }
 }

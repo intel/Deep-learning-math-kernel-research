@@ -23,7 +23,7 @@ void Instance_elx_conv_direct_lp_t::__execute_a160(
   // weights: oc4*, oc3, O2, ic4*, ic3, I2, kh, kw, V(V1, Vx), V
   // output (blocked):  t3*, oc4*, oc3, O2, ht*wt*, T(Tr), V
   if (is_first_run_) {
-    trans_weights_s8(weights_scale_, weights_factor_, tweights_s8_, weights, bias);
+    trans_weights(weights_scale_, weights_factor_, tweights_s8_, weights, bias);
     if (this->sampling_kind == CALIBRATED) {
       MD2(TscaleType, atinput_scale, input_scale_, 2, this->T);
       iter_each(_T, this->T) {
@@ -41,7 +41,7 @@ void Instance_elx_conv_direct_lp_t::__execute_a160(
     MD2(TscaleType, atweights_scale, weights_scale_, this->oc4,
         this->oc3 * this->O2 * V);
     MD2(TscaleType, aweights_factor, weights_factor_, this->oc4,
-        this->oc3 * this->O2 * V);
+        this->oc3 * this->O2 * T * V);
     // nhwc input
     MD5(InputType, ainput0_nhwc, input, this->t3, this->ht, this->hs, this->iw,
         this->ic);
@@ -104,7 +104,7 @@ void Instance_elx_conv_direct_lp_t::__execute_d160(
   // weights: oc4*, oc3, O2, ic4*, ic3, I2, kh, kw, V(V1, Vx), V
   // output (blocked):  t3*, oc4*, oc3, O2, ht*wt*, T(Tr), V
   if (is_first_run_) {
-    trans_weights_s8(weights_scale_, weights_factor_, tweights_s8_, weights, bias);
+    trans_weights(weights_scale_, weights_factor_, tweights_s8_, weights, bias);
     if (this->sampling_kind == CALIBRATED) {
       MD2(TscaleType, atinput_scale, input_scale_, 2, this->T);
       iter_each(_T, this->T) {
