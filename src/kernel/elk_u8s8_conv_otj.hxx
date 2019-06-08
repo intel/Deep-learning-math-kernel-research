@@ -261,15 +261,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     const int AKH = xc.kh / 2;
     constexpr int AKW = K / 2;
 
-    int I2 = xc.I2, Ir = 0;
-    if (get_attr(attr, has_Ir_idx)) {
-      I2 = xc.I2 - 1;
-      Ir = xc.Ir;
-    }
-
-    int V1r = F_traits<F>::is_compact_ir_weights ? xc.Ir : V1;
-    MD3(int8_t, aweights, weights, xc.kh, xc.kw, xc.O1 * xc.I2 * V1r * O * V * Vx); // compact
-
 #if defined(WITH_VNNI)
     __i<V> mmout[JO][T], mmwei[JO][1];
 #else
@@ -520,69 +511,112 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     };
 #endif
 
-    for (int _kh = khs; _kh < khe; ++_kh) {
-      for (int _I2 = 0; _I2 < I2; ++_I2) {
+    if (F_traits<F>::is_compact_ir_weights) {
+      MD3(int8_t, aweights, weights, xc.kh, xc.kw, xc.O1 * O * V * Vx); // compact
+      for (int _kh = khs; _kh < khe; ++_kh) {
         // mid
         for (int _kw = kws; _kw < kwe; ++_kw) {
-          gemm_OVT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+          gemm_OVT(input, &md3(aweights, _kh, _kw, 0), 1, _kh, _kw, 0);
         }
         // left
         if (_wt == 0) {
           int _kw = 0; // K = 3, 5, 7
-          gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+          gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), 1, _kh, _kw, 0);
           if (K > 3) {
             _kw = 1; // K = 5, 7
-            gemm_OVxxT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+            gemm_OVxxT(input, &md3(aweights, _kh, _kw, 0), 1, _kh, _kw, 0);
           }
           if (K > 5) {
             _kw = 2; // K = 7
-            gemm_OVxxxT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+            gemm_OVxxxT(input, &md3(aweights, _kh, _kw, 0), 1, _kh, _kw, 0);
           }
         }
         // right
         if (_wt == xc.wt - 1) {
           int _kw = K - 1; // K = 3, 5, 7
-          gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+          gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), 1, _kh, _kw, 0);
           if (K > 3) {
             _kw = K - 2; // K = 5, 7
-            gemm_OVTxx(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+            gemm_OVTxx(input, &md3(aweights, _kh, _kw, 0), 1, _kh, _kw, 0);
           }
           if (K > 5) {
             _kw = K - 3; // K = 7
-            gemm_OVTxxx(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+            gemm_OVTxxx(input, &md3(aweights, _kh, _kw, 0), 1, _kh, _kw, 0);
           }
         }
       }
-      if (Ir > 0) {
-        int _I2 = xc.I2 - 1;
-        // mid
-        for (int _kw = kws; _kw < kwe; ++_kw) {
-          gemm_OVT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+    } else {
+      int I2 = xc.I2, Ir = 0;
+      if (get_attr(attr, has_Ir_idx)) {
+        I2 = xc.I2 - 1;
+        Ir = xc.Ir;
+      }
+      MD3(int8_t, aweights, weights, xc.kh, xc.kw, xc.O1 * xc.I2 * V1 * O * V * Vx); // compact
+
+      for (int _kh = khs; _kh < khe; ++_kh) {
+        for (int _I2 = 0; _I2 < I2; ++_I2) {
+          // mid
+          for (int _kw = kws; _kw < kwe; ++_kw) {
+            gemm_OVT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+          }
+          // left
+          if (_wt == 0) {
+            int _kw = 0; // K = 3, 5, 7
+            gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+            if (K > 3) {
+              _kw = 1; // K = 5, 7
+              gemm_OVxxT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+            }
+            if (K > 5) {
+              _kw = 2; // K = 7
+              gemm_OVxxxT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+            }
+          }
+          // right
+          if (_wt == xc.wt - 1) {
+            int _kw = K - 1; // K = 3, 5, 7
+            gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+            if (K > 3) {
+              _kw = K - 2; // K = 5, 7
+              gemm_OVTxx(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+            }
+            if (K > 5) {
+              _kw = K - 3; // K = 7
+              gemm_OVTxxx(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
+            }
+          }
         }
-        // left
-        if (_wt == 0) {
-          int _kw = 0; // K = 3, 5, 7
-          gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
-          if (K > 3) {
-            _kw = 1; // K = 5, 7
-            gemm_OVxxT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+        if (Ir > 0) {
+          int _I2 = xc.I2 - 1;
+          // mid
+          for (int _kw = kws; _kw < kwe; ++_kw) {
+            gemm_OVT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
           }
-          if (K > 5) {
-            _kw = 2; // K = 7
-            gemm_OVxxxT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+          // left
+          if (_wt == 0) {
+            int _kw = 0; // K = 3, 5, 7
+            gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+            if (K > 3) {
+              _kw = 1; // K = 5, 7
+              gemm_OVxxT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+            }
+            if (K > 5) {
+              _kw = 2; // K = 7
+              gemm_OVxxxT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+            }
           }
-        }
-        // right
-        if (_wt == xc.wt - 1) {
-          int _kw = K - 1; // K = 3, 5, 7
-          gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
-          if (K > 3) {
-            _kw = K - 2; // K = 5, 7
-            gemm_OVTxx(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
-          }
-          if (K > 5) {
-            _kw = K - 3; // K = 7
-            gemm_OVTxxx(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+          // right
+          if (_wt == xc.wt - 1) {
+            int _kw = K - 1; // K = 3, 5, 7
+            gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+            if (K > 3) {
+              _kw = K - 2; // K = 5, 7
+              gemm_OVTxx(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+            }
+            if (K > 5) {
+              _kw = K - 3; // K = 7
+              gemm_OVTxxx(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
+            }
           }
         }
       }

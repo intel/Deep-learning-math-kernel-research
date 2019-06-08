@@ -75,7 +75,8 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
   this->Or = this->oc % V ? this->oc % V : V;
 
   compact_ir_weights_ = false;
-  if (this->ic < V && xopt_ == 0xa160 && this->input_fmt == nChw16c) {
+  if (this->ic < V && this->Ir == 1 && xopt_ == 0xa160 &&
+      this->input_fmt == nChw16c) {
     compact_ir_weights_ = true;
   }
 
