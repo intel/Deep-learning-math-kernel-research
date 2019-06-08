@@ -37,19 +37,20 @@ struct u8s8_conv_kernel_binder {
   DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_DCD);
   DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_DCD);
 
-  DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_SKX_AVX512, 1, GKF_DBD); // direct, blocked, compact_ir weights, int8-conv
-  DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_SKX_AVX512, 2, GKF_DBD);
-  DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_DBD);
-  DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_DBD);
-  DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_DBD);
-  DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_DBD);
-
   DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_SKX_AVX512, 1, GKF_FCF); // direct, nhwc, int8-conv
   DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_SKX_AVX512, 2, GKF_FCF);
   DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_FCF);
   DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_FCF);
   DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_FCF);
   DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_FCF);
+
+  DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_SKX_AVX512, 1, GKF_FBD); // direct, nhwc->blocked, int8-conv
+  DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_SKX_AVX512, 2, GKF_FBD);
+  DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_FBD);
+  DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_FBD);
+  DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_FBD);
+  DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_FBD);
+
 
 #if !defined(BUILD_OTJ_TBL)
 
@@ -75,13 +76,13 @@ struct u8s8_conv_kernel_binder {
         *func = LOOKUP_U8S8_KCONV_TBL(INT8_F32, otype, 16, 4, ISA_SKX_AVX512,  \
             2, GKF_FCF, O, T, K);                                              \
       break;                                                                   \
-    case GKF_DBD:                                                              \
+    case GKF_FBD:                                                              \
       if (S == 1)                                                              \
         *func = LOOKUP_U8S8_KCONV_TBL(INT8_F32, otype, 16, 4, ISA_SKX_AVX512,  \
-            1, GKF_DBD, O, T, K);                                              \
+            1, GKF_FBD, O, T, K);                                              \
       else if (S == 2)                                                         \
         *func = LOOKUP_U8S8_KCONV_TBL(INT8_F32, otype, 16, 4, ISA_SKX_AVX512,  \
-            2, GKF_DBD, O, T, K);                                              \
+            2, GKF_FBD, O, T, K);                                              \
       break;                                                                   \
     default:                                                                   \
       el_error("Unimlemented conv kernel format");                             \

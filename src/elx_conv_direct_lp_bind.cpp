@@ -50,7 +50,7 @@ Instance_elx_conv_direct_lp_t::bind_execute_functions()
     switch (xopt_) {
     case (0xa160):
     //case (0xb160):
-      if (this->input_fmt == nhwc) {
+      if (this->input_fmt == nhwc && this->output_fmt == nhwc) {
         if (this->ws == 1) {
           BIND_CONV_KERNEL(1, GKF_FCF, K);
         } else if (this->ws == 2) {
@@ -58,24 +58,26 @@ Instance_elx_conv_direct_lp_t::bind_execute_functions()
         } else {
           el_error("Stride > 2 not yet bounded");
         }
-      } else { // blocked
-        if (compact_ir_weights_) {
-          if (this->ws == 1) {
-            BIND_CONV_KERNEL(1, GKF_DBD, K);
-          } else if (this->ws == 2) {
-            BIND_CONV_KERNEL(2, GKF_DBD, K);
-          } else {
-            el_error("Stride > 2 not yet bounded");
-          }
+      } else if (compact_ir_weights_ && this->input_fmt == nhwc &&
+                 this->output_fmt == nChw16c) {
+        if (this->ws == 1) {
+          BIND_CONV_KERNEL(1, GKF_FBD, K);
+        } else if (this->ws == 2) {
+          BIND_CONV_KERNEL(2, GKF_FBD, K);
         } else {
-          if (this->ws == 1) {
-            BIND_CONV_KERNEL(1, GKF_DCD, K);
-          } else if (this->ws == 2) {
-            BIND_CONV_KERNEL(2, GKF_DCD, K);
-          } else {
-            el_error("Stride > 2 not yet bounded");
-          }
+          el_error("Stride > 2 not yet bounded");
         }
+      } else if (!compact_ir_weights_ && this->input_fmt == nChw16c &&
+                 this->output_fmt == nChw16c) {
+        if (this->ws == 1) {
+          BIND_CONV_KERNEL(1, GKF_DCD, K);
+        } else if (this->ws == 2) {
+          BIND_CONV_KERNEL(2, GKF_DCD, K);
+        } else {
+          el_error("Stride > 2 not yet bounded");
+        }
+      } else {
+        el_error("direct:int8: kernel fmt not supported");
       }
       break;
     default:

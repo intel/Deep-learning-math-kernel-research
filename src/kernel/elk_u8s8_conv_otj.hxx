@@ -121,7 +121,11 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       const int _ih, const int _iw, const int _I2, const int _V1,
       const int _P, const int _T)
   {
-    if (F_traits<F>::is_nhwc_input) {
+    if (F_traits<F>::is_nhwc_input && F_traits<F>::is_compact_ir_weights) {
+      MD3(InputType, ainput0, input, xc.ih, xc.iw, 3);
+      MD3(InputType, ainput1, &md3(ainput0, _ih, _iw, 0), T, S, 3);
+      return _mm<V>::set1_epi32(*(int32_t*)&md3(ainput1, _T, 0, 0));
+    } else if (F_traits<F>::is_nhwc_input) {
       MD3(InputType, ainput0, input, xc.ih, xc.iw, xc.ic);
       MD4(InputType, ainput1, &md3(ainput0, _ih, _iw, 0), xc.wt, T, S, xc.ic);
       MD6(InputType, ainput2, &md4(ainput1, 0, _T, 0, 0), xc.ic4, xc.ic3,
