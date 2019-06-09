@@ -2,6 +2,7 @@
 #include <string.h>
 #include <chrono>
 #include "euler.hpp"
+#include "el_stl.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
@@ -21,13 +22,18 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   this->kh = dc.dims.kh;
   this->kw = dc.dims.kw;
   this->lp = dc.pads.l;
-  this->rp = dc.pads.r;
   this->tp = dc.pads.t;
-  this->bp = dc.pads.b;
   this->hs = dc.strides.h;
   this->ws = dc.strides.w;
   this->hd = dc.dilations.h;
   this->wd = dc.dilations.w;
+  // Fix user padding
+  // this->rp = dc.pads.r;
+  // this->bp = dc.pads.b;
+  this->rp =
+      estl::max(0, this->ws * (this->ow - 1) + this->kw - this->iw - this->lp);
+  this->bp =
+      estl::max(0, this->hs * (this->oh - 1) + this->kh - this->ih - this->tp);
 
   this->input_fmt = dc.formats.input;
   this->weights_fmt = dc.formats.weights;
