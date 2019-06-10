@@ -292,6 +292,14 @@ Instance_elx_conv_direct_lp_t::prepare_weights_acc() {
     _wacc_ohfs_ = _wacc_hf_;
     _wacc_ohfe_ = this->oh - _wacc_hfr_ - 1;
   }
+
+  // Debug
+  printf(
+      "wacc_h_:%d, wacc_w_:%d, _wacc_hf_:%d, _wacc_wf_:%d, _wacc_hfr_:%d, "
+      "_wacc_wfr_:%d, wacc_wt_:%d, wacc_wT_:%d, _wacc_ohfs_:%d, "
+      "_wacc_ohfe_:%d\n",
+      wacc_h_, wacc_w_, _wacc_hf_, _wacc_wf_, _wacc_hfr_, _wacc_wfr_, wacc_wt_,
+      wacc_wT_, _wacc_ohfs_, _wacc_ohfe_);
 }
 
 Template_elx_conv_direct_lp_t void
@@ -299,6 +307,7 @@ Instance_elx_conv_direct_lp_t::__trans_weights_acc(TscaleType *weights_scale,
                                                    TscaleType *weights_factor,
                                                    int8_t *tweights_s8,
                                                    BiasType *bias) {
+  auto V1 = compact_ir_weights_ ? this->Ir : this->V1;
   TscaleType *weights_factor_buf =
       (TscaleType *)malloc(wacc_h_ * wacc_w_ * this->OC * sizeof(TscaleType));
 
@@ -307,7 +316,7 @@ Instance_elx_conv_direct_lp_t::__trans_weights_acc(TscaleType *weights_scale,
     MD12(int8_t, atweights_s8, tweights_s8, this->oc4, this->ic4, this->oc3,
          this->ic3, this->kh, this->kw, this->O1, this->I2, V1, this->O,
          V, this->Vx);
-    MD7(TscaleType, atweights_factor, weights_factor_buf, wacc_h_, wacc_w_, this->oc4,
+    MD7(TscaleType, atweights_factor_buf, weights_factor_buf, wacc_h_, wacc_w_, this->oc4,
         this->oc3, this->O1, this->O, V);
 
     auto khs = std::get<0>(wacc_h_ranges_[_wacc_h]);
@@ -336,7 +345,7 @@ Instance_elx_conv_direct_lp_t::__trans_weights_acc(TscaleType *weights_scale,
         }
       }
     }
-    md7(atweights_factor, _wacc_h, _wacc_w, _oc4, _oc3, _O1, _O, _oV) = acc;
+    md7(atweights_factor_buf, _wacc_h, _wacc_w, _oc4, _oc3, _O1, _O, _oV) = acc;
   }, wacc_h_, wacc_w_, this->oc4, this->oc3, this->O1, this->O, V);
 
   auto out_repS = _mm<V>::set1_ps(this->output_quant_repS);
@@ -481,7 +490,7 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
       this->O2 * this->I2 * V1 * V * this->Vx);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
   MD2(TscaleType, aweights_scale, weights_scale, this->oc3, this->O2 * V);
-  MD4(TscaleType, aweights_factor, weights_factor, wacc_h_, wacc_wt_, this->oc3, this->O2 * T * V);
+  MD5(TscaleType, aweights_factor, weights_factor, wacc_h_, wacc_wt_, this->oc4, this->oc3, this->O2 * T * V);
   MD2(TscaleType, asrc_scale, src_scale, 2, T);
   // nhwc
   MD2(InputType, ainput_nhwc, input_u8, this->ic3, this->I2 * V);
@@ -527,7 +536,7 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
       ker_conv(*this, atoutput, aoutput, ainput, &md3(aweights, _oc3, _ic3, 0),
                &md2(abias, _oc3, 0), &md2(asrc_scale, 0, 0),
                &md2(asrc_scale, 1, 0), &md2(aweights_scale, _oc3, 0),
-               &md4(aweights_factor, _wacc_h, _wacc_wt, _oc3, 0),
+               &md5(aweights_factor, _wacc_h, _wacc_wt, 0, _oc3, 0),
                _wt, khs, khe, kws, kwe, attr);
     }
   }
