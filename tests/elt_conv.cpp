@@ -179,6 +179,12 @@ int parse_cmd_options(int argc, char **argv) {
     data_type_cfg = euler::test::U8F32S8F32;
   else if (FLAGS_data_type_cfg == "U8F32F32F32")
     data_type_cfg = euler::test::U8F32F32F32;
+  else if (FLAGS_data_type_cfg == "U8F32U8F32z")
+    data_type_cfg = euler::test::U8F32U8F32z;
+  else if (FLAGS_data_type_cfg == "U8F32S8F32z")
+    data_type_cfg = euler::test::U8F32S8F32z;
+  else if (FLAGS_data_type_cfg == "U8F32F32F32z")
+    data_type_cfg = euler::test::U8F32F32F32z;
   else {
     data_type_cfg = euler::test::FP32;
   }
@@ -283,16 +289,20 @@ static inline eld_conv_t &create_conv_desc(eld_conv_t &desc,
     desc.data_type = {euler::f16, euler::f16, euler::f16, euler::f16};
   } else if (_data_type_cfg == euler::test::FP16O) {
     desc.data_type = {euler::f32, euler::f32, euler::f16, euler::f32};
-  } else if (_data_type_cfg == euler::test::U8F32U8F32) {
+  } else if (_data_type_cfg == euler::test::U8F32U8F32 ||
+             _data_type_cfg == euler::test::U8F32U8F32z) {
     desc.data_type = {euler::u8, euler::f32, euler::u8, euler::f32};
-  } else if (_data_type_cfg == euler::test::U8F32S8F32) {
+  } else if (_data_type_cfg == euler::test::U8F32S8F32 ||
+             _data_type_cfg == euler::test::U8F32S8F32z) {
     desc.data_type = {euler::u8, euler::f32, euler::s8, euler::f32};
-  } else if (_data_type_cfg == euler::test::U8F32F32F32) {
+  } else if (_data_type_cfg == euler::test::U8F32F32F32 ||
+             _data_type_cfg == euler::test::U8F32F32F32z) {
     desc.data_type = {euler::u8, euler::f32, euler::f32, euler::f32};
   } else {
     test::error("Fail: Unsupported user data type ...\n");
     exit(1);
   }
+
   desc.dims = {mb, g, ic, oc, ih, iw, oh, ow, kh, kw};
   desc.formats = {input_format, weights_format, output_format};
   desc.pads = {pw, pw, ph, ph};
@@ -324,6 +334,9 @@ static inline int conv_ref_setup(eld_conv_t &desc) {
     case euler::test::U8F32U8F32:
     case euler::test::U8F32S8F32:
     case euler::test::U8F32F32F32:
+    case euler::test::U8F32U8F32z:
+    case euler::test::U8F32S8F32z:
+    case euler::test::U8F32F32F32z:
       return true;
     default:
       return false;
@@ -477,11 +490,14 @@ int main(int argc, char **argv) {
 
   if (data_type_cfg == euler::test::FP32) {
     _prepare_conv_data(float, float, float, float);
-  } else if (data_type_cfg == euler::test::U8F32U8F32) {
+  } else if (data_type_cfg == euler::test::U8F32U8F32 ||
+             data_type_cfg == euler::test::U8F32U8F32z) {
     _prepare_conv_data(uint8_t, float, uint8_t, float);
-  } else if (data_type_cfg == euler::test::U8F32S8F32) {
+  } else if (data_type_cfg == euler::test::U8F32S8F32 ||
+             data_type_cfg == euler::test::U8F32S8F32z) {
     _prepare_conv_data(uint8_t, float, int8_t, float);
-  } else if (data_type_cfg == euler::test::U8F32F32F32) {
+  } else if (data_type_cfg == euler::test::U8F32F32F32 ||
+             data_type_cfg == euler::test::U8F32F32F32z) {
     _prepare_conv_data(uint8_t, float, float, float);
   }
 #ifdef ENABLE_USER_FP16
@@ -539,4 +555,3 @@ int main(int argc, char **argv) {
 
   return 0;
 }
-

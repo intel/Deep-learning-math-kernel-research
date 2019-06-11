@@ -102,6 +102,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
     std::default_random_engine gen;
     // std::normal_distribution<float> dInput(-4.0, 20.0);
     std::normal_distribution<float> dWeights(-1.0, 1.0);
+    std::normal_distribution<float> dInput_mu_0_sigma_3(0.0, 3.0);
     std::normal_distribution<float> dInput_mu_15_sigma_3(15.0, 3.0);
     std::normal_distribution<float> dWeights_mu_0_sigma_0_1(0.0, 0.1);
 
@@ -119,6 +120,10 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
           input_ref[i] = RAND() % 20;
         if (input_ref[i] < 0)
           input_ref[i] = 0;
+      } else if (data_type_cfg == euler::test::U8F32U8F32z ||
+                 data_type_cfg == euler::test::U8F32S8F32z ||
+                 data_type_cfg == euler::test::U8F32F32F32z) {
+        input_ref[i] = dInput_mu_0_sigma_3(gen);
       }
     }
 
@@ -129,7 +134,10 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
         weights_ref[i] = dWeights(gen);
       } else if (data_type_cfg == euler::test::U8F32U8F32 ||
                  data_type_cfg == euler::test::U8F32S8F32 ||
-                 data_type_cfg == euler::test::U8F32F32F32) {
+                 data_type_cfg == euler::test::U8F32F32F32 ||
+                 data_type_cfg == euler::test::U8F32U8F32z ||
+                 data_type_cfg == euler::test::U8F32S8F32z ||
+                 data_type_cfg == euler::test::U8F32F32F32z) {
         weights_ref[i] = dWeights_mu_0_sigma_0_1(gen);
       }
       if (desc_ref.with_relu && i % 3 == 1)
@@ -175,17 +183,20 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
     MEMALIGN64(weights, desc_ref.byte_sizes.weights);
     MEMALIGN64(bias, desc_ref.byte_sizes.bias);
     MEMALIGN64(output, output_size / 2);
-  } else if (data_type_cfg == euler::test::U8F32U8F32) {
+  } else if (data_type_cfg == euler::test::U8F32U8F32 ||
+             data_type_cfg == euler::test::U8F32U8F32z) {
     MEMALIGN64(input, input_size / 4);
     MEMALIGN64(weights, desc_ref.byte_sizes.weights);
     MEMALIGN64(bias, desc_ref.byte_sizes.bias);
     MEMALIGN64(output, output_size / 4);
-  } else if (data_type_cfg == euler::test::U8F32S8F32) {
+  } else if (data_type_cfg == euler::test::U8F32S8F32 ||
+             data_type_cfg == euler::test::U8F32S8F32z) {
     MEMALIGN64(input, input_size / 4);
     MEMALIGN64(weights, desc_ref.byte_sizes.weights);
     MEMALIGN64(bias, desc_ref.byte_sizes.bias);
     MEMALIGN64(output, output_size / 4);
-  } else if (data_type_cfg == euler::test::U8F32F32F32) {
+  } else if (data_type_cfg == euler::test::U8F32F32F32 ||
+             data_type_cfg == euler::test::U8F32F32F32z) {
     MEMALIGN64(input, input_size / 4);
     MEMALIGN64(weights, desc_ref.byte_sizes.weights);
     MEMALIGN64(bias, desc_ref.byte_sizes.bias);
@@ -251,13 +262,20 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
     // U8
     if (data_type_cfg == euler::test::U8F32U8F32 ||
         data_type_cfg == euler::test::U8F32S8F32 ||
-        data_type_cfg == euler::test::U8F32F32F32)
+        data_type_cfg == euler::test::U8F32F32F32) {
       iscale = abs_max / PRECISION_REPRESENTATION_7B;
-    // S8
-    else
+      desc.input_quant.z = 0;
+    } else if (data_type_cfg == euler::test::U8F32U8F32z ||
+        data_type_cfg == euler::test::U8F32S8F32z ||
+        data_type_cfg == euler::test::U8F32F32F32z) {
       iscale = abs_max / PRECISION_REPRESENTATION_7B;
+      desc.input_quant.z = 128.0;
+    } else {
+      // S8
+      iscale = abs_max / PRECISION_REPRESENTATION_7B;
+      desc.input_quant.z = 0;
+    }
     desc.input_quant.scale = iscale;
-    desc.input_quant.z = 0;
     printf("input abs_max %f scale %f\n", abs_max, iscale);
   };
 
@@ -346,10 +364,14 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
   if (validate_results) {
     if (data_type_cfg == euler::test::U8F32U8F32 ||
         data_type_cfg == euler::test::U8F32S8F32 ||
-        data_type_cfg == euler::test::U8F32F32F32) {
+        data_type_cfg == euler::test::U8F32F32F32 ||
+        data_type_cfg == euler::test::U8F32U8F32z ||
+        data_type_cfg == euler::test::U8F32S8F32z ||
+        data_type_cfg == euler::test::U8F32F32F32z) {
       input_scale(iscale);
-      if (desc.algorithm == CONV_WINOGRAD)
+      if (desc.algorithm == CONV_WINOGRAD) {
         trans_input_scale();
+      }
     }
   }
 #pragma omp parallel for
@@ -362,8 +384,12 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
       (*input)[i] = input_ref[i];
     else if (data_type_cfg == euler::test::U8F32U8F32 ||
              data_type_cfg == euler::test::U8F32S8F32 ||
-             data_type_cfg == euler::test::U8F32F32F32)
-      (*input)[i] = (uint8_t)rounding_to_nearest_even(input_ref[i] / iscale);
+             data_type_cfg == euler::test::U8F32F32F32 ||
+             data_type_cfg == euler::test::U8F32U8F32z ||
+             data_type_cfg == euler::test::U8F32S8F32z ||
+             data_type_cfg == euler::test::U8F32F32F32z)
+      (*input)[i] = (uint8_t)rounding_to_nearest_even(input_ref[i] / iscale +
+                                                      desc.input_quant.z);
   }
 
 // weights
@@ -377,7 +403,10 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
       (*weights)[i] = weights_ref[i];
     else if (data_type_cfg == euler::test::U8F32U8F32 ||
              data_type_cfg == euler::test::U8F32S8F32 ||
-             data_type_cfg == euler::test::U8F32F32F32)
+             data_type_cfg == euler::test::U8F32F32F32||
+             data_type_cfg == euler::test::U8F32U8F32z ||
+             data_type_cfg == euler::test::U8F32S8F32z ||
+             data_type_cfg == euler::test::U8F32F32F32z)
       (*weights)[i] = weights_ref[i];
   }
 
@@ -392,7 +421,10 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
       (*bias)[i] = bias_ref[i];
     else if (data_type_cfg == euler::test::U8F32U8F32 ||
              data_type_cfg == euler::test::U8F32S8F32 ||
-             data_type_cfg == euler::test::U8F32F32F32)
+             data_type_cfg == euler::test::U8F32F32F32 ||
+             data_type_cfg == euler::test::U8F32U8F32z ||
+             data_type_cfg == euler::test::U8F32S8F32z ||
+             data_type_cfg == euler::test::U8F32F32F32z)
       (*bias)[i] = bias_ref[i];
   }
 
@@ -400,7 +432,9 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
   float oscale = 1.0, opscale = 1.0, oz = 0.0;
   if (validate_results) {
     if (data_type_cfg == euler::test::U8F32U8F32 ||
-        data_type_cfg == euler::test::U8F32S8F32)
+        data_type_cfg == euler::test::U8F32S8F32 ||
+        data_type_cfg == euler::test::U8F32U8F32z ||
+        data_type_cfg == euler::test::U8F32S8F32z)
       output_scale(oscale, opscale, oz);
   }
   if (desc.with_ip_sum) {
@@ -413,7 +447,9 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
       else if (data_type_cfg == euler::test::FP16O)
         (*output)[i] = output_ref[i];
       else if (data_type_cfg == euler::test::U8F32U8F32 ||
-               data_type_cfg == euler::test::U8F32S8F32) {
+               data_type_cfg == euler::test::U8F32S8F32 ||
+               data_type_cfg == euler::test::U8F32U8F32z ||
+               data_type_cfg == euler::test::U8F32S8F32z) {
         (*output)[i] =
             (int8_t)rounding_to_nearest_even(
             output_ref[i] / opscale);
@@ -1153,14 +1189,16 @@ void post_process_conv_results(float *output_ref, eld_conv_t &desc,
 #pragma omp parallel for
     for (size_t i = 0; i < desc.sizes.output; i++)
       output_ref[i] = half_2_float(_output_res[i]);
-  } else if (data_type_cfg == euler::test::U8F32U8F32) {
+  } else if (data_type_cfg == euler::test::U8F32U8F32 ||
+             data_type_cfg == euler::test::U8F32U8F32z) {
     uint8_t *_output_res = (uint8_t *)output_res;
 #pragma omp parallel for
     for (size_t i = 0; i < desc.sizes.output; i++) {
       float resu8 = (float)_output_res[i];
       output_ref[i] = (resu8 - desc.output_quant.z) * desc.output_quant.scale;
     }
-  } else if (data_type_cfg == euler::test::U8F32S8F32) {
+  } else if (data_type_cfg == euler::test::U8F32S8F32 ||
+             data_type_cfg == euler::test::U8F32S8F32z) {
     int8_t *_output_res = (int8_t *)output_res;
 #pragma omp parallel for
     for (size_t i = 0; i < desc.sizes.output; i++) {

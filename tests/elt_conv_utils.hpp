@@ -17,7 +17,11 @@ namespace test {
     FP16O,
     U8F32F32F32,
     U8F32U8F32,
-    U8F32S8F32
+    U8F32S8F32,
+    U8F32F32F32z, // with zero point
+    U8F32U8F32z,
+    U8F32S8F32z
+
   };
 
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
