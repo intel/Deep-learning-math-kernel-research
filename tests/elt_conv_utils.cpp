@@ -107,7 +107,6 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
     std::normal_distribution<float> dWeights_mu_0_sigma_0_1(0.0, 0.1);
 
     // ref input
-#pragma omp parallel for
     for (size_t i = 0; i < desc_ref.sizes.input; i++) {
       if (data_type_cfg == euler::test::FP32 || data_type_cfg == euler::test::FP16) {
         input_ref[i] = RAND() % 20 - 12; // (-12, 8)
@@ -117,18 +116,20 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
         if (validate_results)
           input_ref[i] = dInput_mu_15_sigma_3(gen);
         else
-          input_ref[i] = RAND() % 20;
+          input_ref[i] = RAND() % 19;
         if (input_ref[i] < 0)
           input_ref[i] = 0;
       } else if (data_type_cfg == euler::test::U8F32U8F32z ||
                  data_type_cfg == euler::test::U8F32S8F32z ||
                  data_type_cfg == euler::test::U8F32F32F32z) {
-        input_ref[i] = dInput_mu_0_sigma_3(gen);
+        if (validate_results)
+          input_ref[i] = dInput_mu_0_sigma_3(gen);
+        else
+          input_ref[i] = RAND() % 19;
       }
     }
 
     // ref weights
-#pragma omp parallel for
     for (size_t i = 0; i < desc_ref.sizes.weights; i++) {
       if (data_type_cfg == euler::test::FP32 || data_type_cfg == euler::test::FP16) {
         weights_ref[i] = dWeights(gen);
@@ -138,7 +139,10 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
                  data_type_cfg == euler::test::U8F32U8F32z ||
                  data_type_cfg == euler::test::U8F32S8F32z ||
                  data_type_cfg == euler::test::U8F32F32F32z) {
-        weights_ref[i] = dWeights_mu_0_sigma_0_1(gen);
+        if (validate_results)
+          weights_ref[i] = dWeights_mu_0_sigma_0_1(gen);
+        else
+          weights_ref[i] = RAND() % 19;
       }
       if (desc_ref.with_relu && i % 3 == 1)
         weights_ref[i] = -weights_ref[i];
@@ -309,7 +313,8 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
       oz = 0.0;
       desc.output_quant.scale = oscale;
       desc.output_quant.z = oz;
-    } else if (data_type_cfg == euler::test::U8F32S8F32) {
+    } else if (data_type_cfg == euler::test::U8F32S8F32 ||
+               data_type_cfg == euler::test::U8F32S8F32z) {
       oscale = abs_max / PRECISION_REPRESENTATION_7B;
       oz = 0.0;
       desc.output_quant.scale = oscale;
