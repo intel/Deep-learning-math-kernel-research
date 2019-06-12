@@ -77,7 +77,7 @@ Template_elx_conv_direct_lp_t class elx_conv_direct_lp_t : public elx_conv_t {
   std::vector<std::tuple<int, int>> wacc_h_ranges_, wacc_w_ranges_;
   int wacc_h_, wacc_w_; // size of wacc
   int _wacc_hf_, _wacc_wf_, _wacc_hfr_, _wacc_wfr_; // index/reverse-index of acc-full
-  int _wacc_ohfs_, _wacc_ohfe_; // _oh range of acc-full
+  int _wacc_ohfs_, _wacc_ohfe_, _wacc_owfs_, _wacc_owfe_; // _oh range of acc-full
   int wacc_wT_, wacc_wt_; // wT: T: a160
                           //     1: d160
                           // wt: number of T

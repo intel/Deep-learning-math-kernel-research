@@ -20,6 +20,7 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
   this->IC = ALIGNUP(this->ic, V);
   this->OC = ALIGNUP(this->oc, V);
 
+  if (this->T > this->ow) this->T = this->ow;
   if (this->I2 == 0) this->I2 = 1;
   if (this->T == 0)  this->T = 1;
   if (this->O == 0)  this->O = 1;
@@ -248,8 +249,11 @@ Instance_elx_conv_direct_lp_t::prepare_weights_acc() {
     _wacc_ohfs_ = 0;
     _wacc_ohfe_ = this->oh - 1;
   } else {
-    wacc_wt_ = 3; // left T, middle T (full), right Tr
-    // kh-ranges
+    if (this->lp + this->ow < this->kw || this->rp + this->ow < this->kw ||
+        this->tp + this->oh < this->kh || this->bp + this->oh < this->kh) {
+      el_error("Shape not support for U8 input with zero-point");
+    }
+
     for (int khs = this->tp; khs > 0; khs -= this->hs) {
       wacc_h_ranges_.push_back(std::make_tuple(khs, this->kh - 1));
     }
@@ -287,19 +291,22 @@ Instance_elx_conv_direct_lp_t::prepare_weights_acc() {
       printf("kw_ranges: %d, %d\n", std::get<0>(i), std::get<1>(i));
     }
 
+    wacc_wt_ = this->wt >= 3 ? 3 : this->wt; // left T, middle T (full), right Tr
     wacc_h_ = wacc_h_ranges_.size();
     wacc_w_ = wacc_w_ranges_.size();
     _wacc_ohfs_ = _wacc_hf_;
     _wacc_ohfe_ = this->oh - _wacc_hfr_ - 1;
+    _wacc_owfs_ = _wacc_wf_;
+    _wacc_owfe_ = this->ow - _wacc_wfr_ - 1;
   }
 
   // Debug
   printf(
       "wacc_h_:%d, wacc_w_:%d, _wacc_hf_:%d, _wacc_wf_:%d, _wacc_hfr_:%d, "
       "_wacc_wfr_:%d, wacc_wt_:%d, wacc_wT_:%d, _wacc_ohfs_:%d, "
-      "_wacc_ohfe_:%d\n",
+      "_wacc_ohfe_:%d, _wacc_owfs_:%d, _wacc_owfe_:%d\n",
       wacc_h_, wacc_w_, _wacc_hf_, _wacc_wf_, _wacc_hfr_, _wacc_wfr_, wacc_wt_,
-      wacc_wT_, _wacc_ohfs_, _wacc_ohfe_);
+      wacc_wT_, _wacc_ohfs_, _wacc_ohfe_, _wacc_owfs_, _wacc_owfe_);
 }
 
 Template_elx_conv_direct_lp_t void
@@ -377,15 +384,24 @@ Instance_elx_conv_direct_lp_t::__trans_weights_acc(TscaleType *weights_scale,
               *(__m<V> *)&md5(atweights_factor, _wacc_h, _wt, _oc2, _T, 0);
           int _wacc_w = _wacc_wf_;
           if (wacc_wt_ == 1) {
-            _wacc_w = _wacc_wf_;
-          } else if (_wt == 0) {
-            _wacc_w = _T < _wacc_wf_ ? _T : _wacc_wf_;
-          } else if (_wt == 2) {
-            _wacc_w = _T < (this->Tr - _wacc_wfr_)
-                       ? _wacc_wf_
-                       : _T - (this->Tr - _wacc_wfr_) + _wacc_wf_ + 1;
-          } else {
-            _wacc_w = _wacc_wf_;
+            if (this->input_quant_z == 0) {
+              _wacc_w = _wacc_wf_;
+printf("_wacc_w=%d\n", _wacc_w);
+            } else {
+              _wacc_w = _T < _wacc_owfs_ ? _T : _T > _wacc_owfe_
+                                  ? _T - (this->T - _wacc_wfr_) + _wacc_wf_ + 1
+                                  : _wacc_wf_;
+            }
+          } else { // wacc_wt_ == 2, 3
+            if (_wt == 0) { // first
+              _wacc_w = _T < _wacc_wf_ ? _T : _wacc_wf_;
+            } else if (_wt == wacc_wt_ - 1) { // last
+              _wacc_w = _T >= this->Tr ? _wacc_wf_ : _T < (this->Tr - _wacc_wfr_)
+                         ? _wacc_wf_
+                         : _T - (this->Tr - _wacc_wfr_) + _wacc_wf_ + 1;
+            } else { // middle, if wacc_wt_ == 3
+              _wacc_w = _wacc_wf_;
+            }
           }
           __m<V> qf_tmp =
               *(__m<V> *)&md4(atweights_factor_buf, _wacc_h, _wacc_w, _oc2, 0);
@@ -393,7 +409,6 @@ Instance_elx_conv_direct_lp_t::__trans_weights_acc(TscaleType *weights_scale,
         }
       }
     }
-
   }, this->oc2);
 
   if (weights_factor_buf)
@@ -508,7 +523,8 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
   int kws = _wt == 0 ? this->lp : 0;
   int kwe = _wt == this->wt - 1 ? this->kw - this->lp : this->kw;
 
-  int _wacc_wt = (_wt == 0 || wacc_wt_ == 1) ? 0 : _wt == this->wt - 1 ? 2 : 1;
+  int _wacc_wt =
+      (_wt == 0 || wacc_wt_ == 1) ? 0 : _wt == this->wt - 1 ? wacc_wt_ - 1 : 1;
   int _wacc_h =
       _ht < _wacc_ohfs_
           ? _ht
