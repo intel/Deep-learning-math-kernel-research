@@ -386,7 +386,6 @@ Instance_elx_conv_direct_lp_t::__trans_weights_acc(TscaleType *weights_scale,
           if (wacc_wt_ == 1) {
             if (this->input_quant_z == 0) {
               _wacc_w = _wacc_wf_;
-printf("_wacc_w=%d\n", _wacc_w);
             } else {
               _wacc_w = _T < _wacc_owfs_ ? _T : _T > _wacc_owfe_
                                   ? _T - (this->T - _wacc_wfr_) + _wacc_wf_ + 1
