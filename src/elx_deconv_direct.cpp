@@ -361,8 +361,13 @@ Instance_elx_deconv_direct_t::conv_a060(OutputType *output,
   int kws = _wt == 0 ? lp_ : 0;
   int kwe = _wt == this->wt - 1 ? this->kw - lp_ : this->kw;
 
+  auto _ih = _ht * this->hs + (this->kh / 2) - this->tp;
+  auto _iw = _wt * this->T * this->ws + (this->kw / 2) - this->lp;
+  int pad_l = (_wt == 0) && (this->lp > 0);
+  int pad_r = (_wt == this->wt - 1) && (this->rp > 0);
+
   if (this->input_fmt == nhwc) {
-    MD2(InputType, ainput, input, this->ic3, this->I2 * V);
+    MD5(InputType, ainput, input, this->ih, this->iw, this->ic4, this->ic3, this->I2 * V);
     MD2(OutputType, aoutput, output, this->oc3, this->O2 * V);
 
     iter_each(_oc3, this->oc3) {
@@ -376,12 +381,11 @@ Instance_elx_deconv_direct_t::conv_a060(OutputType *output,
         attr = set_attr(attr, has_Or_idx);
       }
       ker_conv(*this, &md2(aoutput, _oc3, 0),
-          &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
+          &md5(ainput, _ih, _iw, 0, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
+          &md2(abias, _oc3, 0), khs, khe, kws, kwe, -1, -1, attr);
     }}
-  } else {
-    // blocked or nchw
-    MD2(InputType, ainput, input, this->ic3, this->I2 * V * this->ih * this->iw);
+  } else if (this->input_fmt == nchw) {
+    MD4(InputType, ainput, input, this->ic3, this->I2 * V, this->ih, this->iw);
     MD2(OutputType, aoutput, output, this->oc3, this->O2 * this->ht * this->ow * V);
 
     iter_each(_oc3, this->oc3) {
@@ -392,10 +396,26 @@ Instance_elx_deconv_direct_t::conv_a060(OutputType *output,
         if (this->with_relu) attr = set_attr(attr, relu_idx);
       }
       ker_conv(*this, &md2(aoutput, _oc3, 0),
-          &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
+          &md4(ainput, _ic3, 0, _ih, _iw), &md3(aweights, _oc3, _ic3, 0),
+          &md2(abias, _oc3, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
+    }}
+  } else {
+    MD5(InputType, ainput, input, this->ic3, this->I2, this->ih, this->iw, V);
+    MD2(OutputType, aoutput, output, this->oc3, this->O2 * this->ht * this->ow * V);
+
+    iter_each(_oc3, this->oc3) {
+    iter_each(_ic3, this->ic3) {
+      int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
+      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+        if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+        if (this->with_relu) attr = set_attr(attr, relu_idx);
+      }
+      ker_conv(*this, &md2(aoutput, _oc3, 0),
+          &md5(ainput, _ic3, 0, _ih, _iw, 0), &md3(aweights, _oc3, _ic3, 0),
+          &md2(abias, _oc3, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
     }}
   }
+
 }
 
 } // namespace euler

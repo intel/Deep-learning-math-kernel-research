@@ -75,7 +75,8 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
       bool shape_ok = estl::any_of(this->kh, 3, 5, 7)
           && estl::any_of(this->kw, 3, 5, 7)
           && (this->ws == 1 || this->ws == 2)
-          && this->lp == (this->kw / 2) && (this->tp == this->kh / 2);
+          && estl::any_of(this->lp, 0, this->kw / 2)
+          && estl::any_of(this->tp, 0, this->kh / 2);
       if (!shape_ok) {
         el_error("direct: a060: shape not supported");
       }
@@ -367,8 +368,13 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
   int kwe = _wt == this->wt - 1 ? this->kw - this->lp : this->kw;
   assert(this->T > this->lp && this->Tr > this->rp);
 
+  auto _ih = _ht * this->hs + (this->kh / 2) - this->tp;
+  auto _iw = _wt * this->T * this->ws + (this->kw / 2) - this->lp;
+  int pad_l = (_wt == 0) && (this->lp > 0);
+  int pad_r = (_wt == this->wt - 1) && (this->rp > 0);
+
   if (this->input_fmt == nhwc) {
-    MD2(InputType, ainput, input, this->ic3, this->I2 * V);
+    MD5(InputType, ainput, input, this->ih, this->iw, this->ic4, this->ic3, this->I2 * V);
     MD2(OutputType, aoutput, output, this->oc3, this->O2 * V);
 
     iter_each(_oc3, this->oc3) {
@@ -382,12 +388,11 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
         attr = set_attr(attr, has_Or_idx);
       }
       ker_conv(*this, &md2(aoutput, _oc3, 0),
-          &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
+          &md5(ainput, _ih, _iw, 0, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
+          &md2(abias, _oc3, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
     }}
-  } else {
-    // blocked or nchw
-    MD2(InputType, ainput, input, this->ic3, this->I2 * V * this->ih * this->iw);
+  } else if (this->input_fmt == nchw) {
+    MD4(InputType, ainput, input, this->ic3, this->I2 * V, this->ih, this->iw);
     MD2(OutputType, aoutput, output, this->oc3, this->O2 * this->ht * this->ow * V);
 
     iter_each(_oc3, this->oc3) {
@@ -398,8 +403,23 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
         if (this->with_relu) attr = set_attr(attr, relu_idx);
       }
       ker_conv(*this, &md2(aoutput, _oc3, 0),
-          &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
+          &md4(ainput, _ic3, 0, _ih, _iw), &md3(aweights, _oc3, _ic3, 0),
+          &md2(abias, _oc3, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
+    }}
+  } else { // blocked
+    MD5(InputType, ainput, input, this->ic3, this->I2, this->ih, this->iw, V);
+    MD2(OutputType, aoutput, output, this->oc3, this->O2 * this->ht * this->ow * V);
+
+    iter_each(_oc3, this->oc3) {
+    iter_each(_ic3, this->ic3) {
+      int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
+      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+        if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+        if (this->with_relu) attr = set_attr(attr, relu_idx);
+      }
+      ker_conv(*this, &md2(aoutput, _oc3, 0),
+          &md5(ainput, _ic3, 0, _ih, _iw, 0), &md3(aweights, _oc3, _ic3, 0),
+          &md2(abias, _oc3, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
     }}
   }
 }
@@ -424,12 +444,23 @@ Instance_elx_conv_direct_t::conv_b060(OutputType *output,
   int kwe = _wt == this->wt - 1 ? this->kw - this->lp : this->kw;
   assert(this->T > this->lp && this->Tr > this->rp);
 
+  auto _ih = _ht * this->hs + (this->kh / 2) - this->tp;
+  auto _iw = _wt * this->T * this->ws + (this->kw / 2) - this->lp;
+  int pad_l = (_wt == 0) && (this->lp > 0);
+  int pad_r = (_wt == this->wt - 1) && (this->rp > 0);
+
   MD2(OutputType, aoutput_nhwc, output, this->oc3, this->O2 * V);
   MD2(OutputType, aoutput_blocked, output, this->oc3, this->O2 * this->ht * this->ow * V);
+  MD4(InputType, ainput_blocked, input, this->I2, this->ih, this->iw, V);
+  MD3(InputType, ainput_nhwc, input, this->ih, this->iw, this->ic);
 
   iter_each(_oc3, this->oc3) {
-    OutputType *aout = this->input_fmt == nhwc ? &md2(aoutput_nhwc, _oc3, 0)
-                                              : &md2(aoutput_blocked, _oc3, 0);
+    OutputType *aout = this->output_fmt == nhwc
+                           ? &md2(aoutput_nhwc, _oc3, 0)
+                           : &md2(aoutput_blocked, _oc3, 0);
+    InputType *ain   = this->input_fmt == nhwc
+                           ? &md3(ainput_nhwc, _ih, _iw, 0)
+                           : &md4(ainput_blocked, 0, _ih, _iw, 0);
     int attr = 0;
     if (_ic3 == 0) {
       attr = (_ic4 == 0) ? attr_ : attr;
@@ -442,8 +473,8 @@ Instance_elx_conv_direct_t::conv_b060(OutputType *output,
         _oc3 == this->oc3 - 1) {
       attr = set_attr(attr, has_Or_idx);
     }
-    ker_conv(*this, aout, input, &md3(aweights, _oc3, 0, 0),
-             &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
+    ker_conv(*this, aout, ain, &md3(aweights, _oc3, 0, 0),
+             &md2(abias, _oc3, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
   }
 }
 

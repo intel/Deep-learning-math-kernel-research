@@ -25,7 +25,7 @@ struct conv_kernel_otj {
       typename GarrayTypes::InputType *,
       typename GarrayTypes::WeightsType *,
       typename GarrayTypes::BiasType *,
-      int, int, int, int, int, int) {}
+      int, int, int, int, int, int, int) {}
 };
 
 template <typename GarrayTypes, int V, int Vx, int ...Kp>
@@ -287,8 +287,8 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int JO, int P, bool has_Or>
   static inline typename std::enable_if<P == 1, void>::type
   op_conv(elx_conv_params_t &xc, OutputType *output,
-      InputType *input, WeightsType *weights, BiasType *bias, int _wt,
-      int khs, int khe, int kws, int kwe, int attr)
+      InputType *input, WeightsType *weights, BiasType *bias,
+      int khs, int khe, int kws, int kwe, int pad_l, int pad_r, int attr)
   {
     const int AKH = xc.kh / 2;
     constexpr int AKW = K / 2;
@@ -447,7 +447,8 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           gemm_OVT(input, &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
         }
         // left
-        if (_wt == 0) {
+        //if (_wt == 0 && kws == AKW) {
+        if (pad_l> 0) {
           int _kw = 0; // K = 3, 5, 7
           gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
           if (K > 3) {
@@ -460,7 +461,8 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           }
         }
         // right
-        if (_wt == xc.wt - 1) {
+        //if (_wt == xc.wt - 1 && kwe == (K - AKW)) {
+        if (pad_r > 1) {
           int _kw = K - 1; // K = 3, 5, 7
           gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
           if (K > 3) {
@@ -482,7 +484,8 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           gemm_OVT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
         }
         // left
-        if (_wt == 0) {
+        //if (_wt == 0 && kws == AKW) {
+        if (pad_l) {
           int _kw = 0; // K = 3, 5, 7
           gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
           if (K > 3) {
@@ -495,7 +498,8 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           }
         }
         // right
-        if (_wt == xc.wt - 1) {
+        //if (_wt == xc.wt - 1 && kwe == (K - AKW)) {
+        if (pad_r) {
           int _kw = K - 1; // K = 3, 5, 7
           gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
           if (K > 3) {
@@ -529,8 +533,8 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   template <int JO, int P, bool has_Or>
   static inline typename std::enable_if<(P == 2 || P == 4), void>::type
   op_conv(elx_conv_params_t &xc, OutputType *output,
-      InputType *input, WeightsType *weights, BiasType *bias, int _wt,
-      int khs, int khe, int kws, int kwe, int attr)
+      InputType *input, WeightsType *weights, BiasType *bias,
+      int khs, int khe, int kws, int kwe, int pad_l, int pad_r, int attr)
   {
     // 3x3 conv
     constexpr int AKH = 3 / 2;
@@ -639,7 +643,8 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       } // _kw loop, mid
 
       // left
-      if (_wt == 0) {
+      //if (_wt == 0 && kws == AKW) {
+      if (pad_l) {
         constexpr int _kw = 0;
 
         unroll_for(_P, P) {
@@ -680,7 +685,8 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       } // left
 
       // right
-      if (_wt == xc.wt - 1) {
+      //if (_wt == xc.wt - 1 && kwe == (K - AKW)) {
+      if (pad_r) {
         constexpr int _kw = 2;
 
         unroll_for(_P, P) {
@@ -741,8 +747,8 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       typename std::enable_if<(J_traits<O, T, K_CONV, WeightsType>::J == 1) &&
       (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
       conv(elx_conv_params_t &xc, OutputType *output, InputType *input,
-          WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
-          int kws, int kwe, int attr)
+          WeightsType *weights, BiasType *bias, int khs, int khe,
+          int kws, int kwe, int pad_l, int pad_r, int attr)
   {
     int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V;
     MD3(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
@@ -757,10 +763,10 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
           && _O1 == xc.O1 - 1) {
         op_conv<JO0, JP0, true>(xc, aout, input, &md3(aweights, 0, _O1, 0),
-            &md2(abias, _O1, 0), _wt, khs, khe, kws, kwe, attr);
+            &md2(abias, _O1, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
       } else {
         op_conv<JO0, JP0, false>(xc, aout, input, &md3(aweights, 0, _O1, 0),
-            &md2(abias, _O1, 0), _wt, khs, khe, kws, kwe, attr);
+            &md2(abias, _O1, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
       }
     }
   }
@@ -769,8 +775,8 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       typename std::enable_if<(J_traits<O, T, K_CONV, WeightsType>::J == 2) &&
       (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
       conv(elx_conv_params_t &xc, OutputType *output, InputType *input,
-          WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
-          int kws, int kwe, int attr)
+          WeightsType *weights, BiasType *bias, int khs, int khe,
+          int kws, int kwe, int pad_l, int pad_r, int attr)
   {
     int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V;
     MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
@@ -784,18 +790,18 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           ? &md6(aoutput_nhwc, 0, 0, 0, _O1, 0, 0)
           : &md3(aoutput_blocked, _O1, 0, 0);
       op_conv<JO0, JP0, false>(xc, aout, input, &md5(aweights, 0, _O1, 0, 0, 0),
-          &md3(abias, _O1, 0, 0), _wt, khs, khe, kws, kwe, attr);
+          &md3(abias, _O1, 0, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
       aout = F_traits<F>::is_nhwc_output ? &md6(aoutput_nhwc, 0, 0, 0, _O1, JO0, 0)
                                          : &md3(aoutput_blocked, _O1, JO0, 0);
       if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
           && _O1 == xc.O1 - 1) {
         op_conv<JO1, JP1, true>(xc, aout, input,
-            &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0), _wt,
-            khs, khe, kws, kwe, attr);
+            &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
+            khs, khe, kws, kwe, pad_l, pad_r, attr);
       } else {
         op_conv<JO1, JP1, false>(xc, aout, input,
-            &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0), _wt,
-            khs, khe, kws, kwe, attr);
+            &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
+            khs, khe, kws, kwe, pad_l, pad_r, attr);
       }
     }
   }
@@ -804,8 +810,8 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       typename std::enable_if<(J_traits<O, T, K_CONV, WeightsType>::J == 3) &&
       (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
       conv(elx_conv_params_t &xc, OutputType *output, InputType *input,
-          WeightsType *weights, BiasType *bias, int _wt, int khs, int khe,
-          int kws, int kwe, int attr)
+          WeightsType *weights, BiasType *bias, int khs, int khe,
+          int kws, int kwe, int pad_l, int pad_r, int attr)
   {
     int Vr = F_traits<F>::is_compact_ir_weights ? xc.Ir : V;
     MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
@@ -819,11 +825,11 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           ? &md6(aoutput_nhwc, 0, 0, 0, _O1, 0, 0)
           : &md3(aoutput_blocked, _O1, 0, 0);
       op_conv<JO0, JP0, false>(xc, aout, input, &md5(aweights, 0, _O1, 0, 0, 0),
-          &md3(abias, _O1, 0, 0), _wt, khs, khe, kws, kwe, attr);
+          &md3(abias, _O1, 0, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
       aout = F_traits<F>::is_nhwc_output ? &md6(aoutput_nhwc, 0, 0, 0, _O1, JO0, 0)
                                          : &md3(aoutput_blocked, _O1, JO0, 0);
       op_conv<JO1, JP1, false>(xc, aout, input, &md5(aweights, 0, _O1, 0, JO0, 0),
-          &md3(abias, _O1, JO0, 0), _wt, khs, khe, kws, kwe, attr);
+          &md3(abias, _O1, JO0, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
       aout = F_traits<F>::is_nhwc_output
           ? &md6(aoutput_nhwc, 0, 0, 0, _O1, JO0 + JO1, 0)
           : &md3(aoutput_blocked, _O1, JO0 + JO1, 0);
@@ -831,11 +837,13 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           && _O1 == xc.O1 - 1) {
         op_conv<JO2, JP2, true>(xc, aout, input,
             &md5(aweights, 0, _O1, 0, JO0 + JO1, 0),
-            &md3(abias, _O1, JO0 + JO1, 0), _wt, khs, khe, kws, kwe, attr);
+            &md3(abias, _O1, JO0 + JO1, 0), khs, khe, kws, kwe,
+            pad_l, pad_r, attr);
       } else {
         op_conv<JO2, JP2, false>(xc, aout, input,
             &md5(aweights, 0, _O1, 0, JO0 + JO1, 0),
-            &md3(abias, _O1, JO0 + JO1, 0), _wt, khs, khe, kws, kwe, attr);
+            &md3(abias, _O1, JO0 + JO1, 0), khs, khe, kws, kwe,
+            pad_l, pad_r, attr);
       }
     }
   }

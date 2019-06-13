@@ -35,15 +35,13 @@ void Instance_elx_deconv_direct_t::__execute_a060(
           V * Vr * this->kh * this->kw * this->ic3 * this->oc3 * this->I2
               * this->O2);
       MD2(InputType, ainput0, input, this->t3, this->ic * this->ih * this->iw);
-      MD5(InputType, ainput1, &md2(ainput0, _t3, 0), this->ic4,
-          this->ic3 * this->I2 * V, this->ht, this->hs, this->iw);
-      MD2(InputType, ainput2, &md5(ainput1, _ic4, 0, _ht, 0, 0), this->wt,
-          this->T * this->ws);
+      MD3(InputType, ainput1, &md2(ainput0, _t3, 0), this->ic4,
+          this->ic3 * this->I2 * V, this->ih * this->iw);
       MD5(OutputType, aoutput0, output, this->t3, this->oc4,
           this->oc3 * this->O2, this->ht, this->ow * V);
       MD3(OutputType, aoutput1, &md5(aoutput0, _t3, _oc4, 0, _ht, 0), this->wt,
           this->T, V);
-      conv_a060(&md3(aoutput1, _wt, 0, 0), &md2(ainput2, _wt, 0),
+      conv_a060(&md3(aoutput1, _wt, 0, 0), &md3(ainput1, _ic4, 0, 0),
           &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _ht,
           _wt);
     }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
@@ -53,18 +51,14 @@ void Instance_elx_deconv_direct_t::__execute_a060(
       MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
           V * V * this->kh * this->kw * this->ic3 * this->oc3 * this->I2
               * this->O2);
-      MD5(InputType, ainput0, input, this->t3, this->ht, this->hs, this->iw,
-          this->ic);
-      MD4(InputType, ainput1, &md5(ainput0, _t3, _ht, 0, 0, 0), this->wt,
-          this->T, this->ws, this->ic);
-      MD2(InputType, ainput2, &md4(ainput1, _wt, 0, 0, 0), this->ic4,
-          this->ic3 * this->I2 * V);
+      MD5(InputType, ainput, input, this->t3, this->ih, this->iw,
+          this->ic4,  this->ic3 * this->I2 * V);
       MD4(OutputType, aoutput0, output, this->t3, this->ht, this->ow, this->oc);
       MD3(OutputType, aoutput1, &md4(aoutput0, _t3, _ht, 0, 0), this->wt,
           this->T, this->oc);
       MD2(OutputType, aoutput2, &md3(aoutput1, _wt, 0, 0), this->oc4,
           this->oc3 * this->O2 * V);
-      conv_a060(&md2(aoutput2, _oc4, 0), &md2(ainput2, _ic4, 0),
+      conv_a060(&md2(aoutput2, _oc4, 0), &md5(ainput, _t3, 0, 0, _ic4, 0),
           &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _ht,
           _wt);
     },  this->t3, this->ic4, this->oc4, this->ht, this->wt);
@@ -74,15 +68,13 @@ void Instance_elx_deconv_direct_t::__execute_a060(
       MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
           V * V * this->kh * this->kw * this->ic3 * this->oc3 * this->I2
               * this->O2);
-      MD6(InputType, ainput0, input, this->t3, this->ic4, this->ic3 * this->I2,
-          this->ht, this->hs, this->iw * V);
-      MD3(InputType, ainput1, &md6(ainput0, _t3, _ic4, 0, _ht, 0, 0), this->wt,
-          this->T * this->ws, V);
+      MD4(InputType, ainput, input, this->t3, this->ic4,
+          this->ic3 * this->I2, this->ih * this->iw * V);
       MD5(OutputType, aoutput0, output, this->t3, this->oc4,
           this->oc3 * this->O2, this->ht, this->ow * V);
       MD3(OutputType, aoutput1, &md5(aoutput0, _t3, _oc4, 0, _ht, 0), this->wt,
           this->T, V);
-      conv_a060(&md3(aoutput1, _wt, 0, 0), &md3(ainput1, _wt, 0, 0),
+      conv_a060(&md3(aoutput1, _wt, 0, 0), &md4(ainput, _t3, _ic4, 0, 0),
           &md3(atweights, _oc4, _ic4, 0), &md2(abias, _oc4, 0), _ic4, _oc4, _ht,
           _wt);
     }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
