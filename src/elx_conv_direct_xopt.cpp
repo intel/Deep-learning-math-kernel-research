@@ -56,14 +56,16 @@ void Instance_elx_conv_direct_t::__execute_a060(
       MD4(TweightsType, atweights, tweights_, this->g, this->oc4, this->ic4,
           V * V * this->kh * this->kw * this->ic3 * this->oc3 * this->I2
               * this->O2);
-      MD6(InputType, ainput, input, this->t3, this->ih, this->iw,
-          this->g, this->ic4,  this->ic3 * this->I2 * V);
+      MD5(InputType, ainput0, input, this->t3, this->ih, this->iw, this->g,
+          this->ic);
+      MD2(InputType, ainput1, &md5(ainput0, _t3, 0, 0, _g, 0), this->ic4,
+          this->ic3 * this->I2 * V);
       MD4(OutputType, aoutput0, output, this->t3, this->ht, this->ow, this->g * this->oc);
       MD4(OutputType, aoutput1, &md4(aoutput0, _t3, _ht, 0, 0), this->wt,
           this->T, this->g, this->oc);
       MD2(OutputType, aoutput2, &md4(aoutput1, _wt, 0, _g, 0), this->oc4,
           this->oc3 * this->O2 * V);
-      conv_a060(&md2(aoutput2, _oc4, 0), &md6(ainput, _t3, 0, 0, _g, _ic4, 0),
+      conv_a060(&md2(aoutput2, _oc4, 0), &md2(ainput1, _ic4, 0),
           &md4(atweights, _g, _oc4, _ic4, 0), &md2(abias1, _oc4, 0),
           _ic4, _oc4, _ht, _wt);
     },  this->t3, this->g, this->ic4, this->oc4, this->ht, this->wt);

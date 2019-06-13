@@ -64,7 +64,8 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
       bool shape_ok = estl::any_of(this->kh, 3, 5, 7)
           && estl::any_of(this->kw, 3, 5, 7)
           && (this->ws == 1 || this->ws == 2)
-          && this->lp == (this->kw / 2) && (this->tp == this->kh / 2);
+          && estl::any_of(this->lp, 0, this->kw / 2)
+          && estl::any_of(this->tp, 0, this->kh / 2);
       if (!shape_ok) {
         el_error("direct: a160: shape not supported");
       }
@@ -500,21 +501,6 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
 {
   auto V1 = compact_ir_weights_ ? this->Ir : this->V1;
 
-  MD3(int8_t, aweights, weights_s8, this->oc3, this->ic3, this->kh * this->kw *
-      this->O2 * this->I2 * V1 * V * this->Vx);
-  MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
-  MD2(TscaleType, aweights_scale, weights_scale, this->oc3, this->O2 * V);
-  MD5(TscaleType, aweights_factor, weights_factor, wacc_h_, wacc_wt_, this->oc4, this->oc3, this->O2 * T * V);
-  MD2(TscaleType, asrc_scale, src_scale, 2, T);
-  // nhwc
-  MD2(InputType, ainput_nhwc, input_u8, this->ic3, this->I2 * V);
-  MD2(OutputType, aoutput_nhwc, output, this->oc3, this->O2 * V);
-  MD2(ToutputType, atoutput_nhwc, toutput, this->oc3, this->O2 * V);
-  // blocked
-  MD2(InputType, ainput_blocked, input_u8, this->ic3, this->I2 * this->ih * this->iw * V);
-  MD2(OutputType, aoutput_blocked, output, this->oc3, this->O2 * this->ht * this->ow * V);
-  MD2(ToutputType, atoutput_blocked, toutput, this->oc3, this->O2 * this->ht * this->ow * V);
-
   auto ker_conv = _wt == this->wt - 1 ? ker_conv_Tr_ : ker_conv_;
 
   int khs = estl::max(0, this->tp - this->hs * _ht);
@@ -522,12 +508,33 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
   int kws = _wt == 0 ? this->lp : 0;
   int kwe = _wt == this->wt - 1 ? this->kw - this->lp : this->kw;
 
+  auto _ih = _ht * this->hs + (this->kh / 2) - this->tp;
+  auto _iw = _wt * this->T * this->ws + (this->kw / 2) - this->lp;
+  int pad_l = (_wt == 0) && (this->lp > 0);
+  int pad_r = (_wt == this->wt - 1) && (this->rp > 0);
+
   int _wacc_wt =
       (_wt == 0 || wacc_wt_ == 1) ? 0 : _wt == this->wt - 1 ? wacc_wt_ - 1 : 1;
   int _wacc_h =
       _ht < _wacc_ohfs_
           ? _ht
           : _ht <= _wacc_ohfe_ ? _wacc_hf_ : _wacc_ohfs_ + _ht - _wacc_ohfe_;
+
+  MD3(int8_t, aweights, weights_s8, this->oc3, this->ic3, this->kh * this->kw *
+      this->O2 * this->I2 * V1 * V * this->Vx);
+  MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
+  MD2(TscaleType, aweights_scale, weights_scale, this->oc3, this->O2 * V);
+  MD5(TscaleType, aweights_factor, weights_factor, wacc_h_, wacc_wt_, this->oc4, this->oc3, this->O2 * T * V);
+  MD2(TscaleType, asrc_scale, src_scale, 2, T);
+  // nhwc
+  MD3(InputType, ainput0_nhwc, input_u8, this->ih, this->iw, this->ic);
+  MD3(InputType, ainput1_nhwc, &md3(ainput0_nhwc, _ih, _iw, 0), this->ic4, this->ic3, this->I2 * V);
+  MD2(OutputType, aoutput_nhwc, output, this->oc3, this->O2 * V);
+  MD2(ToutputType, atoutput_nhwc, toutput, this->oc3, this->O2 * V);
+  // blocked
+  MD5(InputType, ainput_blocked, input_u8, this->ic3, this->I2, this->ih, this->iw, V);
+  MD2(OutputType, aoutput_blocked, output, this->oc3, this->O2 * this->ht * this->ow * V);
+  MD2(ToutputType, atoutput_blocked, toutput, this->oc3, this->O2 * this->ht * this->ow * V);
 
   iter_each(_oc3, this->oc3) {
     iter_each(_ic3, this->ic3) {
@@ -540,8 +547,8 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
         if (this->with_relu) attr = set_attr(attr, relu_idx);
       }
       auto ainput = this->input_fmt == nhwc
-                          ? &md2(ainput_nhwc, _ic3, 0)
-                          : &md2(ainput_blocked, _ic3, 0);
+                          ? &md3(ainput1_nhwc, 0, _ic3, 0)
+                          : &md5(ainput_blocked, _ic3, 0, _ih, _iw, 0);
       auto aoutput = this->output_fmt == nhwc
                           ? &md2(aoutput_nhwc, _oc3, 0)
                           : &md2(aoutput_blocked, _oc3, 0);
@@ -552,7 +559,7 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
                &md2(abias, _oc3, 0), &md2(asrc_scale, 0, 0),
                &md2(asrc_scale, 1, 0), &md2(aweights_scale, _oc3, 0),
                &md5(aweights_factor, _wacc_h, _wacc_wt, 0, _oc3, 0),
-               _wt, khs, khe, kws, kwe, attr);
+               khs, khe, kws, kwe, pad_l, pad_r, attr);
     }
   }
 }

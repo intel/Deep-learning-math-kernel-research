@@ -43,17 +43,13 @@ void Instance_elx_conv_direct_lp_t::__execute_a160(
     MD2(TscaleType, aweights_factor, weights_factor_, this->oc4,
         this->oc3 * this->O2 * T * V);
     // nhwc input
-    MD5(InputType, ainput0_nhwc, input, this->t3, this->ht, this->hs, this->iw,
-        this->ic);
-    MD4(InputType, ainput1_nhwc, &md5(ainput0_nhwc, _t3, _ht, 0, 0, 0),
-        this->wt, this->T, this->ws, this->ic);
-    MD2(InputType, ainput2_nhwc, &md4(ainput1_nhwc, _wt, 0, 0, 0), this->ic4,
+    MD4(InputType, ainput0_nhwc, input, this->t3, this->ih, this->iw,
+        this->g * this->ic);
+    MD2(InputType, ainput1_nhwc, &md4(ainput0_nhwc, _t3, 0, 0, 0), this->ic4,
         this->ic3 * this->I2 * V);
     // blocked input
-    MD6(InputType, ainput0_blocked, input, this->t3, this->ic4,
-        this->ic3 * this->I2, this->ht, this->hs, this->iw * V);
-    MD3(InputType, ainput1_blocked, &md6(ainput0_blocked, _t3, _ic4, 0, _ht, 0, 0),
-        this->wt, this->T * this->ws, V);
+    MD4(InputType, ainput_blocked, input, this->t3, this->ic4,
+        this->ic3 * this->I2, this->ih * this->iw * V);
     // nhwc output
     MD4(OutputType, aoutput0_nhwc, output, this->t3, this->ht, this->ow, this->oc);
     MD3(OutputType, aoutput1_nhwc, &md4(aoutput0_nhwc, _t3, _ht, 0, 0), this->wt,
@@ -78,8 +74,8 @@ void Instance_elx_conv_direct_lp_t::__execute_a160(
         this->wt, this->T, V);
 
     auto ainput = this->input_fmt == nhwc
-                       ? &md2(ainput2_nhwc, _ic4, 0)
-                       : &md3(ainput1_blocked, _wt, 0, 0);
+                       ? &md2(ainput1_nhwc, _ic4, 0)
+                       : &md4(ainput_blocked, _t3, _ic4, 0, 0);
     auto aoutput = this->output_fmt == nhwc
                        ? &md2(aoutput2_nhwc, _oc4, 0)
                        : &md3(aoutput1_blocked, _wt, 0, 0);

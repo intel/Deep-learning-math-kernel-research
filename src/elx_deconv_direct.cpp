@@ -74,7 +74,8 @@ Instance_elx_deconv_direct_t::elx_deconv_direct_t(eld_conv_t &dc)
       bool shape_ok = estl::any_of(this->kh, 3, 5, 7)
           && estl::any_of(this->kw, 3, 5, 7)
           && (this->ws == 1)
-          && lp_ == (this->kw / 2) && (tp_ == this->kh / 2);
+          && estl::any_of(lp_, 0, this->kw / 2)
+          && estl::any_of(tp_, 0, this->kh / 2);
       if (!shape_ok) {
         el_error("direct: a060: shape not supported");
       }
@@ -367,7 +368,8 @@ Instance_elx_deconv_direct_t::conv_a060(OutputType *output,
   int pad_r = (_wt == this->wt - 1) && (this->rp > 0);
 
   if (this->input_fmt == nhwc) {
-    MD5(InputType, ainput, input, this->ih, this->iw, this->ic4, this->ic3, this->I2 * V);
+    MD3(InputType, ainput0, input, this->ih, this->iw, this->ic);
+    MD3(InputType, ainput1, &md3(ainput0, _ih, _iw, 0), this->ic4, this->ic3, this->I2 * V);
     MD2(OutputType, aoutput, output, this->oc3, this->O2 * V);
 
     iter_each(_oc3, this->oc3) {
@@ -381,7 +383,7 @@ Instance_elx_deconv_direct_t::conv_a060(OutputType *output,
         attr = set_attr(attr, has_Or_idx);
       }
       ker_conv(*this, &md2(aoutput, _oc3, 0),
-          &md5(ainput, _ih, _iw, 0, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
+          &md3(ainput1, 0, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
           &md2(abias, _oc3, 0), khs, khe, kws, kwe, -1, -1, attr);
     }}
   } else if (this->input_fmt == nchw) {

@@ -28,6 +28,8 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
 
     this->ic /= this->g;
     this->oc /= this->g;
+    if (xopt_ != 0xa060 && xopt_ != 0xd060)
+      el_error("Unimplemented: group conv support only 0xa060|0xd060");
   }
   this->IC = ALIGNUP(this->ic, V);
   this->OC = ALIGNUP(this->oc, V);
@@ -374,7 +376,8 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
   int pad_r = (_wt == this->wt - 1) && (this->rp > 0);
 
   if (this->input_fmt == nhwc) {
-    MD5(InputType, ainput, input, this->ih, this->iw, this->ic4, this->ic3, this->I2 * V);
+    MD4(InputType, ainput0, input, this->ih, this->iw, this->g, this->ic);
+    MD3(InputType, ainput1, &md4(ainput0, _ih, _iw, 0, 0), this->ic4, this->ic3, this->I2 * V);
     MD2(OutputType, aoutput, output, this->oc3, this->O2 * V);
 
     iter_each(_oc3, this->oc3) {
@@ -388,7 +391,7 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
         attr = set_attr(attr, has_Or_idx);
       }
       ker_conv(*this, &md2(aoutput, _oc3, 0),
-          &md5(ainput, _ih, _iw, 0, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
+          &md3(ainput1, 0, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
           &md2(abias, _oc3, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
     }}
   } else if (this->input_fmt == nchw) {
@@ -451,8 +454,8 @@ Instance_elx_conv_direct_t::conv_b060(OutputType *output,
 
   MD2(OutputType, aoutput_nhwc, output, this->oc3, this->O2 * V);
   MD2(OutputType, aoutput_blocked, output, this->oc3, this->O2 * this->ht * this->ow * V);
-  MD4(InputType, ainput_blocked, input, this->I2, this->ih, this->iw, V);
   MD3(InputType, ainput_nhwc, input, this->ih, this->iw, this->ic);
+  MD4(InputType, ainput_blocked, input, this->I2, this->ih, this->iw, V);
 
   iter_each(_oc3, this->oc3) {
     OutputType *aout = this->output_fmt == nhwc

@@ -30,7 +30,7 @@ struct u8s8_conv_kernel_otj {
       typename GarrayTypes::ScaleType *,
       typename GarrayTypes::ScaleType *,
       typename GarrayTypes::ScaleType *,
-      int, int, int, int, int, int) {}
+      int, int, int, int, int, int, int) {}
 };
 
 template <typename GarrayTypes, typename RoutputType, int V, int Vx, int ...Kp>
@@ -273,7 +273,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
   op_conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
       uint8_t *input, int8_t *weights, BiasType *bias, ScaleType *src_scale,
       ScaleType *src_factor, ScaleType *weights_scale, ScaleType *weights_factor,
-      int _wt, int khs, int khe, int kws, int kwe, int attr, int _O1, int _O0)
+      int khs, int khe, int kws, int kwe, int pad_l, int pad_r, int attr, int _O1, int _O0)
   {
     const int AKH = xc.kh / 2;
     constexpr int AKW = K / 2;
@@ -541,7 +541,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           gemm_OVT(input, &md3(aweights, _kh, _kw, 0), 1, _kh, _kw, 0);
         }
         // left
-        if (_wt == 0) {
+        if (pad_l) {
           int _kw = 0; // K = 3, 5, 7
           gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), 1, _kh, _kw, 0);
           if (K > 3) {
@@ -554,7 +554,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           }
         }
         // right
-        if (_wt == xc.wt - 1) {
+        if (pad_r) {
           int _kw = K - 1; // K = 3, 5, 7
           gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), 1, _kh, _kw, 0);
           if (K > 3) {
@@ -586,7 +586,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
 #endif
           }
           // left
-          if (_wt == 0) {
+          if (pad_l) {
             int _kw = 0; // K = 3, 5, 7
 #if defined(WITH_VNNI)
             gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
@@ -611,7 +611,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
             }
           }
           // right
-          if (_wt == xc.wt - 1) {
+          if (pad_r) {
             int _kw = K - 1; // K = 3, 5, 7
 #if defined(WITH_VNNI)
             gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
@@ -643,7 +643,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
             gemm_OVT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
           }
           // left
-          if (_wt == 0) {
+          if (pad_l) {
             int _kw = 0; // K = 3, 5, 7
             gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
             if (K > 3) {
@@ -656,7 +656,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
             }
           }
           // right
-          if (_wt == xc.wt - 1) {
+          if (pad_r) {
             int _kw = K - 1; // K = 3, 5, 7
             gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
             if (K > 3) {
@@ -693,7 +693,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
   op_conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
       uint8_t *input, int8_t *weights, BiasType *bias, ScaleType *src_scale,
       ScaleType *src_factor, ScaleType *weights_scale, ScaleType *weights_factor,
-      int _wt, int khs, int khe, int kws, int kwe, int attr, int _O1, int _O0)
+      int khs, int khe, int kws, int kwe, int pad_l, int pad_r, int attr, int _O1, int _O0)
   {
     // 3x3 conv
     constexpr int AKH = 3 / 2;
@@ -781,7 +781,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       }   // _kw loop, mid
 
       // left
-      if (_wt == 0) {
+      if (pad_l) {
         constexpr int _kw = 0;
 
         for (int _I2 = 0; _I2 < I2; ++_I2) {
@@ -838,7 +838,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       }   // left
 
       // right
-      if (_wt == xc.wt - 1) {
+      if (pad_r) {
         constexpr int _kw = 2;
 
         for (int _I2 = 0; _I2 < I2; ++_I2) {
@@ -918,7 +918,8 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
           InputType *input, WeightsType *weights, BiasType *bias,
           ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
-          ScaleType *weights_factor, int _wt, int khs, int khe, int kws, int kwe, int attr)
+          ScaleType *weights_factor, int khs, int khe, int kws, int kwe,
+          int pad_l, int pad_r, int attr)
   {
     int V1r = F_traits<F>::is_compact_ir_weights ? xc.Ir : V1;
     MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1, xc.I2 * V1r, O, V * Vx); // compact
@@ -936,7 +937,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       op_conv<JO0, JP0, true>(xc, aout, rout, input,
           &md5(aweights, 0, _O1, 0, 0, 0), &md2(abias, _O1, 0),
           src_scale, src_factor, weights_scale, weights_factor,
-          _wt, khs, khe, kws, kwe, attr, _O1, 0);
+          khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, 0);
     }
   }
 
@@ -946,7 +947,8 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
           InputType *input, WeightsType *weights, BiasType *bias,
           ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
-          ScaleType *weights_factor, int _wt, int khs, int khe, int kws, int kwe, int attr)
+          ScaleType *weights_factor, int khs, int khe, int kws, int kwe,
+          int pad_l, int pad_r, int attr)
   {
     int V1r = F_traits<F>::is_compact_ir_weights ? xc.Ir : V1;
     MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1, xc.I2 * V1r, O, V * Vx); // compact
@@ -964,7 +966,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       op_conv<JO0, JP0, false>(xc, aout, rout, input,
           &md5(aweights, 0, _O1, 0, 0, 0), &md3(abias, _O1, 0, 0),
           src_scale, src_factor, weights_scale, weights_factor,
-          _wt, khs, khe, kws, kwe, attr, _O1, 0);
+          khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, 0);
 
       aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, JO0, 0)
                                          : &md3(aoutput_blocked, _O1, JO0, 0);
@@ -973,7 +975,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       op_conv<JO1, JP1, false>(xc, aout, rout, input,
           &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
           src_scale, src_factor, weights_scale, weights_factor,
-          _wt, khs, khe, kws, kwe, attr, _O1, JO0);
+          khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, JO0);
     }
   }
 
@@ -983,7 +985,8 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
           InputType *input, WeightsType *weights, BiasType *bias,
           ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
-          ScaleType *weights_factor, int _wt, int khs, int khe, int kws, int kwe, int attr)
+          ScaleType *weights_factor, int khs, int khe, int kws, int kwe,
+          int pad_l, int pad_r, int attr)
   {
     int V1r = F_traits<F>::is_compact_ir_weights ? xc.Ir : V1;
     MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1, xc.I2 * V1r, O, V * Vx); // compact
@@ -1001,7 +1004,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       op_conv<JO0, JP0, false>(xc, aout, rout, input,
           &md5(aweights, 0, _O1, 0, 0, 0), &md3(abias, _O1, 0, 0),
           src_scale, src_factor, weights_scale, weights_factor,
-          _wt, khs, khe, kws, kwe, attr, _O1, 0);
+          khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, 0);
 
       aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, JO0, 0)
                                          : &md3(aoutput_blocked, _O1, JO0, 0);
@@ -1010,7 +1013,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       op_conv<JO1, JP1, false>(xc, aout, rout, input,
           &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
           src_scale, src_factor, weights_scale, weights_factor,
-          _wt, khs, khe, kws, kwe, attr, _O1, JO0);
+          khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, JO0);
 
       aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, JO0 + JO1, 0)
                                          : &md3(aoutput_blocked, _O1, JO0 + JO1, 0);
@@ -1019,7 +1022,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
       op_conv<JO2, JP2, false>(xc, aout, rout, input,
           &md5(aweights, 0, _O1, 0, JO0 + JO1, 0), &md3(abias, _O1, JO0 + JO1, 0),
           src_scale, src_factor, weights_scale, weights_factor,
-          _wt, khs, khe, kws, kwe, attr, _O1, JO0 + JO1);
+          khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, JO0 + JO1);
     }
   }
 
