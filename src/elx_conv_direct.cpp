@@ -373,7 +373,7 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
   auto _ih = _ht * this->hs + (this->kh / 2) - this->tp;
   auto _iw = _wt * this->T * this->ws + (this->kw / 2) - this->lp;
   int pad_l = (_wt == 0) && (this->lp > 0);
-  int pad_r = (_wt == this->wt - 1) && (this->rp > 0);
+  int pad_r = (_wt == this->wt - 1) && (this->lp > 0);
 
   if (this->input_fmt == nhwc) {
     MD4(InputType, ainput0, input, this->ih, this->iw, this->g, this->ic);
@@ -450,7 +450,7 @@ Instance_elx_conv_direct_t::conv_b060(OutputType *output,
   auto _ih = _ht * this->hs + (this->kh / 2) - this->tp;
   auto _iw = _wt * this->T * this->ws + (this->kw / 2) - this->lp;
   int pad_l = (_wt == 0) && (this->lp > 0);
-  int pad_r = (_wt == this->wt - 1) && (this->rp > 0);
+  int pad_r = (_wt == this->wt - 1) && (this->lp > 0);
 
   MD2(OutputType, aoutput_nhwc, output, this->oc3, this->O2 * V);
   MD2(OutputType, aoutput_blocked, output, this->oc3, this->O2 * this->ht * this->ow * V);

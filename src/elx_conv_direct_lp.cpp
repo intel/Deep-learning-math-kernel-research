@@ -511,7 +511,7 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
   auto _ih = _ht * this->hs + (this->kh / 2) - this->tp;
   auto _iw = _wt * this->T * this->ws + (this->kw / 2) - this->lp;
   int pad_l = (_wt == 0) && (this->lp > 0);
-  int pad_r = (_wt == this->wt - 1) && (this->rp > 0);
+  int pad_r = (_wt == this->wt - 1) && (this->lp > 0);
 
   int _wacc_wt =
       (_wt == 0 || wacc_wt_ == 1) ? 0 : _wt == this->wt - 1 ? wacc_wt_ - 1 : 1;
