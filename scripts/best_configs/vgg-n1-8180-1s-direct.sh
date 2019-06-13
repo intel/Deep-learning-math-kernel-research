@@ -5,7 +5,7 @@
 # SKX 8180 1S
 
 source ./scripts/best_configs/common.sh $@
-COMMON="$COMMON --f16c-opt=1"
+COMMON="$COMMON --f16c-opt=0"
 
 # vgg19_conv1_1,
 NSOCKETS=1 ./scripts/run.sh -c -i3 -h224 -o64 -H224 -n1 --blk-i=1 --blk-o=2 --flt-o=2 --flt-t=14 -adirect --execution-mode=0xa060 --pat-o=1 $COMMON --input-format=nchw --weights-format=hwio

@@ -447,8 +447,7 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           gemm_OVT(input, &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
         }
         // left
-        //if (_wt == 0 && kws == AKW) {
-        if (pad_l> 0) {
+        if (pad_l) {
           int _kw = 0; // K = 3, 5, 7
           gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
           if (K > 3) {
@@ -461,8 +460,7 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           }
         }
         // right
-        //if (_wt == xc.wt - 1 && kwe == (K - AKW)) {
-        if (pad_r > 1) {
+        if (pad_r) {
           int _kw = K - 1; // K = 3, 5, 7
           gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), V, _kh, _kw, _I2);
           if (K > 3) {
@@ -484,7 +482,6 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           gemm_OVT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
         }
         // left
-        //if (_wt == 0 && kws == AKW) {
         if (pad_l) {
           int _kw = 0; // K = 3, 5, 7
           gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
@@ -498,7 +495,6 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
           }
         }
         // right
-        //if (_wt == xc.wt - 1 && kwe == (K - AKW)) {
         if (pad_r) {
           int _kw = K - 1; // K = 3, 5, 7
           gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
@@ -643,7 +639,6 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       } // _kw loop, mid
 
       // left
-      //if (_wt == 0 && kws == AKW) {
       if (pad_l) {
         constexpr int _kw = 0;
 
@@ -685,7 +680,6 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
       } // left
 
       // right
-      //if (_wt == xc.wt - 1 && kwe == (K - AKW)) {
       if (pad_r) {
         constexpr int _kw = 2;
 
