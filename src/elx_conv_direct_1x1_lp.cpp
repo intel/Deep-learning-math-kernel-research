@@ -87,6 +87,14 @@ Instance_elx_conv_direct_1x1_lp_t::elx_conv_direct_1x1_lp_t(eld_conv_t &dc)
   if (this->ic4 * this->ic3 * this->I2 * V != this->IC)
     el_error("IC blocking error");
 
+  if (this->Ir != V) {
+    el_error("direct_1x1: int8: Ir not support");
+  }
+  if ((this->output_fmt != nChw16c || this->weights_fmt != OIhw16i16o) &&
+      this->Or != V) {
+    el_error("direct_1x1: int8: Or not support");
+  }
+
   attr_ = set_attr(attr_, fma_opt_idx);
   is_first_run_ = true;
   inference_acc_ = false;
@@ -133,13 +141,6 @@ int Instance_elx_conv_direct_1x1_lp_t::prepare_execute_opt()
 
   if (this->with_ip_sum && this->with_relu && !output_is_bfmt_) {
     el_error("Unimplemented: fuse sum (plain format) and relu together");
-  }
-
-  if (this->ic4 > 1 && this->Ir != V) {
-    el_error("Unimplemented: ic4 > 1 for IC % V != 0");
-  }
-  if (this->oc4 > 1 && this->Or != V) {
-    el_error("Unimplemented: oc4 > 1 for OC % V != 0");
   }
 
   if (input_as_bfmt_)

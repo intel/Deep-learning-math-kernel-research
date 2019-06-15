@@ -91,8 +91,9 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
   this->oc3r = this->oc34 % this->oc3;
   if (this->oc3r == 0) this->oc3r = this->oc3;
 
-  if (this->Or != V || this->O2r != this->O2 || this->oc3r != this->oc3) {
-    el_error("No oc tailing support");
+  if ((this->output_fmt != nChw16c || this->weights_fmt != OIhw16i16o) &&
+      (this->Or != V || this->O2r != this->O2 || this->oc3r != this->oc3)) {
+    el_error("direct: int8: no Or support for plain format");
   }
 
   // ic4, ic3, I3
