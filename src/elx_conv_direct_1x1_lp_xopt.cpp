@@ -38,10 +38,14 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
     }
   }
 
-  parallel_for<4, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _t2) {
-    MD3(uint8_t, ainput, input, this->t3, this->ic4,
-        this->ic3 * this->I2 * this->ih * this->iw * V);
-    MD2(ToutputType, atoutput, toutput_, this->t3, this->OC * this->oh * this->ow);
+  parallel_for<4, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _t2) {
+    auto ithr = omp_get_thread_num();
+    MD3(uint8_t, ainput, input,
+        this->t3, this->ic4, this->ic3 * this->I2 * this->ih * this->iw * V);
+    MD3(ToutputType, atoutput, toutput_,
+        this->t3, this->oc4, this->oc3 * this->O2 * V * this->oh * this->ow);
+    MD2(ToutputType, atoutput_opt, toutput_,
+        mthr_, this->oc3 * this->O2 * V * this->oh * this->ow);
     MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
     MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
@@ -50,12 +54,11 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
         this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
     MD2(TscaleType, aweights_scale, weights_scale_,
         this->oc4, this->oc3 * 2 * this->O2 * V);
-    MD2(ToutputType, atoutput2, &md2(atoutput, _t3, 0), this->oc4,
-        this->oc3 * this->O2 * this->oh * this->ow * V);
     MD2(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
         this->oc3 * this->O2 * this->oh * this->ow * V);
-    gemm_c160(
-        &md2(atoutput2, _oc4, 0),
+    auto atout = toutput_opt_ ? &md2(atoutput_opt, ithr, 0)
+                              : &md3(atoutput, _t3, _oc4, 0);
+    gemm_c160(atout,
         &md2(aoutput2, _oc4, 0),
         &md3(ainput, _t3, _ic4, 0),
         &md3(atweights_s8, _oc4, _ic4, 0),
@@ -63,7 +66,7 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
         &md2(aweights_scale, _oc4, 0),
         &md2(abias, _oc4, 0),
         _ic4, _oc4, _t2);
-  }, this->t3, this->ic4, this->oc4, this->t2);
+  }, this->t3, this->oc4, this->ic4, this->t2);
 
   if (inference_acc_)
     is_first_run_ = false;
@@ -86,12 +89,14 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_b161(
     }
   }
 
-  parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
+  parallel_for<5, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {
+    auto ithr = omp_get_thread_num();
     MD7(uint8_t, ainput, input, this->t3, this->ic4, this->ic3 * this->I2,
         this->ht, this->hs, this->wt, this->T * this->ws * V);
-    MD2(ToutputType, atoutput, toutput_, this->t3, this->OC * this->oh * this->ow);
-    MD5(ToutputType, atoutput2, &md2(atoutput, _t3, 0), this->oc4,
-        this->oc3 * this->O2, this->ht, this->wt, this->T * V);
+    MD6(ToutputType, atoutput, toutput_,
+        this->t3, this->oc4, this->oc3 * this->O2, this->ht, this->wt, this->T * V);
+    MD5(ToutputType, atoutput_opt, toutput_,
+        mthr_, this->oc3 * this->O2, this->ht, this->wt, this->T * V);
     MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
     MD5(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
         this->oc3 * this->O2, this->ht, this->wt, this->T * V);
@@ -101,9 +106,10 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_b161(
         this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
     MD2(TscaleType, aweights_scale, weights_scale_,
         this->oc4, this->oc3 * 2 * this->O2 * V);
+    auto atout = toutput_opt_ ? &md5(atoutput_opt, ithr, 0, _ht, _wt, 0)
+                              : &md6(atoutput, _t3, _oc4, 0, _ht, _wt, 0);
 
-    gemm_b161(
-        &md5(atoutput2, _oc4, 0, _ht, _wt, 0),
+    gemm_b161(atout,
         &md5(aoutput2, _oc4, 0, _ht, _wt, 0),
         &md7(ainput, _t3, _ic4, 0, _ht, 0, _wt, 0),
         &md3(atweights_s8, _oc4, _ic4, 0),
@@ -111,7 +117,7 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_b161(
         &md2(aweights_scale, _oc4, 0),
         &md2(abias, _oc4, 0),
         _ic4);
-  }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
+  }, this->t3, this->oc4, this->ic4, this->ht, this->wt);
 
   if (inference_acc_)
     is_first_run_ = false;

@@ -53,8 +53,11 @@ Instance_elx_conv_direct_1x1_lp_t::elx_conv_direct_1x1_lp_t(eld_conv_t &dc)
     this->wt = this->ow / this->T;
     this->nt = this->oh * this->ow;
     this->t2 = this->nt / this->T;
-    this->Tr = this->T; // No Tr support
+    this->Tr = this->T;
     this->t = this->nt * this->n;
+    if (this->ow % T != 0) {
+      el_error("direct_1x1_lp: b161: No Tr support");
+    }
   } else {
     el_error("direct_1x1_lp: xopt not supported");
   }
@@ -92,7 +95,7 @@ Instance_elx_conv_direct_1x1_lp_t::elx_conv_direct_1x1_lp_t(eld_conv_t &dc)
 
   attr_ = this->with_bias ? set_attr(attr_, bias_idx) : attr_;
   attr_ = this->with_ip_sum ? set_attr(attr_, ip_sum_idx) : attr_;
-
+  toutput_opt_ = false;
   prepare_quant_calibration(dc);
 
   prepare_execute_opt();
@@ -152,6 +155,8 @@ int Instance_elx_conv_direct_1x1_lp_t::prepare_execute_opt()
   binput_ = nullptr;
   bweights_ = nullptr;
   boutput_ = nullptr;
+  if (this->n * this->oc4 >= mthr_)
+    toutput_opt_ = true;
 
   switch (xopt_) {
   case 0xc160:
@@ -159,7 +164,9 @@ int Instance_elx_conv_direct_1x1_lp_t::prepare_execute_opt()
     input_scale_size = this->T * 2 * sizeof(TscaleType);
     tweights_s8_size = this->IC * this->OC * sizeof(int8_t);
     weights_scale_size = this->OC * 2 * sizeof(TscaleType);
-    toutput_size = this->n * this->OC * this->oh * this->ow * sizeof(ToutputType);
+    toutput_size = (this->OC / this->oc4) * this->oh * this->ow *
+                   sizeof(ToutputType);
+    toutput_size *= toutput_opt_ ? mthr_ : this->n * this->oc4;
     break;
   default:
       el_error("Unknown xopt!");

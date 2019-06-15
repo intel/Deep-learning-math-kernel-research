@@ -77,6 +77,7 @@ public:
   bool no_pad_;
   bool is_first_run_;
   bool inference_acc_;
+  bool toutput_opt_;
 
   bool stream_in_;
   bool stream_out_;
