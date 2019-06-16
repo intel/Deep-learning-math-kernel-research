@@ -234,8 +234,9 @@ Instance_elx_conv_direct_lp_t::prepare_weights_acc() {
     wacc_wT_ = T;
   } else {
     wacc_wT_ = 1;
-    if (this->input_quant_z != 0) {
-      el_error("d160: input_quant_z !=0 does not support");
+    if (this->input_quant_z != 0 &&
+        (this->lp != 0 || this->rp != 0 || this->tp != 0 || this->bp != 0)) {
+      el_error("direct: int8: input_z != 0 does not support in provided xopt");
     }
   }
   if (this->input_quant_z == 0) {
