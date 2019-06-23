@@ -6,6 +6,10 @@
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
+#if __ICC_COMPILER
+#include "xmmintrin.h"
+#include "pmmintrin.h"
+#endif
 
 namespace euler {
 
@@ -82,6 +86,12 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   auto env = getenv("EULER_VERBOSE");
   if (env && strlen(env) == 1 && env[0] == '1')
     this->verbose = true;
+
+  // TODO: move it to euler cpu global init
+#if __ICC_COMPILER
+  _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+  _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+#endif
 }
 
 int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *bias)
