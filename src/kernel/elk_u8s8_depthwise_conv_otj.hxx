@@ -132,7 +132,7 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
       el_error("elk: not supported input format");
     }
 #else
-    static_assert(false, "u8s8_depthwise: only support VNNI");
+    el_error("u8s8_depthwise: only support VNNI");
 #endif
     return res;
   }
@@ -149,7 +149,7 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
       el_error("elk: not supported weights format");
     }
 #else
-    static_assert(false, "u8s8_depthwise: only support VNNI");
+    el_error("u8s8_depthwise: only support VNNI");
 #endif
     return res;
   }
