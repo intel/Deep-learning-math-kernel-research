@@ -13,6 +13,7 @@
 #include "elx_conv_direct.hpp"
 #include "elx_conv_direct_vmg.hpp"
 #include "elx_conv_direct_lp.hpp"
+#include "elx_conv_direct_depthwise_lp.hpp"
 #include "elx_deconv_direct.hpp"
 
 namespace euler {
@@ -58,6 +59,8 @@ int eld_conv_t::setup(bool fully_setup)
   const int g = dims.g;
   const int ic = dims.ic / g;
   const int oc = dims.oc / g;
+
+  bool depthwise = (g == dims.ic && g == dims.oc);
 
   if (V != 16) {
     // TODO: V == 8
@@ -164,9 +167,15 @@ int eld_conv_t::setup(bool fully_setup)
       else
         xc = new elx_conv_direct_t<conv::FP32, conv_impl::FP32, 16, ISA_SKX_AVX512>(*this);
     } else if (user_type == user_type_u8f32u8f32) {
-      xc = new elx_conv_direct_lp_t<conv::U8F32U8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>(*this);
+      if (depthwise)
+        xc = new elx_conv_direct_depthwise_lp_t<conv::U8F32U8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>(*this);
+      else
+        xc = new elx_conv_direct_lp_t<conv::U8F32U8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>(*this);
     } else if (user_type == user_type_u8f32s8f32) {
-      xc = new elx_conv_direct_lp_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>(*this);
+      if (depthwise)
+        xc = new elx_conv_direct_depthwise_lp_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>(*this);
+      else
+        xc = new elx_conv_direct_lp_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>(*this);
 #ifdef ENABLE_USER_FP16
     } else if (user_type == user_type_f16o)
       xc = new elx_conv_direct_t<conv::FP16O, conv_impl::FP32_F16o, 16, ISA_SKX_AVX512>(*this);

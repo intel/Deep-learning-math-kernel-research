@@ -66,7 +66,7 @@ Instance_elx_conv_direct_depthwise_lp_t::elx_conv_direct_depthwise_lp_t(eld_conv
   this->ic2 = this->IC / V;
   this->oc2 = this->OC / V;
 
-  xopt_ = 0xa060;
+  xopt_ = 0xa160;
 
   // t3, t2, (T, Tr)
   this->t3 = this->n;
@@ -78,13 +78,13 @@ Instance_elx_conv_direct_depthwise_lp_t::elx_conv_direct_depthwise_lp_t(eld_conv
   this->t  = this->nt * this->n;
 
   if (this->T <= this->lp || this->Tr <= this->rp) {
-    el_error("Unimplemented T: (T,Tr) must greater than (lp,rp)");
+    el_error("direct_depthwise: (T,Tr) must greater than (lp,rp)");
   }
   bool format_ok = estl::any_of(this->weights_fmt, ghwio) &&
                    estl::any_of(this->input_fmt, nchw, nChw16c) &&
                    estl::any_of(this->output_fmt, nchw, nChw16c);
   if (!format_ok) {
-    el_error("direct: format not supported");
+    el_error("direct_depthwise: format not supported");
   }
 
   // No Ir/Or
@@ -134,8 +134,11 @@ int Instance_elx_conv_direct_depthwise_lp_t::prepare_execute_opt()
   workspace_ = nullptr;
 
   switch (xopt_) {
-  case 0xa060:
-    tweights_size_ = this->g2 * V * this->kh * this->KW * sizeof(TweightsType);
+  case 0xa160:
+    tweights_size_ = this->G * this->kh * this->KW * sizeof(TweightsType);
+    input_scale_size_ = 2 * this->T * sizeof(TscaleType);
+    weights_scale_size_ = this->G * sizeof(TscaleType);
+    weights_factor_size_ = this->G * sizeof(TscaleType);
     break;
   default:
     el_error("Unknown xopt!");
@@ -147,7 +150,8 @@ int Instance_elx_conv_direct_depthwise_lp_t::prepare_execute_opt()
   if (tweights_size_ > 0)
     tweights_size_ += WEIGHTS_MAX_PRELOAD * V;
 
-  size_t workspace_size = tweights_size_;
+  size_t workspace_size = tweights_size_ + input_scale_size_ +
+                          weights_scale_size_ + weights_factor_size_;
   // TODO: user provided buffer
   if (workspace_size != 0) {
     MEMALIGN64(&workspace_, workspace_size);
@@ -164,6 +168,12 @@ int Instance_elx_conv_direct_depthwise_lp_t::prepare_execute_opt()
 Template_elx_conv_direct_depthwise_lp_t
 void Instance_elx_conv_direct_depthwise_lp_t::set_trans_buffers()
 {
+  if (workspace_ != nullptr) {
+    weights_scale_ = (TscaleType *)workspace_;
+    weights_factor_ = (TscaleType *)((char *)weights_scale_ + weights_scale_size_);
+    input_scale_ = (TscaleType *)((char *)weights_factor_ + weights_factor_size_);
+    tweights_s8_ = (int8_t *)((char *)input_scale_ + input_scale_size_);
+  }
 }
 
 Template_elx_conv_direct_depthwise_lp_t
@@ -183,29 +193,30 @@ Instance_elx_conv_direct_depthwise_lp_t::trans_weights_3x3(
     WeightsType *weights, BiasType *bias)
 {
   // absmax
-  parallel_for<1>(mthr_, [&](int _g2) {
-    MD4(WeightsType, aweights, weights, this->g2, this->kh, this->kw, V);
+  parallel_for<2>(mthr_, [&](int _g2, int _V) {
+    MD4(WeightsType, aweights, weights, this->g2, V, this->kh, this->kw);
     MD2(TscaleType, aweights_scale, weights_scale, this->g2, V);
-    __m<V> absmax = _mm<V>::set1_ps(0);
+    float absmax = 0.0;
     iter_each (_kh, this->kh) {
       iter_each (_kw, this->kw) {
-        __m<V> vec = *(__m<V> *)&md4(aweights, _g2, _kh, _kw, 0);
-        absmax = _mm<V>::max_ps(absmax, _mm512_abs_ps(vec));
+        float val = md4(aweights, _g2, _V, _kh, _kw);
+        val = val < 0.0 ? -val : val;
+        absmax = estl::max(val, absmax);
       }
     }
-    *(__m<V> *)&md2(aweights_scale, _g2, 0) = absmax;
-  }, this->g2);
+    md2(aweights_scale, _g2, _V) = absmax;
+  }, this->g2, V);
 
   // quantization
   std::fesetround(FE_TONEAREST);
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
   parallel_for<4>(mthr_, [&](int _g2, int _kh, int _V, int _kw) {
     MD4(int8_t, atweights_s8, tweights_s8, this->g2, this->kh, V, this->KW);
-    MD4(WeightsType, aweights, weights, this->g2, this->kh, this->kw, V);
+    MD4(WeightsType, aweights, weights, this->g2, V, this->kh, this->kw);
     MD2(TscaleType, aweights_scale, weights_scale, this->g2, V);
     if (_kw < this->kw) {
       // scale
-      auto t0 = md4(aweights, _g2, _kh, _kw, _V);
+      auto t0 = md4(aweights, _g2, _kh, _V, _kw);
       auto absmax = md2(aweights_scale, _g2, _V);
       t0 = t0 * INT8GEMM_TWT_QTSCALE / absmax;
       // round & store

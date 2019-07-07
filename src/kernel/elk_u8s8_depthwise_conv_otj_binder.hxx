@@ -38,7 +38,7 @@ struct u8s8_depthwise_conv_kernel_binder {
 
 #if !defined(BUILD_OTJ_TBL)
 
-#  define DEF_CONV_BIND_INT8_F32(otype)                                     \
+#  define DEF_DEPTHWISE_CONV_BIND_INT8_F32(otype)                           \
     template <int S, int F, int K>                                          \
     static inline void bind(int O, int T,                                   \
                             kconv<conv_impl::INT8_F32, otype> **func) {     \
@@ -57,8 +57,8 @@ struct u8s8_depthwise_conv_kernel_binder {
       }                                                                     \
     }
 
-  DEF_CONV_BIND_INT8_F32(int8_t)
-  DEF_CONV_BIND_INT8_F32(uint8_t)
+  DEF_DEPTHWISE_CONV_BIND_INT8_F32(int8_t)
+  DEF_DEPTHWISE_CONV_BIND_INT8_F32(uint8_t)
 #endif // BUILD_OTJ_TBL
 };
 
