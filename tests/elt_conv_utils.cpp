@@ -466,7 +466,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
 int compare_conv_results(eld_conv_t &desc, float *out, float *ref,
                          int data_type_cfg, bool is_int8_lp,
                          bool with_real_data) {
-  double acc = is_int8_lp ? (with_real_data ? 1e-1 : 1e-2) : 1e-5;
+  double acc = is_int8_lp ? (with_real_data ? 1e-1 : 1e-1) : 1e-5;
 
   if (desc.formats.output == nhwc) {
     acc = desc.with_relu ? 1.0 : acc;

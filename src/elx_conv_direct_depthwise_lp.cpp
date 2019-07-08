@@ -110,6 +110,7 @@ Instance_elx_conv_direct_depthwise_lp_t::elx_conv_direct_depthwise_lp_t(eld_conv
   attr_ = this->with_ip_sum ? set_attr(attr_, ip_sum_idx) : attr_;
   attr_ = this->with_relu ? set_attr(attr_, relu_idx) : attr_;
 
+  prepare_quant_calibration(dc);
   prepare_execute_opt();
   bind_execute_functions();
 
@@ -121,6 +122,20 @@ Instance_elx_conv_direct_depthwise_lp_t::elx_conv_direct_depthwise_lp_t(eld_conv
   printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), oc3=%d, oc4=%d, O2r=%d, oc3r=%d, OC=%d, g=%d\n",
       V, this->Or, this->O2, this->O, this->O1,
       this->oc3, this->oc4, this->O2r, this->oc3r, this->OC, this->g);
+}
+
+Template_elx_conv_direct_depthwise_lp_t void
+Instance_elx_conv_direct_depthwise_lp_t::prepare_quant_calibration(
+    eld_conv_t &dc) {
+  this->input_quant_S = dc.input_quant.scale;
+  this->input_quant_repS = 1 / dc.input_quant.scale;
+  this->input_quant_z = dc.input_quant.z;
+  this->output_quant_S = dc.output_quant.scale;
+  this->output_quant_repS = 1 / dc.output_quant.scale;
+  this->output_quant_z = dc.output_quant.z;
+
+  if (this->sampling_kind != CALIBRATED)
+    el_error("Unsupported quantization mode in int8 direct 1x1");
 }
 
 Template_elx_conv_direct_depthwise_lp_t
@@ -185,8 +200,8 @@ Instance_elx_conv_direct_depthwise_lp_t::~elx_conv_direct_depthwise_lp_t()
   galloc::release();
 }
 
-// weights: g2, kh, kw, V  // Goihw16g
-// tweights: g2, kh, KW, V // kw-padded goihw16g
+// weights: g2, V, kh, kw
+// tweights: g2, kh, V, KW // kw-padded goih16g4w
 Template_elx_conv_direct_depthwise_lp_t void
 Instance_elx_conv_direct_depthwise_lp_t::trans_weights_3x3(
     TscaleType *weights_scale, TscaleType *weights_factor, int8_t *tweights_s8,
@@ -200,8 +215,7 @@ Instance_elx_conv_direct_depthwise_lp_t::trans_weights_3x3(
     iter_each (_kh, this->kh) {
       iter_each (_kw, this->kw) {
         float val = md4(aweights, _g2, _V, _kh, _kw);
-        val = val < 0.0 ? -val : val;
-        absmax = estl::max(val, absmax);
+        absmax = estl::max(std::abs(val), absmax);
       }
     }
     md2(aweights_scale, _g2, _V) = absmax;
@@ -209,28 +223,24 @@ Instance_elx_conv_direct_depthwise_lp_t::trans_weights_3x3(
 
   // quantization
   std::fesetround(FE_TONEAREST);
-  __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
   parallel_for<4>(mthr_, [&](int _g2, int _kh, int _V, int _kw) {
     MD4(int8_t, atweights_s8, tweights_s8, this->g2, this->kh, V, this->KW);
     MD4(WeightsType, aweights, weights, this->g2, V, this->kh, this->kw);
     MD2(TscaleType, aweights_scale, weights_scale, this->g2, V);
     if (_kw < this->kw) {
       // scale
-      auto t0 = md4(aweights, _g2, _kh, _V, _kw);
+      auto t0 = md4(aweights, _g2, _V, _kh, _kw);
       auto absmax = md2(aweights_scale, _g2, _V);
       t0 = t0 * INT8GEMM_TWT_QTSCALE / absmax;
       // round & store
-      iter_each (_V, V) {
-        md4(atweights_s8, _g2, _kh, _V, _kw) = (int8_t)std::rint(t0);
-      }
+      md4(atweights_s8, _g2, _kh, _V, _kw) = (int8_t)std::rint(t0);
     } else {
-      iter_each (_V, V) {
-        md4(atweights_s8, _g2, _kh, _V, _kw) = 0;
-      }
+      md4(atweights_s8, _g2, _kh, _V, _kw) = 0;
     }
   }, this->g2, this->kh, V, this->KW);
 
   // weights-scale
+  __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
   parallel_for<1>(mthr_, [&](int _g2) {
     MD2(TscaleType, aweights_scale, weights_scale, this->g2, V);
     auto t0 = *(__m<V> *)&md2(aweights_scale, _g2, 0);
@@ -271,7 +281,6 @@ Instance_elx_conv_direct_depthwise_lp_t::trans_weights_3x3(
     __m<V> b = this->with_bias ? *(__m<V> *)&md2(abias, _g2, 0) : _mm<V>::setzero_ps();
     __m<V> &qf = *(__m<V> *)&md2(aweights_factor, _g2, 0);
     qf = out_z - input_z * qf * qs + b * out_repS;
-
   }, this->g2);
 }
 

@@ -48,6 +48,7 @@ Template_elx_conv_direct_depthwise_lp_t class elx_conv_direct_depthwise_lp_t : p
   void set_trans_buffers();
   int prepare_execute_opt();
   void bind_execute_functions();
+  void prepare_quant_calibration(eld_conv_t &);
 
   // TODO: optimize it
   u8s8_depthwise_conv_kernel_binder::kconv<TarrayTypes, OutputType> *ker_conv_;

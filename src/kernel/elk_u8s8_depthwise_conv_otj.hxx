@@ -15,6 +15,8 @@
 // I: ISA
 // K: kernel size
 
+#if defined(WITH_VNNI)
+#if defined(WITH_VBMI)
 #define PERM_INDEX_MID   \
         0, 47, 31, 15,   \
         0, 46, 30, 14,   \
@@ -50,22 +52,78 @@
         0, 17, 1,  0,    \
         0, 16, 0,  0
 #define PERM_INDEX_RIGHT \
-        31, 15, 0, 0,    \
-        30, 14, 0, 0,    \
-        29, 13, 0, 0,    \
-        28, 12, 0, 0,    \
-        27, 11, 0, 0,    \
-        26, 10, 0, 0,    \
-        25, 9,  0, 0,    \
-        24, 8,  0, 0,    \
-        23, 7,  0, 0,    \
-        22, 6,  0, 0,    \
-        21, 5,  0, 0,    \
-        20, 4,  0, 0,    \
-        19, 3,  0, 0,    \
-        18, 2,  0, 0,    \
-        17, 1,  0, 0,    \
-        16, 0,  0, 0
+        0,  0, 31, 15,   \
+        0,  0, 30, 14,   \
+        0,  0, 29, 13,   \
+        0,  0, 28, 12,   \
+        0,  0, 27, 11,   \
+        0,  0, 26, 10,   \
+        0,  0, 25, 9,    \
+        0,  0, 24, 8,    \
+        0,  0, 23, 7,    \
+        0,  0, 22, 6,    \
+        0,  0, 21, 5,    \
+        0,  0, 20, 4,    \
+        0,  0, 19, 3,    \
+        0,  0, 18, 2,    \
+        0,  0, 17, 1,    \
+        0,  0, 16, 0
+#else
+#define PERM_INDEX_MID   \
+         0, 11, 7, 3,    \
+         0, 10, 6, 2,    \
+         0, 9,  5, 1,    \
+         0, 8,  4, 0,    \
+         0, 11, 7, 3,    \
+         0, 10, 6, 2,    \
+         0, 9,  5, 1,    \
+         0, 8,  4, 0,    \
+         0, 11, 7, 3,    \
+         0, 10, 6, 2,    \
+         0, 9,  5, 1,    \
+         0, 8,  4, 0,    \
+         0, 11, 7, 3,    \
+         0, 10, 6, 2,    \
+         0, 9,  5, 1,    \
+         0, 8,  4, 0
+
+#define PERM_INDEX_LEFT  \
+         0, 7,  3,  0,   \
+         0, 6,  2,  0,   \
+         0, 5,  1,  0,   \
+         0, 4,  0,  0,   \
+         0, 7,  3,  0,   \
+         0, 6,  2,  0,   \
+         0, 5,  1,  0,   \
+         0, 4,  0,  0,   \
+         0, 7,  3,  0,   \
+         0, 6,  2,  0,   \
+         0, 5,  1,  0,   \
+         0, 4,  0,  0,   \
+         0, 7,  3,  0,   \
+         0, 6,  2,  0,   \
+         0, 5,  1,  0,   \
+         0, 4,  0,  0
+
+#define PERM_INDEX_RIGHT \
+         0, 0,  7,  3,   \
+         0, 0,  6,  2,   \
+         0, 0,  5,  1,   \
+         0, 0,  4,  0,   \
+         0, 0,  7,  3,   \
+         0, 0,  6,  2,   \
+         0, 0,  5,  1,   \
+         0, 0,  4,  0,   \
+         0, 0,  7,  3,   \
+         0, 0,  6,  2,   \
+         0, 0,  5,  1,   \
+         0, 0,  4,  0,   \
+         0, 0,  7,  3,   \
+         0, 0,  6,  2,   \
+         0, 0,  5,  1,   \
+         0, 0,  4,  0 
+#endif
+#endif
 
 namespace euler {
 
@@ -127,7 +185,17 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
       MD4(InputType, ainput0, input, xc.I2, xc.ih, xc.iw, V);
       MD3(InputType, ainput1, &md4(ainput0, _I2, _ih, _iw, 0), T, S, V);
       __i<V> in = _mm<V>::load_epi32(&md3(ainput1, _T, 0, 0));
+#if defined(WITH_VBMI) // Vector Byte Manipulation Instructions
       res = _mm512_maskz_permutexvar_epi8(k, index, in);
+#else
+      __i<V> index_32 = _mm<V>::set_epi32(
+          15, 11, 7, 3,
+          14, 10, 6, 2,
+          13, 9,  5, 1,
+          12, 8,  4, 0);
+      auto in_32 = _mm512_permutexvar_epi32(index_32, in);
+      res = _mm512_maskz_shuffle_epi8(k, in_32, index);
+#endif
     } else {
       el_error("elk: not supported input format");
     }
@@ -161,7 +229,7 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
   {
     MD2(RoutputType, aroutput_blocked, routput, T, V);
     MD1(float, aweights_scale, weights_scale, V);
-    MD2(float, aweights_factor, weights_factor, T, V);
+    MD1(float, aweights_factor, weights_factor, V);
 
     auto rout = &md2(aroutput_blocked, _T, 0);
     __m<V> fout = _mm<V>::cvtepi32_ps(res);
@@ -170,15 +238,16 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
     if (std::is_same<RoutputType, uint8_t>::value
         || std::is_same<RoutputType, int8_t>::value) {
       auto scale = *(__m<V> *)&md1(aweights_scale, 0);
-      auto factor = *(__m<V> *)&md2(aweights_factor, _T, 0);
+      auto factor = *(__m<V> *)&md1(aweights_factor, 0);
       fout = fout * scale + factor;
     } else {
       auto z = _mm<V>::set1_ps(src_factor[_T]);
-      auto acc = *(__m<V> *)&md2(aweights_factor, _T, 0);
+      auto acc = *(__m<V> *)&md1(aweights_factor, 0);
       fout -= (z * acc);
       auto Sa = _mm<V>::set1_ps(src_scale[_T]);
       auto Sw = *(__m<V> *)&md1(aweights_scale, 0);
       fout = Sa * Sw * fout;
+
       // add bias
       if (get_attr(attr, bias_idx)) {
         MD1(BiasType, abias, bias, V);
@@ -219,7 +288,7 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
 
     __mmask64 k_mid = _cvtu64_mask64(0x7777777777777777UL);
     __mmask64 k_left = _cvtu64_mask64(0x6666666666666666UL);
-    __mmask64 k_right = _cvtu64_mask64(0xCCCCCCCCCCCCCCCCUL);
+    __mmask64 k_right = _cvtu64_mask64(0x3333333333333333UL);
     __i<V> index_mid = _mm512_set_epi8(PERM_INDEX_MID);
     __i<V> index_left = _mm512_set_epi8(PERM_INDEX_LEFT);
     __i<V> index_right = _mm512_set_epi8(PERM_INDEX_RIGHT);
@@ -246,20 +315,18 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
       }
       // right
       if (pad_r) {
-        mminp = op_load_input(xc, input, _kh - AKH, -1, 0, T - 1, k_mid, index_mid);
+        mminp = op_load_input(xc, input, _kh - AKH, -1, 0, T - 1, k_right, index_right);
         mmout[T-1] = op_int8_fma(mmout[T - 1], mminp, mmwei);
       } else {
-        mminp = op_load_input(xc, input, _kh - AKH, -1, 0, T - 1, k_right, index_right);
+        mminp = op_load_input(xc, input, _kh - AKH, -1, 0, T - 1, k_mid, index_mid);
         mmout[T-1] = op_int8_fma(mmout[T - 1], mminp, mmwei);
       }
     }
 
     // store output
-    if (get_attr(attr, c_output_idx)) {
-      unroll_for (_T, T) {
-        op_restore_output(xc, output, routput, bias, mmout[_T],
-            src_scale, src_factor, weights_scale, weights_factor, _T, attr);
-      }
+    unroll_for (_T, T) {
+      op_restore_output(xc, output, routput, bias, mmout[_T],
+          src_scale, src_factor, weights_scale, weights_factor, _T, attr);
     }
   }
 
