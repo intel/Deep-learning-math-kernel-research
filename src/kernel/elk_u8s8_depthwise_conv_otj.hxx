@@ -18,22 +18,22 @@
 #if defined(WITH_VNNI)
 #if defined(WITH_VBMI)
 #define PERM_INDEX_MID   \
-        0, 47, 31, 15,   \
-        0, 46, 30, 14,   \
-        0, 45, 29, 13,   \
-        0, 44, 28, 12,   \
-        0, 43, 27, 11,   \
-        0, 42, 26, 10,   \
-        0, 41, 25, 9,    \
-        0, 40, 24, 8,    \
-        0, 39, 23, 7,    \
-        0, 38, 22, 6,    \
-        0, 37, 21, 5,    \
-        0, 36, 20, 4,    \
-        0, 35, 19, 3,    \
-        0, 34, 18, 2,    \
-        0, 33, 17, 1,    \
-        0, 32, 16, 0
+        63, 47, 31, 15,  \
+        62, 46, 30, 14,  \
+        61, 45, 29, 13,  \
+        60, 44, 28, 12,  \
+        59, 43, 27, 11,  \
+        58, 42, 26, 10,  \
+        57, 41, 25, 9,   \
+        56, 40, 24, 8,   \
+        55, 39, 23, 7,   \
+        54, 38, 22, 6,   \
+        53, 37, 21, 5,   \
+        52, 36, 20, 4,   \
+        51, 35, 19, 3,   \
+        50, 34, 18, 2,   \
+        49, 33, 17, 1,   \
+        48, 32, 16, 0
 #define PERM_INDEX_LEFT  \
         0, 31, 15, 0,    \
         0, 30, 14, 0,    \
@@ -70,22 +70,22 @@
         0,  0, 16, 0
 #else
 #define PERM_INDEX_MID   \
-         0, 11, 7, 3,    \
-         0, 10, 6, 2,    \
-         0, 9,  5, 1,    \
-         0, 8,  4, 0,    \
-         0, 11, 7, 3,    \
-         0, 10, 6, 2,    \
-         0, 9,  5, 1,    \
-         0, 8,  4, 0,    \
-         0, 11, 7, 3,    \
-         0, 10, 6, 2,    \
-         0, 9,  5, 1,    \
-         0, 8,  4, 0,    \
-         0, 11, 7, 3,    \
-         0, 10, 6, 2,    \
-         0, 9,  5, 1,    \
-         0, 8,  4, 0
+         15, 11, 7, 3,   \
+         14, 10, 6, 2,   \
+         13, 9,  5, 1,   \
+         12, 8,  4, 0,   \
+         15, 11, 7, 3,   \
+         14, 10, 6, 2,   \
+         13, 9,  5, 1,   \
+         12, 8,  4, 0,   \
+         15, 11, 7, 3,   \
+         14, 10, 6, 2,   \
+         13, 9,  5, 1,   \
+         12, 8,  4, 0,   \
+         15, 11, 7, 3,   \
+         14, 10, 6, 2,   \
+         13, 9,  5, 1,   \
+         12, 8,  4, 0
 
 #define PERM_INDEX_LEFT  \
          0, 7,  3,  0,   \
@@ -185,7 +185,7 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
       MD4(InputType, ainput0, input, xc.I2, xc.ih, xc.iw, V);
       MD3(InputType, ainput1, &md4(ainput0, _I2, _ih, _iw, 0), T, S, V);
       __i<V> in = _mm<V>::load_epi32(&md3(ainput1, _T, 0, 0));
-#if defined(WITH_VBMI) // Vector Byte Manipulation Instructions
+#if defined(WITH_VBMI)
       res = _mm512_maskz_permutexvar_epi8(k, index, in);
 #else
       __i<V> index_32 = _mm<V>::set_epi32(
@@ -277,49 +277,87 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
     }
   }
 
+  template<int pad_l, int pad_r>
   static inline void
   op_conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
       uint8_t *input, int8_t *weights, BiasType *bias, ScaleType *src_scale,
       ScaleType *src_factor, ScaleType *weights_scale, ScaleType *weights_factor,
-      int khs, int khe, int kws, int kwe, int pad_l, int pad_r, int attr)
+      int khs, int khe, int kws, int kwe, /*int pad_l, int pad_r, */int attr)
   {
     const int AKH = xc.kh / 2;
     constexpr int AKW = K / 2;
 
-    __mmask64 k_mid = _cvtu64_mask64(0x7777777777777777UL);
+    __mmask64 k_mid = _cvtu64_mask64(0xffffffffffffffffUL);
     __mmask64 k_left = _cvtu64_mask64(0x6666666666666666UL);
     __mmask64 k_right = _cvtu64_mask64(0x3333333333333333UL);
     __i<V> index_mid = _mm512_set_epi8(PERM_INDEX_MID);
     __i<V> index_left = _mm512_set_epi8(PERM_INDEX_LEFT);
     __i<V> index_right = _mm512_set_epi8(PERM_INDEX_RIGHT);
-    __i<V> mmout[T], mmwei, mminp;
+    __i<V> mmout[T], mminp;
+    __i<V> mmwei_x210, mmwei_210x;
 
     // clear output
-    unroll_for (_T, T)
+    unroll_for (_T, T) {
       mmout[_T] = _mm<V>::setzero_epi32();;
+    }
 
-    for (int _kh = khs; _kh < khe; ++_kh) {
-      mmwei = op_load_weights(xc, weights, _kh);
-      // left
-      if (pad_l) {
+    if (!pad_l && !pad_r) { // mid
+      for (int _kh = khs; _kh < khe; ++_kh) {
+        mmwei_x210 = op_load_weights(xc, weights, _kh);
+        mmwei_210x = _mm512_slli_epi32(mmwei_x210, 8);
+
+        unroll_for(_T, (T + 1) / 2) {
+          mminp = op_load_input(xc, input, _kh - AKH, -1, 0, 2 * _T, k_mid, index_mid);
+          mmout[2 * _T] = op_int8_fma(mmout[2 * _T], mminp, mmwei_x210);
+          if ((2 * _T + 1) < T)
+            mmout[2 * _T + 1] = op_int8_fma(mmout[2 * _T + 1], mminp, mmwei_210x);
+        }
+      }
+    } else if (pad_l && !pad_r) { // left-mid
+      for (int _kh = khs; _kh < khe; ++_kh) {
+        mmwei_x210 = op_load_weights(xc, weights, _kh);
+        mmwei_210x = _mm512_slli_epi32(mmwei_x210, 8);
+
         mminp = op_load_input(xc, input, _kh - AKH, 0, 0, 0, k_left, index_left);
-        mmout[0] = op_int8_fma(mmout[0], mminp, mmwei);
-      } else {
-        mminp = op_load_input(xc, input, _kh - AKH, -1, 0, 0, k_mid, index_mid);
-        mmout[0] = op_int8_fma(mmout[0], mminp, mmwei);
+        mmout[0] = op_int8_fma(mmout[0], mminp, mmwei_x210);
+
+        unroll_for(_T, T / 2) {
+          mminp = op_load_input(xc, input, _kh - AKH, -1, 0, 2 * _T + 1, k_mid, index_mid);
+          mmout[2 * _T + 1] = op_int8_fma(mmout[2 * _T + 1], mminp, mmwei_x210);
+          if ((2 * _T + 2) < T)
+            mmout[2 * _T + 2] = op_int8_fma(mmout[2 * _T + 2], mminp, mmwei_210x);
+        }
       }
-      // mid
-      unroll_from_to(_T, 1, T - 1) {
-        mminp = op_load_input(xc, input, _kh - AKH, -1, 0, _T, k_mid, index_mid);
-        mmout[_T] = op_int8_fma(mmout[_T], mminp, mmwei);
-      }
-      // right
-      if (pad_r) {
+    } else if (!pad_l && pad_r) { // mid-right
+      for (int _kh = khs; _kh < khe; ++_kh) {
+        mmwei_x210 = op_load_weights(xc, weights, _kh);
+        mmwei_210x = _mm512_slli_epi32(mmwei_x210, 8);
+
+        unroll_for(_T, T / 2) {
+          mminp = op_load_input(xc, input, _kh - AKH, -1, 0, 2 * _T, k_mid, index_mid);
+          mmout[2 * _T] = op_int8_fma(mmout[2 * _T], mminp, mmwei_x210);
+          if ((2 * _T + 1) < (T - 1))
+            mmout[2 * _T + 1] = op_int8_fma(mmout[2 * _T + 1], mminp, mmwei_210x);
+        }
         mminp = op_load_input(xc, input, _kh - AKH, -1, 0, T - 1, k_right, index_right);
-        mmout[T-1] = op_int8_fma(mmout[T - 1], mminp, mmwei);
-      } else {
-        mminp = op_load_input(xc, input, _kh - AKH, -1, 0, T - 1, k_mid, index_mid);
-        mmout[T-1] = op_int8_fma(mmout[T - 1], mminp, mmwei);
+        mmout[T - 1] = op_int8_fma(mmout[T - 1], mminp, mmwei_x210);
+      }
+    } else { // left-mid-right
+      for (int _kh = khs; _kh < khe; ++_kh) {
+        mmwei_x210 = op_load_weights(xc, weights, _kh);
+        mmwei_210x = _mm512_slli_epi32(mmwei_x210, 8);
+
+        mminp = op_load_input(xc, input, _kh - AKH, 0, 0, 0, k_left, index_left);
+        mmout[0] = op_int8_fma(mmout[0], mminp, mmwei_x210);
+
+        unroll_for(_T, (T - 1) / 2) {
+          mminp = op_load_input(xc, input, _kh - AKH, -1, 0, 2 * _T + 1, k_mid, index_mid);
+          mmout[2 * _T + 1] = op_int8_fma(mmout[2 * _T + 1], mminp, mmwei_x210);
+          if ((2 * _T + 2) < (T - 1))
+            mmout[2 * _T + 2] = op_int8_fma(mmout[2 * _T + 2], mminp, mmwei_210x);
+        }
+        mminp = op_load_input(xc, input, _kh - AKH, -1, 0, T - 1, k_right, index_right);
+        mmout[T - 1] = op_int8_fma(mmout[T - 1], mminp, mmwei_x210);
       }
     }
 
@@ -337,10 +375,27 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
           ScaleType *weights_factor, int khs, int khe, int kws, int kwe,
           int pad_l, int pad_r, int attr)
   {
-    op_conv(xc, output, routput, input,
-        weights, bias,
-        src_scale, src_factor, weights_scale, weights_factor,
-        khs, khe, kws, kwe, pad_l, pad_r, attr);
+    if (pad_l && pad_r) {
+      op_conv<1, 1>(xc, output, routput, input,
+          weights, bias,
+          src_scale, src_factor, weights_scale, weights_factor,
+          khs, khe, kws, kwe, /*pad_l, pad_r, */attr);
+    } else if (pad_l) {
+      op_conv<1, 0>(xc, output, routput, input,
+          weights, bias,
+          src_scale, src_factor, weights_scale, weights_factor,
+          khs, khe, kws, kwe, /*pad_l, pad_r, */attr);
+    } else if (pad_r) {
+      op_conv<0, 1>(xc, output, routput, input,
+          weights, bias,
+          src_scale, src_factor, weights_scale, weights_factor,
+          khs, khe, kws, kwe, /*pad_l, pad_r, */attr);
+    } else {
+      op_conv<0, 0>(xc, output, routput, input,
+          weights, bias,
+          src_scale, src_factor, weights_scale, weights_factor,
+          khs, khe, kws, kwe, /*pad_l, pad_r, */attr);
+    }
   }
 
 };
