@@ -238,7 +238,6 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
       if (std::is_same<OoutputType, uint8_t>::value
           || std::is_same<OoutputType, int8_t>::value) {
         __m<V> sum_S = _mm<V>::set1_ps(xc.sum_quant_S);
-        __m<V> sum_z = _mm<V>::set1_ps(xc.sum_quant_z);
         __m128i &mmoo = *(__m128i *)aoout;
         __i<V> mmoos32;
         if (std::is_same<OoutputType, int8_t>::value)
@@ -246,7 +245,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
         else
           mmoos32 = _mm<V>::cvtepu8_epi32(mmoo);
         auto mmoof32 = _mm<V>::cvtepi32_ps(mmoos32);
-        mmoof32 = (mmoof32 - sum_z) * sum_S;
+        mmoof32 = mmoof32 * sum_S;
         fout += mmoof32;
       } else {
         // no implementation for FP32 output
