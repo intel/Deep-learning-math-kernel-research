@@ -219,29 +219,10 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     __m<V> fout = _mm<V>::cvtepi32_ps(res);
 
     // restore and requantization
-    if (std::is_same<RoutputType, uint8_t>::value
-        || std::is_same<RoutputType, int8_t>::value) {
-      auto scale = *(__m<V> *)&md2(aweights_scale, _O, 0);
-      auto factor = *(__m<V> *)&md3(aweights_factor, _O, _T, 0);
-      fout = fout * scale + factor;
-    } else {
-      auto z = _mm<V>::set1_ps(src_factor[_T]);
-      auto acc = *(__m<V> *)&md3(aweights_factor, _O, _T, 0);
-      fout -= (z * acc);
-      auto Sa = _mm<V>::set1_ps(src_scale[_T]);
-      auto Sw = *(__m<V> *)&md2(aweights_scale, _O, 0);
-      fout = Sa * Sw * fout;
-      // add bias
-      if (get_attr(attr, bias_idx)) {
-        MD2(BiasType, abias2, bias, JO, V);
-        if (std::is_same<BiasType, float>::value) {
-          fout = _mm<V>::add_ps(fout, _mm<V>::load_ps(&md2(abias2, _O, 0)));
-        } else {
-          auto fp16v = _mm<V / 2>::load_si256((__m256i *)&md2(abias2, _O, 0));
-          fout = _mm<V>::add_ps(fout, _mm<V>::cvtph_ps(fp16v));
-        }
-      }
-    }
+    auto scale = *(__m<V> *)&md2(aweights_scale, _O, 0);
+    auto factor = *(__m<V> *)&md3(aweights_factor, _O, _T, 0);
+    fout = fout * scale + factor;
+
     // fuse relu
     if (get_attr(attr, relu_idx)) {
       fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());

@@ -510,7 +510,7 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
     MD8(TscaleType, atweights_quant_factor, tweights_quant_factor,
         oc4, xc->ic4, xc->oc3, A, A, xc->O1, xc->O, V);
 
-    float acc = 0.0;
+    float acc = 0;
     iter_each (_ic3, xc->ic3) {
     iter_each (_I2, xc->I2) {
     iter_each (_V1, xc->V1) {
@@ -521,25 +521,28 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
     md8(atweights_quant_factor, _oc4, _ic4, _oc3, _hA, _wA, _O1, _O, _oV) = acc;
   }, oc4, xc->ic4, xc->oc3, A, A, xc->O1, xc->O, V);
 
-  // weights-scale
-  thread_parallel_for<7>(mthr_, ithr,
-      [&](int _oc4, int _ic4, int _oc3, int _hA, int _wA, int _O1, int _O) {
+  // weights-scale, combine with restore
+  thread_parallel_for<8>(mthr_, ithr, [&](int _oc4, int _ic4, int _oc3,
+                                          int _hA, int _wA,
+                                          int _O1, int _O, int _oV) {
     MD8(TscaleType, atweights_quant_scale, tweights_quant_scale,
         oc4, xc->ic4, xc->oc3, A, A, xc->O1, xc->O, V);
+    MD8(TscaleType, atweights_quant_factor, tweights_quant_factor,
+        oc4, xc->ic4, xc->oc3, A, A, xc->O1, xc->O, V);
 
-    if (I == ISA_SKX_AVX512 && std::is_same<TscaleType, float>::value) {
-      _mm512_store_ps(&md8(atweights_quant_scale,
-          _oc4, _ic4, _oc3, _hA, _wA, _O1, _O, 0),
-          _mm<V>::div_ps(*(__m<V> *)&md8(atweights_quant_scale,
-          _oc4, _ic4, _oc3, _hA, _wA, _O1, _O, 0), mmscale));
-    } else {
-#pragma omp simd
-      iter_each (_oV, V)
-        md8(atweights_quant_scale, _oc4, _ic4, _oc3, _hA, _wA, _O1, _O, _oV)
-            = md8(atweights_quant_scale, _oc4, _ic4, _oc3, _hA, _wA, _O1, _O, _oV)
-            / INT8GEMM_TWT_QTSCALE;
+    float Sw =
+        md8(atweights_quant_scale, _oc4, _ic4, _oc3, _hA, _wA, _O1, _O, _oV);
+    Sw /= INT8GEMM_TWT_QTSCALE;
+    float Zw =
+        md8(atweights_quant_factor, _oc4, _ic4, _oc3, _hA, _wA, _O1, _O, _oV);
+    if (xc->sampling_kind == CALIBRATED) {
+      Sw = Sw * xc->tinput_quant_S;
+      Zw = Zw * Sw * xc->tinput_quant_z;
+      md8(atweights_quant_factor, _oc4, _ic4, _oc3, _hA, _wA, _O1, _O, _oV) =
+          Zw;
     }
-  }, oc4, xc->ic4, xc->oc3, A, A, xc->O1, xc->O);
+    md8(atweights_quant_scale, _oc4, _ic4, _oc3, _hA, _wA, _O1, _O, _oV) = Sw;
+  }, oc4, xc->ic4, xc->oc3, A, A, xc->O1, xc->O, V);
 }
 
 template <typename WeightsType, int I, int A, int K, int V>

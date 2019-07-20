@@ -269,7 +269,11 @@ Instance_elx_conv_direct_depthwise_lp_t::trans_weights_3x3(
   parallel_for<1>(mthr_, [&](int _g2) {
     MD2(TscaleType, aweights_scale, weights_scale, this->g2, V);
     __m<V> &qs = *(__m<V> *)&md2(aweights_scale, _g2, 0);
-    qs = input_S * qs * out_repS;
+    if (std::is_same<OutputType, float>::value) {
+      qs = input_S * qs;
+    } else {
+      qs = input_S * qs * out_repS;
+    }
   }, this->g2);
 
   parallel_for<1>(mthr_, [&](int _g2) {
@@ -280,7 +284,13 @@ Instance_elx_conv_direct_depthwise_lp_t::trans_weights_3x3(
     __m<V> qs = *(__m<V> *)&md2(aweights_scale, _g2, 0);
     __m<V> b = this->with_bias ? *(__m<V> *)&md2(abias, _g2, 0) : _mm<V>::setzero_ps();
     __m<V> &qf = *(__m<V> *)&md2(aweights_factor, _g2, 0);
-    qf = out_z - input_z * qf * qs + b * out_repS;
+
+    if (std::is_same<OutputType, float>::value) {
+      qf = b - input_z * qf * qs;
+    } else {
+      qf = b * out_repS + out_z - input_z * qf * qs;
+    }
+
   }, this->g2);
 }
 

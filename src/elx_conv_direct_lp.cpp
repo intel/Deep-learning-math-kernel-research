@@ -368,7 +368,12 @@ Instance_elx_conv_direct_lp_t::__trans_weights_acc(TscaleType *weights_scale,
     MD2(TscaleType, atweights_scale, weights_scale, this->oc2, V);
     MD2(BiasType, abias, bias, this->oc2, V);
     __m<V> &qs = *(__m<V> *)&md2(atweights_scale, _oc2, 0);
-    qs = input_S * qs * out_repS;
+
+    if (std::is_same<OutputType, float>::value) {
+      qs = input_S * qs;
+    } else {
+      qs = input_S * qs * out_repS;
+    }
   }, this->oc2);
 
   parallel_for<1>(mthr_, [&](int _oc2) {
@@ -407,7 +412,11 @@ Instance_elx_conv_direct_lp_t::__trans_weights_acc(TscaleType *weights_scale,
           }
           __m<V> qf_tmp =
               *(__m<V> *)&md4(atweights_factor_buf, _wacc_h, _wacc_w, _oc2, 0);
-          qf = out_z - input_z * qf_tmp * qs + b * out_repS;
+          if (std::is_same<OutputType, float>::value) {
+            qf = b - input_z * qf_tmp * qs;
+          } else {
+            qf = b * out_repS + out_z - input_z * qf_tmp * qs;
+          }
         }
       }
     }

@@ -204,33 +204,19 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     __m<V> fout = _mm<V>::cvtepi32_ps(res);
 
     // requantization
-    if (std::is_same<OoutputType, uint8_t>::value
-        || std::is_same<OoutputType, int8_t>::value) {
-      // global sampling for input/output (direct conv 1x1)
+    // global sampling for input/output
+    if (xc.sampling_kind == CALIBRATED) {
       __m<V> S = *(__m<V> *)&md2(aweights_scale, _O, 0);
       __m<V> z = *(__m<V> *)&md2(aweights_factor, _O, 0);
       fout = fout * S + z;
     } else {
-      // add bias (direct conv 1x1)
-      __m<V> fbias;
-      if (get_attr(attr, bias_idx)) {
-        MD2(BiasType, abias2, bias, JO, V);
-        if (std::is_same<BiasType, float>::value) {
-          fbias = _mm<V>::load_ps(&md2(abias2, _O, 0));
-        } else {
-          auto fp16v = _mm<V / 2>::load_si256((__m256i *)&md2(abias2, _O, 0));
-          fbias = _mm<V>::cvtph_ps(fp16v);
-        }
-      } else {
-        fbias = _mm<V>::set1_ps(0.0);
-      }
-
+      // Winograd with FINE/CORSE sampling
       auto z = _mm<V>::set1_ps(src_factor[_T]);
       auto acc = *(__m<V> *)&md2(aweights_factor, _O, 0);
       fout -= (z * acc);
       auto Sa = _mm<V>::set1_ps(src_scale[_T]);
       auto Sw = *(__m<V> *)&md2(aweights_scale, _O, 0);
-      fout = Sa * Sw * fout + fbias;
+      fout = Sa * Sw * fout;
     }
 
     // fuse sum

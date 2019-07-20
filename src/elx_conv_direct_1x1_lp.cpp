@@ -351,8 +351,15 @@ void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked_oc(
     __m<V> &mmqf = *(__m<V> *)&md5(
         aweights_scale, _oc4, _oc3, 1, _O2, 0);
     __m<V> &mmbias = *(__m<V> *)&md4(abias, _oc4, _oc3, _O2, 0);
-    mmqs = mmiS * mmqs * mmorepS;
-    mmqf = mmoz - mmiz * mmqf * mmqs + mmbias * mmorepS;
+
+    if (std::is_same<OutputType, float>::value) {
+      mmqs = mmiS * mmqs;
+      mmqf = mmbias - mmiz * mmqf * mmqs;
+    } else {
+      mmqs = mmiS * mmqs * mmorepS;
+      mmqf = mmbias * mmorepS + mmoz - mmiz * mmqf * mmqs;
+    }
+
     if (this->with_ip_sum) {
       __m<V> sum_S = _mm<V>::set1_ps(this->sum_quant_S);
       __m<V> sum_z = _mm<V>::set1_ps(this->sum_quant_z);

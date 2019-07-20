@@ -52,13 +52,16 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute(
         attr = set_attr(attr, has_Ir_idx);
     }
 
-    TscaleType *asrc_s, *asrc_z;
-    if (xc->sampling_kind == COARSE || xc->sampling_kind == CALIBRATED) {
+    TscaleType *asrc_s = nullptr, *asrc_z = nullptr;
+    if (xc->sampling_kind == COARSE) {
       asrc_s = &md5(asrc_scale, 0, 0, 0, 0, 0);
       asrc_z = &md5(asrc_scale, 0, 0, 0, 1, 0);
-    } else {
+    } else if (xc->sampling_kind == FINE) {
       asrc_s = &md5(asrc_scale, _ic3, _hA, _wA, 0, 0);
       asrc_z = &md5(asrc_scale, _ic3, _hA, _wA, 1, 0);
+    } else { // CALIBRATED
+      // nothing to do.
+      // asrc_s/asrc_z are folded into weights_scale/factor
     }
 
     ker_gemm(*(elx_conv_params_t *)xc,
@@ -104,13 +107,16 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
             attr = set_attr(attr, has_Ir_idx);
         }
 
-        TscaleType *asrc_s, *asrc_z;
-        if (xc->sampling_kind == COARSE || xc->sampling_kind == CALIBRATED) {
+        TscaleType *asrc_s = nullptr, *asrc_z = nullptr;
+        if (xc->sampling_kind == COARSE) {
           asrc_s = &md5(asrc_scale, 0, 0, 0, 0, 0);
           asrc_z = &md5(asrc_scale, 0, 0, 0, 1, 0);
-        } else {
+        } else if (xc->sampling_kind == FINE) {
           asrc_s = &md5(asrc_scale, _ic3, _hA, _wA, 0, 0);
           asrc_z = &md5(asrc_scale, _ic3, _hA, _wA, 1, 0);
+        } else { // CALIBRATED
+          // nothing to do.
+          // asrc_s/asrc_z are folded into weights_scale/factor
         }
 
         ker_gemm(*(elx_conv_params_t *)xc,
@@ -175,13 +181,16 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
         attr = set_attr(attr, has_Ir_idx);
     }
 
-    TscaleType *asrc_s, *asrc_z;
-    if (xc->sampling_kind == COARSE || xc->sampling_kind == CALIBRATED) {
+    TscaleType *asrc_s = nullptr, *asrc_z = nullptr;
+    if (xc->sampling_kind == COARSE) {
       asrc_s = &md6(asrc_scale, 0, 0, 0, 0, 0, 0);
       asrc_z = &md6(asrc_scale, 0, 0, 0, 0, 1, 0);
-    } else {
+    } else if (xc->sampling_kind == FINE) {
       asrc_s = &md6(asrc_scale, _t2, _hA, _wA, _ic3, 0, 0);
       asrc_z = &md6(asrc_scale, _t2, _hA, _wA, _ic3, 1, 0);
+    } else { // CALIBRATED
+      // nothing to do.
+      // asrc_s/asrc_z are folded into weights_scale/factor
     }
 
     ker_gemm(*xc, &md6(atoutput6, _hA, _wA, _oc3, 0, 0, 0),
