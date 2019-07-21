@@ -169,7 +169,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     }
   }
 
-  template <const int JO>
+  template <const int JO, bool ip_sum>
   static inline void op_int8_restore_output(elx_conv_params_t &xc,
       OutputType *output, OoutputType *ooutput, BiasType *bias, __i<V> res,
       ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
@@ -203,20 +203,6 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
 
     __m<V> fout = _mm<V>::cvtepi32_ps(res);
 
-    // add bias (direct conv 1x1)
-    __m<V> fbias;
-    if (get_attr(attr, bias_idx)) {
-      MD2(BiasType, abias2, bias, JO, V);
-      if (std::is_same<BiasType, float>::value) {
-        fbias = _mm<V>::load_ps(&md2(abias2, _O, 0));
-      } else {
-        auto fp16v = _mm<V / 2>::load_si256((__m256i *)&md2(abias2, _O, 0));
-        fbias = _mm<V>::cvtph_ps(fp16v);
-      }
-    } else {
-      fbias = _mm<V>::set1_ps(0.0);
-    }
-
     // requantization
     if (std::is_same<OoutputType, uint8_t>::value
         || std::is_same<OoutputType, int8_t>::value) {
@@ -225,6 +211,20 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
       __m<V> z = *(__m<V> *)&md2(aweights_factor, _O, 0);
       fout = fout * S + z;
     } else {
+      // add bias (direct conv 1x1)
+      __m<V> fbias;
+      if (get_attr(attr, bias_idx)) {
+        MD2(BiasType, abias2, bias, JO, V);
+        if (std::is_same<BiasType, float>::value) {
+          fbias = _mm<V>::load_ps(&md2(abias2, _O, 0));
+        } else {
+          auto fp16v = _mm<V / 2>::load_si256((__m256i *)&md2(abias2, _O, 0));
+          fbias = _mm<V>::cvtph_ps(fp16v);
+        }
+      } else {
+        fbias = _mm<V>::set1_ps(0.0);
+      }
+
       auto z = _mm<V>::set1_ps(src_factor[_T]);
       auto acc = *(__m<V> *)&md2(aweights_factor, _O, 0);
       fout -= (z * acc);
@@ -234,7 +234,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     }
 
     // fuse sum
-    if (get_attr(attr, ip_sum_idx)) {
+    if (ip_sum) {
       if (std::is_same<OoutputType, uint8_t>::value
           || std::is_same<OoutputType, int8_t>::value) {
         __m<V> sum_S = _mm<V>::set1_ps(xc.sum_quant_S);
@@ -251,6 +251,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
         // no implementation for FP32 output
       }
     }
+
     // fuse relu
     if (get_attr(attr, relu_idx)) {
       fout = _mm<V>::max_ps(fout, _mm<V>::setzero_ps());
@@ -362,7 +363,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
 #endif
     {
       for (int _I2 = 0; _I2 < I2; ++_I2) {
-#pragma nounroll
+//#pragma nounroll
         for (int _V1 = 0; _V1 < V1 / P; ++_V1) {
           unroll_for(_P, P) {
             unroll_for(_O, JO) mmwei[_O][_P] =
@@ -379,7 +380,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     }
 
     if (Ir > 0) {
-#pragma nounroll
+//#pragma nounroll
       for (int _V1 = 0; _V1 < Ir; ++_V1) {
         unroll_for(_O, JO) mmwei[_O][0] =
             op_int8_load_weights<JO, 1>(xc, weights, xc.I2 - 1, _V1, 0, _O);
@@ -394,13 +395,22 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
 
     // store output
     if (get_attr(attr, c_output_idx)) {
-      unroll_for (_O, JO) {
-      unroll_for (_T, T) {
-        op_int8_restore_output<JO>(xc, output, ooutput, bias, mmout[_O][_T],
-            src_scale, src_factor, weights_scale,
-            weights_factor, _O1, _O0, _O, _T, attr);
-      }}
-    } else { // For 1x1/direct. Store accumulated s32 output
+      if (get_attr(attr, ip_sum_idx)) {
+        unroll_for (_O, JO) {
+        unroll_for (_T, T) {
+            op_int8_restore_output<JO, true>(xc, output, ooutput, bias,
+                mmout[_O][_T], src_scale, src_factor, weights_scale,
+                weights_factor, _O1, _O0, _O, _T, attr);
+        }}
+      } else {
+        unroll_for (_O, JO) {
+        unroll_for (_T, T) {
+          op_int8_restore_output<JO, false>(xc, output, ooutput, bias,
+              mmout[_O][_T], src_scale, src_factor, weights_scale,
+              weights_factor, _O1, _O0, _O, _T, attr);
+        }}
+      }
+    } else { // Store accumulated s32 output: direct/1x1/wino
       unroll_for (_O, JO) {
       unroll_for (_T, T)
         op_int8_store_output<JO>(xc, output, mmout[_O][_T], _O, _T);

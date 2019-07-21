@@ -144,7 +144,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
         else
           weights_ref[i] = RAND() % 19;
       }
-      if (desc_ref.with_relu && i % 3 == 1)
+      if (desc_ref.with_relu && i % 7 == 1)
         weights_ref[i] = -weights_ref[i];
     }
 

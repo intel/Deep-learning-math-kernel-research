@@ -111,7 +111,7 @@ template <int N, int M = -1> struct thread_parallel_for {
 template <int N, int M = -1, typename... Args>
 static inline void parallel_for(int mthr, Args... args)
 {
-#pragma omp parallel num_threads(mthr)
+#pragma omp parallel num_threads(mthr) proc_bind(close)
   {
     int ithr = omp_get_thread_num();
     thread_parallel_for<N, M>(mthr, ithr, args...);
