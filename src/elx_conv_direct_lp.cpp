@@ -734,32 +734,33 @@ void Instance_elx_conv_direct_lp_t::gemm_d160(OutputType *output,
             __m<V> tout = _mm<V>::cvtepi32_ps(
                 *(__i<V> *)&md5(atoutput, _oc3, _O2, _ht, ows0 + _T, 0));
             // restore and requantization
-            if (std::is_same<OutputType, uint8_t>::value
-                || std::is_same<OutputType, int8_t>::value) {
-              auto scale = *(__m<V> *)&md3(aweights_scale, _oc3, _O2, 0);
-              auto factor = *(__m<V> *)&md3(aweights_factor, _oc3, _O2, 0);
-              tout = tout * scale + factor;
-            } else {
-              el_error("Unsupported output type for int8 direct 1x1");
-            }
+            auto scale = *(__m<V> *)&md3(aweights_scale, _oc3, _O2, 0);
+            auto factor = *(__m<V> *)&md3(aweights_factor, _oc3, _O2, 0);
+            tout = tout * scale + factor;
             // fuse relu
             if (this->with_relu)
               tout = _mm<V>::max_ps(tout, _mm<V>::setzero_ps());
-            // rounding
-            __i<V> s_out = _mm<V>::cvt_roundps_epi32(
-                tout, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
-            __m128i x8_out;
-            if (std::is_same<OutputType, int8_t>::value)
-              x8_out = _mm<V>::cvtsepi32_epi8(s_out);
-            else if (std::is_same<OutputType, uint8_t>::value)
-              x8_out = _mm<V>::cvtusepi32_epi8(s_out);
-            else
-              el_error("Unsupported output type for int8 direct 1x1");
-            // store output
-            _mm_store_si128((__m128i *)&md5(aoutput, _oc3, _O2, _ht, ows0 + _T, 0),
-                            x8_out);
+
+            if (std::is_same<OutputType, int8_t>::value ||
+                std::is_same<OutputType, uint8_t>::value) {
+              // rounding
+              __i<V> s_out = _mm<V>::cvt_roundps_epi32(
+                  tout, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+              __m128i x8_out;
+              if (std::is_same<OutputType, int8_t>::value)
+                x8_out = _mm<V>::cvtsepi32_epi8(s_out);
+              else // uint8
+                x8_out = _mm<V>::cvtusepi32_epi8(s_out);
+              // store output
+              _mm_store_si128(
+                  (__m128i *)&md5(aoutput, _oc3, _O2, _ht, ows0 + _T, 0), x8_out);
+            } else if (std::is_same<OutputType, float>::value) {
+              _mm<V>::store_ps(&md5(aoutput, _oc3, _O2, _ht, ows0 + _T, 0), tout);
+            } else {
+              el_error("direct: d160: unimplemented");
+            }
           } else
-            el_error("direct: d060: unimplemented");
+            el_error("direct: d160: unimplemented");
         }}
       }
     }}

@@ -104,5 +104,8 @@ Template_elx_conv_direct_lp_t class elx_conv_direct_lp_t : public elx_conv_t {
 template class elx_conv_direct_lp_t<conv::U8F32U8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>;
 // int8-u8f32s8f32
 template class elx_conv_direct_lp_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>;
+// int8-u8f32f32f32
+template class elx_conv_direct_lp_t<conv::U8F32F32F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>;
+
 } // namespace euler
 #endif // __ELX_CONV_DIRECT_LP_HPP__

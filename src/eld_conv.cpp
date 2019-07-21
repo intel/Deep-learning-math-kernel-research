@@ -176,8 +176,10 @@ int eld_conv_t::setup(bool fully_setup)
         xc = new elx_conv_direct_depthwise_lp_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>(*this);
       else
         xc = new elx_conv_direct_lp_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>(*this);
+    } else if (user_type == user_type_u8f32f32f32) {
+        xc = new elx_conv_direct_lp_t<conv::U8F32F32F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>(*this);
 #ifdef ENABLE_USER_FP16
-    } else if (user_type == user_type_f16o)
+    } else if (user_type == user_type_f16o) {
       xc = new elx_conv_direct_t<conv::FP16O, conv_impl::FP32_F16o, 16, ISA_SKX_AVX512>(*this);
 #endif
     } else
