@@ -112,8 +112,8 @@ int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *b
   if (xc.verbose) start_ts = hrc::now();
   xc.execute(output, input, weights, bias);
   if (xc.verbose) {
-    printf("Verbose: Euler kernel execution Duration: %lf(ms)\n",
-        hrc_duration(hrc::now() - start_ts).count());
+    printf("Verbose: Euler kernel execution Duration: %lf(ms), kh=%d, ih=%d, oh=%d, ic=%d, oc=%d\n",
+        hrc_duration(hrc::now() - start_ts).count(), xc.kh, xc.ih, xc.oh, xc.ic, xc.oc);
   }
   return ELX_OK;
 }
