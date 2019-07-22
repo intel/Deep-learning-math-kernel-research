@@ -537,7 +537,7 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
         md8(atweights_quant_factor, _oc4, _ic4, _oc3, _hA, _wA, _O1, _O, _oV);
     if (xc->sampling_kind == CALIBRATED) {
       Sw = Sw * xc->tinput_quant_S;
-      Zw = Zw * Sw * xc->tinput_quant_z;
+      Zw = -Zw * Sw * xc->tinput_quant_z;
       md8(atweights_quant_factor, _oc4, _ic4, _oc3, _hA, _wA, _O1, _O, _oV) =
           Zw;
     }
