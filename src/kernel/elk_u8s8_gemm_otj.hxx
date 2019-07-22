@@ -205,12 +205,14 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
 
     // requantization
     // global sampling for input/output
-    if (xc.sampling_kind == CALIBRATED) {
+    // XXX: fixme
+    if (xc.sampling_kind == CALIBRATED, 1) {
       __m<V> S = *(__m<V> *)&md2(aweights_scale, _O, 0);
       __m<V> z = *(__m<V> *)&md2(aweights_factor, _O, 0);
       fout = fout * S + z;
     } else {
-      // Winograd with FINE/CORSE sampling
+      // XXX: TODO: enable  fine/coarse sampling without perf lose
+      // Winograd with FINE/COARSE sampling
       auto z = _mm<V>::set1_ps(src_factor[_T]);
       auto acc = *(__m<V> *)&md2(aweights_factor, _O, 0);
       fout -= (z * acc);

@@ -54,4 +54,4 @@ NSOCKETS=1 ./scripts/run.sh -c -i512 -h7 -o2048 -H7 -k1 -K1 -s1 -S1 -p0 -P0 -n64
 NSOCKETS=1 ./scripts/run.sh -c -i2048 -h7 -o512 -H7 -k1 -K1 -s1 -S1 -p0 -P0 -n64 -adirect_1x1 --execution-mode=0xc160 --blk-i=128 --blk-o=2 --flt-o=4 --flt-t=6 --pat-i=1 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
 
 echo "Compute gemm: 1x2048, 2048x1001"
-NSOCKETS=1 ./scripts/run.sh -c -i2048 -h1 -o1001 -H1 -k1 -K1 -s1 -S1 -p0 -P0 -n1 -adirect --execution-mode=0xd160 --blk-i=128 --blk-o=1 --flt-o=1 --flt-t=1 --pat-i=1 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
+NSOCKETS=1 ./scripts/run.sh -c -i2048 -h1 -o1001 -H1 -k1 -K1 -s1 -S1 -p0 -P0 -n1 -adirect --execution-mode=0xd160 --blk-i=128 --blk-o=1 --flt-o=1 --flt-t=1 --pat-i=1 --pat-o=1 $COMMON --data-type-cfg=U8F32F32F32 --sampling-kind=2
