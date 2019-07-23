@@ -16,7 +16,7 @@ echo "Compute conv: 3x3 s1"
 NSOCKETS=1 ./scripts/run.sh -c -i64 -h56 -o64 -H56 -n64 --tile-size=6 --execution-mode=0xa161 --blk-i=4 --blk-o=2 --flt-o=2 --flt-t=13 --pat-o=1 --output-as-blocked=true $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
 # resnet50_res3a_branch2b, conv2d_16, conv2d_19, conv2d_22
 NSOCKETS=1 ./scripts/run.sh -c -i128 -h28 -o128 -H28 -n64 --tile-size=6 --execution-mode=0xa161 --blk-i=8 --blk-o=2 --flt-o=2 --flt-t=13 --pat-o=2 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
-# resnet50_res4a_branch2b, covn2d_29, conv2d_32, conv2d_35, conv2d_38, conv2d_41
+# resnet50_res4a_branch2b, conv2d_29, conv2d_32, conv2d_35, conv2d_38, conv2d_41
 NSOCKETS=1 ./scripts/run.sh -c -i256 -h14 -o256 -H14 -n64 --tile-size=6 --execution-mode=0xa161 --blk-i=16 --blk-o=2 --flt-o=2 --flt-t=13 --pat-o=4 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
 # resnet50_res5a_branch2b, conv2d_48, conv2d_51
 NSOCKETS=1 ./scripts/run.sh -c -i512 -h7 -o512 -H7 -n64 --tile-size=6 --execution-mode=0xa133 --blk-i=32 --blk-o=2 --flt-o=2 --flt-t=13 --pat-i=1 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
@@ -58,7 +58,7 @@ NSOCKETS=1 ./scripts/run.sh -c -i512 -h28 -o256 -H28 -k1 -K1 -s1 -S1 -p0 -P0 -n6
 echo "Compute conv: 1x1 s1 h14"
 # conv2d_27, conv2d_30, conv2d_33, conv2d_36, conv2d_39, conv2d_42
 NSOCKETS=1 ./scripts/run.sh -c -i256 -h14 -o1024 -H14 -k1 -K1 -s1 -S1 -p0 -P0 -n64 -adirect_1x1 --execution-mode=0xc160 --blk-i=16 --blk-o=4 --flt-o=4 --flt-t=6 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
-# covn2d_28, conv2d_31, conv2d_34, covn2d_37, conv2d_40
+# conv2d_28, conv2d_31, conv2d_34, conv2d_37, conv2d_40
 NSOCKETS=1 ./scripts/run.sh -c -i1024 -h14 -o256 -H14 -k1 -K1 -s1 -S1 -p0 -P0 -n64 -adirect_1x1 --execution-mode=0xc160 --blk-i=64 --blk-o=4 --flt-o=4 --flt-t=6 --pat-i=1 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
 # conv2d_44
 NSOCKETS=1 ./scripts/run.sh -c -i1024 -h14 -o512 -H14 -k1 -K1 -s1 -S1 -p0 -P0 -n64 -adirect_1x1 --execution-mode=0xc160 --blk-i=64 --blk-o=4 --flt-o=4 --flt-t=6 --pat-i=1 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
