@@ -78,7 +78,7 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
 
   compact_ir_weights_ = false;
   if (this->ic == 3 && this->Ir == 1 && xopt_ == 0xa160 &&
-      this->input_fmt == nhwc && this->output_fmt == nChw16c) { // FBD kernel
+      this->input_fmt == nhwc) { // FBD/FBF kernel
     compact_ir_weights_ = true;
   }
 

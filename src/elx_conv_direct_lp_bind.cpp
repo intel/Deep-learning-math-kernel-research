@@ -50,7 +50,15 @@ Instance_elx_conv_direct_lp_t::bind_execute_functions()
     switch (xopt_) {
     case (0xa160):
     //case (0xb160):
-      if (this->input_fmt == nhwc && this->output_fmt == nhwc) {
+      if (compact_ir_weights_ && this->input_fmt == nhwc && this->output_fmt == nhwc) {
+        if (this->ws == 1) {
+          BIND_CONV_KERNEL(1, GKF_FBF, K);
+        } else if (this->ws == 2) {
+          BIND_CONV_KERNEL(2, GKF_FBF, K);
+        } else {
+          el_error("Stride > 2 not yet bounded");
+        }
+      } else if (this->input_fmt == nhwc && this->output_fmt == nhwc) {
         if (this->ws == 1) {
           BIND_CONV_KERNEL(1, GKF_FCF, K);
         } else if (this->ws == 2) {

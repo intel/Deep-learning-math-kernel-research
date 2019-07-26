@@ -281,7 +281,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
 
     auto gemm_OVT = [&](InputType *input_, WeightsType *weights_,
                         int V1_, int _kh, int _kw, int _I2) {
-#pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -295,7 +294,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     };
     auto gemm_OVxT = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
-#pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -309,7 +307,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     };
     auto gemm_OVxxT = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
-#pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -323,7 +320,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     };
     auto gemm_OVxxxT = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
-#pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -337,7 +333,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     };
     auto gemm_OVTx = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
-#pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -351,7 +346,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     };
     auto gemm_OVTxx = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
-#pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
@@ -365,7 +359,6 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     };
     auto gemm_OVTxxx = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
-#pragma nounroll
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
