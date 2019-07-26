@@ -91,10 +91,13 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
   this->oc3r = this->oc34 % this->oc3;
   if (this->oc3r == 0) this->oc3r = this->oc3;
 
+  // TODO
+#if 0
   if ((this->output_fmt != nChw16c || this->weights_fmt != OIhw16i16o) &&
       (this->Or != V || this->O2r != this->O2 || this->oc3r != this->oc3)) {
     el_error("direct: int8: no Or support for plain format");
   }
+#endif
 
   // ic4, ic3, I3
   this->ic34 = this->ic2 / this->I2;
@@ -601,7 +604,7 @@ void Instance_elx_conv_direct_lp_t::gemm_d160(OutputType *output,
   if (this->input_fmt == nhwc) {
     MD3(InputType, ainput0, input_u8, this->ih, this->iw, this->ic);
     MD3(OutputType, aoutput0, output, this->ht, this->ow, this->oc);
-    MD3(ToutputType, atoutput0, toutput, this->ht, this->ow, this->oc);
+    MD3(ToutputType, atoutput0, toutput, this->ht, this->ow, this->OC);
 
     iter_each (_oc3, this->oc3) {
     iter_each (_ic3, this->ic3) {
@@ -676,7 +679,10 @@ void Instance_elx_conv_direct_lp_t::gemm_d160(OutputType *output,
               // store output
               _mm_store_si128((__m128i *)&md4(aoutput1, 0, _oc3, _O2, 0), x8_out);
             } else if (std::is_same<OutputType, float>::value) {
-              _mm<V>::store_ps(&md4(aoutput1, 0, _oc3, _O2, 0), tout);
+              if (this->with_argmax)
+                _mm<V>::store_ps(&md4(atoutput1, 0, _oc3, _O2, 0), tout);
+              else
+                _mm<V>::store_ps(&md4(aoutput1, 0, _oc3, _O2, 0), tout);
             } else {
               el_error("direct: d160: unimplemented");
             }
@@ -756,7 +762,10 @@ void Instance_elx_conv_direct_lp_t::gemm_d160(OutputType *output,
               _mm_store_si128(
                   (__m128i *)&md5(aoutput, _oc3, _O2, _ht, ows0 + _T, 0), x8_out);
             } else if (std::is_same<OutputType, float>::value) {
-              _mm<V>::store_ps(&md5(aoutput, _oc3, _O2, _ht, ows0 + _T, 0), tout);
+              if (this->with_argmax)
+                _mm<V>::store_ps(&md5(atoutput, _oc3, _O2, _ht, ows0 + _T, 0), tout);
+              else
+                _mm<V>::store_ps(&md5(aoutput, _oc3, _O2, _ht, ows0 + _T, 0), tout);
             } else {
               el_error("direct: d160: unimplemented");
             }

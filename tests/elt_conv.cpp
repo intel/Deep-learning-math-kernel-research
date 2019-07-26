@@ -18,8 +18,8 @@ using namespace euler;
 // Covolution options
 int mb = 0, g = 1, ic = 0, ih = 0, iw = 0, oc = 0, oh = 0, ow = 0, kh = 3, kw = 3;
 int ph = 1, pw = 1, sh = 1, sw = 1, dh = 1, dw = 1;
-bool with_bias = true, with_relu = false, with_ip_sum = false, f16c_opt = false,
-     disable_autoparam = true;
+bool with_bias = true, with_relu = false, with_ip_sum = false,
+     with_argmax = false, f16c_opt = false, disable_autoparam = true;
 int data_type_cfg = 0;
 int prop_kind = forward_inference, alg = CONV_AUTO;
 int input_format = nChw16c, weights_format = OIhw16i16o,
@@ -68,6 +68,7 @@ int parse_cmd_options(int argc, char **argv) {
   validate_results = FLAGS_validate_results;
   with_bias = FLAGS_with_bias;
   with_relu = FLAGS_with_relu;
+  with_argmax = FLAGS_with_argmax;
   repeated_layer = FLAGS_repeated_layer;
   double_buffering = FLAGS_dbuffering;
   output_as_input = FLAGS_output_as_input;
@@ -215,14 +216,15 @@ int parse_cmd_options(int argc, char **argv) {
   printf("Convolution options:\n"
          "mb:%d, g:%d, ic:%d, ih:%d, iw:%d, oc:%d, oh:%d, ow:%d, kh:%d, kw:%d, "
          "ph:%d, pw:%d, sh:%d, sw:%d, dh:%d, dw:%d\n"
-         "with_bias:%d, with_relu:%d, with_ip_sum:%d, f16c_opt=%d, "
-         "data_type_cfg=%d, validate_results:%d\n"
+         "with_bias:%d, with_relu:%d, with_ip_sum:%d, with_argmax:%d, "
+         "f16c_opt=%d, data_type_cfg=%d, validate_results:%d\n"
          "flt_o:%d, flt_t:%d, blk_i:%d, blk_o:%d, pat_i:%d, pat_o:%d\n"
          "streaming-hint:%d, %d\n"
          "nthreads:%d\n"
          "execution-mode:%x\n",
-         mb, g, ic, ih, iw, oc, oh, ow, kh, kw, ph, pw, sh, sw, dh, dw, with_bias,
-         with_relu, with_ip_sum, f16c_opt, data_type_cfg, validate_results,
+         mb, g, ic, ih, iw, oc, oh, ow, kh, kw, ph, pw, sh, sw, dh, dw,
+         with_bias, with_relu, with_ip_sum, with_argmax,
+         f16c_opt, data_type_cfg, validate_results,
          flt_o, flt_t, blk_i, blk_o, pat_i, pat_o, streaming_input,
          streaming_output, nthreads, execution_mode);
 
@@ -308,8 +310,9 @@ static inline eld_conv_t &create_conv_desc(eld_conv_t &desc,
   desc.pads = {pw, pw, ph, ph};
   desc.strides = {sh, sw};
   desc.with_bias = with_bias;
-  desc.with_relu = with_relu;
+  desc.with_argmax = with_argmax;
   desc.with_ip_sum = with_ip_sum;
+  desc.with_relu = with_relu;
   desc.f16c_opt = f16c_opt;
   desc.algorithm = alg;
   desc.tile_size = tile_size;

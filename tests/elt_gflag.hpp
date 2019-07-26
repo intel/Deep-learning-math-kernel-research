@@ -27,6 +27,7 @@ DECLARE_int32(dw);
 DECLARE_bool(validate_results);
 DECLARE_bool(with_bias);
 DECLARE_bool(with_relu);
+DECLARE_bool(with_argmax);
 DECLARE_int32(repeated_layer);
 DECLARE_bool(dbuffering);
 DECLARE_bool(output_as_input);

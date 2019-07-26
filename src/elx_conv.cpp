@@ -46,6 +46,7 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   this->with_bias = dc.with_bias;
   this->with_ip_sum = dc.with_ip_sum;
   this->with_op_sum = dc.with_op_sum;
+  this->with_argmax = dc.with_argmax;
   this->f16c_opt = dc.f16c_opt;
   this->use_scratch_pad = dc.use_scratch_pad;
 

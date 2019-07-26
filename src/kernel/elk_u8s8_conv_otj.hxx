@@ -114,7 +114,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
   {
     MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
+    MD2(OutputType, aoutput_nhwc0, output, T, xc.OC);
     MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0),
         xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
 
@@ -174,7 +174,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
   {
     MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
+    MD2(OutputType, aoutput_nhwc0, output, T, xc.OC);
     MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0),
         xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
 
@@ -199,7 +199,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
     MD2(RoutputType, aroutput_blocked0, routput, JO, xc.oh * xc.ow * V);
     MD2(RoutputType, aroutput_blocked1, &md2(aroutput_blocked0, _O, 0), T, V);
 
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
+    MD2(OutputType, aoutput_nhwc0, output, T, xc.OC);
     MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0),
         xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
     MD2(RoutputType, aroutput_nhwc0, routput, T, xc.oc);

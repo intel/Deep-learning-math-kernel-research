@@ -137,6 +137,7 @@ struct EULER_API eld_conv_t {
   bool with_bias;
   bool with_ip_sum;
   bool with_op_sum;
+  bool with_argmax;
   bool f16c_opt;
   bool is_inference;
   bool use_scratch_pad;

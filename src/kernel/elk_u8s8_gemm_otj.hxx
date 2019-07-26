@@ -131,7 +131,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
+    MD2(OutputType, aoutput_nhwc0, output, T, xc.OC);
     MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
@@ -155,7 +155,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
+    MD2(OutputType, aoutput_nhwc0, output, T, xc.OC);
     MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
@@ -184,7 +184,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     MD2(OoutputType, aooutput_blocked0, ooutput, JO, xc.oh * xc.ow * V);
     MD2(OoutputType, aooutput_blocked1, &md2(aooutput_blocked0, _O, 0), T, V);
 
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.oc);
+    MD2(OutputType, aoutput_nhwc0, output, T, xc.OC);
     MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
     MD2(OoutputType, aooutput_nhwc0, ooutput, T, xc.oc);
     MD3(OoutputType, aooutput_nhwc1, &md2(aooutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);

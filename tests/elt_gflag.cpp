@@ -20,6 +20,7 @@ DEFINE_bool(validate_results, false,
             "on|off. Validate correctness. Default: off");
 DEFINE_bool(with_bias, true, "on|off. With bias. Default: on");
 DEFINE_bool(with_relu, false, "on|off. With relu. Default: off");
+DEFINE_bool(with_argmax, false, "on|off. With argmax. Default: off");
 DEFINE_int32(repeated_layer, 16, "Number of repeated layers. Default: 16");
 DEFINE_bool(dbuffering, false, "Double buffering. Default: off");
 DEFINE_bool(output_as_input, false,

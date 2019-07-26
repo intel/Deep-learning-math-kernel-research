@@ -31,6 +31,7 @@ eld_conv_t::eld_conv_t()
   with_bias = false;
   with_ip_sum = false;
   with_op_sum = false;
+  with_argmax = false;
   f16c_opt = false;
   xc = nullptr;
   nthreads = 0;

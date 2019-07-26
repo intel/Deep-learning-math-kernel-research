@@ -121,7 +121,7 @@ void Instance_elx_conv_direct_lp_t::__execute_d160(
       MD4(OutputType, aoutput0, output, this->t3, this->ht, this->ow, this->oc);
       MD2(OutputType, aoutput1, &md4(aoutput0, _t3, 0, 0, 0),
           this->oc4, this->oc3 * this->O2 * V);
-      MD4(OutputType, atoutput0, toutput_, this->t3, this->ht, this->ow, this->oc);
+      MD4(ToutputType, atoutput0, toutput_, this->t3, this->ht, this->ow, this->OC);
       MD2(ToutputType, atoutput1, &md4(atoutput0, _t3, 0, 0, 0),
           this->oc4, this->oc3 * this->O2 * V);
       MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
@@ -157,6 +157,52 @@ void Instance_elx_conv_direct_lp_t::__execute_d160(
                 &md2(abias, _oc4, 0), input_scale_, &md2(atweights_scale, _oc4, 0),
                 &md2(aweights_factor, _oc4, 0), _ic4, _oc4, _ht, _wt);
     }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
+  }
+
+  if (this->with_argmax) {
+    parallel_for<3>(mthr_, [&](int _n, int _oh, int _ow) {
+      constexpr int V8 = 8;
+      MD6(float, atoutput_blocked, toutput_,
+          this->n, this->oc2, this->oh, this->ow, 2, V8);
+      MD6(float, atoutput_nhwc, toutput_,
+          this->n, this->oh, this->ow, this->oc2, 2, V8);
+      MD3(int, aoutput, output, this->n, this->oh, this->ow);
+
+      auto aout = (this->input_fmt == nhwc)
+            ? &md6(atoutput_nhwc, _n, _oh, _ow, 0, 0, 0)
+            : &md6(atoutput_blocked, _n, 0, _oh, _ow, 0, 0);
+      __m<V/2> vmax = _mm256_load_ps(aout);
+      __i<V/2> kmax = _mm256_setzero_si256();
+
+      iter_each(_oc2, this->oc2) {
+        iter_each(_V2, 2) {
+          int index = _oc2 * 2 + _V2;
+          assert(index < (1 << 15));
+          if (index > 0) {
+            aout = (this->input_fmt == nhwc)
+                 ? &md6(atoutput_nhwc, _n, _oh, _ow, _oc2, _V2, 0)
+                 : &md6(atoutput_blocked, _n, _oc2, _oh, _ow, _V2, 0);
+            __m<V/2> vcur = _mm256_load_ps(aout);
+            __i<V/2> kcur = _mm256_castps_si256(_mm256_cmp_ps(vmax, vcur, _CMP_GE_OQ));
+            kcur = _mm256_add_epi32(_mm256_set1_epi32(1), kcur);
+            kcur = _mm256_mullo_epi16(kcur, _mm256_set1_epi32(index));
+            vmax = _mm256_max_ps(vmax, vcur);
+            kmax = _mm256_max_epi32(kmax, kcur);
+          }
+        }
+      }
+      float vmaxbuf[V8]; int kmaxbuf[V8];
+      _mm256_store_ps(vmaxbuf, vmax);
+      _mm256_store_epi32(kmaxbuf, kmax);
+      float gmax = vmaxbuf[0]; int pos = 0;
+      for(int i = 1; i < V8; ++i) {
+        if (vmaxbuf[i] > gmax) {
+          gmax = vmaxbuf[i];
+          pos = i;
+        }
+      }
+      md3(aoutput, _n, _oh, _ow) = kmaxbuf[pos] * V8 + pos;
+    }, this->n, this->oh, this->ow);
   }
 
   if (inference_acc_)
