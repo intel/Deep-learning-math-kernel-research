@@ -363,7 +363,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
 
 template <typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
-::__execute_blocked(TscaleType *tinput_quant_scale,
+::__execute_blocked_nhwc(TscaleType *tinput_quant_scale,
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input)
 {
@@ -376,15 +376,21 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
         xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * V);
     MD2(TinputType, atinput2, tinput,
         xc->t2, A * A * xc->ic3 * xc->I2 * xc->T * V);
-    MD7(InputType, ainput, input,
+    MD7(InputType, ainput_blocked, input,
         xc->n, xc->ic4, xc->ic3, xc->I2, xc->ih, xc->iw, V);
+    MD7(InputType, ainput_nhwc, input,
+        xc->n, xc->ih, xc->iw, xc->ic4, xc->ic3, xc->I2, V); // TODO: Ir
+
     int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
 
     if (_T < Tz) {
       int _n, _ih, _iw, _hA_start, _wA_start, _hA_end, _wA_end;
       t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
 
-      InputType *in = &md7(ainput, _n, 0, _ic3, _I2, _ih, _iw, 0);
+      InputType *in = xc->input_fmt == nhwc
+                    ? &md7(ainput_nhwc, _n, _ih, _iw, 0, _ic3, _I2, 0)
+                    : &md7(ainput_blocked, _n, 0, _ic3, _I2, _ih, _iw, 0);
+
       if (xc->sampling_kind == CALIBRATED) {
         MD6(uint8_t, atinput_u8, &md2(atinput2_u8, _t2, 0),
             A, A, xc->ic3, xc->I2, Tz, V);
@@ -436,8 +442,6 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
         xc->t2, A, A, xc->ic3, 2, xc->T);
     MD2(TinputType, atinput2, tinput,
         xc->t2, A * A * xc->ic3 * xc->I2 * xc->T * V);
-    MD7(InputType, ainput, input,
-        xc->n, xc->ic4, xc->ic3, xc->I2, xc->ih, xc->iw, V);
     int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
     MD6(TinputType, atinput6, &md2(atinput2, _t2, 0),
         xc->ic3, xc->I2, Tz, A, A, V);
@@ -588,21 +592,24 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 ::execute(TscaleType *__restrict tinput_quant_scale,
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input, int _ic4) {
-  if (input_is_bfmt_ || input_as_bfmt_)
-    __execute_blocked(tinput_quant_scale, tinput_u8, tinput, input);
+  if (input_is_bfmt_ || input_as_bfmt_ || xc->input_fmt == nhwc)
+    __execute_blocked_nhwc(tinput_quant_scale, tinput_u8, tinput, input);
   else
     __execute_nchw(tinput_quant_scale, tinput_u8, tinput, input, _ic4);
 }
 
 template <typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
-::__execute_blocked(TscaleType *tinput_quant_scale,
+::__execute_blocked_nhwc(TscaleType *tinput_quant_scale,
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input, int _t2, int Tz)
 {
   _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
-  MD7(InputType, ainput, input, xc->n,
-      xc->ic4, xc->ic3, xc->I2, xc->ih, xc->iw, V);
+  MD7(InputType, ainput_blocked, input,
+      xc->n, xc->ic4, xc->ic3, xc->I2, xc->ih, xc->iw, V);
+  MD7(InputType, ainput_nhwc, input,
+      xc->n, xc->ih, xc->iw, xc->ic4, xc->ic3, xc->I2, V);
+
   MD6(uint8_t, atinput_u8, tinput_u8, A, A, xc->ic3, xc->I2, Tz, V);
   MD5(TscaleType, atinput_quant_scale, tinput_quant_scale, xc->ic3, A, A, 2, xc->T);
 
@@ -623,7 +630,9 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
         auto _ih = t2spati_o.anchor_t_;
         auto _iw = t2spati_o.anchor_l_;
 
-        InputType *in = &md7(ainput, t2spati_o.n_, 0, _ic3, _I2, _ih, _iw, 0);
+        InputType *in = xc->input_fmt == nhwc
+                ? &md7(ainput_nhwc, t2spati_o.n_, _ih, _iw, 0, _ic3, _I2, 0)
+                : &md7(ainput_blocked, t2spati_o.n_, 0, _ic3, _I2, _ih, _iw, 0);
         if (!t2spati_o.is_border())
           ker_trans_input_(*xc, aout, in, 0, A - 1, 0, A - 1);
         else
@@ -662,7 +671,9 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 
         MD3(TinputType, aout, &md6(atinput, _ic3, _I2, _T, 0, 0, 0), A, A, V);
         using Array = op_type[A][A][V];
-        InputType *in = &md7(ainput, t2spati_o.n_, 0, _ic3, _I2, _ih, _iw, 0);
+        InputType *in = xc->input_fmt == nhwc
+                ? &md7(ainput_nhwc, t2spati_o.n_, _ih, _iw, 0, _ic3, _I2, 0)
+                : &md7(ainput_blocked, t2spati_o.n_, 0, _ic3, _I2, _ih, _iw, 0);
         if (!t2spati_o.is_border())
           ker_trans_input_(*xc, *(Array *)&md3(aout, 0, 0, 0), in, 0, A - 1, 0, A - 1);
         else
@@ -724,7 +735,9 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 
           MD3(TinputType, aout, &md4(atinput, _I2, 0, 0, 0), A, A, V);
           using Array = op_type[A][A][V];
-          InputType *in = &md7(ainput, t2spati_o.n_, 0, _ic3, _I2, _ih, _iw, 0);
+          InputType *in = xc->input_fmt == nhwc
+                ? &md7(ainput_nhwc, t2spati_o.n_, _ih, _iw, 0, _ic3, _I2, 0)
+                : &md7(ainput_blocked, t2spati_o.n_, 0, _ic3, _I2, _ih, _iw, 0);
           if (!t2spati_o.is_border())
             ker_trans_input_(*xc, *(Array *)&md3(aout, 0, 0, 0), in, 0, A - 1, 0, A - 1);
           else
@@ -883,8 +896,8 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 ::execute(TscaleType *__restrict tinput_quant_scale,
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input, int _t2, int Tz) {
-  if (input_is_bfmt_ || input_as_bfmt_)
-    __execute_blocked(tinput_quant_scale, tinput_u8, tinput, input, _t2, Tz);
+  if (input_is_bfmt_ || input_as_bfmt_ || xc->input_fmt == nhwc)
+    __execute_blocked_nhwc(tinput_quant_scale, tinput_u8, tinput, input, _t2, Tz);
   else
     __execute_nchw(tinput_quant_scale, tinput_u8, tinput, input, _t2, Tz);
 }

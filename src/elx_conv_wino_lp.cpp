@@ -132,6 +132,10 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
   if (this->Or != V && this->output_fmt == nhwc) {
     el_error("Unimplemented: nhwc output with Or");
   }
+  if (this->Ir != V && this->input_fmt == nhwc) {
+    el_error("Unimplemented: nhwc input with Ir");
+  }
+
 
   if (input_as_bfmt_)
     binput_size = this->n * this->IC * this->ih * this->iw * sizeof(InputType);
