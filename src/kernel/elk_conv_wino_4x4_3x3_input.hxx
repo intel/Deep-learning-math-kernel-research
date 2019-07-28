@@ -11,9 +11,10 @@ struct elk_conv_wino_trans_input<float, InputType, format, is_border,
     ISA_SKX_AVX512, 6, V> {
   constexpr static int A = 6;
 
-  static void execute(elx_conv_params_t &xc, float atinput[A][A][V],
+  static void execute(elx_conv_params_t &xc, float *tinput,
       InputType *input, int hA_start, int hA_end, int wA_start, int wA_end)
   {
+    MD3(float, atinput, tinput, A, A, V);
     // __m<V> mS, mz;
 
     // if (std::is_same<InputType, uint8_t>::value) {
@@ -92,7 +93,7 @@ struct elk_conv_wino_trans_input<float, InputType, format, is_border,
 #undef ISTORE
 
 #define F(_h, _w) f_cb(_h, _w)
-#define T(h, w) atinput[h][w]
+#define T(h, w) (&md3(atinput, h, w, 0))
 #define f(m, n) f##m##n
 #define OP(m, n) f(m, n) = F(m, n)
 #define ISTORE(i, j) _mm<V>::store_ps(T(i, j), t##i##j);

@@ -13,9 +13,10 @@ struct elk_conv_wino_trans_input<float, InputType, format, is_border,
     ISA_SKX_AVX512, 4, V> {
   constexpr static int A = 4;
 
-  static void execute(elx_conv_params_t &xc, float atinput[A][A][V],
+  static void execute(elx_conv_params_t &xc, float *tinput,
       InputType *input, int hA_start, int hA_end, int wA_start, int wA_end)
   {
+    MD3(float, atinput, tinput, A, A, V);
     ENABLE_AVX512F();
 
     // Inputs
@@ -101,7 +102,7 @@ struct elk_conv_wino_trans_input<float, InputType, format, is_border,
 #undef C
 #undef T
 #define F(_h, _w) f_cb(_h, _w)
-#define T(h, w) atinput[h][w]
+#define T(h, w) (&md3(atinput, h, w, 0))
 
 #undef f
 #undef OP

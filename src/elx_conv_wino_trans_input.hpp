@@ -107,7 +107,7 @@ protected:
       InputType *__restrict input, int _ic4);
 
   inline void __execute_post(TinputType * __restrict tinput,
-      op_type at[A][A][V], int Tz, int _ic3, int _I2, int _T);
+      op_type *at, int Tz, int _ic3, int _I2, int _T);
 
   using super::xc;
   using super::hA_end_;

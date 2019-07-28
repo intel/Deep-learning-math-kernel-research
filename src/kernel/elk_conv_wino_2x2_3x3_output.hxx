@@ -16,13 +16,14 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
   constexpr static int K = 3;
 
   static void execute(elx_conv_params_t &xc, OutputType *output,
-      float atoutput[A][A][V], BiasType *bias, int hOA_end, int wOA_end)
+      float *toutput, BiasType *bias, int hOA_end, int wOA_end)
   {
     ENABLE_AVX512F();
 
     __m<V> z = XOR(z, z);
     __m<V> mrepS, mzp;
 
+    MD3(float, atoutput, toutput, A, A, V);
     if (std::is_same<OutputType, uint8_t>::value
         || std::is_same<OutputType, int8_t>::value) {
       mrepS = _mm<V>::set1_ps(xc.output_quant_repS);
@@ -57,7 +58,7 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
 #undef T
 #undef OP
 #undef BIAS
-#define T(_h, _w) atoutput[_h][_w]
+#define T(_h, _w) (&md3(atoutput, _h, _w, 0))
 #define P(_h, _w) p_cb(_h, _w)
 
     __m<V> c0, c1, c2, c3, zero;

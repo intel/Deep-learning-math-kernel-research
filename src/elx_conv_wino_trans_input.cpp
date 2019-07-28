@@ -49,11 +49,11 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
 
     InputType *in = &md7(ainput, t2spati_o.n_, _ic4, _ic3, _I2, _ih, _iw, 0);
     if (!t2spati_o.is_border())
-      ker_trans_input_(*xc, aout, in, 0, A - 1, 0, A - 1);
+      ker_trans_input_(*xc, (float *)&aout, in, 0, A - 1, 0, A - 1);
     else
-      ker_trans_input0_(*xc, aout, in,
+      ker_trans_input0_(*xc, (float *)&aout, in,
           t2spati_o.t_, t2spati_o.d_, t2spati_o.l_, t2spati_o.r_);
-    __execute_post(tinput, aout, Tz, _ic3, _I2, _T);
+    __execute_post(tinput, (op_type *)aout, Tz, _ic3, _I2, _T);
 
     ++ t2spati_o;
   }}}
@@ -80,11 +80,11 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
       auto *in = &md7(ainput, _n, _ic4, _ic3, _I2, _ih, _iw, 0);
       if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
           && _wA_end == A - 1)
-        ker_trans_input_(*xc, aout, in, 0, A - 1, 0, A - 1);
+        ker_trans_input_(*xc, (float *)&aout, in, 0, A - 1, 0, A - 1);
       else
         ker_trans_input0_(
-            *xc, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
-      __execute_post(&md2(atinput, _t2, 0), aout, Tz, _ic3, _I2, _T);
+            *xc, (float *)&aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
+      __execute_post(&md2(atinput, _t2, 0), (op_type *)&aout, Tz, _ic3, _I2, _T);
     }
   }, xc->t2, xc->ic3, xc->I2);
 }
@@ -92,22 +92,23 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
 template <typename TinputType, typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
 ::__execute_post(TinputType *__restrict tinput,
-    op_type at[A][A][V], int Tz, int _ic3, int _I2, int _T) {
+    op_type *tbuf, int Tz, int _ic3, int _I2, int _T) {
   MD6(TinputType, atinput6, tinput, A, A, xc->ic3, xc->I2, Tz, V);
 
+  MD3(op_type, at, tbuf, A, A, V);
   if (I == ISA_SKX_AVX512 && std::is_same<op_type, float>::value
       && std::is_same<TinputType, float>::value) {
     if (stream_in_) {
       iter_each (_hA, A) {
       iter_each (_wA, A) {
         _mm<V>::stream_ps(&md6(atinput6, _hA, _wA, _ic3, _I2, _T, 0),
-                       *((__m<V> *)&at[_hA][_wA][0]));
+                       *((__m<V> *)&md3(at, _hA, _wA, 0)));
       }}
     } else {
       iter_each (_hA, A) {
       iter_each (_wA, A) {
         _mm<V>::store_ps(&md6(atinput6, _hA, _wA, _ic3, _I2, _T, 0),
-                      *((__m<V> *)&at[_hA][_wA][0]));
+                      *((__m<V> *)&md3(at, _hA, _wA, 0)));
       }}
     }
   } else if (I == ISA_SKX_AVX512 && std::is_same<op_type, float>::value
@@ -115,14 +116,14 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
     if (stream_in_) {
       iter_each (_hA, A) {
       iter_each (_wA, A) {
-        auto fp16v = _mm<V>::cvt_f32_b16(*(__i<V> *)&at[_hA][_wA][0]);
+        auto fp16v = _mm<V>::cvt_f32_b16(*(__i<V> *)&md3(at, _hA, _wA, 0));
         _mm<V/2>::stream_si256(
             (__m256i *)&md6(atinput6, _hA, _wA, _ic3, _I2, _T, 0), fp16v);
       }}
     } else {
       iter_each (_hA, A) {
       iter_each (_wA, A) {
-        auto fp16v = _mm<V>::cvt_f32_b16(*(__i<V> *)&at[_hA][_wA][0]);
+        auto fp16v = _mm<V>::cvt_f32_b16(*(__i<V> *)&md3(at, _hA, _wA, 0));
         _mm<V/2>::store_si256(
             (__m256i *)&md6(atinput6, _hA, _wA, _ic3, _I2, _T, 0), fp16v);
       }}
@@ -132,7 +133,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
     iter_each (_wA, A) {
 #pragma omp simd
     iter_each (_V, V) {
-      md6(atinput6, _hA, _wA, _ic3, _I2, _T, _V) = at[_hA][_wA][_V];
+      md6(atinput6, _hA, _wA, _ic3, _I2, _T, _V) = md3(at, _hA, _wA, _V);
     }}}
   }
 }
@@ -159,11 +160,11 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
       InputType *in = &md4(ainput1, _ic4, _ic3, _I2, 0);
       if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
           && _wA_end == A - 1)
-        ker_trans_input_(*xc, aout, in, 0, A - 1, 0, A - 1);
+        ker_trans_input_(*xc, (float *)&aout, in, 0, A - 1, 0, A - 1);
       else
         ker_trans_input0_(
-            *xc, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
-      __execute_post(&md2(atinput, _t2, 0), aout, Tz, _ic3, _I2, _T);
+            *xc, (float *)&aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
+      __execute_post(&md2(atinput, _t2, 0), (op_type *)&aout, Tz, _ic3, _I2, _T);
     }
   }, xc->t2, xc->ic3, xc->I2);
 }
@@ -193,11 +194,11 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
         xc->I2, V);
     InputType *in = &md4(ainput1, _ic4, _ic3, _I2, 0);
     if (!t2spati_o.is_border())
-      ker_trans_input_(*xc, aout, in, 0, A - 1, 0, A - 1);
+      ker_trans_input_(*xc, (float *)&aout, in, 0, A - 1, 0, A - 1);
     else
-      ker_trans_input0_(*xc, aout, in,
+      ker_trans_input0_(*xc, (float *)&aout, in,
           t2spati_o.t_, t2spati_o.d_, t2spati_o.l_, t2spati_o.r_);
-    __execute_post(tinput, aout, Tz, _ic3, _I2, _T);
+    __execute_post(tinput, (op_type *)&aout, Tz, _ic3, _I2, _T);
 
     ++ t2spati_o;
   }}}
@@ -266,8 +267,8 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
     alignas(64) InputType ain[A][A][V];
     iter_each(_T, Tz) {
       readin(ain, _t2, _ic3, _I2, _T, is_Ir);
-      ker_trans_input_(*xc, aout, (InputType *)ain, 0, 0, 0, -1);
-      __execute_post(&md2(atinput, _t2, 0), aout, Tz, _ic3, _I2, _T);
+      ker_trans_input_(*xc, (float *)&aout, (InputType *)ain, 0, 0, 0, -1);
+      __execute_post(&md2(atinput, _t2, 0), (op_type *)&aout, Tz, _ic3, _I2, _T);
     }
   }, xc->t2, xc->ic3, xc->I2);
 }
@@ -333,8 +334,8 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
                  _ic3 == xc->ic3 - 1 && _I2 == xc->I2 - 1;
     iter_each (_T, Tz) {
       readin(ain, _ic3, _I2, _T, is_Ir);
-      ker_trans_input_(*xc, aout, (InputType *)ain, 0, 0, 0, -1);
-      __execute_post(tinput, aout, Tz, _ic3, _I2, _T);
+      ker_trans_input_(*xc, (float *)&aout, (InputType *)ain, 0, 0, 0, -1);
+      __execute_post(tinput, (op_type *)&aout, Tz, _ic3, _I2, _T);
     }
   }}
 }
@@ -398,9 +399,9 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 
         if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
             && _wA_end == A - 1)
-          ker_trans_input_(*xc, aout, in, 0, A - 1, 0, A - 1);
+          ker_trans_input_(*xc, (float *)&aout, in, 0, A - 1, 0, A - 1);
         else
-          ker_trans_input0_(*xc, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
+          ker_trans_input0_(*xc, (float *)&aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
 
         iter_each (_hA, A) {
         iter_each (_wA, A) {
@@ -419,14 +420,13 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
         MD4(TinputType, atinput4, &md2(atinput2, _t2, 0),
             xc->ic3, xc->I2, Tz, A * A * V);
         auto aout = &md4(atinput4, _ic3, _I2, _T, 0);
-        using Array = op_type[A][A][V];
 
         if (_hA_start == 0 && _wA_start == 0 && _hA_end == A - 1
             && _wA_end == A - 1)
-          ker_trans_input_(*xc, *(Array *)aout, in, 0, A - 1, 0, A - 1);
+          ker_trans_input_(*xc, aout, in, 0, A - 1, 0, A - 1);
         else
           ker_trans_input0_(
-              *xc, *(Array *)aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
+              *xc, aout, in, _hA_start, _hA_end, _wA_start, _wA_end);
       }
     }
   }, xc->t2, xc->ic3, xc->I2, xc->T);
@@ -566,7 +566,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
     alignas(64) InputType ain[A][A][V];
     iter_each(_T, Tz) {
       readin(ain, _t2, _ic3, _I2, _T, is_Ir);
-      ker_trans_input_(*xc, aout, (InputType *)ain, 0, 0, 0, -1);
+      ker_trans_input_(*xc, (float *)&aout, (InputType *)ain, 0, 0, 0, -1);
 
       MD6(uint8_t, atinput_u8, &md2(atinput2_u8, _t2, 0),
           A, A, xc->ic3, xc->I2, Tz, V);
@@ -634,9 +634,9 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
                 ? &md7(ainput_nhwc, t2spati_o.n_, _ih, _iw, 0, _ic3, _I2, 0)
                 : &md7(ainput_blocked, t2spati_o.n_, 0, _ic3, _I2, _ih, _iw, 0);
         if (!t2spati_o.is_border())
-          ker_trans_input_(*xc, aout, in, 0, A - 1, 0, A - 1);
+          ker_trans_input_(*xc, (float *)&aout, in, 0, A - 1, 0, A - 1);
         else
-          ker_trans_input0_(*xc, aout, in,
+          ker_trans_input0_(*xc, (float *)&aout, in,
               t2spati_o.t_, t2spati_o.d_, t2spati_o.l_, t2spati_o.r_);
 
         ++ t2spati_o;
@@ -670,14 +670,13 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
         auto _iw = t2spati_o.anchor_l_;
 
         MD3(TinputType, aout, &md6(atinput, _ic3, _I2, _T, 0, 0, 0), A, A, V);
-        using Array = op_type[A][A][V];
         InputType *in = xc->input_fmt == nhwc
                 ? &md7(ainput_nhwc, t2spati_o.n_, _ih, _iw, 0, _ic3, _I2, 0)
                 : &md7(ainput_blocked, t2spati_o.n_, 0, _ic3, _I2, _ih, _iw, 0);
         if (!t2spati_o.is_border())
-          ker_trans_input_(*xc, *(Array *)&md3(aout, 0, 0, 0), in, 0, A - 1, 0, A - 1);
+          ker_trans_input_(*xc, &md3(aout, 0, 0, 0), in, 0, A - 1, 0, A - 1);
         else
-          ker_trans_input0_(*xc, *(Array *)&md3(aout, 0, 0, 0), in,
+          ker_trans_input0_(*xc, &md3(aout, 0, 0, 0), in,
               t2spati_o.t_, t2spati_o.d_, t2spati_o.l_, t2spati_o.r_);
 
         ++ t2spati_o;
@@ -734,14 +733,13 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
           auto _iw = t2spati_o.anchor_l_;
 
           MD3(TinputType, aout, &md4(atinput, _I2, 0, 0, 0), A, A, V);
-          using Array = op_type[A][A][V];
           InputType *in = xc->input_fmt == nhwc
                 ? &md7(ainput_nhwc, t2spati_o.n_, _ih, _iw, 0, _ic3, _I2, 0)
                 : &md7(ainput_blocked, t2spati_o.n_, 0, _ic3, _I2, _ih, _iw, 0);
           if (!t2spati_o.is_border())
-            ker_trans_input_(*xc, *(Array *)&md3(aout, 0, 0, 0), in, 0, A - 1, 0, A - 1);
+            ker_trans_input_(*xc, &md3(aout, 0, 0, 0), in, 0, A - 1, 0, A - 1);
           else
-            ker_trans_input0_(*xc, *(Array *)&md3(aout, 0, 0, 0), in,
+            ker_trans_input0_(*xc, &md3(aout, 0, 0, 0), in,
                 t2spati_o.t_, t2spati_o.d_, t2spati_o.l_, t2spati_o.r_);
 
           if (flush) {
@@ -872,7 +870,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
     bool is_Ir = xc->Ir != V && _ic3 == xc->ic3 - 1 && _I2 == xc->I2 - 1;
     iter_each (_T, Tz) {
       readin(ain, _ic3, _I2, _T, is_Ir);
-      ker_trans_input_(*xc, aout, (InputType *)ain, 0, 0, 0, -1);
+      ker_trans_input_(*xc, (float *)&aout, (InputType *)ain, 0, 0, 0, -1);
 
       iter_each (_hA, A) {
       iter_each (_wA, A) {

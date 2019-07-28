@@ -180,7 +180,6 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
     __m<V> vin;
     TrOpType ain[V];
   } In[A][A];
-  using Array = TrOpType[A][A][V];
 
   iter_each (_oc3, xc->oc3) {
     iter_each (_O2, xc->O2) {
@@ -199,7 +198,7 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
             }
           }
         }
-        ker_trans_output_(*xc, (OutputType *)aout, *(Array *)&In,
+        ker_trans_output_(*xc, (OutputType *)aout, (float *)&In,
             (_ic4 == xc->ic4 - 1 || _ic4 == -1) ? &md3(abias, _oc3, _O2, 0)
                                                   : nullptr,
             0, -1);
@@ -232,11 +231,10 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
   auto res = std::div(_t2 * xc->T, xc->nt);
   auto _n_off = res.quot;
   auto _t_off = res.rem;
-  union {
+  alignas(64) union {
     __m<V> vin;
     TrOpType ain[V];
   } In[A][A];
-  using Array = TrOpType[A][A][V];
 
   iter_each (_oc3, xc->oc3) {
     iter_each (_O2, xc->O2) {
@@ -262,12 +260,12 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
         OutputType *out = &md7(aoutput, _n, _oc4, _oc3, _O2, _oh, _ow, 0);
 
         if (t2spato_o.is_border())
-          ker_trans_output_tail(*xc, out, *(Array *)&In,
+          ker_trans_output_tail(*xc, out, (float *)&In,
               (_ic4 == -1 || _ic4 == xc->ic4 - 1) ? &md3(abias, _oc3, _O2, 0)
                                                     : nullptr,
               t2spato_o.d_, t2spato_o.r_);
         else
-          ker_trans_output(*xc, out, *(Array *)&In,
+          ker_trans_output(*xc, out, (float *)&In,
               (_ic4 == -1 || _ic4 == xc->ic4 - 1) ? &md3(abias, _oc3, _O2, 0)
                                                     : nullptr,
               A - K, A - K);
@@ -299,11 +297,10 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
   auto res = std::div(_t2 * xc->T, xc->nt);
   auto _n_off = res.quot;
   auto _t_off = res.rem;
-  union {
+  alignas(64) union {
     __m<V> vin;
     TrOpType ain[V];
   } In[A][A];
-  using Array = TrOpType[A][A][V];
 
   iter_each (_oc3, xc->oc3) {
     iter_each (_O2, xc->O2) {
@@ -329,12 +326,12 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
             xc->oc3, xc->O2, V);
         OutputType *out = &md4(aoutput1, _oc4, _oc3, _O2, 0);
         if (t2spato_o.is_border())
-          ker_trans_output_tail(*xc, out, *(Array *)&In,
+          ker_trans_output_tail(*xc, out, (float *)&In,
               (_ic4 == -1 || _ic4 == xc->ic4 - 1) ? &md3(abias, _oc3, _O2, 0)
                                                     : nullptr,
               t2spato_o.d_, t2spato_o.r_);
         else
-          ker_trans_output(*xc, out, *(Array *)&In,
+          ker_trans_output(*xc, out, (float *)&In,
               (_ic4 == -1 || _ic4 == xc->ic4 - 1) ? &md3(abias, _oc3, _O2, 0)
                                                     : nullptr,
               A - K, A - K);
@@ -385,11 +382,10 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
         int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
         MD6(ToutputType, atoutput, &md2(atoutput2, _t2, 0), A, A, xc->oc3,
             xc->O2, Tz, V);
-        union {
+        alignas(64) union {
           __m<V> vin;
           TrOpType ain[V];
         } In[A][A];
-        using Array = TrOpType[A][A][V];
 
         //iter_each (_T, Tz) {
         if (_T < Tz) {
@@ -411,13 +407,13 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
           OutputType *out = &md7(aoutput, _n, _oc4, _oc3, _O2, _oh, _ow, 0);
 
           if (_hOA_end < A - K || _wOA_end < A - K)
-            ker_trans_output_tail(*xc, out, *(Array *)&In,
+            ker_trans_output_tail(*xc, out, (float *)&In,
                 (_ic4 == -1 || _ic4 == xc->ic4 - 1)
                     ? &md3(abias, _oc3, _O2, 0)
                     : nullptr,
                 _hOA_end, _wOA_end);
           else
-            ker_trans_output(*xc, out, *(Array *)&In,
+            ker_trans_output(*xc, out, (float *)&In,
                 (_ic4 == -1 || _ic4 == xc->ic4 - 1)
                     ? &md3(abias, _oc3, _O2, 0)
                     : nullptr,
@@ -450,11 +446,10 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
         int Tz = _t2 == (xc->t2 - 1) ? xc->Tr : xc->T;
         MD6(ToutputType, atoutput, &md2(atoutput2, _t2, 0), A, A, xc->oc3,
             xc->O2, Tz, V);
-        union {
+        alignas(64) union {
           __m<V> vin;
           TrOpType ain[V];
         } In[A][A];
-        using Array = TrOpType[A][A][V];
 
         iter_each (_T, Tz) {
           iter_each (_hA, A) {
@@ -476,13 +471,13 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
           OutputType *out = &md4(aoutput1, _oc4, _oc3, _O2, 0);
 
           if (_hOA_end < A - K || _wOA_end < A - K)
-            ker_trans_output_tail(*xc, out, *(Array *)&In,
+            ker_trans_output_tail(*xc, out, (float *)&In,
                 (_ic4 == -1 || _ic4 == xc->ic4 - 1)
                     ? &md3(abias, _oc3, _O2, 0)
                     : nullptr,
                 _hOA_end, _wOA_end);
           else
-            ker_trans_output(*xc, out, *(Array *)&In,
+            ker_trans_output(*xc, out, (float *)&In,
                 (_ic4 == -1 || _ic4 == xc->ic4 - 1)
                     ? &md3(abias, _oc3, _O2, 0)
                     : nullptr,
@@ -555,11 +550,10 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
         MD6(ToutputType, atoutput6, &md2(atoutput2, _t2, 0), A, A, xc->oc3,
             xc->O2, Tz, V);
         alignas(64) OutputType aout[A - K + 1][A - K + 1][V];
-        union {
+        alignas(64) union {
           __m<V> vin;
           TrOpType ain[V];
         } In[A][A];
-        using Array = TrOpType[A][A][V];
         bool is_Or = xc->Or != V && _oc4 == xc->oc4 - 1
             && _oc3 == xc->oc3 - 1 && _O2 == xc->O2 - 1;
         iter_each (_T, Tz) {
@@ -576,7 +570,7 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
             }
           }
 
-          ker_trans_output_(*xc, (OutputType *)aout, *(Array *)&In,
+          ker_trans_output_(*xc, (OutputType *)aout, (float *)&In,
               (_ic4 == -1 || _ic4 == xc->ic4 - 1) ? &md3(abias, _oc3, _O2, 0)
                                                   : nullptr,
               0, -1);

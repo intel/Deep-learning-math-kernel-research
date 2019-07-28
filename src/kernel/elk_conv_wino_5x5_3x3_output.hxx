@@ -91,13 +91,14 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
   constexpr static int K = 3;
 
   static void execute(elx_conv_params_t &xc, OutputType *output,
-      float atoutput[A][A][V], BiasType *bias, int hOA_end, int wOA_end)
+      float *toutput, BiasType *bias, int hOA_end, int wOA_end)
   {
     ENABLE_AVX512F();
     bool fuse_ip_sum = with_ip_sum && (wOA_end != -1);
     bool fuse_bias = with_bias && (bias != nullptr);
     bool fuse_relu = with_relu && (bias != nullptr);
 
+    MD3(float, atoutput, toutput, A, A, V);
     alignas(64) OutputType dummy[16];
     auto p_cb = [&](int _h, int _w) {
       if (format == TKF_COMPACT) {
@@ -120,7 +121,7 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
 
 #undef P
 #undef T
-#define T(_h, _w) atoutput[_h][_w]
+#define T(_h, _w) (&md3(atoutput, _h, _w, 0))
 #define P(_h, _w) p_cb(_h, _w)
 
     __m<V> c0, c1, c2, c3, c4, c5, zero;
