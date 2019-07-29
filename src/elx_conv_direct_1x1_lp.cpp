@@ -350,7 +350,9 @@ void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked_oc(
         aweights_scale, _oc4, _oc3, 0, _O2, 0);
     __m<V> &mmqf = *(__m<V> *)&md5(
         aweights_scale, _oc4, _oc3, 1, _O2, 0);
-    __m<V> &mmbias = *(__m<V> *)&md4(abias, _oc4, _oc3, _O2, 0);
+    __m<V> mmbias = this->with_bias
+                  ? *(__m<V> *)&md4(abias, _oc4, _oc3, _O2, 0)
+                  : _mm<V>::setzero_ps();
 
     if (std::is_same<OutputType, float>::value) {
       mmqs = mmiS * mmqs;
