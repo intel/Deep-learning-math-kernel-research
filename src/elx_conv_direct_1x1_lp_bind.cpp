@@ -21,12 +21,35 @@ Instance_elx_conv_direct_1x1_lp_t::bind_execute_functions() {
           BIND_KERNEL(1, GKF_FCF)
         break;
       case (0xb161):
-        if (this->ws == 1)
-          BIND_KERNEL(1, GKF_DCD)
-        else if (this->ws == 2)
-          BIND_KERNEL(2, GKF_DCD)
-        else
-          el_error("");
+        if (this->input_fmt == nChw16c && this->output_fmt == nChw16c) {
+          if (this->ws == 1)
+            BIND_KERNEL(1, GKF_DCD)
+          else if (this->ws == 2)
+            BIND_KERNEL(2, GKF_DCD)
+          else
+            el_error("");
+        } else if (this->input_fmt == nhwc && this->output_fmt == nChw16c) {
+          if (this->ws == 1)
+            BIND_KERNEL(1, GKF_FCD)
+          else if (this->ws == 2)
+            BIND_KERNEL(2, GKF_FCD)
+          else
+            el_error("");
+        } else if (this->input_fmt == nChw16c && this->output_fmt == nhwc) {
+          if (this->ws == 1)
+            BIND_KERNEL(1, GKF_DCF)
+          else if (this->ws == 2)
+            BIND_KERNEL(2, GKF_DCF)
+          else
+            el_error("");
+        } else { // nhwc -> nhwc
+          if (this->ws == 1)
+            BIND_KERNEL(1, GKF_FCF)
+          else if (this->ws == 2)
+            BIND_KERNEL(2, GKF_FCF)
+          else
+            el_error("");
+        }
         break;
       default:
         el_error("Unknown xopt");

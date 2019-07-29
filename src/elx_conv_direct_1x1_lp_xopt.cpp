@@ -15,7 +15,7 @@
 // ------+-----+--------+-----+--------------------------------------
 //  c060 |  c  |   t+o  |  -  | blocked/nhwc, Tr, Or, stride=1
 // ------+-----+--------+-----+--------------------------------------
-//  b061 |  b  |   t+o  |  I  | blocked, stride>=1, oh = wt*T
+//  b061 |  b  |   t+o  |  I  | blocked, stride>=1, ow = wt*T
 // ------+-----+--------+-----+--------------------------------------
 //
 
@@ -104,27 +104,51 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_b161(
 
   parallel_for<5, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {
     auto ithr = omp_get_thread_num();
-    MD7(uint8_t, ainput, input, this->t3, this->ic4, this->ic3 * this->I2,
+    // blocked
+    MD7(uint8_t, ainput_blocked, input,
+        this->t3, this->ic4, this->ic3 * this->I2,
         this->ht, this->hs, this->wt, this->T * this->ws * V);
-    MD6(ToutputType, atoutput, toutput_,
+    MD2(OutputType, aoutput0_blocked, output,
+        this->t3, this->OC * this->oh * this->ow);
+    MD5(OutputType, aoutput1_blocked, &md2(aoutput0_blocked, _t3, 0), this->oc4,
+        this->oc3 * this->O2, this->ht, this->wt, this->T * V);
+    MD6(ToutputType, atoutput_blocked, toutput_,
         this->t3, this->oc4, this->oc3 * this->O2, this->ht, this->wt, this->T * V);
     MD5(ToutputType, atoutput_opt, toutput_,
         mthr_, this->oc3 * this->O2, this->ht, this->wt, this->T * V);
-    MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
-    MD5(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
-        this->oc3 * this->O2, this->ht, this->wt, this->T * V);
+    // nhwc
+    MD6(uint8_t, ainput0_nhwc, input,
+        this->t3, this->ht, this->hs, this->wt, this->T * this->ws, this->ic);
+    MD2(uint8_t, ainput1_nhwc, &md6(ainput0_nhwc, _t3, _ht, 0, _wt, 0, 0),
+        this->ic4, this->ic3 * this->I2 * V);
+    MD5(OutputType, aoutput0_nhwc, output,
+        this->t3, this->ht, this->wt, this->T, this->oc);
+    MD2(OutputType, aoutput1_nhwc, &md5(aoutput0_nhwc, _t3, _ht, _wt, 0, 0),
+        this->oc4, this->oc3 * this->O2 * V);
+    MD5(ToutputType, atoutput0_nhwc, toutput_,
+        this->t3, this->ht, this->wt, this->T, this->oc);
+    MD2(ToutputType, atoutput1_nhwc, &md5(atoutput0_nhwc, _t3, _ht, _wt, 0, 0),
+        this->oc4, this->oc3 * this->O2 * V);
+
     MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
     MD2(TscaleType, ainput_scale, input_scale_, 2, this->T);
     MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
         this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
     MD2(TscaleType, aweights_scale, weights_scale_,
         this->oc4, this->oc3 * 2 * this->O2 * V);
-    auto atout = toutput_opt_ ? &md5(atoutput_opt, ithr, 0, _ht, _wt, 0)
-                              : &md6(atoutput, _t3, _oc4, 0, _ht, _wt, 0);
 
-    gemm_b161(atout,
-        &md5(aoutput2, _oc4, 0, _ht, _wt, 0),
-        &md7(ainput, _t3, _ic4, 0, _ht, 0, _wt, 0),
+    auto ain = this->input_fmt == nhwc
+             ? &md2(ainput1_nhwc, _ic4, 0)
+             : &md7(ainput_blocked, _t3, _ic4, 0, _ht, 0, _wt, 0);
+    auto aout = this->output_fmt == nhwc
+             ? &md2(aoutput1_nhwc, _oc4, 0)
+             : &md5(aoutput1_blocked, _oc4, 0, _ht, _wt, 0);
+    auto atout = toutput_opt_
+             ? &md5(atoutput_opt, ithr, 0, _ht, _wt, 0)
+             : this->output_fmt == nhwc
+               ? &md2(atoutput1_nhwc, _oc4, 0)
+               : &md6(atoutput_blocked, _t3, _oc4, 0, _ht, _wt, 0);
+    gemm_b161(atout, aout, ain,
         &md3(atweights_s8, _oc4, _ic4, 0),
         &md2(ainput_scale, 0, 0),
         &md2(aweights_scale, _oc4, 0),

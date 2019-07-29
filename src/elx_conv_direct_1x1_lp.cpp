@@ -412,20 +412,25 @@ void Instance_elx_conv_direct_1x1_lp_t::requant_output(
 
 Template_elx_conv_direct_1x1_lp_t
 void Instance_elx_conv_direct_1x1_lp_t::gemm_b161(ToutputType *toutput,
-    OutputType *output, uint8_t *input_u8, int8_t *weights_s8, TscaleType *input_scale,
+    OutputType *output, uint8_t *input, int8_t *weights, TscaleType *input_scale,
     TscaleType *weights_scale, BiasType *bias, int _ic4)
 {
-  MD2(uint8_t, ainput_u8, input_u8, this->ic3, this->I2 * this->ih * this->iw * V);
-  MD5(ToutputType, atoutput, toutput,
-      this->oc3, this->O2, this->ht, this->wt,  this->T * V);
-  MD5(OutputType, aoutput, output,
-      this->oc3, this->O2, this->ht, this->wt,  this->T * V);
-  MD3(int8_t, aweights_s8, weights_s8,
+  MD3(int8_t, aweights, weights,
       this->oc3, this->ic3, this->O2 * this->I2 * V * V);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
   MD2(TscaleType, ainput_scale, input_scale, 2, this->T);
-  MD4(TscaleType, aweights_scale, weights_scale,
-      this->oc3, 2, this->O2, V);
+  MD4(TscaleType, aweights_scale, weights_scale, this->oc3, 2, this->O2, V);
+  // blocked
+  MD2(uint8_t, ainput_blocked, input,
+      this->ic3, this->I2 * this->ih * this->iw * V);
+  MD2(OutputType, aoutput_blocked, output,
+      this->oc3, this->O2 * this->ht * this->wt *  this->T * V);
+  MD2(ToutputType, atoutput_blocked, toutput,
+      this->oc3, this->O2 * this->ht * this->wt *  this->T * V);
+  // nhwc
+  MD2(uint8_t, ainput_nhwc, input, this->ic3, this->I2 * V);
+  MD2(OutputType, aoutput_nhwc, output, this->oc3, this->O2 * V);
+  MD2(ToutputType, atoutput_nhwc, toutput, this->oc3, this->O2 * V);
 
   auto ker_gemm = ker_u8s8_gemm_I_O_T_;
 
@@ -439,14 +444,15 @@ void Instance_elx_conv_direct_1x1_lp_t::gemm_b161(ToutputType *toutput,
     attr = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
         ? set_attr(attr, c_output_idx)
         : attr;
-
+    auto ain = this->input_fmt == nhwc
+        ? &md2(ainput_nhwc, _ic3, 0) : &md2(ainput_blocked, _ic3, 0);
     iter_each (_oc3, this->oc3) {
-      ker_gemm(
-          *this,
-          &md5(atoutput, _oc3, 0, 0, 0, 0),
-          &md5(aoutput, _oc3, 0, 0, 0, 0),
-          &md2(ainput_u8, _ic3, 0),
-          &md3(aweights_s8, _oc3, _ic3, 0),
+      auto aout = this->output_fmt == nhwc
+                ? &md2(aoutput_nhwc, _oc3, 0) : &md2(aoutput_blocked, _oc3, 0);
+      auto atout = this->output_fmt == nhwc
+                ? &md2(atoutput_nhwc, _oc3, 0) : &md2(atoutput_blocked, _oc3, 0);
+      ker_gemm(*this, atout, aout, ain,
+          &md3(aweights, _oc3, _ic3, 0),
           &md2(abias, _oc3, 0),
           attr,
           &md2(ainput_scale, 0, 0),
