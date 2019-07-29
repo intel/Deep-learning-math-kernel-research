@@ -21,11 +21,27 @@ Instance_elx_conv_direct_lp_t::bind_execute_functions()
       u8s8_gemm_kernel_binder::kgemm<TarrayTypes, float> **func) {
     switch (xopt_) {
     case (0xd160):
-      if (this->input_fmt == nhwc) {
+      if (this->input_fmt == nhwc && this->output_fmt == nhwc) {
         if (this->ws == 1) {
           BIND_GEMM_KERNEL(1, GKF_FCF)
         } else if (this->ws == 2) {
           BIND_GEMM_KERNEL(2, GKF_FCF)
+        } else {
+          el_error("Stride > 2 not yet bounded");
+        }
+      } else if (this->input_fmt == nhwc && this->output_fmt == nChw16c) {
+        if (this->ws == 1) {
+          BIND_GEMM_KERNEL(1, GKF_FCD)
+        } else if (this->ws == 2) {
+          BIND_GEMM_KERNEL(2, GKF_FCD)
+        } else {
+          el_error("Stride > 2 not yet bounded");
+        }
+      } else if (this->input_fmt == nChw16c && this->output_fmt == nhwc) {
+        if (this->ws == 1) {
+          BIND_GEMM_KERNEL(1, GKF_DCF)
+        } else if (this->ws == 2) {
+          BIND_GEMM_KERNEL(2, GKF_DCF)
         } else {
           el_error("Stride > 2 not yet bounded");
         }
@@ -49,7 +65,6 @@ Instance_elx_conv_direct_lp_t::bind_execute_functions()
       u8s8_conv_kernel_binder::kconv<TarrayTypes, OutputType> **func, int K) {
     switch (xopt_) {
     case (0xa160):
-    //case (0xb160):
       if (compact_ir_weights_ && this->input_fmt == nhwc && this->output_fmt == nhwc) {
         if (this->ws == 1) {
           BIND_CONV_KERNEL(1, GKF_FBF, K);
@@ -81,6 +96,22 @@ Instance_elx_conv_direct_lp_t::bind_execute_functions()
           BIND_CONV_KERNEL(1, GKF_DCD, K);
         } else if (this->ws == 2) {
           BIND_CONV_KERNEL(2, GKF_DCD, K);
+        } else {
+          el_error("Stride > 2 not yet bounded");
+        }
+      } else if (this->input_fmt == nhwc && this->output_fmt == nChw16c) {
+        if (this->ws == 1) {
+          BIND_CONV_KERNEL(1, GKF_FCD, K);
+        } else if (this->ws == 2) {
+          BIND_CONV_KERNEL(2, GKF_FCD, K);
+        } else {
+          el_error("Stride > 2 not yet bounded");
+        }
+      } else if (this->input_fmt == nChw16c && this->output_fmt == nhwc) {
+        if (this->ws == 1) {
+          BIND_CONV_KERNEL(1, GKF_DCF, K);
+        } else if (this->ws == 2) {
+          BIND_CONV_KERNEL(2, GKF_DCF, K);
         } else {
           el_error("Stride > 2 not yet bounded");
         }

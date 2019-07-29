@@ -54,8 +54,7 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
 
     bool format_ok = (this->weights_fmt == OIhw16i16o) &&
                      estl::any_of(this->input_fmt, nChw16c, nhwc) &&
-                     estl::any_of(this->output_fmt, nChw16c, nhwc) &&
-                     (xopt_ == 0xa160 || this->input_fmt == this->output_fmt);
+                     estl::any_of(this->output_fmt, nChw16c, nhwc);
     if (!format_ok) {
       el_error("direct: format not supported");
     }
@@ -601,180 +600,117 @@ void Instance_elx_conv_direct_lp_t::gemm_d160(OutputType *output,
   assert(this->T > this->lp);
   assert(this->Tr > this->rp);
 
-  if (this->input_fmt == nhwc) {
-    MD3(InputType, ainput0, input_u8, this->ih, this->iw, this->ic);
-    MD3(OutputType, aoutput0, output, this->ht, this->ow, this->oc);
-    MD3(ToutputType, atoutput0, toutput, this->ht, this->ow, this->OC);
+  // nhwc
+  MD3(InputType, ainput0_nhwc, input_u8, this->ih, this->iw, this->ic);
+  MD3(OutputType, aoutput0_nhwc, output, this->ht, this->ow, this->oc);
+  MD3(ToutputType, atoutput0_nhwc, toutput, this->ht, this->ow, this->OC);
+  // blocked
+  MD5(InputType, ainput_blocked, input_u8,
+      this->ic3, this->I2, this->ih, this->iw, this->V1 * this->Vx);
+  MD5(OutputType, aoutput_blocked, output,
+      this->oc3, this->O2, this->ht, this->ow, V);
+  MD5(ToutputType, atoutput_blocked, toutput,
+      this->oc3, this->O2, this->ht, this->ow, V);
 
-    iter_each (_oc3, this->oc3) {
-    iter_each (_ic3, this->ic3) {
-      if (_ic4 == 0 && _ic3 == 0) {
-        __m<V> s = _mm<V>::setzero_ps();
-        iter_each (_O2, this->O2) {
-        iter_each (_T, Tz) {
-          MD4(ToutputType, atoutput1, &md3(atoutput0, _ht, ows0 + _T, 0),
-              this->oc4, this->oc3, this->O2, V);
-          if (I == ISA_SKX_AVX512 && std::is_same<ToutputType, float>::value)
-            _mm<V>::store_ps(&md4(atoutput1, 0, _oc3, _O2, 0), s);
-          else
+  iter_each (_oc3, this->oc3) {
+  iter_each (_ic3, this->ic3) {
+    if (_ic4 == 0 && _ic3 == 0) {
+      __m<V> s = _mm<V>::setzero_ps();
+      iter_each (_O2, this->O2) {
+      iter_each (_T, Tz) {
+        MD4(ToutputType, atoutput1_nhwc,
+            &md3(atoutput0_nhwc, _ht, ows0 + _T, 0),
+            this->oc4, this->oc3, this->O2, V);
+        auto atout = this->output_fmt == nhwc
+                   ? &md4(atoutput1_nhwc, 0, _oc3, _O2, 0)
+                   : &md5(atoutput_blocked, _oc3, _O2, _ht, ows0 + _T, 0);
+
+        if (I == ISA_SKX_AVX512 && std::is_same<ToutputType, float>::value)
+          _mm<V>::store_ps(atout, s);
+        else
+          el_error("direct: d160: unimplemented");
+      }}
+    }
+    int attr = attr_;
+    if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+      if (this->Ir != this->V1) attr = set_attr(attr, has_Ir_idx);
+    }
+
+    for (int _kh = khs; _kh < khe; ++_kh) {
+      auto _ih = this->hs * _ht + _kh - this->tp;
+      for (int _kw = 0; _kw < this->kw; ++_kw) {
+        auto _iws = this->ws * ows0 + _kw - this->lp;
+        while (_iws < 0) _iws += this->ws;
+        auto _ows = (_iws + this->lp - _kw) / this->ws;
+
+        MD4(InputType, ainput1_nhwc, &md3(ainput0_nhwc, _ih, _iws, 0),
+            this->ic4, this->ic3, this->I2, V);
+        MD4(ToutputType, atoutput1_nhwc, &md3(atoutput0_nhwc, _ht, _ows, 0),
+            this->oc4, this->oc3, this->O2, V);
+        auto ain = this->input_fmt == nhwc
+                 ? &md4(ainput1_nhwc, 0, _ic3, 0, 0)
+                 : &md5(ainput_blocked, _ic3, 0, _ih, _iws, 0);
+        auto atout = this->output_fmt == nhwc
+                 ? &md4(atoutput1_nhwc, 0, _oc3, 0, 0)
+                 : &md5(atoutput_blocked, _oc3, 0, _ht, _ows, 0);
+        ker_gemm_[_wt][_kw](*this, atout, nullptr, ain,
+            &md5(aweights, _oc3, _ic3, _kh, _kw, 0),
+            &md3(abias, _oc3, 0, 0), attr,
+            nullptr, nullptr, nullptr, nullptr);
+      }
+    }
+
+    if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+      __m<V> out_repS = _mm<V>::set1_ps(this->output_quant_repS);
+      __m<V> out_z = _mm<V>::set1_ps(this->output_quant_z);
+      iter_each (_O2, this->O2) {
+      iter_each (_T, Tz) {
+        MD4(ToutputType, atoutput1_nhwc, &md3(atoutput0_nhwc, _ht, ows0 + _T, 0),
+            this->oc4, this->oc3, this->O2, V);
+        MD4(OutputType, aoutput1_nhwc, &md3(aoutput0_nhwc, _ht, ows0 + _T, 0),
+            this->oc4, this->oc3, this->O2, V);
+        auto atout = this->output_fmt == nhwc
+            ? &md4(atoutput1_nhwc, 0, _oc3, _O2, 0)
+            : &md5(atoutput_blocked, _oc3, _O2, _ht, ows0 + _T, 0);
+        auto aout = this->output_fmt == nhwc
+            ? &md4(aoutput1_nhwc, 0, _oc3, _O2, 0)
+            : &md5(aoutput_blocked, _oc3, _O2, _ht, ows0 + _T, 0);
+
+        if (I == ISA_SKX_AVX512 && std::is_same<ToutputType, float>::value) {
+          __m<V> tout = _mm<V>::cvtepi32_ps(*(__i<V> *)atout);
+          // restore and requantization
+          auto scale = *(__m<V> *)&md3(aweights_scale, _oc3, _O2, 0);
+          auto factor = *(__m<V> *)&md3(aweights_factor, _oc3, _O2, 0);
+          tout = tout * scale + factor;
+          // fuse relu
+          if (this->with_relu)
+            tout = _mm<V>::max_ps(tout, _mm<V>::setzero_ps());
+
+          if (std::is_same<OutputType, int8_t>::value ||
+              std::is_same<OutputType, uint8_t>::value) {
+            // rounding
+            __i<V> s_out = _mm<V>::cvt_roundps_epi32(
+                tout, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            __m128i x8_out;
+            if (std::is_same<OutputType, int8_t>::value)
+              x8_out = _mm<V>::cvtsepi32_epi8(s_out);
+            else // uint8
+              x8_out = _mm<V>::cvtusepi32_epi8(s_out);
+            // store output
+            _mm_store_si128((__m128i *)aout, x8_out);
+          } else if (std::is_same<OutputType, float>::value) {
+            if (this->with_argmax)
+              _mm<V>::store_ps(atout, tout);
+            else
+              _mm<V>::store_ps(aout, tout);
+          } else {
             el_error("direct: d160: unimplemented");
-        }}
-      }
-      int attr = attr_;
-      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
-        if (this->Ir != this->V1) attr = set_attr(attr, has_Ir_idx);
-      }
-
-      for (int _kh = khs; _kh < khe; ++_kh) {
-        auto _ih = this->hs * _ht + _kh - this->tp;
-        for (int _kw = 0; _kw < this->kw; ++_kw) {
-          auto _iws = this->ws * ows0 + _kw - this->lp;
-          while (_iws < 0) _iws += this->ws;
-          auto _ows = (_iws + this->lp - _kw) / this->ws;
-
-          MD4(InputType, ainput1, &md3(ainput0, _ih, _iws, 0),
-              this->ic4, this->ic3, this->I2, V);
-          MD4(ToutputType, atoutput1, &md3(atoutput0, _ht, _ows, 0),
-              this->oc4, this->oc3, this->O2, V);
-          ker_gemm_[_wt][_kw](*this,
-              &md4(atoutput1, 0, _oc3, 0, 0),
-              nullptr,
-              &md4(ainput1, 0, _ic3, 0, 0),
-              &md5(aweights, _oc3, _ic3, _kh, _kw, 0),
-              &md3(abias, _oc3, 0, 0), attr,
-              nullptr, nullptr, nullptr, nullptr);
-        }
-      }
-
-      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
-        __m<V> out_repS = _mm<V>::set1_ps(this->output_quant_repS);
-        __m<V> out_z = _mm<V>::set1_ps(this->output_quant_z);
-        iter_each (_O2, this->O2) {
-        iter_each (_T, Tz) {
-          MD4(ToutputType, atoutput1, &md3(atoutput0, _ht, ows0 + _T, 0),
-              this->oc4, this->oc3, this->O2, V);
-          MD4(OutputType, aoutput1, &md3(aoutput0, _ht, ows0 + _T, 0),
-              this->oc4, this->oc3, this->O2, V);
-          if (I == ISA_SKX_AVX512 && std::is_same<ToutputType, float>::value) {
-            __m<V> tout = _mm<V>::cvtepi32_ps(
-                *(__i<V> *)&md4(atoutput1, 0, _oc3, _O2, 0));
-            // restore and requantization
-            auto scale = *(__m<V> *)&md3(aweights_scale, _oc3, _O2, 0);
-            auto factor = *(__m<V> *)&md3(aweights_factor, _oc3, _O2, 0);
-            tout = tout * scale + factor;
-            // fuse relu
-            if (this->with_relu)
-              tout = _mm<V>::max_ps(tout, _mm<V>::setzero_ps());
-
-            if (std::is_same<OutputType, int8_t>::value ||
-                std::is_same<OutputType, uint8_t>::value) {
-              // rounding
-              __i<V> s_out = _mm<V>::cvt_roundps_epi32(
-                  tout, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-              __m128i x8_out;
-              if (std::is_same<OutputType, int8_t>::value)
-                x8_out = _mm<V>::cvtsepi32_epi8(s_out);
-              else // uint8
-                x8_out = _mm<V>::cvtusepi32_epi8(s_out);
-              // store output
-              _mm_store_si128((__m128i *)&md4(aoutput1, 0, _oc3, _O2, 0), x8_out);
-            } else if (std::is_same<OutputType, float>::value) {
-              if (this->with_argmax)
-                _mm<V>::store_ps(&md4(atoutput1, 0, _oc3, _O2, 0), tout);
-              else
-                _mm<V>::store_ps(&md4(aoutput1, 0, _oc3, _O2, 0), tout);
-            } else {
-              el_error("direct: d160: unimplemented");
-            }
-          } else
-            el_error("direct: d060: unimplemented");
-        }}
-      }
-    }}
-  } else {
-    MD5(InputType, ainput, input_u8, this->ic3, this->I2, this->ih, this->iw,
-        this->V1 * this->Vx);
-    MD5(OutputType, aoutput, output, this->oc3, this->O2, this->ht, this->ow, V);
-    MD5(ToutputType, atoutput, toutput, this->oc3, this->O2, this->ht, this->ow, V);
-
-    iter_each (_oc3, this->oc3) {
-    iter_each (_ic3, this->ic3) {
-      if (_ic4 == 0 && _ic3 == 0) {
-        __m<V> s = _mm<V>::setzero_ps();
-        iter_each (_O2, this->O2) {
-        iter_each (_T, Tz) {
-          if (I == ISA_SKX_AVX512 && std::is_same<ToutputType, float>::value)
-            _mm<V>::store_ps(&md5(atoutput, _oc3, _O2, _ht, ows0 + _T, 0), s);
-          else
-            el_error("direct: d160: unimplemented");
-        }}
-      }
-      int attr = attr_;
-      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
-        if (this->Ir != this->V1) attr = set_attr(attr, has_Ir_idx);
-      }
-
-      for (int _kh = khs; _kh < khe; ++_kh) {
-        auto _ih = this->hs * _ht + _kh - this->tp;
-        for (int _kw = 0; _kw < this->kw; ++_kw) {
-          auto _iws = this->ws * ows0 + _kw - this->lp;
-          while (_iws < 0) _iws += this->ws;
-          auto _ows = (_iws + this->lp - _kw) / this->ws;
-
-          ker_gemm_[_wt][_kw](*this,
-              &md5(atoutput, _oc3, 0, _ht, _ows, 0),
-              nullptr,
-              &md5(ainput, _ic3, 0, _ih, _iws, 0),
-              &md5(aweights, _oc3, _ic3, _kh, _kw, 0),
-              &md3(abias, _oc3, 0, 0), attr,
-              nullptr, nullptr, nullptr, nullptr);
-        }
-      }
-
-      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
-        MD5(int, atoutput, toutput, this->oc3, this->O2, this->ht, this->ow, V);
-        __m<V> out_repS = _mm<V>::set1_ps(this->output_quant_repS);
-        __m<V> out_z = _mm<V>::set1_ps(this->output_quant_z);
-        iter_each (_O2, this->O2) {
-        iter_each (_T, Tz) {
-          if (I == ISA_SKX_AVX512 && std::is_same<ToutputType, float>::value) {
-            __m<V> tout = _mm<V>::cvtepi32_ps(
-                *(__i<V> *)&md5(atoutput, _oc3, _O2, _ht, ows0 + _T, 0));
-            // restore and requantization
-            auto scale = *(__m<V> *)&md3(aweights_scale, _oc3, _O2, 0);
-            auto factor = *(__m<V> *)&md3(aweights_factor, _oc3, _O2, 0);
-            tout = tout * scale + factor;
-            // fuse relu
-            if (this->with_relu)
-              tout = _mm<V>::max_ps(tout, _mm<V>::setzero_ps());
-
-            if (std::is_same<OutputType, int8_t>::value ||
-                std::is_same<OutputType, uint8_t>::value) {
-              // rounding
-              __i<V> s_out = _mm<V>::cvt_roundps_epi32(
-                  tout, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-              __m128i x8_out;
-              if (std::is_same<OutputType, int8_t>::value)
-                x8_out = _mm<V>::cvtsepi32_epi8(s_out);
-              else // uint8
-                x8_out = _mm<V>::cvtusepi32_epi8(s_out);
-              // store output
-              _mm_store_si128(
-                  (__m128i *)&md5(aoutput, _oc3, _O2, _ht, ows0 + _T, 0), x8_out);
-            } else if (std::is_same<OutputType, float>::value) {
-              if (this->with_argmax)
-                _mm<V>::store_ps(&md5(atoutput, _oc3, _O2, _ht, ows0 + _T, 0), tout);
-              else
-                _mm<V>::store_ps(&md5(aoutput, _oc3, _O2, _ht, ows0 + _T, 0), tout);
-            } else {
-              el_error("direct: d160: unimplemented");
-            }
-          } else
-            el_error("direct: d160: unimplemented");
-        }}
-      }
-    }}
-  }
+          }
+        } else
+          el_error("direct: d060: unimplemented");
+      }}
+    }
+  }}
 }
 
 } // namespace euler
