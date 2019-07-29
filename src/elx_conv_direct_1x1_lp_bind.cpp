@@ -11,7 +11,14 @@ Instance_elx_conv_direct_1x1_lp_t::bind_execute_functions() {
                          OutputType> **func) {
     switch (xopt_) {
       case (0xc160):
-        BIND_KERNEL(1, GKF_DCD)
+        if (this->input_fmt == nChw16c && this->output_fmt == nChw16c)
+          BIND_KERNEL(1, GKF_DCD)
+        else if (this->input_fmt == nhwc && this->output_fmt == nChw16c)
+          BIND_KERNEL(1, GKF_FCD)
+        else if (this->input_fmt == nChw16c && this->output_fmt == nhwc)
+          BIND_KERNEL(1, GKF_DCF)
+        else
+          BIND_KERNEL(1, GKF_FCF)
         break;
       case (0xb161):
         if (this->ws == 1)

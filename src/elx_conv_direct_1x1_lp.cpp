@@ -156,7 +156,7 @@ int Instance_elx_conv_direct_1x1_lp_t::prepare_execute_opt()
   binput_ = nullptr;
   bweights_ = nullptr;
   boutput_ = nullptr;
-  if (this->n * this->oc4 >= mthr_)
+  if (this->n * this->oc4 >= mthr_ && this->output_fmt == nChw16c)
     toutput_opt_ = true;
 
   switch (xopt_) {
@@ -459,18 +459,22 @@ void Instance_elx_conv_direct_1x1_lp_t::gemm_b161(ToutputType *toutput,
 
 Template_elx_conv_direct_1x1_lp_t
 void Instance_elx_conv_direct_1x1_lp_t::gemm_c160(ToutputType *toutput,
-    OutputType *output, uint8_t *input_u8, int8_t *weights_s8, TscaleType *input_scale,
+    OutputType *output, uint8_t *input, int8_t *weights_s8, TscaleType *input_scale,
     TscaleType *weights_scale, BiasType *bias, int _ic4, int _oc4, int _t2)
 {
-  // weights: oc3, O2, ic4*, ic3, I2, V1, V, Vx
-  // input:   ic3, I2, t2*, T(Tr), V1, Vx
-  // output:  oc3, O2, t2*, T(Tr), V
-  MD2(uint8_t, ainput_u8, input_u8,
-      this->ic3, this->I2 * this->ih * this->iw * V);
-  MD2(ToutputType, atoutput, toutput,
-      this->oc3, this->O2 * this->oh * this->ow * V);
-  MD2(OutputType, aoutput, output,
-      this->oc3, this->O2 * this->oh * this->ow * V);
+  // input
+  MD3(uint8_t, ainput_blocked, input,
+      this->ic4, this->ic3, this->I2 * this->ih * this->iw * V);
+  MD3(uint8_t, ainput_nhwc, input, this->t2, T, this->ic);
+  // output
+  MD3(OutputType, aoutput_blocked, output,
+      this->oc4, this->oc3, this->O2 * this->oh * this->ow * V);
+  MD3(OutputType, aoutput_nhwc, output, this->t2, T, this->oc);
+  // toutput
+  MD3(ToutputType, atoutput_blocked, toutput,
+      this->oc4, this->oc3, this->O2 * this->oh * this->ow * V);
+  MD3(ToutputType, atoutput_nhwc, toutput, this->t2, T, this->oc);
+
   MD3(int8_t, aweights_s8, weights_s8,
       this->oc3, this->ic3, this->O2 * this->I2 * V * V);
   MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
@@ -483,7 +487,8 @@ void Instance_elx_conv_direct_1x1_lp_t::gemm_c160(ToutputType *toutput,
       : ker_u8s8_gemm_I_O_T_;
 
   iter_each (_ic3, this->ic3) {
-    MD2(uint8_t, ainput2_u8, &md2(ainput_u8, _ic3, 0), this->t2, this->T * V);
+    MD2(uint8_t, ainput2_blocked, &md3(ainput_blocked, _ic4, _ic3, 0), this->t2, this->T * V);
+    MD3(uint8_t, ainput2_nhwc, &md3(ainput_nhwc, _t2, 0, 0), this->ic4, this->ic3, this->I2 * V);
     int attr = _ic4 == 0 && _ic3 == 0
         ? set_attr(attr_, r_output_idx)
         : attr_;
@@ -494,14 +499,26 @@ void Instance_elx_conv_direct_1x1_lp_t::gemm_c160(ToutputType *toutput,
         ? set_attr(attr, c_output_idx)
         : attr;
 
+    auto ain = this->input_fmt == nhwc
+             ? &md3(ainput2_nhwc, _ic4, _ic3, 0)
+             : &md2(ainput2_blocked, _t2, 0);
     iter_each (_oc3, this->oc3) {
-      MD2(OutputType, aoutput2, &md2(aoutput, _oc3, 0), this->t2, this->T * V);
-      MD2(ToutputType, atoutput2, &md2(atoutput, _oc3, 0), this->t2, this->T * V);
-      ker_gemm(
-          *this,
-          &md2(atoutput2, _t2, 0),
-          &md2(aoutput2, _t2, 0),
-          &md2(ainput2_u8, _t2, 0),
+      int _oc4_tout = toutput_opt_ ? 0 : _oc4;
+      MD2(OutputType, aoutput2_blocked, &md3(aoutput_blocked, _oc4, _oc3, 0),
+          this->t2, this->T * V);
+      MD3(OutputType, aoutput2_nhwc, &md3(aoutput_nhwc, _t2, 0, 0),
+          this->oc4, this->oc3, this->O2 * V);
+      MD2(ToutputType, atoutput2_blocked,
+          &md3(atoutput_blocked, _oc4_tout, _oc3, 0), this->t2, this->T * V);
+      MD3(ToutputType, atoutput2_nhwc, &md3(atoutput_nhwc, _t2, 0, 0),
+          this->oc4, this->oc3, this->O2 * V);
+      auto aout = this->output_fmt == nhwc
+                ? &md3(aoutput2_nhwc, _oc4, _oc3, 0)
+                : &md2(aoutput2_blocked, _t2, 0);
+      auto atout = this->output_fmt == nhwc
+                ? &md3(atoutput2_nhwc, _oc4, _oc3, 0)
+                : &md2(atoutput2_blocked, _t2, 0);
+      ker_gemm(*this, atout, aout, ain,
           &md3(aweights_s8, _oc3, _ic3, 0),
           &md2(abias, _oc3, 0),
           attr,

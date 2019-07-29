@@ -143,6 +143,8 @@ const int GKF_EBD = 0xebd;
 const int GKF_FCF = 0xfcf;
 const int GKF_FBD = 0xfbd;
 const int GKF_FBF = 0xfbf;
+const int GKF_DCF = 0xdcf;
+const int GKF_FCD = 0xfcd;
 
 }  // namespace euler
 

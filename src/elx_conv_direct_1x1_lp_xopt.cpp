@@ -13,7 +13,7 @@
 // ------+-----+--------+-----+--------------------------------------
 //       | ker | fusion | dup |             notes
 // ------+-----+--------+-----+--------------------------------------
-//  c060 |  c  |   t+o  |  -  | blocked, Tr, Or, stride=1
+//  c060 |  c  |   t+o  |  -  | blocked/nhwc, Tr, Or, stride=1
 // ------+-----+--------+-----+--------------------------------------
 //  b061 |  b  |   t+o  |  I  | blocked, stride>=1, oh = wt*T
 // ------+-----+--------+-----+--------------------------------------
@@ -40,13 +40,23 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
 
   parallel_for<4, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _t2) {
     auto ithr = omp_get_thread_num();
-    MD3(uint8_t, ainput, input,
-        this->t3, this->ic4, this->ic3 * this->I2 * this->ih * this->iw * V);
-    MD3(ToutputType, atoutput, toutput_,
-        this->t3, this->oc4, this->oc3 * this->O2 * V * this->oh * this->ow);
+    // input
+    MD2(uint8_t, ainput_blocked, input,
+        this->t3, this->ih * this->iw * this->IC);
+    MD2(uint8_t, ainput_nhwc, input,
+        this->t3, this->ih * this->iw * this->ic);
+    // output
+    MD2(OutputType, aoutput_blocked, output,
+        this->t3, this->oh * this->ow * this->OC);
+    MD2(OutputType, aoutput_nhwc, output,
+        this->t3, this->oh * this->ow * this->oc);
+    // toutput
+    MD2(ToutputType, atoutput_blocked, toutput_,
+        this->t3, this->oh * this->ow * this->OC);
+    MD2(ToutputType, atoutput_nhwc, toutput_,
+        this->t3, this->oh * this->ow * this->oc);
     MD2(ToutputType, atoutput_opt, toutput_,
         mthr_, this->oc3 * this->O2 * V * this->oh * this->ow);
-    MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
     MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
     MD2(TscaleType, ainput_scale, input_scale_, 2, this->T);
@@ -54,13 +64,16 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
         this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
     MD2(TscaleType, aweights_scale, weights_scale_,
         this->oc4, this->oc3 * 2 * this->O2 * V);
-    MD2(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
-        this->oc3 * this->O2 * this->oh * this->ow * V);
-    auto atout = toutput_opt_ ? &md2(atoutput_opt, ithr, 0)
-                              : &md3(atoutput, _t3, _oc4, 0);
-    gemm_c160(atout,
-        &md2(aoutput2, _oc4, 0),
-        &md3(ainput, _t3, _ic4, 0),
+
+    auto ain = this->input_fmt == nhwc
+             ? &md2(ainput_nhwc, _t3, 0) : &md2(ainput_blocked, _t3, 0);
+    auto aout = this->output_fmt == nhwc
+             ? &md2(aoutput_nhwc, _t3, 0) : &md2(aoutput_blocked, _t3, 0);
+    auto atout = toutput_opt_
+             ? &md2(atoutput_opt, ithr, 0) : this->output_fmt == nhwc
+               ? &md2(atoutput_nhwc, _t3, 0) : &md2(atoutput_blocked, _t3, 0);
+
+    gemm_c160(atout, aout, ain,
         &md3(atweights_s8, _oc4, _ic4, 0),
         &md2(ainput_scale, 0, 0),
         &md2(aweights_scale, _oc4, 0),
@@ -129,12 +142,8 @@ void Instance_elx_conv_direct_1x1_lp_t::execute(
 {
   set_trans_buffers();
 
-  if (is_bfmt_)
-    (this->*execute_opt_)((OutputType *)output,
-        (InputType *)input, (WeightsType *)weights, (BiasType *)bias);
-  else {
-    el_error("Unsupported data format for int8 direct 1x1");
-  }
+  (this->*execute_opt_)((OutputType *)output,
+      (InputType *)input, (WeightsType *)weights, (BiasType *)bias);
 }
 
 } // namespace euler
