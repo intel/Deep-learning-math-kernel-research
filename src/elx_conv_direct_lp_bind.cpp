@@ -129,6 +129,9 @@ Instance_elx_conv_direct_lp_t::bind_execute_functions()
     bind_conv_kernel(this->O, this->T, &ker_conv_, this->kw);
     bind_conv_kernel(this->O, this->Tr, &ker_conv_Tr_, this->kw);
   } else if (xopt_ == 0xd160) {
+    if (this->wt > 128) {
+      el_error("direct: d160: wt > max-kernel-slot:128");
+    }
     iter_each (_wt, this->wt) {
       int Tz = _wt == this->wt - 1 ? this->Tr : this->T;
       for (int _kw = 0; _kw < this->kw; ++_kw) {

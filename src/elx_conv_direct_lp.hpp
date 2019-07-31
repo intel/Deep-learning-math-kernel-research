@@ -62,7 +62,7 @@ Template_elx_conv_direct_lp_t class elx_conv_direct_lp_t : public elx_conv_t {
   void prepare_quant_calibration(eld_conv_t &);
 
   // TODO: optimize it
-  u8s8_gemm_kernel_binder::kgemm<TarrayTypes, float> *ker_gemm_[64][8];
+  u8s8_gemm_kernel_binder::kgemm<TarrayTypes, float> *ker_gemm_[128][8];
   u8s8_conv_kernel_binder::kconv<TarrayTypes, OutputType> *ker_conv_;
   u8s8_conv_kernel_binder::kconv<TarrayTypes, OutputType> *ker_conv_Tr_;
 
