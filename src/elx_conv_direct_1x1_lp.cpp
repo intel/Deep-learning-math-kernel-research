@@ -139,10 +139,6 @@ int Instance_elx_conv_direct_1x1_lp_t::prepare_execute_opt()
   output_as_bfmt_ = this->output_fmt == nchw && this->output_as_blocked;
   is_bfmt_ = input_is_bfmt_ && weights_is_bfmt_ && output_is_bfmt_;
 
-  if (this->with_ip_sum && this->with_relu && !output_is_bfmt_) {
-    el_error("Unimplemented: fuse sum (plain format) and relu together");
-  }
-
   if (input_as_bfmt_)
     binput_size = this->n * this->IC * this->ih * this->iw * sizeof(InputType);
   if (weights_as_bfmt_)
