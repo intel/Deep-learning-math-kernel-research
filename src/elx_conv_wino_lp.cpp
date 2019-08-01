@@ -223,7 +223,7 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
   workspace_ = nullptr, scratch_ = nullptr;
   size_t workspace_size = tweights_size_ + tweights_s8_size_
       + tweights_quant_scale_size_ + tweights_quant_factor_size_;
-  size_t scratch_size = tinput_size_ + toutput_size_
+  size_t scratch_size = estl::max(tinput_size_, toutput_size_)
       + binput_size_ + bweights_size_ + boutput_size_ + tinput_u8_size_;
 
   if (this->sampling_kind == CALIBRATED)
@@ -268,8 +268,8 @@ void Instance_elx_conv_wino_lp_t::set_trans_buffers()
     tweights_ = (TweightsType *)galloc::get();
     tinput_ = (TinputType *)((char *)tweights_ + tweights_size_);
   }
-  toutput_ = (ToutputType *)((char *)tinput_ + tinput_size_);
-  binput_ = (InputType *)((char *)toutput_ + toutput_size_);
+  toutput_ = (ToutputType *)tinput_;
+  binput_ = (InputType *)((char *)toutput_ + estl::max(tinput_size_, toutput_size_));
   bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
   boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);
   if (this->sampling_kind == CALIBRATED) {

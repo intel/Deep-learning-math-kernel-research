@@ -123,22 +123,19 @@ void Instance_elx_conv_wino_lp_t::__execute_a161(
 
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
 
-      ToutputType *tbuf = (toutput_size_ >= tinput_size_)
-                              ? &md2(atoutput2, ithr, 0)
-                              : (ToutputType *)&md2(atinput2, ithr, 0);
-
       if (t2_history != _t2) {
         trans_input_u8(&md2(atinput_quant_scale, ithr, 0),
-            &md2(atinput2_u8, ithr, 0), (TinputType *)tbuf, input, _t2, Tz);
+            &md2(atinput2_u8, ithr, 0), &md2(atinput2, ithr, 0), input, _t2, Tz);
         t2_history = _t2;
       }
-      u8s8_gemm.execute(tbuf,
+      u8s8_gemm.execute(&md2(atoutput2, ithr, 0),
           &md2(atinput2_u8, ithr, 0),
           &md2(atweights_s8, _oc4, 0),
           &md2(atinput_quant_scale, ithr, 0),
           &md2(atweights_quant_scale, _oc4, 0),
           &md2(aweights_quant_factor, _oc4, 0), _t2, Tz);
-      trans_output(output, tbuf, &md2(abias, _oc4, 0), Tz, _t2, _oc4, 0);
+      trans_output(output, &md2(atoutput2, ithr, 0),
+                   &md2(abias, _oc4, 0), Tz, _t2, _oc4, 0);
     }, this->t2, this->oc4);
   }
   if (inference_acc_)
