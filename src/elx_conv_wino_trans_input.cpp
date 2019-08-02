@@ -366,7 +366,7 @@ template <typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 ::__execute_blocked_nhwc(TscaleType *tinput_quant_scale,
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
-    InputType *__restrict input)
+    InputType *__restrict input, int _ic4)
 {
   __m<V> mrepS = _mm<V>::set1_ps(xc->input_quant_S * xc->tinput_quant_repS);
   __m<V> mz = _mm<V>::set1_ps(xc->tinput_quant_z);
@@ -389,8 +389,8 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
       t2spati(_t2, _T, _n, _ih, _iw, _hA_start, _hA_end, _wA_start, _wA_end);
 
       InputType *in = xc->input_fmt == nhwc
-                    ? &md7(ainput_nhwc, _n, _ih, _iw, 0, _ic3, _I2, 0)
-                    : &md7(ainput_blocked, _n, 0, _ic3, _I2, _ih, _iw, 0);
+                    ? &md7(ainput_nhwc, _n, _ih, _iw, _ic4, _ic3, _I2, 0)
+                    : &md7(ainput_blocked, _n, _ic4, _ic3, _I2, _ih, _iw, 0);
 
       if (xc->sampling_kind == CALIBRATED) {
         MD6(uint8_t, atinput_u8, &md2(atinput2_u8, _t2, 0),
@@ -593,7 +593,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input, int _ic4) {
   if (input_is_bfmt_ || input_as_bfmt_ || xc->input_fmt == nhwc)
-    __execute_blocked_nhwc(tinput_quant_scale, tinput_u8, tinput, input);
+    __execute_blocked_nhwc(tinput_quant_scale, tinput_u8, tinput, input, _ic4);
   else
     __execute_nchw(tinput_quant_scale, tinput_u8, tinput, input, _ic4);
 }

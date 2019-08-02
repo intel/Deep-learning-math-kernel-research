@@ -21,8 +21,6 @@ void Instance_elx_conv_wino_lp_t::__execute_a133(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD3(InputType, ainput, input, this->n, this->ic4,
-      this->ih * this->iw * this->ic3 * this->I2 * V);
   MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
       A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
@@ -57,7 +55,7 @@ void Instance_elx_conv_wino_lp_t::__execute_a133(
     iter_each (_oc4, this->oc4) {
       if (_ic4 != last_ic4) {
         trans_input_u8(
-            tinput_quant_scale_, tinput_u8_, tinput_, &md3(ainput, 0, _ic4, 0), _ic4);
+            tinput_quant_scale_, tinput_u8_, tinput_, input, _ic4);
         last_ic4 = _ic4;
       }
 #pragma omp barrier

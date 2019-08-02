@@ -32,7 +32,7 @@ public:
     wA_end_ = (xc->iw + xc->lp) - (xc->wt - 1) * (A - K + 1) - 1;
 
     input_is_bfmt_ = xc->input_fmt == nChw16c;
-    input_as_bfmt_ = !input_is_bfmt_ && xc->input_as_blocked;
+    input_as_bfmt_ = xc->input_fmt == nchw && xc->input_as_blocked;
 
     bind_kernel_functions();
   }
@@ -181,7 +181,7 @@ protected:
   inline void __execute_blocked_nhwc(TscaleType *__restrict tinput_quant_scale,
       uint8_t *__restrict t_input_u8,
       TinputType *__restrict t_input,
-      InputType *__restrict input);
+      InputType *__restrict input, int _ic4);
 
   inline void __execute_nchw(TscaleType *__restrict tinput_quant_scale,
       uint8_t *__restrict t_input_u8,
