@@ -62,7 +62,8 @@ public:
       TscaleType *, TscaleType *, BiasType *, int, int, int);
 
   void prepare_quant_calibration(eld_conv_t &);
-  void set_trans_buffers();
+  void set_scratchpad_buffers();
+  void set_workspace_buffers();
   int prepare_execute_opt();
   void bind_execute_functions();
 
@@ -101,6 +102,7 @@ public:
   unsigned int xopt_;
   int attr_;
   int mthr_;
+  size_t workspace_size_;
   size_t tweights_size_;
   size_t tinput_size_;
   size_t toutput_size_;

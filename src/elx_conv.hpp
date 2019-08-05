@@ -1,5 +1,6 @@
 #include "euler.hpp"
 #include "el_def.hpp"
+#include "elx_shared_workspace.hpp"
 
 #ifndef __ELX_CONV_HPP__
 #define __ELX_CONV_HPP__
@@ -89,6 +90,10 @@ struct elx_conv_params_t {
   sampling_kind_t sampling_kind;
 
   bool verbose;
+
+  bool                    shared_workspace_enabled;
+  std::string             shared_workspace_key; 
+  shared_workspace_mgr_t *shared_workspace_mgr;
 
   void *scratch_pad;
 };

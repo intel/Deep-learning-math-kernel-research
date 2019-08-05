@@ -143,6 +143,7 @@ link_directories(lib)
 add_library(${lib_name} SHARED ${__euler_source} ${__euler_gemm_kernel_source})
 set_target_properties(${lib_name} PROPERTIES CXX_VISIBILITY_PRESET hidden)
 target_link_libraries(${lib_name} PUBLIC iomp5)
+target_link_libraries(${lib_name} PUBLIC rt)
 
 if (WITH_TEST)
   add_subdirectory(tests)

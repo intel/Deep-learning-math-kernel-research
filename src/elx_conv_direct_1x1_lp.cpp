@@ -188,15 +188,15 @@ int Instance_elx_conv_direct_1x1_lp_t::prepare_execute_opt()
 
   scratch_ = nullptr;
   workspace_ = nullptr;
-  size_t workspace_size = tweights_size_ + tweights_s8_size_
+  workspace_size_ = tweights_size_ + tweights_s8_size_
       + weights_scale_size_ + input_scale_size_;
   size_t scratch_size = tinput_size_ + toutput_size_
       + binput_size_ + bweights_size_ + boutput_size_;
   // TODO: user provided buffer
   if (scratch_size != 0)
     scratch_ = galloc::acquire(scratch_size);
-  if (workspace_size != 0)
-    MEMALIGN64(&workspace_, workspace_size);
+
+  workspace_ = nullptr;
 
   // dbg
   printf("nthreads=%d, mthr_=%d\n", this->nthreads, mthr_);
@@ -211,19 +211,22 @@ int Instance_elx_conv_direct_1x1_lp_t::prepare_execute_opt()
 }
 
 Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::set_trans_buffers()
+void Instance_elx_conv_direct_1x1_lp_t::set_scratchpad_buffers()
 {
-  if (workspace_ != nullptr) {
-    tweights_ = (TweightsType *)workspace_;
-    input_scale_ = (TscaleType *)((char *)tweights_ + tweights_size_);
-    weights_scale_ = (TscaleType *)((char *)input_scale_ + input_scale_size_);
-    tweights_s8_ = (int8_t *)((char *)weights_scale_ + weights_scale_size_);
-  }
   tinput_ = (TinputType *)galloc::get();
   toutput_ = (ToutputType *)((char *)tinput_ + tinput_size_);
   binput_ = (InputType *)((char *)toutput_ + toutput_size_);
   bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
   boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);
+}
+
+Template_elx_conv_direct_1x1_lp_t
+void Instance_elx_conv_direct_1x1_lp_t::set_workspace_buffers()
+{
+  tweights_ = (TweightsType *)workspace_;
+  input_scale_ = (TscaleType *)((char *)tweights_ + tweights_size_);
+  weights_scale_ = (TscaleType *)((char *)input_scale_ + input_scale_size_);
+  tweights_s8_ = (int8_t *)((char *)weights_scale_ + weights_scale_size_);
 }
 
 Template_elx_conv_direct_1x1_lp_t
@@ -245,9 +248,14 @@ void Instance_elx_conv_direct_1x1_lp_t::prepare_quant_calibration(eld_conv_t &dc
 Template_elx_conv_direct_1x1_lp_t
 Instance_elx_conv_direct_1x1_lp_t::~elx_conv_direct_1x1_lp_t()
 {
-  if (workspace_ != nullptr) {
+  if (workspace_ != nullptr && !this->shared_workspace_enabled) {
     ::free(workspace_);
     workspace_ = nullptr;
+  } else {
+    if (this->shared_workspace_mgr != nullptr) {
+      delete this->shared_workspace_mgr;
+      this->shared_workspace_mgr = nullptr;
+    }
   }
 
   galloc::release();

@@ -85,9 +85,23 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   this->ormask = (unsigned int)-1;
 
   this->verbose = false;
-  auto env = getenv("EULER_VERBOSE");
-  if (env && strlen(env) == 1 && env[0] == '1')
+  auto env_verbose = getenv("EULER_VERBOSE");
+  if (env_verbose != nullptr && env_verbose[0] == '1')
     this->verbose = true;
+  
+  auto env_numa_node = getenv("EULER_NUMA_NODE");
+  auto env_shared_workspace = getenv("EULER_SHARED_WORKSPACE");
+  if (env_shared_workspace != nullptr && env_shared_workspace[0] == '1') {
+    this->shared_workspace_enabled = true;
+    this->shared_workspace_key =
+      ".euler_key_" + dc.shared_workspace_key;
+    if (env_numa_node != nullptr)
+      this->shared_workspace_key += env_numa_node;
+  } else {
+    this->shared_workspace_enabled = false;
+    this->shared_workspace_key = "";
+  }
+  this->shared_workspace_mgr = nullptr;
 
   // TODO: move it to euler cpu global init
 #if __ICC_COMPILER
