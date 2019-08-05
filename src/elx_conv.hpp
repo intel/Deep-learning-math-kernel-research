@@ -1,6 +1,6 @@
 #include "euler.hpp"
 #include "el_def.hpp"
-#include "elx_shared_workspace.hpp"
+#include "el_shared_workspace.hpp"
 
 #ifndef __ELX_CONV_HPP__
 #define __ELX_CONV_HPP__

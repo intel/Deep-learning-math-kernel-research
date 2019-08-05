@@ -1,7 +1,6 @@
 #include <string.h>
 #include "el_parallel.hpp"
 #include "elx_conv_direct_1x1_lp.hpp"
-#include "elx_shared_workspace.hpp"
 
 
 // XOPT
@@ -30,35 +29,8 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
   // weights: oc4*, oc3, O2, ic4*, ic3, I2, V, V
   // input:   t3*, ic4*, ic3, I2, t2*, T(Tr), V
   // output:  t3*, oc4*, oc3, O2, t2*, T(Tr), V
-
-  auto transform_weights = [&]() {
-    trans_weights_s8_oc(weights_scale_, tweights_s8_, weights, bias);
-    MD2(TscaleType, ainput_scale, input_scale_, 2, this->T);
-    iter_each (_T, this->T) {
-      md2(ainput_scale, 0, _T) = this->input_quant_S;
-      md2(ainput_scale, 1, _T) = this->input_quant_z;
-    }
-  };
-
   if (is_first_run_) {
-    if (this->shared_workspace_enabled) {
-      const char *key = this->shared_workspace_key.c_str();
-      process_singleton_t process_singleton(key);
-      {
-        this->shared_workspace_mgr =
-          new shared_workspace_mgr_t(this->workspace_size_, key);
-        workspace_ = this->shared_workspace_mgr->get();
-        set_workspace_buffers();
-        if (!this->shared_workspace_mgr->is_setup_done()) {
-          transform_weights();
-          this->shared_workspace_mgr->set_setup_done();
-        }
-      }
-    } else {
-      MEMALIGN64(&workspace_, workspace_size_);
-      set_workspace_buffers();
-      transform_weights();
-    }
+    trans_weights_s8_oc(weights_scale_, tweights_s8_, weights, bias);
   }
 
   parallel_for<4, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _t2) {
@@ -118,11 +90,6 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_b161(
 
   if (is_first_run_) {
     trans_weights_s8_oc(weights_scale_, tweights_s8_, weights, bias);
-    MD2(TscaleType, ainput_scale, input_scale_, 2, this->T);
-    iter_each (_T, this->T) {
-      md2(ainput_scale, 0, _T) = this->input_quant_S;
-      md2(ainput_scale, 1, _T) = this->input_quant_z;
-    }
   }
 
   parallel_for<5, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {

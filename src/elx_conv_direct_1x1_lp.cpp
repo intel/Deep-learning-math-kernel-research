@@ -1,5 +1,6 @@
 #include "elx_conv_direct_1x1_lp.hpp"
 #include "el_parallel.hpp"
+#include "el_shared_workspace.hpp"
 
 namespace euler {
 
@@ -379,10 +380,37 @@ void Instance_elx_conv_direct_1x1_lp_t::trans_weights_s8_oc(
     TscaleType *weights_scale, int8_t *tweights, WeightsType *weights,
     BiasType *bias)
 {
-  if (weights_is_bfmt_ || weights_as_bfmt_)
-    __trans_weights_s8_blocked_oc(weights_scale, tweights, weights, bias);
-  else
-    el_error("Unimplement format");
+  auto transform_weights = [&]() {
+    if (weights_is_bfmt_ || weights_as_bfmt_)
+      __trans_weights_s8_blocked_oc(weights_scale_, tweights_s8_, weights, bias);
+    else
+      el_error("Unimplement format");
+
+    MD2(TscaleType, ainput_scale, input_scale_, 2, this->T);
+    iter_each (_T, this->T) {
+      md2(ainput_scale, 0, _T) = this->input_quant_S;
+      md2(ainput_scale, 1, _T) = this->input_quant_z;
+    }
+  };
+
+  if (inference_acc_ && this->shared_workspace_enabled) {
+    const char *key = this->shared_workspace_key.c_str();
+    process_singleton_t process_singleton(key);
+    {
+      this->shared_workspace_mgr =
+        new shared_workspace_mgr_t(this->workspace_size_, key);
+      workspace_ = this->shared_workspace_mgr->get();
+      set_workspace_buffers();
+      if (!this->shared_workspace_mgr->is_setup_done()) {
+        transform_weights();
+        this->shared_workspace_mgr->set_setup_done();
+      }
+    }
+  } else {
+    MEMALIGN64(&workspace_, workspace_size_);
+    set_workspace_buffers();
+    transform_weights();
+  }
 }
 
 Template_elx_conv_direct_1x1_lp_t

@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <stdint.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
@@ -18,9 +19,9 @@ public:
     fd_ = open(key, O_CREAT | O_RDWR, 0644);
     int rc = flock(fd_, LOCK_EX); // blocking
     if (rc) {
-      printf("flock failed: key=%s\n", key);
+      printf("Euler: process_singleton: flock failed: key=%s\n", key);
     } else {
-      printf("flock success: key=%s\n", key);
+      printf("Euler: process_singleton: flock success: key=%s\n", key);
     }
   }
 
@@ -54,8 +55,15 @@ public:
     }
     size_ = size;
     size_total_ = alignup(sizeof(shared_workspace_header_t), 64) + size;
+
+    struct stat fdst;
+    if (fstat(fd_, &fdst) ||
+        (fdst.st_size != 0 && fdst.st_size != size_total_)) {
+      el_error("Euler: shared workspace fstat error or size does not match");
+    }
+
     if (ftruncate(fd_, size_total_)) {
-      el_error("ftruncate failed");
+      el_error("Euler: ftruncate failed");
     }
     workspace_ptr_ =
       mmap(0, size_total_, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);
@@ -65,6 +73,9 @@ public:
     if (workspace_ptr_ != nullptr) {
       shared_workspace_header_t *hdr =
         (shared_workspace_header_t *)workspace_ptr_;
+      if (hdr->size_ != 0 && size_ != hdr->size_) {
+        el_error("Euler: shared workspace size does not match");
+      }
       return hdr->setup_done_ == SETUP_DONE_MASK;
     }
     return false;
