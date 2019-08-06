@@ -30,7 +30,7 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
   // input:   t3*, ic4*, ic3, I2, t2*, T(Tr), V
   // output:  t3*, oc4*, oc3, O2, t2*, T(Tr), V
   if (is_first_run_) {
-    trans_weights_s8_oc(weights_scale_, tweights_s8_, weights, bias);
+    trans_weights_s8_oc(weights, bias);
   }
 
   parallel_for<4, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _t2) {
@@ -89,7 +89,7 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_b161(
   // output:  t3*, oc4*, oc3, O2, t2*, T(Tr), V
 
   if (is_first_run_) {
-    trans_weights_s8_oc(weights_scale_, tweights_s8_, weights, bias);
+    trans_weights_s8_oc(weights, bias);
   }
 
   parallel_for<5, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {

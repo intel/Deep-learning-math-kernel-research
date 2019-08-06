@@ -45,8 +45,7 @@ Template_elx_conv_direct_lp_t class elx_conv_direct_lp_t : public elx_conv_t {
       int8_t *weights_s8, BiasType *bias);
   void __trans_weights(TscaleType *weights_scale, TscaleType * weights_factor,
       int8_t *weights_s8, WeightsType *weights, BiasType *bias);
-  void trans_weights(TscaleType *weights_scale, TscaleType * weights_factor,
-      int8_t *weights_s8, WeightsType *weights, BiasType *bias);
+  void trans_weights(WeightsType *weights, BiasType *bias);
 
   void conv_a160(OutputType *output, ToutputType *toutput, InputType *input,
       int8_t *tweights, BiasType *bias, TscaleType *src_scale,

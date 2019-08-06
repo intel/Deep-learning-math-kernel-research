@@ -552,12 +552,15 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
     int8_t *__restrict tweights_s8,
     TweightsType *__restrict tweights,
     WeightsType *__restrict weights, int oc4) {
-  if (weights_is_bfmt_ || weights_as_bfmt_)
-    this->__execute_blocked(tweights, weights, oc4);
-  else
-    this->__execute_oihw(tweights, weights, oc4);
+#pragma omp parallel num_threads(mthr_) proc_bind(close)
+  {
+    if (weights_is_bfmt_ || weights_as_bfmt_)
+      this->__execute_blocked(tweights, weights, oc4);
+    else
+      this->__execute_oihw(tweights, weights, oc4);
 #pragma omp barrier
-  quantization(
-      tweights_quant_scale, tweights_quant_factor, tweights_s8, tweights, oc4);
+    quantization(
+        tweights_quant_scale, tweights_quant_factor, tweights_s8, tweights, oc4);
+  }
 }
 } // namespace euler

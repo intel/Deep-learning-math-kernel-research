@@ -81,12 +81,15 @@ private:
       WeightsType *weights, BiasType *bias);
 
   int prepare_execute_opt();
-  void set_trans_buffers();
+  void set_workspace_buffers();
+  void set_scratchpad_buffers();
   void bind_execute_functions();
   void prepare_quant_calibration(eld_conv_t &dc);
 
   void (elx_conv_wino_lp_t::*execute_opt_)(
       OutputType *, InputType *, WeightsType *, BiasType *);
+
+  void trans_weights(WeightsType *weights);
 
   // ??? XXX: Deduction error here
   elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
@@ -111,6 +114,7 @@ private:
   bool weights_as_bfmt_;
   bool output_as_bfmt_;
   int mthr_;
+  size_t workspace_size_;
   size_t tweights_size_;
   size_t tinput_size_;
   size_t toutput_size_;

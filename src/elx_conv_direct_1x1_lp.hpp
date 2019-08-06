@@ -51,7 +51,7 @@ public:
   void __execute_c160(OutputType *, InputType *, WeightsType *, BiasType *);
 
   inline void __trans_weights_s8_blocked_oc(TscaleType *, int8_t *, WeightsType *, BiasType *);
-  void trans_weights_s8_oc(TscaleType *, int8_t *, WeightsType *, BiasType *);
+  void trans_weights_s8_oc(WeightsType *, BiasType *);
 
   void requant_output(OutputType *, ToutputType *);
 

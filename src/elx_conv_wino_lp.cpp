@@ -221,21 +221,20 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
   tweights_quant_factor_size_ = tweights_quant_factor_size > 0 ? alignup(tweights_quant_factor_size, align) : 0;
 
   workspace_ = nullptr, scratch_ = nullptr;
-  size_t workspace_size = tweights_size_ + tweights_s8_size_
+  workspace_size_ = tweights_size_ + tweights_s8_size_
       + tweights_quant_scale_size_ + tweights_quant_factor_size_;
   size_t scratch_size = estl::max(tinput_size_, toutput_size_)
       + binput_size_ + bweights_size_ + boutput_size_ + tinput_u8_size_;
 
   if (this->sampling_kind == CALIBRATED)
-    workspace_size += tinput_quant_scale_size_;
+    workspace_size_ += tinput_quant_scale_size_;
   else
     scratch_size += tinput_quant_scale_size_;
 
   // TODO: user provided buffer
+  workspace_ = nullptr;
   if (scratch_size != 0)
     scratch_ = galloc::acquire(scratch_size);
-  if (workspace_size != 0)
-    MEMALIGN64(&workspace_, workspace_size);
 
   // dbg
   printf("nthreads=%d, mthr_=%d\n", this->nthreads, mthr_);
@@ -250,11 +249,10 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
 }
 
 Template_elx_conv_wino_lp_t
-void Instance_elx_conv_wino_lp_t::set_trans_buffers()
+void Instance_elx_conv_wino_lp_t::set_workspace_buffers()
 {
   if (workspace_ != nullptr) {
     tweights_ = (TweightsType *)workspace_;
-    tinput_ = (TinputType *)galloc::get();
     // int8gemm supported in weights reuse case only.
     tweights_quant_scale_ = (TscaleType *)((char *)tweights_ + tweights_size_);
     tweights_quant_factor_ = (TscaleType *)((char *)tweights_quant_scale_ + tweights_quant_scale_size_);
@@ -264,10 +262,13 @@ void Instance_elx_conv_wino_lp_t::set_trans_buffers()
     } else {
       tweights_s8_ = (int8_t *)((char *)tweights_quant_factor_ + tweights_quant_factor_size_);
     }
-  } else {
-    tweights_ = (TweightsType *)galloc::get();
-    tinput_ = (TinputType *)((char *)tweights_ + tweights_size_);
   }
+}
+
+Template_elx_conv_wino_lp_t
+void Instance_elx_conv_wino_lp_t::set_scratchpad_buffers()
+{
+  tinput_ = (TinputType *)galloc::get();
   toutput_ = (ToutputType *)tinput_;
   binput_ = (InputType *)((char *)toutput_ + estl::max(tinput_size_, toutput_size_));
   bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
@@ -301,11 +302,43 @@ void Instance_elx_conv_wino_lp_t::prepare_quant_calibration(eld_conv_t &dc)
   }
 }
 
+Template_elx_conv_wino_lp_t void Instance_elx_conv_wino_lp_t::
+trans_weights(WeightsType *weights) {
+  if (inference_acc_ && this->shared_workspace_enabled) {
+    const char *key = this->shared_workspace_key.c_str();
+    process_singleton_t process_singleton(key);
+    {
+      this->shared_workspace_mgr =
+        new shared_workspace_mgr_t(this->workspace_size_, key);
+      workspace_ = this->shared_workspace_mgr->get();
+      set_workspace_buffers();
+      if (!this->shared_workspace_mgr->is_setup_done()) {
+        trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
+                         tweights_s8_, tweights_, weights, this->oc4);
+        this->shared_workspace_mgr->set_setup_done();
+      }
+    }
+  } else {
+    MEMALIGN64(&workspace_, workspace_size_);
+    set_workspace_buffers();
+    trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
+                     tweights_s8_, tweights_, weights, this->oc4);
+  }
+}
+
 Template_elx_conv_wino_lp_t
 Instance_elx_conv_wino_lp_t::~elx_conv_wino_lp_t()
 {
-  if (workspace_ != nullptr)
+  if (workspace_ != nullptr && !this->shared_workspace_enabled) {
     ::free(workspace_);
+    workspace_ = nullptr;
+  } else {
+    if (this->shared_workspace_mgr != nullptr) {
+      delete this->shared_workspace_mgr;
+      this->shared_workspace_mgr = nullptr;
+    }
+    workspace_ = nullptr;
+  }
 
   galloc::release();
 }

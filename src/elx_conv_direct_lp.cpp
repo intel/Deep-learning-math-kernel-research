@@ -227,8 +227,16 @@ void Instance_elx_conv_direct_lp_t::prepare_quant_calibration(eld_conv_t &dc)
 Template_elx_conv_direct_lp_t
 Instance_elx_conv_direct_lp_t::~elx_conv_direct_lp_t()
 {
-  if (workspace_ != nullptr)
+  if (workspace_ != nullptr && !this->shared_workspace_enabled) {
     ::free(workspace_);
+    workspace_ = nullptr;
+  } else {
+    if (this->shared_workspace_mgr != nullptr) {
+      delete this->shared_workspace_mgr;
+      this->shared_workspace_mgr = nullptr;
+    }
+    workspace_ = nullptr;
+  }
 
   galloc::release();
 }
@@ -510,19 +518,7 @@ __trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
 }
 
 Template_elx_conv_direct_lp_t void Instance_elx_conv_direct_lp_t::
-trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
-                int8_t *tweights_s8, WeightsType *weights, BiasType *bias) {
-  auto transform_weights = [&]() {
-    __trans_weights(weights_scale_, weights_factor_, tweights_s8_, weights, bias);
-    if (this->sampling_kind == CALIBRATED) {
-      MD2(TscaleType, atinput_scale, input_scale_, 2, this->T);
-      iter_each(_T, this->T) {
-        md2(atinput_scale, 0, _T) = this->input_quant_S;
-        md2(atinput_scale, 1, _T) = this->input_quant_z;
-      }
-    }
-  };
-
+trans_weights(WeightsType *weights, BiasType *bias) {
   if (inference_acc_ && this->shared_workspace_enabled) {
     const char *key = this->shared_workspace_key.c_str();
     process_singleton_t process_singleton(key);
@@ -532,14 +528,17 @@ trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
       workspace_ = this->shared_workspace_mgr->get();
       set_workspace_buffers();
       if (!this->shared_workspace_mgr->is_setup_done()) {
-        transform_weights();
+        __trans_weights(weights_scale_, weights_factor_, tweights_s8_,
+                        weights, bias);
         this->shared_workspace_mgr->set_setup_done();
       }
     }
   } else {
     MEMALIGN64(&workspace_, workspace_size_);
     set_workspace_buffers();
-    transform_weights();
+    __trans_weights(weights_scale_, weights_factor_, tweights_s8_,
+                    weights, bias);
+
   }
 }
 

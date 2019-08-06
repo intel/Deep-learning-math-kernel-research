@@ -21,6 +21,10 @@ void Instance_elx_conv_wino_lp_t::__execute_a133(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
+  if (is_first_run_) {
+    trans_weights(weights);
+  }
+
   MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
       A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
@@ -32,21 +36,6 @@ void Instance_elx_conv_wino_lp_t::__execute_a133(
       this->oc4, this->ic4, this->oc3 * this->O2 * V * A * A);
   MD3(TscaleType, aweights_quant_factor, tweights_quant_factor_,
       this->oc4, this->ic4, this->oc3 * this->O2 * V * A * A);
-
-  if (is_first_run_) {
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-    {
-      trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
-          tweights_s8_, tweights_, weights, this->oc4);
-    }
-    if (this->sampling_kind == CALIBRATED) {
-      MD2(TscaleType, atinput_quant_scale, tinput_quant_scale_, 2, this->T);
-      iter_each(_T, this->T) {
-        md2(atinput_quant_scale, 0, _T) = this->tinput_quant_S;
-        md2(atinput_quant_scale, 1, _T) = this->tinput_quant_z;
-      }
-    }
-  }
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
@@ -79,21 +68,8 @@ void Instance_elx_conv_wino_lp_t::__execute_a161(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-
   if (is_first_run_) {
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-    {
-      trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
-          tweights_s8_, tweights_, weights, this->oc4);
-      size_t ithr = omp_get_thread_num();
-      if (this->sampling_kind == CALIBRATED) {
-        MD3(TscaleType, atinput_quant_scale, tinput_quant_scale_, mthr_, 2, this->T);
-        iter_each (_T, this->T) {
-          md3(atinput_quant_scale, ithr, 0, _T) = this->tinput_quant_S;
-          md3(atinput_quant_scale, ithr, 1, _T) = this->tinput_quant_z;
-        }
-      }
-    }
+    trans_weights(weights);
   }
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
@@ -146,19 +122,7 @@ void Instance_elx_conv_wino_lp_t::__execute_a173(
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
   if (is_first_run_) {
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-  {
-    trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
-        tweights_s8_, tweights_, weights, this->oc4);
-      size_t ithr = omp_get_thread_num();
-      if (this->sampling_kind == CALIBRATED) {
-        MD3(TscaleType, atinput_quant_scale, tinput_quant_scale_, mthr_, 2, this->T);
-        iter_each (_T, this->T) {
-          md3(atinput_quant_scale, ithr, 0, _T) = this->tinput_quant_S;
-          md3(atinput_quant_scale, ithr, 1, _T) = this->tinput_quant_z;
-        }
-      }
-    }
+    trans_weights(weights);
   }
 
 #pragma omp parallel num_threads(mthr_) proc_bind(close)
@@ -215,7 +179,7 @@ void Instance_elx_conv_wino_lp_t::execute(
     void * __restrict output, void * __restrict input,
     void * __restrict weights, void * __restrict bias)
 {
-  set_trans_buffers();
+  set_scratchpad_buffers();
 
   if (is_bfmt_)
     return (this->*execute_opt_)((OutputType *)output,

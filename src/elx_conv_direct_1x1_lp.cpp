@@ -257,6 +257,7 @@ Instance_elx_conv_direct_1x1_lp_t::~elx_conv_direct_1x1_lp_t()
       delete this->shared_workspace_mgr;
       this->shared_workspace_mgr = nullptr;
     }
+    workspace_ = nullptr;
   }
 
   galloc::release();
@@ -377,20 +378,13 @@ void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked_oc(
 
 Template_elx_conv_direct_1x1_lp_t
 void Instance_elx_conv_direct_1x1_lp_t::trans_weights_s8_oc(
-    TscaleType *weights_scale, int8_t *tweights, WeightsType *weights,
-    BiasType *bias)
+    WeightsType *weights, BiasType *bias)
 {
   auto transform_weights = [&]() {
     if (weights_is_bfmt_ || weights_as_bfmt_)
       __trans_weights_s8_blocked_oc(weights_scale_, tweights_s8_, weights, bias);
     else
       el_error("Unimplement format");
-
-    MD2(TscaleType, ainput_scale, input_scale_, 2, this->T);
-    iter_each (_T, this->T) {
-      md2(ainput_scale, 0, _T) = this->input_quant_S;
-      md2(ainput_scale, 1, _T) = this->input_quant_z;
-    }
   };
 
   if (inference_acc_ && this->shared_workspace_enabled) {
