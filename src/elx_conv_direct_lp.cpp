@@ -174,14 +174,12 @@ int Instance_elx_conv_direct_lp_t::prepare_execute_opt()
   weights_scale_size_ = weights_scale_size > 0 ? alignup(weights_scale_size, align) : 0;
   weights_factor_size_ = weights_factor_size > 0 ? alignup(weights_factor_size, align) : 0;
 
-  size_t workspace_size = tweights_s8_size_ + weights_scale_size_
+  workspace_size_ = tweights_s8_size_ + weights_scale_size_
       + weights_factor_size_ + input_scale_size_;
   size_t scratchpad_size = toutput_size_;
 
   // TODO: user provided buffer
-  if (workspace_size != 0) {
-    MEMALIGN64(&workspace_, workspace_size);
-  }
+  workspace_ = nullptr;
   if (scratchpad_size != 0) {
     scratch_ = galloc::acquire(scratchpad_size);
   }
@@ -196,7 +194,7 @@ int Instance_elx_conv_direct_lp_t::prepare_execute_opt()
 }
 
 Template_elx_conv_direct_lp_t
-void Instance_elx_conv_direct_lp_t::set_trans_buffers()
+void Instance_elx_conv_direct_lp_t::set_workspace_buffers()
 {
   if (workspace_ != nullptr) {
     weights_scale_ = (TscaleType *)workspace_;
@@ -204,6 +202,11 @@ void Instance_elx_conv_direct_lp_t::set_trans_buffers()
     input_scale_ = (TscaleType *)((char *)weights_factor_ + weights_factor_size_);
     tweights_s8_ = (int8_t *)((char *)input_scale_ + input_scale_size_);
   }
+}
+
+Template_elx_conv_direct_lp_t
+void Instance_elx_conv_direct_lp_t::set_scratchpad_buffers()
+{
   toutput_ = (ToutputType *)galloc::get();
 }
 
@@ -430,9 +433,9 @@ Instance_elx_conv_direct_lp_t::__trans_weights_acc(TscaleType *weights_scale,
 
 // weights (blocked): oc2, ic2, kh, kw, V, V
 // tweights: oc4, ic4, oc3, _ic3, kh, kw, O1, I2, V1, O, V, Vx
-Template_elx_conv_direct_lp_t void Instance_elx_conv_direct_lp_t::trans_weights(
-    TscaleType *weights_scale, TscaleType *weights_factor, int8_t *tweights_s8,
-    WeightsType *weights, BiasType *bias) {
+Template_elx_conv_direct_lp_t void Instance_elx_conv_direct_lp_t::
+__trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
+                int8_t *tweights_s8, WeightsType *weights, BiasType *bias) {
   _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
 
@@ -504,6 +507,40 @@ Template_elx_conv_direct_lp_t void Instance_elx_conv_direct_lp_t::trans_weights(
   }, this->oc2);
 
   __trans_weights_acc(weights_scale, weights_factor, tweights_s8, bias);
+}
+
+Template_elx_conv_direct_lp_t void Instance_elx_conv_direct_lp_t::
+trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
+                int8_t *tweights_s8, WeightsType *weights, BiasType *bias) {
+  auto transform_weights = [&]() {
+    __trans_weights(weights_scale_, weights_factor_, tweights_s8_, weights, bias);
+    if (this->sampling_kind == CALIBRATED) {
+      MD2(TscaleType, atinput_scale, input_scale_, 2, this->T);
+      iter_each(_T, this->T) {
+        md2(atinput_scale, 0, _T) = this->input_quant_S;
+        md2(atinput_scale, 1, _T) = this->input_quant_z;
+      }
+    }
+  };
+
+  if (inference_acc_ && this->shared_workspace_enabled) {
+    const char *key = this->shared_workspace_key.c_str();
+    process_singleton_t process_singleton(key);
+    {
+      this->shared_workspace_mgr =
+        new shared_workspace_mgr_t(this->workspace_size_, key);
+      workspace_ = this->shared_workspace_mgr->get();
+      set_workspace_buffers();
+      if (!this->shared_workspace_mgr->is_setup_done()) {
+        transform_weights();
+        this->shared_workspace_mgr->set_setup_done();
+      }
+    }
+  } else {
+    MEMALIGN64(&workspace_, workspace_size_);
+    set_workspace_buffers();
+    transform_weights();
+  }
 }
 
 Template_elx_conv_direct_lp_t

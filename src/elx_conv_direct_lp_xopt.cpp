@@ -24,13 +24,6 @@ void Instance_elx_conv_direct_lp_t::__execute_a160(
   // output (blocked):  t3*, oc4*, oc3, O2, ht*wt*, T(Tr), V
   if (is_first_run_) {
     trans_weights(weights_scale_, weights_factor_, tweights_s8_, weights, bias);
-    if (this->sampling_kind == CALIBRATED) {
-      MD2(TscaleType, atinput_scale, input_scale_, 2, this->T);
-      iter_each(_T, this->T) {
-        md2(atinput_scale, 0, _T) = this->input_quant_S;
-        md2(atinput_scale, 1, _T) = this->input_quant_z;
-      }
-    }
   }
 
   auto V1 = compact_ir_weights_ ? this->Ir : this->V1;
@@ -101,13 +94,6 @@ void Instance_elx_conv_direct_lp_t::__execute_d160(
   // output (blocked):  t3*, oc4*, oc3, O2, ht*wt*, T(Tr), V
   if (is_first_run_) {
     trans_weights(weights_scale_, weights_factor_, tweights_s8_, weights, bias);
-    if (this->sampling_kind == CALIBRATED) {
-      MD2(TscaleType, atinput_scale, input_scale_, 2, this->T);
-      iter_each(_T, this->T) {
-        md2(atinput_scale, 0, _T) = this->input_quant_S;
-        md2(atinput_scale, 1, _T) = this->input_quant_z;
-      }
-    }
   }
 
   parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
@@ -209,7 +195,7 @@ Template_elx_conv_direct_lp_t
 void Instance_elx_conv_direct_lp_t::execute(
     void *output, void *input, void *weights, void *bias)
 {
-  set_trans_buffers();
+  set_scratchpad_buffers();
 
   (this->*execute_opt_)((OutputType *)output,
       (InputType *)input, (WeightsType *)weights, (BiasType *)bias);
