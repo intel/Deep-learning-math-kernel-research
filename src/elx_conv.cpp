@@ -95,7 +95,8 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
     this->shared_workspace_enabled = true;
     this->shared_workspace_key = ".euler_key_" + dc.shared_workspace_key;
     if (env_numa_node != nullptr)
-      this->shared_workspace_key += env_numa_node;
+      this->shared_workspace_key = this->shared_workspace_key
+        + "_" + env_numa_node;
       std::replace(this->shared_workspace_key.begin(),
                    this->shared_workspace_key.end(), '/', '_');
   } else {
