@@ -129,8 +129,18 @@ int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *b
   if (xc.verbose) start_ts = hrc::now();
   xc.execute(output, input, weights, bias);
   if (xc.verbose) {
-    printf("Verbose: Euler kernel execution Duration: %lf(ms), kh=%d, ih=%d, oh=%d, ic=%d, oc=%d\n",
-        hrc_duration(hrc::now() - start_ts).count(), xc.kh, xc.ih, xc.oh, xc.ic, xc.oc);
+    printf("euler_verbose,%s,ih:%d;oh:%d;ic:%d;oc:%d,"\
+           "%s;%x,src:%s;wei:%s;dst:%s,src:%s;wei:%s;dst:%s;b:%s, %lf\n",
+        desc.shared_workspace_key.c_str(),
+        xc.ih, xc.oh, xc.ic, xc.oc,
+        algorithm_to_string(desc.algorithm), desc.execution_mode,
+        format_to_string(xc.input_fmt), format_to_string(xc.weights_fmt),
+        format_to_string(xc.output_fmt),
+        datatype_to_string(desc.data_type.input),
+        datatype_to_string(desc.data_type.weights),
+        datatype_to_string(desc.data_type.output),
+        datatype_to_string(desc.data_type.bias),
+        hrc_duration(hrc::now() - start_ts).count());
   }
   return ELX_OK;
 }

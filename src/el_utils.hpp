@@ -7,6 +7,7 @@
 #include <chrono>
 #include <algorithm>
 #include "el_mdarray.hpp"
+#include "euler.hpp"
 
 #define _T(x) x
 typedef std::chrono::high_resolution_clock Time;
@@ -174,6 +175,49 @@ static inline uint16_t float_2_half(float value)
   out = uint16_t(out | (sign >> 16));
 
   return out;
+}
+
+static inline const char *format_to_string(int fmt) {
+  switch (fmt) {
+    case nhwc: return "nhwc";
+    case nChw16c: return "nChw16c";
+    case nchw: return "nchw";
+    case nChw8c: return "nChw8c";
+    case oihw: return "oihw";
+    case hwio: return "hwio";
+    case OIhw16i16o: return "OIhw16i16o";
+    case OIhw8i8o: return "OIhw8i8o";
+    case goihw: return "goihw";
+    case ghwio: return "ghwio";
+    case gOIhw16i16o: return "gOIhw16i16o";
+    case gOIhw8i8o: return "gOIhw8i8o";
+    default: return "unknown"; break;
+  }
+  return "unknown";
+}
+
+static inline const char *algorithm_to_string(int alg) {
+  switch (alg) {
+    case CONV_DIRECT_1X1: return "direct_conv_1x1";
+    case CONV_DIRECT: return "direct_conv";
+    case CONV_DIRECT_VMG: return "direct_conv_vmg";
+    case CONV_WINOGRAD: return "winograd_conv";
+    case DECONV_DIRECT: return "deconv";
+    default: return "unknown"; break;
+  }
+  return "unknown";
+}
+
+static inline const char *datatype_to_string(int dt) {
+  switch (dt) {
+    case f32: return "f32";
+    case f16: return "f16";
+    case u8: return "u8";
+    case s8: return "s8";
+    case s32: return "s32";
+    default: return "unknown";
+  }
+  return "unknown";
 }
 
 } // euler
