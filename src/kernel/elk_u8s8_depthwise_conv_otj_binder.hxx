@@ -13,7 +13,7 @@
   kconv_##type##_##otype##_##V##_##Vx##_##I##_##S##_##F[O - 1][T - 1][0]
 
 #if !defined(BUILD_OTJ_TBL)
-#include "src/el_def.hpp"
+#include "el_def.hpp"
 #include "src/kernel/elk_def.hpp"
 #include "src/kernel/elk_u8s8_depthwise_conv_otj.hxx"
 

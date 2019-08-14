@@ -136,7 +136,7 @@ execute_process(COMMAND ${BUILD_U8S8_DEPTHWISE_KCONV_GEN_CMD} ${BUILD_KCONV_GEN_
 
 file (GLOB __euler_gemm_kernel_source ${KGEMM_GEN_DIR}/*.cpp)
 
-include_directories(AFTER . include src tests xsimd/include)
+include_directories(AFTER . include src tests src/common)
 link_directories(lib)
 
 # build lib
