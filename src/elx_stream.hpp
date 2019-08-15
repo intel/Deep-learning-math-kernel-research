@@ -1,0 +1,29 @@
+#pragma once
+
+#include <queue>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
+namespace euler {
+
+struct elx_conv_t;
+
+class elx_stream {
+public:
+  elx_stream();
+  ~elx_stream();
+  void submit(elx_conv_t *xc);
+  void wait(elx_conv_t *xc);
+  int run();
+
+private:
+  std::queue<elx_conv_t *> _stream;
+  mutable std::mutex _mutex;
+  std::condition_variable _cond;
+  std::thread *_threadx;
+};
+
+extern elx_stream global_stream;
+
+}

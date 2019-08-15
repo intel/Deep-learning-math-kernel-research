@@ -80,19 +80,20 @@ inline void el_warn(const char *msg) {
 }
 
 // TODO: to-be-replaced with user provided buffer
+// TODO: per-thread global buffer
 struct galloc {
   static void *&get() {
-    thread_local static void *ptr_;
+    /*thread_local*/ static void *ptr_;
     return ptr_;
   }
 
   static size_t &sz() {
-    thread_local static size_t sz_;
+    /*thread_local*/ static size_t sz_;
     return sz_;
   }
 
   static size_t &ref_cnt() {
-    thread_local static size_t ref_cnt_;
+    /*thread_local*/ static size_t ref_cnt_;
     return ref_cnt_;
   }
 

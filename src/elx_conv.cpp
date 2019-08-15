@@ -10,6 +10,7 @@
 #include "xmmintrin.h"
 #include "pmmintrin.h"
 #endif
+#include "elx_stream.hpp"
 
 namespace euler {
 
@@ -55,6 +56,11 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   this->prop_kind = dc.prop_kind;
 
   this->nthreads = dc.nthreads;
+  this->algorithm = dc.algorithm;
+  this->input_data_type = dc.data_type.input;
+  this->weights_data_type = dc.data_type.weights;
+  this->output_data_type = dc.data_type.output;
+  this->bias_data_type = dc.data_type.bias;
   this->execution_mode = dc.execution_mode;
 
   /* Automatical parameters */
@@ -83,6 +89,12 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   this->sampling_kind = dc.sampling_kind;
 
   this->ormask = (unsigned int)-1;
+  this->output_ptr = nullptr;
+  this->input_ptr = nullptr;
+  this->weights_ptr = nullptr;
+  this->bias_ptr = nullptr;
+  this->eager_mode = dc.eager_mode;
+  this->stream_sync = dc.stream_sync;
 
   this->verbose = false;
   auto env_verbose = getenv("EULER_VERBOSE");
@@ -101,7 +113,7 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
                    this->shared_workspace_key.end(), '/', '_');
   } else {
     this->shared_workspace_enabled = false;
-    this->shared_workspace_key = "";
+    this->shared_workspace_key = dc.shared_workspace_key;
   }
   this->shared_workspace_mgr = nullptr;
 
@@ -112,9 +124,41 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
 #endif
 }
 
+void elx_conv_t::set_data(void *output, void *input, void *weights, void *bias)
+{
+  output_ptr = output;
+  input_ptr = input;
+  weights_ptr = weights;
+  bias_ptr = bias;
+}
+
+void elx_conv_t::timed_execute(void *output, void *input, void *weights, void *bias)
+{
+  typedef std::chrono::high_resolution_clock hrc;
+  typedef std::chrono::duration<float, std::milli> hrc_duration;
+
+  hrc::time_point start_ts;
+  start_ts = hrc::now();
+
+  this->execute(output, input, weights, bias);
+
+  printf("euler_verbose,%s,ih:%d;oh:%d;ic:%d;oc:%d,"\
+         "%s;%x,src:%s;wei:%s;dst:%s,src:%s;wei:%s;dst:%s;b:%s, %lf\n",
+      this->shared_workspace_key.c_str(),
+      this->ih, this->oh, this->ic, this->oc,
+      algorithm_to_string(this->algorithm), this->execution_mode,
+      format_to_string(this->input_fmt), format_to_string(this->weights_fmt),
+      format_to_string(this->output_fmt),
+      datatype_to_string(this->input_data_type),
+      datatype_to_string(this->weights_data_type),
+      datatype_to_string(this->output_data_type),
+      datatype_to_string(this->bias_data_type),
+      hrc_duration(hrc::now() - start_ts).count());
+}
+
 int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *bias)
 {
-  elx_conv_t &xc = *desc.xc;
+  elx_conv_t *xc = desc.xc;
 
   // Sanity check
   if (input == nullptr || weights == nullptr || output == nullptr
@@ -123,25 +167,19 @@ int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *b
     return ELX_GENERAL_ERROR;
   }
 
-  typedef std::chrono::high_resolution_clock hrc;
-  typedef std::chrono::duration<float, std::milli> hrc_duration;
-  hrc::time_point start_ts;
-  if (xc.verbose) start_ts = hrc::now();
-  xc.execute(output, input, weights, bias);
-  if (xc.verbose) {
-    printf("euler_verbose,%s,ih:%d;oh:%d;ic:%d;oc:%d,"\
-           "%s;%x,src:%s;wei:%s;dst:%s,src:%s;wei:%s;dst:%s;b:%s, %lf\n",
-        desc.shared_workspace_key.c_str(),
-        xc.ih, xc.oh, xc.ic, xc.oc,
-        algorithm_to_string(desc.algorithm), desc.execution_mode,
-        format_to_string(xc.input_fmt), format_to_string(xc.weights_fmt),
-        format_to_string(xc.output_fmt),
-        datatype_to_string(desc.data_type.input),
-        datatype_to_string(desc.data_type.weights),
-        datatype_to_string(desc.data_type.output),
-        datatype_to_string(desc.data_type.bias),
-        hrc_duration(hrc::now() - start_ts).count());
+  if (xc->eager_mode) {
+    if (xc->verbose)
+      xc->timed_execute(output, input, weights, bias);
+    else
+      xc->execute(output, input, weights, bias);
+  } else {
+    xc->set_data(output, input, weights, bias);
+    global_stream.submit(xc);
+    if (xc->stream_sync)
+      global_stream.wait(xc);
+    return ELX_OK;
   }
+  
   return ELX_OK;
 }
 

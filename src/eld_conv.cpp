@@ -44,6 +44,8 @@ eld_conv_t::eld_conv_t()
   input_quant = {EL_NO_CALI, EL_NO_CALI};
   output_quant = {EL_NO_CALI, EL_NO_CALI};
   sampling_kind = FINE;
+  eager_mode = true;
+  stream_sync = false;
 }
 
 eld_conv_t::~eld_conv_t()

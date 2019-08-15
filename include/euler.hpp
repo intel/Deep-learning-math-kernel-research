@@ -142,6 +142,8 @@ struct EULER_API eld_conv_t {
   bool is_inference;
   bool use_scratch_pad;
   bool disable_autoparam;
+  bool eager_mode;
+  bool stream_sync;
 
   // Performance:
   // Number of thread teams, number of threads per team

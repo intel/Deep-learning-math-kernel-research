@@ -10,6 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <semaphore.h>
+#include "el_utils.hpp"
 
 namespace euler {
 

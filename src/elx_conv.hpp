@@ -1,9 +1,9 @@
+#pragma once
+
+#include <mutex>
 #include "euler.hpp"
 #include "el_def.hpp"
 #include "el_shared_workspace.hpp"
-
-#ifndef __ELX_CONV_HPP__
-#define __ELX_CONV_HPP__
 
 namespace euler {
 
@@ -74,6 +74,9 @@ struct elx_conv_params_t {
   // threading
   int nthreads;
   int execution_mode;
+  int algorithm;
+  uint8_t input_data_type, weights_data_type, output_data_type, bias_data_type;
+
 
   // calibration coefficients
   float input_quant_S;
@@ -90,17 +93,24 @@ struct elx_conv_params_t {
   sampling_kind_t sampling_kind;
 
   bool verbose;
+  bool eager_mode;
+  bool stream_sync;
 
   bool                    shared_workspace_enabled;
   std::string             shared_workspace_key; 
   shared_workspace_mgr_t *shared_workspace_mgr;
 
   void *scratch_pad;
+  void *output_ptr, *input_ptr, *weights_ptr, *bias_ptr;
+  std::mutex mu;
 };
 
 struct elx_conv_t : elx_conv_params_t {
 public:
   elx_conv_t(eld_conv_t &dc);
+
+  void set_data(void *output, void *input, void *weights, void *bias);
+  void timed_execute(void *output, void *input, void *weights, void *bias);
 
   virtual void execute(
       void *output, void *input, void *weights, void *bias) = 0;
@@ -108,4 +118,3 @@ public:
 };
 
 }  // namespace euler
-#endif  // __ELX_CONV_HPP__
