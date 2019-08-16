@@ -50,63 +50,6 @@ namespace test {
   size_t cal_ops(eld_conv_t &desc);
   int cal_iterations(size_t num_ops);
 
-  template <typename Type, const int dst_fmt, const int src_fmt,
-      typename... Args>
-  struct reorder {
-    reorder(Type *dst, Type *src, Args...)
-    {
-      assert(dst != nullptr && src != nullptr);
-    }
-  };
-
-  template <typename Type> struct reorder<Type, nchw, nhwc> {
-    reorder(Type *dst, Type *src, int n, int c, int h, int w);
-  };
-
-  template <typename Type> struct reorder<Type, nhwc, nchw> {
-    reorder(Type *dst, Type *src, int n, int c, int h, int w);
-  };
-
-  template <typename Type> struct reorder<Type, nchw, nChw16c> {
-    reorder(Type *dst, Type *src, int n, int c, int h, int w);
-  };
-
-  template <typename Type> struct reorder<Type, nChw16c, nchw> {
-    reorder(Type *dst, Type *src, int n, int c, int h, int w);
-  };
-
-  template <typename Type> struct reorder<Type, oihw, OIhw16i16o> {
-    reorder(Type *dst, Type *src, int o, int i, int h, int w);
-  };
-
-  template <typename Type> struct reorder<Type, goihw, gOIhw16i16o> {
-    reorder(Type *dst, Type *src, int g, int o, int i, int h, int w);
-  };
-
-  template <typename Type> struct reorder<Type, OIhw16i16o, oihw> {
-    reorder(Type *dst, Type *src, int o, int i, int h, int w);
-  };
-
-  template <typename Type> struct reorder<Type, gOIhw16i16o, goihw> {
-    reorder(Type *dst, Type *src, int g, int o, int i, int h, int w);
-  };
-
-  template <typename Type> struct reorder<Type, oihw, hwio> {
-    reorder(Type *dst, Type *src, int o, int i, int h, int w);
-  };
-
-  template <typename Type> struct reorder<Type, goihw, ghwio> {
-    reorder(Type *dst, Type *src, int g, int o, int i, int h, int w);
-  };
-
-  template <typename Type> struct reorder<Type, hwio, oihw> {
-	reorder(Type *dst, Type *src, int o, int i, int h, int w);
-  };
-
-  template <typename Type> struct reorder<Type, ghwio, goihw> {
-	reorder(Type *dst, Type *src, int g, int o, int i, int h, int w);
-  };
-
   template <typename InputType, typename WeightsType, typename OutputType, typename BiasType>
   int ref_conv_deconv_2d(eld_conv_t &desc,
       OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);

@@ -79,7 +79,8 @@ file (GLOB __euler_source
   src/elx_conv_direct_depthwise_lp.cpp
   src/elx_conv_direct_depthwise_lp_xopt.cpp
   src/elx_conv_direct_depthwise_lp_bind.cpp
-  src/elx_stream.cpp)
+  src/elx_stream.cpp
+  src/elx_reorder.cpp)
 
 set(KGEMM_GEN_DIR ${CMAKE_BINARY_DIR}/kgen)
 set(BUILD_KGEMM_GEN_CMD ${KGEMM_GEN_DIR}/kgemm_gen.sh)
