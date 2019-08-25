@@ -175,7 +175,7 @@ void Instance_elx_conv_direct_lp_t::__execute_d160(
       }
       float vmaxbuf[V8]; int kmaxbuf[V8];
       _mm256_store_ps(vmaxbuf, vmax);
-      _mm256_store_epi32(kmaxbuf, kmax);
+      _mm256_store_si256((__m256i *)kmaxbuf, kmax);
       float gmax = vmaxbuf[0]; int pos = 0;
       for(int i = 1; i < V8; ++i) {
         if (vmaxbuf[i] > gmax) {

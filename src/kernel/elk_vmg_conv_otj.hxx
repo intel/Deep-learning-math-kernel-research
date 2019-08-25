@@ -662,14 +662,14 @@ struct vmg_conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P, _O);
         }}
         for (int _I2 = 0; _I2 < I2; ++_I2) {
-          unroll_auto(_V, C / P) {
-            unroll_for(_P, P) {
+          unroll_for(_V, C / P) {
+            unroll_auto(_P, P) {
               unroll_for(_T, T) {
                 __m<V> mmbcst = op_load_input(xc, input, _kh - AKH, _kw - AKW, _I2, _V * P + _P, _T);
                 unroll_for(_O, JO) mmout[_O][_T] =
                     _mm<V>::fmadd_ps(mmwei[_O][_P], mmbcst, mmout[_O][_T]);
               }
-              unroll_auto(_O, JO)
+              unroll_for(_O, JO)
                 mmwei[_O][_P] = op_load_weights<JO, P>(
                   xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, _P, _O);
             }
@@ -703,14 +703,14 @@ struct vmg_conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P, _O);
         }}
         for (int _I2 = 0; _I2 < I2; ++_I2) {
-          unroll_auto(_V, C / P) {
-            unroll_for(_P, P) {
+          unroll_for(_V, C / P) {
+            unroll_auto(_P, P) {
               unroll_from_to(_T, 1, T) {
                 __m<V> mmbcst = op_load_input(xc, input, _kh - AKH, _kw - AKW, _I2, _V * P + _P, _T);
                 unroll_for(_O, JO) mmout[_O][_T] =
                     _mm<V>::fmadd_ps(mmwei[_O][_P], mmbcst, mmout[_O][_T]);
               }
-              unroll_auto(_O, JO)
+              unroll_for(_O, JO)
                 mmwei[_O][_P] = op_load_weights<JO, P>(
                   xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, _P, _O);
             }
@@ -744,14 +744,14 @@ struct vmg_conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               xc, &md3(aweights, _kh, _kw, 0), 0, 0, _P, _O);
         }}
         for (int _I2 = 0; _I2 < I2; ++_I2) {
-          unroll_auto(_V, C / P) {
-            unroll_for(_P, P) {
+          unroll_for(_V, C / P) {
+            unroll_auto(_P, P) {
               unroll_for(_T, T - 1 + S - 1) {
                 __m<V> mmbcst = op_load_input(xc, input, _kh - AKH, _kw - AKW, _I2, _V * P + _P, _T);
                 unroll_for(_O, JO) mmout[_O][_T] =
                     _mm<V>::fmadd_ps(mmwei[_O][_P], mmbcst, mmout[_O][_T]);
               }
-              unroll_auto(_O, JO)
+              unroll_for(_O, JO)
                 mmwei[_O][_P] = op_load_weights<JO, P>(
                   xc, &md3(aweights, _kh, _kw, 0), _I2, _V + 1, _P, _O);
 

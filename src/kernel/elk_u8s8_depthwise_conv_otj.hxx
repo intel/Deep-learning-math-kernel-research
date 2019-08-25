@@ -15,7 +15,6 @@
 // I: ISA
 // K: kernel size
 
-#if defined(WITH_VNNI)
 #if defined(WITH_VBMI)
 #define PERM_INDEX_MID   \
         63, 47, 31, 15,  \
@@ -122,7 +121,6 @@
          0, 0,  6,  2,   \
          0, 0,  5,  1,   \
          0, 0,  4,  0 
-#endif
 #endif
 
 namespace euler {
