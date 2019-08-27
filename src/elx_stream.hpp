@@ -18,6 +18,9 @@ public:
   int run();
 
 private:
+  elx_stream& operator=(const elx_stream&) = delete;
+  elx_stream(const elx_stream&) = delete;
+
   std::queue<elx_conv_t *> _stream;
   mutable std::mutex _mutex;
   std::condition_variable _cond;
