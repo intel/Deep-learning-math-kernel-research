@@ -4,6 +4,7 @@
 #include "euler.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
+#include "el_allocator.hpp"
 #include "elx_conv.hpp"
 #include "kernel/elk_vmg_conv_otj_binder.hxx"
 

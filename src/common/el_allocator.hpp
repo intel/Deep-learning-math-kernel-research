@@ -116,4 +116,48 @@ private:
   void *workspace_ptr_;
 };
 
+// TODO: to-be-replaced with user provided buffer
+// TODO: per-thread global buffer
+struct galloc {
+  static void *&get() {
+    /*thread_local*/ static void *ptr_;
+    return ptr_;
+  }
+
+  static size_t &sz() {
+    /*thread_local*/ static size_t sz_;
+    return sz_;
+  }
+
+  static size_t &ref_cnt() {
+    /*thread_local*/ static size_t ref_cnt_;
+    return ref_cnt_;
+  }
+
+  static void *acquire(size_t size)
+  {
+    auto &sz_ = sz();
+    auto &ptr_ = get();
+    size_t sz = ALIGNUP(size, 64);
+    if (sz > sz_) {
+      if (ptr_) ::free(ptr_);
+      MEMALIGN64(&ptr_, sz);
+      sz_ = sz;
+    }
+    ++ref_cnt();
+    return ptr_;
+  }
+
+  static void release() {
+    auto &sz_ = sz();
+    auto &ptr_ = get();
+    auto &cnt_ = ref_cnt();
+    if (--cnt_ == 0 && ptr_ != nullptr) {
+      ::free(ptr_);
+      ptr_ = nullptr;
+      sz_ = 0;
+    }
+  }
+};
+
 }

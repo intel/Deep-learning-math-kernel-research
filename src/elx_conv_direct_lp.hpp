@@ -6,6 +6,7 @@
 #include "euler.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
+#include "el_allocator.hpp"
 #include "elx_conv.hpp"
 #include "kernel/elk_u8s8_gemm_otj_binder.hxx"
 #include "kernel/elk_u8s8_conv_otj_binder.hxx"

@@ -1,6 +1,5 @@
 #include "elx_conv_direct_1x1_lp.hpp"
 #include "el_parallel.hpp"
-#include "el_shared_workspace.hpp"
 
 namespace euler {
 

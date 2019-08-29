@@ -4,6 +4,7 @@
 #include "euler.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
+#include "el_allocator.hpp"
 #include "elx_conv.hpp"
 #include "elx_conv_wino_gemm.hpp"
 #include "elx_conv_wino_trans_input.hpp"
