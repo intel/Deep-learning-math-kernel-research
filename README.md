@@ -1,4 +1,4 @@
-Euler: deep learning math kernel research
+Deep Learning Math Kernel Research(Euler)
 ============================================================
 
 Experimental DNN math kernel based on C++11 and Intel intrinsic instructions.
