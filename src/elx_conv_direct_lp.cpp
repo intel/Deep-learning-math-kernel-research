@@ -228,7 +228,7 @@ Template_elx_conv_direct_lp_t
 Instance_elx_conv_direct_lp_t::~elx_conv_direct_lp_t()
 {
   if (workspace_ != nullptr && !this->shared_workspace_enabled) {
-    ::free(workspace_);
+    walloc::release(workspace_);
     workspace_ = nullptr;
   } else {
     if (this->shared_workspace_mgr != nullptr) {
@@ -534,7 +534,7 @@ trans_weights(WeightsType *weights, BiasType *bias) {
       }
     }
   } else {
-    MEMALIGN64(&workspace_, workspace_size_);
+    workspace_ = walloc::acquire(workspace_size_);
     set_workspace_buffers();
     __trans_weights(weights_scale_, weights_factor_, tweights_s8_,
                     weights, bias);

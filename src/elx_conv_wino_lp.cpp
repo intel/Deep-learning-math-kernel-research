@@ -319,7 +319,7 @@ trans_weights(WeightsType *weights) {
       }
     }
   } else {
-    MEMALIGN64(&workspace_, workspace_size_);
+    workspace_ = walloc::acquire(workspace_size_);
     set_workspace_buffers();
     trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
                      tweights_s8_, tweights_, weights, this->oc4);
@@ -330,7 +330,7 @@ Template_elx_conv_wino_lp_t
 Instance_elx_conv_wino_lp_t::~elx_conv_wino_lp_t()
 {
   if (workspace_ != nullptr && !this->shared_workspace_enabled) {
-    ::free(workspace_);
+    walloc::release(workspace_);
     workspace_ = nullptr;
   } else {
     if (this->shared_workspace_mgr != nullptr) {

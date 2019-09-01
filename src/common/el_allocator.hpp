@@ -117,20 +117,19 @@ private:
 };
 
 // TODO: to-be-replaced with user provided buffer
-// TODO: per-thread global buffer
 struct galloc {
   static void *&get() {
-    /*thread_local*/ static void *ptr_;
+    thread_local static void *ptr_;
     return ptr_;
   }
 
   static size_t &sz() {
-    /*thread_local*/ static size_t sz_;
+    thread_local static size_t sz_;
     return sz_;
   }
 
   static size_t &ref_cnt() {
-    /*thread_local*/ static size_t ref_cnt_;
+    thread_local static size_t ref_cnt_;
     return ref_cnt_;
   }
 
@@ -159,5 +158,62 @@ struct galloc {
     }
   }
 };
+
+#define WS_BLOCK_SIZE (64 * 1024 * 1024)
+struct walloc {
+  static void *&get() {
+    thread_local static void *ptr_ = nullptr;
+    return ptr_;
+  }
+
+  static size_t &sz() {
+    thread_local static size_t sz_ = 0;
+    return sz_;
+  }
+
+  static size_t &ref_cnt() {
+    thread_local static size_t ref_cnt_ = 0;
+    return ref_cnt_;
+  }
+
+  static void *acquire(size_t size)
+  {
+    auto &sz_ = sz();
+    auto &ptr_ = get();
+    auto &cnt_ = ref_cnt();
+    if (ptr_ == nullptr) {
+      MEMALIGN64(&ptr_, WS_BLOCK_SIZE);
+    }
+    auto sz = ALIGNUP(size, 256);
+    auto old_sz = sz_;
+    auto new_sz = sz_ + sz;
+    if (new_sz < WS_BLOCK_SIZE) {
+      sz_ = new_sz;
+      ++cnt_;
+      return (char *)ptr_ + old_sz;
+    } else {
+      void *p = nullptr;
+      MEMALIGN64(&p, sz);
+      return p;
+    }
+  }
+
+  static void release(void *ptr) {
+    auto &sz_ = sz();
+    auto &ptr_ = get();
+    auto &cnt_ = ref_cnt();
+    if (ptr >= ptr_ && ptr < ((char *)ptr_ + WS_BLOCK_SIZE)) {
+      if (--cnt_ == 0 && ptr_ != nullptr) {
+        ::free(ptr_);
+        ptr_ = nullptr;
+        sz_ = 0;
+      }
+    } else {
+      ::free(ptr);
+      ptr = nullptr;
+    }
+  }
+};
+
 
 }
