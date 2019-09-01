@@ -141,6 +141,7 @@ void Instance_elx_conv_direct_lp_t::__execute_d160(
                 &md2(aweights_factor, _oc4, 0), _ic4, _oc4, _ht, _wt);
   }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
 
+  int oc2 = this->Or ? this->oc2 - 1 : this->oc2;
   if (this->with_argmax) {
     parallel_for<3>(mthr_, [&](int _n, int _oh, int _ow) {
       constexpr int V8 = 8;
@@ -156,7 +157,7 @@ void Instance_elx_conv_direct_lp_t::__execute_d160(
       __m<V/2> vmax = _mm256_load_ps(aout);
       __i<V/2> kmax = _mm256_setzero_si256();
 
-      iter_each(_oc2, this->oc2) {
+      iter_each(_oc2, oc2) {
         iter_each(_V2, 2) {
           int index = _oc2 * 2 + _V2;
           assert(index < (1 << 15));
@@ -184,6 +185,21 @@ void Instance_elx_conv_direct_lp_t::__execute_d160(
         }
       }
       md3(aoutput, _n, _oh, _ow) = kmaxbuf[pos] * V8 + pos;
+
+      int tail_start = oc2 * V;
+      for (int _V = 0; _V < this->Or; ++_V) {
+        MD5(float, atoutput_blocked, toutput_,
+            this->n, this->oc2, this->oh, this->ow, V);
+        MD5(float, atoutput_nhwc, toutput_,
+            this->n, this->oh, this->ow, this->oc2, V);
+        float aout = (this->input_fmt == nhwc)
+          ? md5(atoutput_nhwc, _n, _oh, _ow, this->oc2 - 1, _V)
+          : md5(atoutput_blocked, _n, this->oc2 - 1, _oh, _ow, _V);
+        if (aout > gmax) {
+          gmax = aout;
+          md3(aoutput, _n, _oh, _ow) = tail_start + _V;
+        }
+      }
     }, this->n, this->oh, this->ow);
   }
 
