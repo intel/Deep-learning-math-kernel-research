@@ -27,7 +27,18 @@ void Instance_elx_conv_direct_lp_t::__execute_a160(
   }
 
   auto V1 = compact_ir_weights_ ? this->Ir : this->V1;
-  parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
+
+  INIT_LOOP_ORDER(5);
+  CREATE_LOOP_ORDER(5, t3, ic4, oc4, ht, wt);
+  CREATE_LOOP_ORDER(5, ic4, oc4, t3, ht, wt);
+
+  auto loop_for = [&](int a0, int a1, int a2, int a3, int a4) {
+    int _t3, _ic4, _oc4, _ht, _wt;
+    if (CHECK_LOOP_ORDER(5, t3, ic4, oc4, ht, wt)) {
+      _t3 = a0, _ic4 = a1, _oc4 = a2, _ht = a3, _wt = a4;
+    } else {
+      _ic4 = a0, _oc4 = a1, _t3 = a2, _ht = a3, _wt = a4;
+    }
     MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4, V1 * Vx * V
         * this->kh * this->kw * this->ic3 * this->oc3 * this->I2 * this->O2);
     MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
@@ -79,7 +90,17 @@ void Instance_elx_conv_direct_lp_t::__execute_a160(
               &md3(atweights_s8, _oc4, _ic4, 0),
               &md2(abias, _oc4, 0), input_scale_, &md2(atweights_scale, _oc4, 0),
               &md2(aweights_factor, _oc4, 0), _ic4, _oc4, _ht, _wt);
-  }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
+  };
+
+  if (this->oh <= 7 && this->ow <= 7) {
+    SET_LOOP_ORDER(5, ic4, oc4, t3, ht, wt);
+    parallel_for<5, 0>(mthr_, loop_for,
+                       this->ic4, this->oc4, this->t3, this->ht, this->wt);
+  } else {
+    SET_LOOP_ORDER(5, t3, ic4, oc4, ht, wt);
+    parallel_for<5, 1>(mthr_, loop_for,
+                       this->t3, this->ic4, this->oc4, this->ht, this->wt);
+  }
 
   if (inference_acc_)
     is_first_run_ = false;

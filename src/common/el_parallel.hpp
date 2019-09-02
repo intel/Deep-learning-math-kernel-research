@@ -5,6 +5,23 @@
 #include <cstdlib>
 #include <cassert>
 
+#define _CAT(a, b) __CAT(a, b)
+#define __CAT(a, b) a##_##b
+
+#define _LOOP_ORDER_1(a1) _CAT(__loop_order, a1)
+#define _LOOP_ORDER_2(a1, a2) _CAT(_LOOP_ORDER_1(a1), a2)
+#define _LOOP_ORDER_3(a1, a2, a3) _CAT(_LOOP_ORDER_2(a1, a2), a3)
+#define _LOOP_ORDER_4(a1, a2, a3, a4) _CAT(_LOOP_ORDER_3(a1, a2, a3), a4)
+#define _LOOP_ORDER_5(a1, a2, a3, a4, a5) _CAT(_LOOP_ORDER_4(a1, a2, a3, a4), a5)
+#define _LOOP_ORDER_6(a1, a2, a3, a4, a5, a6) _CAT(_LOOP_ORDER_5(a1, a2, a3, a4, a5), a6)
+#define _LOOP_ORDER_7(a1, a2, a3, a4, a5, a6, a7) _CAT(_LOOP_ORDER_6(a1, a2, a3, a4, a5, a6), a7)
+#define _LOOP_ORDER_8(a1, a2, a3, a4, a5, a6, a7, a8) _CAT(_LOOP_ORDER_7(a1, a2, a3, a4, a5, a6, a7), a8)
+
+#define INIT_LOOP_ORDER(n)  int __loop_order_##n = 0;
+#define SET_LOOP_ORDER(n, ...) __loop_order_##n = _LOOP_ORDER_##n(__VA_ARGS__)
+#define CHECK_LOOP_ORDER(n, ...)  (__loop_order_##n == _LOOP_ORDER_##n(__VA_ARGS__))
+#define CREATE_LOOP_ORDER(n, ...) const int _LOOP_ORDER_##n(__VA_ARGS__) = ++__loop_order_##n;
+
 // Loops over N loops in current thread.
 // The M-th loop will not be used for task allocation.
 template <int N, int M = -1> struct thread_parallel_for {

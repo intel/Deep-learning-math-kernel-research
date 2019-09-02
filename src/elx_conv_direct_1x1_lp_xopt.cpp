@@ -33,8 +33,19 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
     trans_weights_s8_oc(weights, bias);
   }
 
-  parallel_for<4, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _t2) {
+  INIT_LOOP_ORDER(4);
+  CREATE_LOOP_ORDER(4, t3, oc4, ic4, t2);
+  CREATE_LOOP_ORDER(4, oc4, ic4, t3, t2);
+
+  auto loop_for = [&](int a0, int a1, int a2, int a3) {
     auto ithr = omp_get_thread_num();
+    int _t3, _oc4, _ic4, _t2;
+    if (CHECK_LOOP_ORDER(4, t3, oc4, ic4, t2)) {
+      _t3 = a0; _oc4 = a1; _ic4 = a2; _t2 = a3;
+    } else {
+      _oc4 = a0; _ic4 = a1; _t3 = a2; _t2 = a3;
+    }
+
     // input
     MD2(uint8_t, ainput_blocked, input,
         this->t3, this->ih * this->iw * this->IC);
@@ -74,7 +85,17 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
         &md2(aweights_scale, _oc4, 0),
         &md2(abias, _oc4, 0),
         _ic4, _oc4, _t2);
-  }, this->t3, this->oc4, this->ic4, this->t2);
+  };
+
+  if (this->oh <= 14 && this->ow <= 14) {
+    SET_LOOP_ORDER(4, oc4, ic4, t3, t2);
+    parallel_for<4, 1>(mthr_, loop_for,
+                       this->oc4, this->ic4, this->t3, this->t2);
+  } else {
+    SET_LOOP_ORDER(4, t3, oc4, ic4, t2);
+    parallel_for<4, 2>(mthr_, loop_for,
+                       this->t3, this->oc4, this->ic4, this->t2);
+  }
 
   if (inference_acc_)
     is_first_run_ = false;
@@ -92,8 +113,18 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_b161(
     trans_weights_s8_oc(weights, bias);
   }
 
-  parallel_for<5, 2>(mthr_, [&](int _t3, int _oc4, int _ic4, int _ht, int _wt) {
+  INIT_LOOP_ORDER(5);
+  CREATE_LOOP_ORDER(5, t3, oc4, ic4, ht, wt);
+  CREATE_LOOP_ORDER(5, oc4, ic4, t3, ht, wt);
+
+  auto loop_for = [&](int a0, int a1, int a2, int a3, int a4) {
     auto ithr = omp_get_thread_num();
+    int _t3, _oc4, _ic4, _ht, _wt;
+    if (CHECK_LOOP_ORDER(5, t3, oc4, ic4, ht, wt)) {
+      _t3 = a0, _oc4 = a1, _ic4 = a2, _ht = a3, _wt = a4;
+    } else {
+      _oc4 = a0, _ic4 = a1, _t3 = a2, _ht = a3, _wt = a4;
+    }
     // blocked
     MD7(uint8_t, ainput_blocked, input,
         this->t3, this->ic4, this->ic3 * this->I2,
@@ -144,7 +175,17 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_b161(
         &md2(aweights_scale, _oc4, 0),
         &md2(abias, _oc4, 0),
         _ic4);
-  }, this->t3, this->oc4, this->ic4, this->ht, this->wt);
+  };
+
+  if (this->oh <= 7 && this->ow <= 7) {
+    SET_LOOP_ORDER(5, oc4, ic4, t3, ht, wt);
+    parallel_for<5, 1>(mthr_, loop_for,
+                       this->oc4, this->ic4, this->t3, this->ht, this->wt);
+  } else {
+    SET_LOOP_ORDER(5, t3, oc4, ic4, ht, wt);
+    parallel_for<5, 2>(mthr_, loop_for,
+                       this->t3, this->oc4, this->ic4, this->ht, this->wt);
+  }
 
   if (inference_acc_)
     is_first_run_ = false;
