@@ -57,7 +57,7 @@ NSOCKETS=1 ./scripts/run.sh -c -i512 -h28 -o256 -H28 -k1 -K1 -s1 -S1 -p0 -P0 -n6
 
 echo "Compute conv: 1x1 s1 h14"
 # conv2d_27, conv2d_30, conv2d_33, conv2d_36, conv2d_39, conv2d_42
-NSOCKETS=1 ./scripts/run.sh -c -i256 -h14 -o1024 -H14 -k1 -K1 -s1 -S1 -p0 -P0 -n64 -adirect_1x1 --execution-mode=0xc160 --blk-i=16 --blk-o=16 --flt-o=4 --flt-t=6 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nhwc
+NSOCKETS=1 ./scripts/run.sh -c -i256 -h14 -o1024 -H14 -k1 -K1 -s1 -S1 -p0 -P0 -n64 -adirect_1x1 --execution-mode=0xc160 --blk-i=16 --blk-o=32 --flt-o=2 --flt-t=12 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nhwc
 # conv2d_28, conv2d_31, conv2d_34, conv2d_37, conv2d_40
 NSOCKETS=1 ./scripts/run.sh -c -i1024 -h14 -o256 -H14 -k1 -K1 -s1 -S1 -p0 -P0 -n64 -adirect_1x1 --execution-mode=0xc160 --blk-i=64 --blk-o=4 --flt-o=4 --flt-t=6 --pat-i=1 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nhwc --output-format=nhwc
 # conv2d_44
@@ -65,7 +65,7 @@ NSOCKETS=1 ./scripts/run.sh -c -i1024 -h14 -o512 -H14 -k1 -K1 -s1 -S1 -p0 -P0 -n
 
 echo "Compute conv: 1x1 s1 h7"
 # conv2d_46, conv2d_49, conv2d_52
-NSOCKETS=1 ./scripts/run.sh -c -i512 -h7 -o2048 -H7 -k1 -K1 -s1 -S1 -p0 -P0 -n64 -adirect_1x1 --execution-mode=0xc160 --blk-i=32 --blk-o=8 --flt-o=2 --flt-t=13 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nhwc
+NSOCKETS=1 ./scripts/run.sh -c -i512 -h7 -o2048 -H7 -k1 -K1 -s1 -S1 -p0 -P0 -n64 -adirect_1x1 --execution-mode=0xc160 --blk-i=32 --blk-o=16 --flt-o=2 --flt-t=13 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nhwc
 # conv2d_47, conv2d_50
 NSOCKETS=1 ./scripts/run.sh -c -i2048 -h7 -o512 -H7 -k1 -K1 -s1 -S1 -p0 -P0 -n64 -adirect_1x1 --execution-mode=0xc160 --blk-i=128 --blk-o=4 --flt-o=2 --flt-t=13 --pat-i=1 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nhwc --output-format=nhwc
 
