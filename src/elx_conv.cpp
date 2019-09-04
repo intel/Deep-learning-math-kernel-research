@@ -97,25 +97,23 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   this->stream_sync = dc.stream_sync;
 
   this->verbose = false;
+  this->name = dc.name;
+
   auto env_verbose = getenv("EULER_VERBOSE");
   if (env_verbose != nullptr && env_verbose[0] == '1')
     this->verbose = true;
   
   auto env_numa_node = getenv("EULER_NUMA_NODE");
   auto env_shared_workspace = getenv("EULER_SHARED_WORKSPACE");
-  if (env_shared_workspace != nullptr && env_shared_workspace[0] == '1') {
-    this->shared_workspace_enabled = true;
-    this->shared_workspace_key = ".euler_key_" + dc.shared_workspace_key;
-    if (env_numa_node != nullptr)
-      this->shared_workspace_key = this->shared_workspace_key
-        + "_" + env_numa_node;
-      std::replace(this->shared_workspace_key.begin(),
-                   this->shared_workspace_key.end(), '/', '_');
-  } else {
-    this->shared_workspace_enabled = false;
-    this->shared_workspace_key = dc.shared_workspace_key;
+  this->shared_workspace_enabled = false;
+  this->shared_workspace_key = "na";
+  if (env_shared_workspace != nullptr
+      && (env_shared_workspace[0] == '1' || env_shared_workspace[0] == '2')) {
+    if (env_numa_node != nullptr) {
+      this->shared_workspace_enabled = true;
+      this->shared_workspace_key = std::string(".euler_key_") + env_numa_node;
+    }
   }
-  this->shared_workspace_mgr = nullptr;
 
   // TODO: move it to euler cpu global init
 #if __ICC_COMPILER
@@ -144,8 +142,7 @@ void elx_conv_t::timed_execute(void *output, void *input, void *weights, void *b
 
   printf("euler_verbose,%s,ih:%d;oh:%d;ic:%d;oc:%d,"\
          "%s;%x,src:%s;wei:%s;dst:%s,src:%s;wei:%s;dst:%s;b:%s, %lf\n",
-      this->shared_workspace_key.c_str(),
-      this->ih, this->oh, this->ic, this->oc,
+      this->name.c_str(), this->ih, this->oh, this->ic, this->oc,
       algorithm_to_string(this->algorithm), this->execution_mode,
       format_to_string(this->input_fmt), format_to_string(this->weights_fmt),
       format_to_string(this->output_fmt),

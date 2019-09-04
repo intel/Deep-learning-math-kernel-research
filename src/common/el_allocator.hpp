@@ -36,86 +36,6 @@ private:
   int fd_;
 };
 
-#define SETUP_DONE_MASK (0xAABBCCDD)
-
-class shared_workspace_mgr_t {
-public:
-  struct shared_workspace_header_t {
-    uint32_t setup_done_;
-    size_t size_;
-  };
-
-  shared_workspace_mgr_t(size_t size, const char *key) {
-    if (key != nullptr && strlen(key) < sizeof(key_)) {
-      sprintf(key_, "%s", key);
-    }
-
-    fd_ = shm_open(key_, O_RDWR | O_CREAT, 0644);
-    if (fd_ == -1) {
-      el_error("shm_open failed");
-    }
-    size_ = size;
-    size_total_ = alignup(sizeof(shared_workspace_header_t), 64) + size;
-
-    struct stat fdst;
-    if (fstat(fd_, &fdst) ||
-        (fdst.st_size != 0 && fdst.st_size != size_total_)) {
-      el_error("Euler: shared workspace fstat error or size does not match");
-    }
-
-    if (ftruncate(fd_, size_total_)) {
-      el_error("Euler: ftruncate failed");
-    }
-    workspace_ptr_ =
-      mmap(0, size_total_, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);
-  }
-
-  bool is_setup_done() {
-    if (workspace_ptr_ != nullptr) {
-      shared_workspace_header_t *hdr =
-        (shared_workspace_header_t *)workspace_ptr_;
-      if (hdr->size_ != 0 && size_ != hdr->size_) {
-        el_error("Euler: shared workspace size does not match");
-      }
-      return hdr->setup_done_ == SETUP_DONE_MASK;
-    }
-    return false;
-  }
-
-  void set_setup_done() {
-    if (workspace_ptr_ != nullptr) {
-      shared_workspace_header_t *hdr =
-        (shared_workspace_header_t *)workspace_ptr_;
-      hdr->setup_done_ = SETUP_DONE_MASK;
-      hdr->size_ = size_;
-    }
-  }
-
-  ~shared_workspace_mgr_t() {
-    if (workspace_ptr_ != nullptr) {
-      munmap(workspace_ptr_, size_);
-      workspace_ptr_ = nullptr;
-    }
-    if (fd_ != -1) {
-      close(fd_);
-      fd_ = -1;
-      shm_unlink(key_);
-    }
-  }
-
-  void *get() {
-    return (void *)alignup((size_t)workspace_ptr_
-                           + sizeof(shared_workspace_header_t), 64);
-  }
-
-private:
-  int fd_;
-  char key_[256];
-  size_t size_;
-  size_t size_total_;
-  void *workspace_ptr_;
-};
-
 // TODO: to-be-replaced with user provided buffer
 struct galloc {
   static void *&get() {
@@ -184,7 +104,7 @@ struct walloc {
     if (ptr_ == nullptr) {
       MEMALIGN64(&ptr_, WS_BLOCK_SIZE);
     }
-    auto sz = ALIGNUP(size, 256);
+    auto sz = ALIGNUP(size, 64);
     auto old_sz = sz_;
     auto new_sz = sz_ + sz;
     if (new_sz < WS_BLOCK_SIZE) {
@@ -215,5 +135,122 @@ struct walloc {
   }
 };
 
+#define SETUP_DONE_MASK (0xAABBCCDD)
+struct shwalloc {
+  struct shwhdr_t {
+    uint32_t setup_done_;
+    size_t size_;
+  };
+
+  static void *&get() {
+    static void *ptr_ = nullptr;
+    return ptr_;
+  }
+
+  static size_t &sz() {
+    static size_t sz_ = 0;
+    return sz_;
+  }
+
+  static size_t &ref_cnt() {
+    static size_t ref_cnt_ = 0;
+    return ref_cnt_;
+  }
+
+  static int &fd() {
+    static int fd_ = -1;
+    return fd_;
+  }
+
+  static void *acquire(size_t size, const char *key)
+  {
+    auto &sz_ = sz();
+    auto &ptr_ = get();
+    auto &cnt_ = ref_cnt();
+    auto &fd_ = fd();
+
+    if (ptr_ == nullptr) {
+      fd_ = shm_open(key, O_RDWR | O_CREAT, 0644);
+      if (fd_ == -1) {
+        el_error("shm_open failed");
+      }
+
+      struct stat fdst;
+      if (fstat(fd_, &fdst) ||
+          (fdst.st_size != 0 && fdst.st_size != WS_BLOCK_SIZE)) {
+        el_error("Euler: shared workspace fstat error or size does not match");
+      }
+
+      if (ftruncate(fd_, WS_BLOCK_SIZE)) {
+        el_error("Euler: ftruncate failed");
+      }
+      ptr_ = mmap(0, WS_BLOCK_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);
+    }
+    auto hdr_size = alignup(sizeof(shwhdr_t), 64);
+    auto sz = alignup(size + hdr_size, 64);
+    auto old_sz = sz_;
+    auto new_sz = sz_ + sz;
+    if (new_sz < WS_BLOCK_SIZE) {
+      sz_ = new_sz;
+      ++cnt_;
+      shwhdr_t *hdr = (shwhdr_t *)((char *)ptr_ + old_sz);
+      hdr->size_ = size;
+      hdr->setup_done_ = false;
+      return (char *)ptr_ + old_sz + hdr_size;
+    } else {
+      void *p = nullptr;
+      MEMALIGN64(&p, sz);
+      return p;
+    }
+  }
+
+  static bool in_range(void *ptr) {
+    auto &ptr_ = get();
+    return (ptr != nullptr
+            && ptr >= ptr_
+            && ptr < ((char *)ptr_ + WS_BLOCK_SIZE));
+  }
+
+  static void release(void *ptr, const char *key) {
+    auto &sz_ = sz();
+    auto &ptr_ = get();
+    auto &cnt_ = ref_cnt();
+    auto &fd_ = fd();
+    if (in_range(ptr)) {
+      if (--cnt_ == 0 && ptr_ != nullptr) {
+        if (ptr_ != nullptr) {
+          munmap(ptr_, WS_BLOCK_SIZE);
+          ptr_ = nullptr;
+        }
+        if (fd_ != -1) {
+          close(fd_);
+          fd_ = -1;
+          shm_unlink(key);
+        }
+        sz_ = 0;
+      }
+    } else {
+      ::free(ptr);
+      ptr = nullptr;
+    }
+  }
+
+  static bool is_setup_done(void *ptr) {
+    if (in_range(ptr)) {
+      shwhdr_t *hdr = (shwhdr_t *)ptr;
+      if (hdr->size_ != 0)
+        return hdr->setup_done_ == SETUP_DONE_MASK;
+    }
+    return false;
+  }
+
+  static void set_setup_done(void *ptr) {
+    if (in_range(ptr)) {
+      shwhdr_t *hdr = (shwhdr_t *)ptr;
+      hdr->setup_done_ = SETUP_DONE_MASK;
+    }
+  }
+
+};
 
 }

@@ -252,10 +252,8 @@ Instance_elx_conv_direct_1x1_lp_t::~elx_conv_direct_1x1_lp_t()
     walloc::release(workspace_);
     workspace_ = nullptr;
   } else {
-    if (this->shared_workspace_mgr != nullptr) {
-      delete this->shared_workspace_mgr;
-      this->shared_workspace_mgr = nullptr;
-    }
+    const char *key = this->shared_workspace_key.c_str();
+    shwalloc::release(workspace_, key);
     workspace_ = nullptr;
   }
 
@@ -390,13 +388,11 @@ void Instance_elx_conv_direct_1x1_lp_t::trans_weights_s8_oc(
     const char *key = this->shared_workspace_key.c_str();
     process_singleton_t process_singleton(key);
     {
-      this->shared_workspace_mgr =
-        new shared_workspace_mgr_t(this->workspace_size_, key);
-      workspace_ = this->shared_workspace_mgr->get();
+      workspace_ = shwalloc::acquire(workspace_size_, key);
       set_workspace_buffers();
-      if (!this->shared_workspace_mgr->is_setup_done()) {
+      if (!shwalloc::is_setup_done(workspace_)) {
         transform_weights();
-        this->shared_workspace_mgr->set_setup_done();
+        shwalloc::set_setup_done(workspace_);
       }
     }
   } else {

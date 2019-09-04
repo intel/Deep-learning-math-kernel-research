@@ -165,7 +165,7 @@ struct EULER_API eld_conv_t {
   sampling_kind_t sampling_kind;
 
   void *scratch_pad;
-  std::string shared_workspace_key;
+  std::string name;
 
   // Defaults
   eld_conv_t();

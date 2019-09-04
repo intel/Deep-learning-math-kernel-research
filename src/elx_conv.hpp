@@ -96,9 +96,9 @@ struct elx_conv_params_t {
   bool eager_mode;
   bool stream_sync;
 
-  bool                    shared_workspace_enabled;
-  std::string             shared_workspace_key; 
-  shared_workspace_mgr_t *shared_workspace_mgr;
+  std::string name;
+  std::string shared_workspace_key;
+  bool shared_workspace_enabled;
 
   void *scratch_pad;
   void *output_ptr, *input_ptr, *weights_ptr, *bias_ptr;

@@ -308,14 +308,12 @@ trans_weights(WeightsType *weights) {
     const char *key = this->shared_workspace_key.c_str();
     process_singleton_t process_singleton(key);
     {
-      this->shared_workspace_mgr =
-        new shared_workspace_mgr_t(this->workspace_size_, key);
-      workspace_ = this->shared_workspace_mgr->get();
+      workspace_ = shwalloc::acquire(workspace_size_, key);
       set_workspace_buffers();
-      if (!this->shared_workspace_mgr->is_setup_done()) {
+      if (!shwalloc::is_setup_done(workspace_)) {
         trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
                          tweights_s8_, tweights_, weights, this->oc4);
-        this->shared_workspace_mgr->set_setup_done();
+        shwalloc::set_setup_done(workspace_);
       }
     }
   } else {
@@ -333,10 +331,8 @@ Instance_elx_conv_wino_lp_t::~elx_conv_wino_lp_t()
     walloc::release(workspace_);
     workspace_ = nullptr;
   } else {
-    if (this->shared_workspace_mgr != nullptr) {
-      delete this->shared_workspace_mgr;
-      this->shared_workspace_mgr = nullptr;
-    }
+    const char *key = this->shared_workspace_key.c_str();
+    shwalloc::release(workspace_, key);
     workspace_ = nullptr;
   }
 
