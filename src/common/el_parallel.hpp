@@ -134,3 +134,14 @@ static inline void parallel_for(int mthr, Args... args)
     thread_parallel_for<N, M>(mthr, ithr, args...);
   }
 }
+
+template <int N, typename... Args>
+static inline void parallel_for(Args... args)
+{
+#pragma omp parallel proc_bind(close)
+  {
+    int mthr = omp_get_max_threads();
+    int ithr = omp_get_thread_num();
+    thread_parallel_for<N, -1>(mthr, ithr, args...);
+  }
+}
