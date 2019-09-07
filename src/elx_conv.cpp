@@ -14,6 +14,8 @@
 
 namespace euler {
 
+int euler_verbose = 0;
+
 elx_conv_t::elx_conv_t(eld_conv_t &dc)
 {
   this->n = dc.dims.n;
@@ -95,14 +97,8 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   this->bias_ptr = nullptr;
   this->eager_mode = dc.eager_mode;
   this->stream_sync = dc.stream_sync;
-
-  this->verbose = false;
   this->name = dc.name;
-
-  auto env_verbose = getenv("EULER_VERBOSE");
-  if (env_verbose != nullptr && env_verbose[0] == '1')
-    this->verbose = true;
-  
+ 
   auto env_numa_node = getenv("EULER_NUMA_NODE");
   auto env_shared_workspace = getenv("EULER_SHARED_WORKSPACE");
   this->shared_workspace_enabled = false;
@@ -114,12 +110,6 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
       this->shared_workspace_key = std::string(".euler_key_") + env_numa_node;
     }
   }
-
-  // TODO: move it to euler cpu global init
-#if __ICC_COMPILER
-  _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
-  _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
-#endif
 }
 
 void elx_conv_t::set_data(void *output, void *input, void *weights, void *bias)
@@ -130,8 +120,8 @@ void elx_conv_t::set_data(void *output, void *input, void *weights, void *bias)
   bias_ptr = bias;
 }
 
-void elx_conv_t::timed_execute(void *output, void *input, void *weights, void *bias)
-{
+void elx_conv_t::execute_verbose(void *output, void *input, void *weights,
+                                 void *bias) {
   typedef std::chrono::high_resolution_clock hrc;
   typedef std::chrono::duration<float, std::milli> hrc_duration;
 
@@ -165,8 +155,8 @@ int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *b
   }
 
   if (xc->eager_mode) {
-    if (xc->verbose)
-      xc->timed_execute(output, input, weights, bias);
+    if (euler_verbose)
+      xc->execute_verbose(output, input, weights, bias);
     else
       xc->execute(output, input, weights, bias);
   } else {
@@ -178,6 +168,22 @@ int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *b
   }
   
   return ELX_OK;
+}
+
+__attribute__((constructor)) void global_init(void) {
+#if __ICC_COMPILER
+  _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+  _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+#endif
+
+  auto env_verbose = getenv("EULER_VERBOSE");
+  if (env_verbose != nullptr && env_verbose[0] == '1') {
+    euler_verbose = 1;
+  }
+ 
+  if (euler_verbose > 0)
+    printf("\r\nEuler version: %s, MT runtime: %s\r\n",
+           XSTRINGIFY(EULER_VERSION), mt_runtime_to_string(MT_RUNTIME));
 }
 
 }  // namespace euler

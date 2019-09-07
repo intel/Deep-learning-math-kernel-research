@@ -10,6 +10,7 @@
 namespace euler {
 
 elx_stream global_stream;
+extern int euler_verbose;
 
 int set_cpu_affinity(int i) {
   kmp_affinity_mask_t mask;
@@ -54,9 +55,9 @@ int elx_stream::run() {
   mlock.unlock();
 
   if (xc != nullptr) {
-    if (xc->verbose) {
-      xc->timed_execute(xc->output_ptr, xc->input_ptr, xc->weights_ptr,
-                        xc->bias_ptr);
+    if (euler_verbose) {
+      xc->execute_verbose(xc->output_ptr, xc->input_ptr, xc->weights_ptr,
+                          xc->bias_ptr);
     } else {
       xc->execute(xc->output_ptr, xc->input_ptr, xc->weights_ptr, xc->bias_ptr);
     }

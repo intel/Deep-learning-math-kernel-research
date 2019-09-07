@@ -22,6 +22,7 @@
 #endif
 
 #define STRINGIFY(x) #x
+#define XSTRINGIFY(x) STRINGIFY(x)
 
 #define MT_RUNTIME_OMP (1)
 #define MT_RUNTIME_TBB (2)

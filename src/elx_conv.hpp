@@ -92,7 +92,6 @@ struct elx_conv_params_t {
   float sum_quant_z;
   sampling_kind_t sampling_kind;
 
-  bool verbose;
   bool eager_mode;
   bool stream_sync;
 
@@ -110,7 +109,7 @@ public:
   elx_conv_t(eld_conv_t &dc);
 
   void set_data(void *output, void *input, void *weights, void *bias);
-  void timed_execute(void *output, void *input, void *weights, void *bias);
+  void execute_verbose(void *output, void *input, void *weights, void *bias);
 
   virtual void execute(
       void *output, void *input, void *weights, void *bias) = 0;

@@ -176,4 +176,12 @@ static inline const char *datatype_to_string(int dt) {
   return "unknown";
 }
 
+static inline const char *mt_runtime_to_string(int t) {
+  switch (t) {
+    case MT_RUNTIME_TBB: return "TBB";
+    case MT_RUNTIME_OMP: return "OMP";
+    default: return "unknown";
+  }
+  return "unknown";
+}
 } // euler
