@@ -143,9 +143,8 @@ void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
     }
   };
 
-  int ithr = omp_get_thread_num();
-  thread_parallel_for<6>(mthr_, ithr, [&](int _oc4, int _ic4, int _oc3,
-                                          int _ic3, int _O1, int _I2) {
+  parallel_for<6>(mthr_, [&](int _oc4, int _ic4, int _oc3,
+                             int _ic3, int _O1, int _I2) {
     // oc2, ic2, hK, wK, V, V => oc4, ic4, oc3, ic3, wA, hA, O2, I2, V, V
     MD11(WeightsType, aweights_v, weights, oc4, xc->oc3, xc->O1, xc->O, V,
         xc->ic4, xc->ic3, xc->I2, V, K, K);
@@ -179,9 +178,8 @@ template <typename TweightsType, typename WeightsType, int I, int A, int K, int 
 void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
 ::__execute_blocked(TweightsType *__restrict tweights,
     WeightsType *__restrict weights, int oc4) {
-  int ithr = omp_get_thread_num();
-  thread_parallel_for<6>(mthr_, ithr, [&](int _oc4, int _ic4, int _oc3,
-                                          int _ic3, int _O1, int _I2) {
+  parallel_for<6>(mthr_, [&](int _oc4, int _ic4, int _oc3,
+                             int _ic3, int _O1, int _I2) {
     // oc2, ic2, hK, wK, V, V => oc4, ic4, oc3, ic3, wA, hA, O2, I2, V, V
     MD8(WeightsType, aweights, weights, oc4, xc->oc3, xc->O1, xc->O,
         xc->ic4, xc->ic3, xc->I2, K * K * V * V);
@@ -230,9 +228,8 @@ void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
       }
     }}}
   };
-  int ithr = omp_get_thread_num();
-  thread_parallel_for<6>(mthr_, ithr, [&](int _oc4, int _ic4, int _oc3,
-                                          int _ic3, int _O1, int _I2) {
+  parallel_for<6>(mthr_, [&](int _oc4, int _ic4, int _oc3,
+                            int _ic3, int _O1, int _I2) {
     MD3(TweightsType, atweights, tweights, xc->oc4, xc->ic4,
         xc->oc3 * xc->ic3 * A * A * xc->O2 * xc->I2 * V * V);
     iter_each (_O, xc->O) {
@@ -448,10 +445,9 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
   _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
   __m<V> zero = _mm<V>::set1_ps(0.0);
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
-  int ithr = omp_get_thread_num();
 
   // abs-max
-  thread_parallel_for<7>(mthr_, ithr,
+  parallel_for<7>(mthr_,
       [&](int _oc4, int _ic4, int _oc3, int _hA, int _wA, int _O1, int _O) {
     MD11(TweightsType, atweights, tweights,
         oc4, xc->ic4, xc->oc3, xc->ic3, A, A, xc->O1, xc->I2, V, xc->O, V);
@@ -469,10 +465,9 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
     _mm512_store_ps(&md8(atweights_quant_scale,
         _oc4, _ic4, _oc3, _hA, _wA, _O1, _O, 0), mmabs_max);
   }, oc4, xc->ic4, xc->oc3, A, A, xc->O1, xc->O);
-#pragma omp barrier
 
   // quantization
-  thread_parallel_for<11>(mthr_, ithr, [&](int _oc4, int _ic4, int _oc3,
+  parallel_for<11>(mthr_, [&](int _oc4, int _ic4, int _oc3,
       int _ic3, int _hA, int _wA, int _O1, int _I2, int _V1, int _O, int _iVx) {
     MD12(int8_t, atweights_s8, tweights_s8, oc4, xc->ic4, xc->oc3, xc->ic3,
         A, A, xc->O1, xc->I2, xc->V1, xc->O, V, xc->Vx);
@@ -500,10 +495,9 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
           (int8_t)rounded[_oV];
     }
   }, oc4, xc->ic4, xc->oc3, xc->ic3, A, A, xc->O1, xc->I2, xc->V1, xc->O, xc->Vx);
-#pragma omp barrier
 
   // weights-acc
-  thread_parallel_for<8>(mthr_, ithr,
+  parallel_for<8>(mthr_,
       [&](int _oc4, int _ic4, int _oc3, int _hA, int _wA, int _O1, int _O, int _oV) {
     MD12(int8_t, atweights_s8, tweights_s8, oc4, xc->ic4, xc->oc3, xc->ic3,
         A, A, xc->O1, xc->I2, xc->V1, xc->O, V, xc->Vx);
@@ -522,9 +516,8 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
   }, oc4, xc->ic4, xc->oc3, A, A, xc->O1, xc->O, V);
 
   // weights-scale, combine with restore
-  thread_parallel_for<8>(mthr_, ithr, [&](int _oc4, int _ic4, int _oc3,
-                                          int _hA, int _wA,
-                                          int _O1, int _O, int _oV) {
+  parallel_for<8>(mthr_, [&](int _oc4, int _ic4, int _oc3,
+                             int _hA, int _wA, int _O1, int _O, int _oV) {
     MD8(TscaleType, atweights_quant_scale, tweights_quant_scale,
         oc4, xc->ic4, xc->oc3, A, A, xc->O1, xc->O, V);
     MD8(TscaleType, atweights_quant_factor, tweights_quant_factor,
@@ -552,15 +545,14 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
     int8_t *__restrict tweights_s8,
     TweightsType *__restrict tweights,
     WeightsType *__restrict weights, int oc4) {
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
   {
     if (weights_is_bfmt_ || weights_as_bfmt_)
       this->__execute_blocked(tweights, weights, oc4);
     else
       this->__execute_oihw(tweights, weights, oc4);
-#pragma omp barrier
-    quantization(
-        tweights_quant_scale, tweights_quant_factor, tweights_s8, tweights, oc4);
+
+    quantization(tweights_quant_scale, tweights_quant_factor,
+                 tweights_s8, tweights, oc4);
   }
 }
 } // namespace euler

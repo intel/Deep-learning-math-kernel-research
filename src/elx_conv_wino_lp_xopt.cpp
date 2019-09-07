@@ -1,5 +1,5 @@
-#include "elx_conv_wino_lp.hpp"
 #include "el_parallel.hpp"
+#include "elx_conv_wino_lp.hpp"
 
 namespace euler {
 
@@ -37,7 +37,7 @@ void Instance_elx_conv_wino_lp_t::__execute_a133(
   MD3(TscaleType, aweights_quant_factor, tweights_quant_factor_,
       this->oc4, this->ic4, this->oc3 * this->O2 * V * A * A);
 
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
+  THREAD_PARALLEL()
   {
     int last_ic4 = -1;
     iter_each (_ic4, this->ic4) {
@@ -47,14 +47,14 @@ void Instance_elx_conv_wino_lp_t::__execute_a133(
             tinput_quant_scale_, tinput_u8_, tinput_, input, _ic4);
         last_ic4 = _ic4;
       }
-#pragma omp barrier
+      THREAD_BARRIER()
       u8s8_gemm.execute_na(toutput_, tinput_u8_,
           &md3(atweights_s8, _oc4, _ic4, 0),
           tinput_quant_scale_, nullptr,
           &md3(atweights_quant_scale, _oc4, _ic4, 0),
           &md3(aweights_quant_factor, _oc4, _ic4, 0),
           _ic4);
-#pragma omp barrier
+      THREAD_BARRIER()
       trans_output(output, toutput_, &md2(abias, _oc4, 0), _oc4, _ic4);
     }}
   }
@@ -72,46 +72,43 @@ void Instance_elx_conv_wino_lp_t::__execute_a161(
     trans_weights(weights);
   }
 
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-  {
-    auto t2_history = -1;
-    size_t ithr = omp_get_thread_num();
+  auto t2_history = -1;
+  parallel_for<2>(mthr_, [&, t2_history](int _t2, int _oc4) mutable {
+    int ithr = el_get_thread_num();
+    MD2(TinputType, atinput2, tinput_, mthr_, this->sampling_kind == COARSE ?
+        A * A * this->IC * this->T : A * A * this->I2 * V);
+    MD2(ToutputType, atoutput2, toutput_, mthr_,
+        A * A * this->T * this->oc3 * this->O2 * V);
+    MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+    MD2(TscaleType, atinput_quant_scale, tinput_quant_scale_, mthr_,
+        this->sampling_kind == CALIBRATED ? 2 * this->T
+                                          : this->ic3 * A * A * 2 * this->T);
+    MD2(uint8_t, atinput2_u8, tinput_u8_, mthr_,
+        A * A * this->T * this->IC);
+    MD2(int8_t, atweights_s8, tweights_s8_, this->oc4,
+        A * A * this->IC * this->oc3 * this->O2 * V);
+    MD2(TscaleType, atweights_quant_scale, tweights_quant_scale_,
+        this->oc4, this->oc3 * this->O2 * V * A * A);
+    MD2(TscaleType, aweights_quant_factor, tweights_quant_factor_,
+        this->oc4, this->oc3 * this->O2 * V * A * A);
 
-    thread_parallel_for<2>(mthr_, ithr, [&](int _t2, int _oc4) {
-      MD2(TinputType, atinput2, tinput_, mthr_, this->sampling_kind == COARSE ?
-          A * A * this->IC * this->T : A * A * this->I2 * V);
-      MD2(ToutputType, atoutput2, toutput_, mthr_,
-          A * A * this->T * this->oc3 * this->O2 * V);
-      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-      MD2(TscaleType, atinput_quant_scale, tinput_quant_scale_, mthr_,
-          this->sampling_kind == CALIBRATED ? 2 * this->T
-                                            : this->ic3 * A * A * 2 * this->T);
-      MD2(uint8_t, atinput2_u8, tinput_u8_, mthr_,
-          A * A * this->T * this->IC);
-      MD2(int8_t, atweights_s8, tweights_s8_, this->oc4,
-          A * A * this->IC * this->oc3 * this->O2 * V);
-      MD2(TscaleType, atweights_quant_scale, tweights_quant_scale_,
-          this->oc4, this->oc3 * this->O2 * V * A * A);
-      MD2(TscaleType, aweights_quant_factor, tweights_quant_factor_,
-          this->oc4, this->oc3 * this->O2 * V * A * A);
+    int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
 
-      int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+    if (t2_history != _t2) {
+      trans_input_u8(&md2(atinput_quant_scale, ithr, 0),
+          &md2(atinput2_u8, ithr, 0), &md2(atinput2, ithr, 0), input, _t2, Tz);
+      t2_history = _t2;
+    }
+    u8s8_gemm.execute(&md2(atoutput2, ithr, 0),
+        &md2(atinput2_u8, ithr, 0),
+        &md2(atweights_s8, _oc4, 0),
+        &md2(atinput_quant_scale, ithr, 0),
+        &md2(atweights_quant_scale, _oc4, 0),
+        &md2(aweights_quant_factor, _oc4, 0), _t2, Tz);
+    trans_output(output, &md2(atoutput2, ithr, 0),
+                 &md2(abias, _oc4, 0), Tz, _t2, _oc4, 0);
+  }, this->t2, this->oc4);
 
-      if (t2_history != _t2) {
-        trans_input_u8(&md2(atinput_quant_scale, ithr, 0),
-            &md2(atinput2_u8, ithr, 0), &md2(atinput2, ithr, 0), input, _t2, Tz);
-        t2_history = _t2;
-      }
-      u8s8_gemm.execute(&md2(atoutput2, ithr, 0),
-          &md2(atinput2_u8, ithr, 0),
-          &md2(atweights_s8, _oc4, 0),
-          &md2(atinput_quant_scale, ithr, 0),
-          &md2(atweights_quant_scale, _oc4, 0),
-          &md2(aweights_quant_factor, _oc4, 0), _t2, Tz);
-      trans_output(output, &md2(atoutput2, ithr, 0),
-                   &md2(abias, _oc4, 0), Tz, _t2, _oc4, 0);
-    }, this->t2, this->oc4);
-  }
   if (inference_acc_)
     is_first_run_ = false;
 }
@@ -125,50 +122,47 @@ void Instance_elx_conv_wino_lp_t::__execute_a173(
     trans_weights(weights);
   }
 
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-  {
-    int last_ic4 = -1, last_t2 = -1;
-    size_t ithr = omp_get_thread_num();
-    thread_parallel_for<3, 1>(mthr_, ithr, [&](int _t2, int _ic4, int _oc4) {
-      int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-      size_t ithr = omp_get_thread_num();
-      MD2(TinputType, atinput2, tinput_, mthr_,
-          A * A * this->ic3 * this->I2 * V);
-      MD2(ToutputType, atoutput2, toutput_, mthr_,
-          A * A * this->T * this->oc3 * this->O2 * V);
-      MD3(InputType, ainput, input, this->n, this->ic4,
-          this->ih * this->iw * this->ic3 * this->I2 * V);
-      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-      MD2(uint8_t, atinput2_u8, tinput_u8_, mthr_,
-          A * A * this->T * this->ic3 * this->I2 * V);
-      MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
-          A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
-      MD2(TscaleType, atinput_quant_scale, tinput_quant_scale_, mthr_,
-          this->sampling_kind == CALIBRATED ? 2 * this->T
-                                            : this->ic3 * A * A * 2 * this->T);
-      MD3(TscaleType, atweights_quant_scale, tweights_quant_scale_,
-          this->oc4, this->ic4, this->oc3 * this->O2 * V * A * A);
-      MD3(TscaleType, aweights_quant_factor, tweights_quant_factor_,
-          this->oc4, this->ic4, this->oc3 * this->O2 * V * A * A);
+  int last_ic4 = -1, last_t2 = -1;
+  parallel_for<3, 1>(
+      mthr_, [&, last_ic4, last_t2](int _t2, int _ic4, int _oc4) mutable {
+    int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+    size_t ithr = el_get_thread_num();
+    MD2(TinputType, atinput2, tinput_, mthr_,
+        A * A * this->ic3 * this->I2 * V);
+    MD2(ToutputType, atoutput2, toutput_, mthr_,
+        A * A * this->T * this->oc3 * this->O2 * V);
+    MD3(InputType, ainput, input, this->n, this->ic4,
+        this->ih * this->iw * this->ic3 * this->I2 * V);
+    MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+    MD2(uint8_t, atinput2_u8, tinput_u8_, mthr_,
+        A * A * this->T * this->ic3 * this->I2 * V);
+    MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4,
+        A * A * this->ic3 * this->I2 * V * this->oc3 * this->O2 * V);
+    MD2(TscaleType, atinput_quant_scale, tinput_quant_scale_, mthr_,
+        this->sampling_kind == CALIBRATED ? 2 * this->T
+                                          : this->ic3 * A * A * 2 * this->T);
+    MD3(TscaleType, atweights_quant_scale, tweights_quant_scale_,
+        this->oc4, this->ic4, this->oc3 * this->O2 * V * A * A);
+    MD3(TscaleType, aweights_quant_factor, tweights_quant_factor_,
+        this->oc4, this->ic4, this->oc3 * this->O2 * V * A * A);
 
-      if (last_ic4 != _ic4 || last_t2 != _t2) {
-        trans_input_u8(
-            &md2(atinput_quant_scale, ithr, 0),
-            &md2(atinput2_u8, ithr, 0), &md2(atinput2, ithr, 0),
-            &md3(ainput, 0, _ic4, 0), _t2, Tz);
-        last_t2 = _t2; last_ic4 = _ic4;
-      }
-      u8s8_gemm.execute_na(
-          &md2(atoutput2, ithr, 0),
-          &md2(atinput2_u8, ithr, 0),
-          &md3(atweights_s8, _oc4, _ic4, 0),
+    if (last_ic4 != _ic4 || last_t2 != _t2) {
+      trans_input_u8(
           &md2(atinput_quant_scale, ithr, 0),
-          &md3(atweights_quant_scale, _oc4, _ic4, 0),
-          &md3(aweights_quant_factor, _oc4, _ic4, 0), _t2, Tz, _ic4);
-      trans_output(output, &md2(atoutput2, ithr, 0),
-          &md2(abias, _oc4, 0), Tz, _t2, _oc4, _ic4);
-    }, this->t2, this->ic4, this->oc4);
-  }
+          &md2(atinput2_u8, ithr, 0), &md2(atinput2, ithr, 0),
+          &md3(ainput, 0, _ic4, 0), _t2, Tz);
+      last_t2 = _t2; last_ic4 = _ic4;
+    }
+    u8s8_gemm.execute_na(
+        &md2(atoutput2, ithr, 0),
+        &md2(atinput2_u8, ithr, 0),
+        &md3(atweights_s8, _oc4, _ic4, 0),
+        &md2(atinput_quant_scale, ithr, 0),
+        &md3(atweights_quant_scale, _oc4, _ic4, 0),
+        &md3(aweights_quant_factor, _oc4, _ic4, 0), _t2, Tz, _ic4);
+    trans_output(output, &md2(atoutput2, ithr, 0),
+        &md2(abias, _oc4, 0), Tz, _t2, _oc4, _ic4);
+  }, this->t2, this->ic4, this->oc4);
 
   if (inference_acc_)
     is_first_run_ = false;

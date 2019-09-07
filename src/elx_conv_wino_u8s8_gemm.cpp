@@ -93,7 +93,7 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
 
   bool scramble = (xc->T == xc->Tr) || (xc->t2 >= 2 * mthr_);
   if (scramble) {
-    int it_start = omp_get_thread_num();
+    int it_start = el_get_thread_num();
     iter_each(i, A * A) {
       int n = (it_start + i) % (A * A);
       int _wA = n % A;
@@ -161,8 +161,9 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
     TscaleType *src_scale, TscaleType *src_factor,
     TscaleType *weights_scale, TscaleType *weights_factor, int _ic4)
 {
-  int ithr = omp_get_thread_num();
-  thread_parallel_for<5, 2>(mthr_, ithr, [&](int _hA, int _wA, int _ic3, int _oc3, int _t2) {
+  int ithr = el_get_thread_num();
+  THREAD_FOR2(5, 2, mthr_, ithr,
+              [&](int _hA, int _wA, int _ic3, int _oc3, int _t2) {
     MD2(uint8_t, atinput2, tinput, xc->t2, A * A * xc->ic3 * xc->I2 * xc->T * V);
     MD2(ToutputType, atoutput2, toutput, xc->t2, A * A * xc->oc3 * xc->O2 * xc->T * V);
     MD5(int8_t, atweights, tweights, xc->oc3, xc->ic3, A, A, xc->O2 * xc->I2 * V * V);

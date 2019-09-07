@@ -1,3 +1,4 @@
+#include "el_parallel.hpp"
 #include "elx_conv_wino_lp.hpp"
 
 namespace euler {
@@ -39,7 +40,7 @@ Template_elx_conv_wino_lp_t Instance_elx_conv_wino_lp_t::elx_conv_wino_lp_t(
 
   is_first_run_ = true;
   inference_acc_ = false;
-  mthr_ = omp_get_max_threads();
+  mthr_ = el_get_max_threads();
   if (this->nthreads == 0 || this->nthreads > mthr_) {
     this->nthreads = mthr_;
   } else {

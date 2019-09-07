@@ -7,6 +7,7 @@
 #include <chrono>
 #include <algorithm>
 #include "el_mdarray.hpp"
+#include "el_def.hpp"
 #include "euler.hpp"
 
 #define _T(x) x
@@ -17,10 +18,8 @@ typedef short float16;
 #define __tstart(n) _T(Time::time_point __s##n = Time::now());
 #define __tend(n)                                                              \
   _T(Time::time_point __e##n = Time::now());                                   \
-  _T(printf("time: %s, th=%d, %.2f ms\n", #n, omp_get_thread_num(),            \
+  _T(printf("time: %s, th=%d, %.2f ms\n", #n, el_get_thread_num(),            \
       Duration(__e##n - __s##n).count()));
-
-#define STRINGIFY(x) #x
 
 #define iter_each(indx, lim) for (int indx = 0; indx < (lim); ++indx)
 #define revs_each(indx, lim) for (int indx = lim -1; indx >=0; -- indx)

@@ -36,7 +36,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
 
   bool scramble = (xc->T == xc->Tr) || (xc->t2 >= 2 * mthr_);
   if (scramble) {
-    int it_start = omp_get_thread_num();
+    int it_start = el_get_thread_num();
     iter_each(i, A * A) {
       int n = (it_start + i) % (A * A);
       int _wA = n % A;
@@ -112,7 +112,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
 
   bool scramble = (xc->T == xc->Tr) || (xc->t2 >= 2 * mthr_);
   if (scramble) {
-    int it_start = omp_get_thread_num();
+    int it_start = el_get_thread_num();
     iter_each(i, A * A) {
       int n = (it_start + i) % (A * A);
       int _wA = n % A;
@@ -175,9 +175,9 @@ template <typename GarrayTypes, const int A, const int V, const int I>
 void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
     ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _ic4)
 {
-  int ithr = omp_get_thread_num();
-  thread_parallel_for<5, 4>(mthr_, ithr, [&](int _hA, int _wA,
-                                             int _oc3, int _t2, int _ic3) {
+  int ithr = el_get_thread_num();
+  THREAD_FOR2(5, 4, mthr_, ithr, [&](int _hA, int _wA,
+                                     int _oc3, int _t2, int _ic3) {
     MD2(TinputType, atinput2, tinput, xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * V);
     MD2(ToutputType, atoutput2, toutput, xc->t2, A * A * xc->T * xc->oc3 * xc->O2 * V);
     MD5(TweightsType, atweights, tweights, xc->oc3, xc->ic3, A, A, xc->O2 * xc->I2 * V * V);
@@ -203,9 +203,9 @@ template <typename GarrayTypes, const int A, const int V, const int I>
 void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
     ToutputType *toutput, TinputType *tinput, TweightsType *tweights, int _ic4)
 {
-  int ithr = omp_get_thread_num();
-  thread_parallel_for<5, 4>(mthr_, ithr, [&](int _hA, int _wA,
-                                             int _oc3, int _t2, int _ic3) {
+  int ithr = el_get_thread_num();
+  THREAD_FOR2(5, 4, mthr_, ithr, [&](int _hA, int _wA,
+                                     int _oc3, int _t2, int _ic3) {
     MD2(TinputType, atinput2, tinput, xc->t2, A * A * xc->T * xc->ic3 * xc->I2 * V);
     MD2(ToutputType, atoutput2, toutput, xc->t2, A * A * xc->T * xc->oc3 * xc->O2 * V);
     MD5(TweightsType, atweights, tweights, xc->oc3, xc->ic3, A, A, xc->O2 * xc->I2 * V * V);

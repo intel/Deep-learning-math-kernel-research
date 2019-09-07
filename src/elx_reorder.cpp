@@ -1,4 +1,3 @@
-#include <omp.h>
 #include <stdlib.h>
 #include "euler.hpp"
 #include "euler_reorder.hpp"

@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <tuple>
-#include <omp.h>
 
 #define __GCC_COMPILER (__GNUC__ && !__INTEL_COMPILER && !__clang__)
 #define __ICC_COMPILER __INTEL_COMPILER
@@ -21,6 +20,11 @@
 #define pragma_unroll
 #define pragma_inline
 #endif
+
+#define STRINGIFY(x) #x
+
+#define MT_RUNTIME_OMP (1)
+#define MT_RUNTIME_TBB (2)
 
 namespace euler {
 

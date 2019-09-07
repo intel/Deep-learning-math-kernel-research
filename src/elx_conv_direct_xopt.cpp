@@ -105,12 +105,12 @@ void Instance_elx_conv_direct_t::__execute_b060(
     trans_weights_to_compact(tweights_, weights);
   }
 
-#pragma omp parallel num_threads(mthr_)
+  THREAD_PARALLEL()
   {
-    int ithr = omp_get_thread_num();
+    int ithr = el_get_thread_num();
     if (this->input_fmt == nhwc) { // nhwc => nhwc
-      thread_parallel_for<6, 2>(mthr_, ithr, [&](int _ic4, int _t3, int _ic3,
-                                                 int _oc4, int _ht, int _wt) {
+      THREAD_FOR2(6, 2, mthr_, ithr, [&](int _ic4, int _t3, int _ic3,
+                                         int _oc4, int _ht, int _wt) {
         MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
         MD5(TweightsType, atweights, tweights_, this->oc4, this->ic4, this->oc3,
             this->ic3, V * V * this->kh * this->kw * this->I2 * this->O2);
@@ -127,8 +127,9 @@ void Instance_elx_conv_direct_t::__execute_b060(
             &md5(atweights, _oc4, _ic4, 0, _ic3, 0), &md2(abias, _oc4, 0),
             _ic4, _ic3, _oc4, _ht, _wt);
       }, this->ic4, this->t3, this->ic3, this->oc4, this->ht, this->wt);
-#pragma omp barrier
-      thread_parallel_for<4>(mthr_, ithr, [&](int _n, int _oh, int _ow, int _oc2) {
+
+      THREAD_BARRIER()
+      THREAD_FOR(4, mthr_, ithr, [&](int _n, int _oh, int _ow, int _oc2) {
         MD5(ToutputType, atoutput0, toutput_, this->ic4, this->n, this->oh,
             this->ow, this->oc);
         MD4(OutputType, aoutput0, output, this->n, this->oh, this->ow, this->oc);
@@ -155,8 +156,8 @@ void Instance_elx_conv_direct_t::__execute_b060(
         }
       }, this->t3, this->oh, this->ow, this->oc2);
     } else { // blocked => blocked
-      thread_parallel_for<6, 2>(mthr_, ithr, [&](int _ic4, int _t3, int _ic3,
-                                                 int _oc4, int _ht, int _wt) {
+      THREAD_FOR2(6, 2, mthr_, ithr, [&](int _ic4, int _t3, int _ic3,
+                                         int _oc4, int _ht, int _wt) {
         MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
         MD5(TweightsType, atweights, tweights_, this->oc4, this->ic4, this->oc3,
             this->ic3, V * V * this->kh * this->kw * this->I2 * this->O2);
@@ -170,8 +171,8 @@ void Instance_elx_conv_direct_t::__execute_b060(
             &md5(atweights, _oc4, _ic4, 0, _ic3, 0), &md2(abias, _oc4, 0), _ic4,
             _ic3, _oc4, _ht, _wt);
       }, this->ic4, this->t3, this->ic3, this->oc4, this->ht, this->wt);
-#pragma omp barrier
-      thread_parallel_for<1>(mthr_, ithr, [&](int o) {
+      THREAD_BARRIER()
+      THREAD_FOR(1, mthr_, ithr, [&](int o) {
         MD3(ToutputType, atoutput, toutput_, this->ic4,
             this->n * this->oc2 * this->oh * this->ow, V);
         MD2(OutputType, aoutput, output,

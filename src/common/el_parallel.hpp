@@ -1,9 +1,9 @@
 #pragma once
 
-#include <omp.h>
 #include <type_traits>
 #include <cstdlib>
 #include <cassert>
+#include "el_def.hpp"
 
 #define _CAT(a, b) __CAT(a, b)
 #define __CAT(a, b) a##_##b
@@ -21,6 +21,37 @@
 #define SET_LOOP_ORDER(n, ...) __loop_order_##n = _LOOP_ORDER_##n(__VA_ARGS__)
 #define CHECK_LOOP_ORDER(n, ...)  (__loop_order_##n == _LOOP_ORDER_##n(__VA_ARGS__))
 #define CREATE_LOOP_ORDER(n, ...) const int _LOOP_ORDER_##n(__VA_ARGS__) = ++__loop_order_##n;
+
+
+#if MT_RUNTIME == MT_RUNTIME_OMP
+#include <omp.h>
+static inline int el_get_thread_num() {
+  return omp_get_thread_num();
+}
+static inline int el_get_max_threads() {
+  return omp_get_max_threads();
+}
+#define THREAD_PARALLEL() _Pragma("omp parallel")
+#define THREAD_BARRIER() _Pragma("omp barrier")
+#define THREAD_FOR(N, mthr, ithr, ...) thread_parallel_for<N>(mthr, ithr, __VA_ARGS__)
+#define THREAD_FOR2(N, M, mthr, ithr, ...) thread_parallel_for<N, M>(mthr, ithr, __VA_ARGS__)
+
+#elif MT_RUNTIME == MT_RUNTIME_TBB
+#include "tbb/parallel_for.h"
+#include "tbb/task_arena.h"
+static inline int el_get_thread_num() {
+  return tbb::this_task_arena::current_thread_index();
+}
+static inline int el_get_max_threads() {
+  return tbb::this_task_arena::max_concurrency();
+}
+#define THREAD_PARALLEL()
+#define THREAD_BARRIER()
+#define THREAD_FOR(N, mthr, ithr, ...) parallel_for<N>(mthr, __VA_ARGS__)
+#define THREAD_FOR2(N, M, mthr, ithr, ...) parallel_for<N, M>(mthr, __VA_ARGS__)
+#else
+#error Invalid MT_RUNTIME
+#endif
 
 // Loops over N loops in current thread.
 // The M-th loop will not be used for task allocation.
@@ -128,20 +159,33 @@ template <int N, int M = -1> struct thread_parallel_for {
 template <int N, int M = -1, typename... Args>
 static inline void parallel_for(int mthr, Args... args)
 {
+#if MT_RUNTIME == MT_RUNTIME_OMP
 #pragma omp parallel num_threads(mthr) proc_bind(close)
   {
     int ithr = omp_get_thread_num();
     thread_parallel_for<N, M>(mthr, ithr, args...);
   }
+#elif MT_RUNTIME == MT_RUNTIME_TBB
+  tbb::parallel_for(0, mthr, [&](int ithr) {
+                    thread_parallel_for<N, M>(mthr, ithr, args...);
+                    }, tbb::static_partitioner());
+#endif
 }
 
 template <int N, typename... Args>
 static inline void parallel_for(Args... args)
 {
+#if MT_RUNTIME == MT_RUNTIME_OMP
 #pragma omp parallel proc_bind(close)
   {
     int mthr = omp_get_max_threads();
     int ithr = omp_get_thread_num();
     thread_parallel_for<N, -1>(mthr, ithr, args...);
   }
+#elif MT_RUNTIME == MT_RUNTIME_TBB
+  int mthr = el_get_max_threads();
+  tbb::parallel_for(0, mthr, [&](int ithr) {
+                    thread_parallel_for<N, -1>(mthr, ithr, args...);
+                    }, tbb::static_partitioner());
+#endif
 }

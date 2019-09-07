@@ -17,7 +17,7 @@ Instance_elx_conv_direct_depthwise_lp_t::elx_conv_direct_depthwise_lp_t(eld_conv
 {
   // user input
   xopt_ = this->execution_mode;
-  mthr_ = omp_get_max_threads();
+  mthr_ = el_get_max_threads();
 
   this->grp = this->g;
   this->Vx = 1;

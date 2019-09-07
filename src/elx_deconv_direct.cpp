@@ -12,7 +12,7 @@ Instance_elx_deconv_direct_t::elx_deconv_direct_t(eld_conv_t &dc)
 {
   // user input
   xopt_ = this->execution_mode;
-  mthr_ = omp_get_max_threads();
+  mthr_ = el_get_max_threads();
 
   this->Vx = 1;
   this->V1 = V / this->Vx;

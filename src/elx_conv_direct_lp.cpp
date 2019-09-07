@@ -13,7 +13,7 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
     : elx_conv_t(dc)
 {
   xopt_ = this->execution_mode;
-  mthr_ = omp_get_max_threads();
+  mthr_ = el_get_max_threads();
 
   this->Vx = 4;
   this->V1 = V / this->Vx;

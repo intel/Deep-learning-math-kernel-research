@@ -369,8 +369,8 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
       ? ker_trans_output0_acc_
       : ker_trans_output0_;
 
-  int ithr = omp_get_thread_num();
-  thread_parallel_for<4>(mthr_, ithr,
+  int ithr = el_get_thread_num();
+  THREAD_FOR(4, mthr_, ithr,
       [&](int _t2, int _oc3, int _O2, int _T) {
         // A, A, oc3, O2, T, V -> n, oc2, oh, ow, V
         MD7(OutputType, aoutput, output, xc->n, xc->oc4, xc->oc3, xc->O2,
@@ -435,8 +435,8 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
       ? ker_trans_output0_acc_
       : ker_trans_output0_;
 
-  int ithr = omp_get_thread_num();
-  thread_parallel_for<3>(mthr_, ithr,
+  int ithr = el_get_thread_num();
+  THREAD_FOR(3, mthr_, ithr,
       [&](int _t2, int _oc3, int _O2) {
         // A, A, oc3, O2, T, V -> n, oh, ow, oc
         MD4(OutputType, aoutput0, output, xc->n, xc->oh, xc->ow, xc->oc);
@@ -540,8 +540,8 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
     }
   };
 
-  int ithr = omp_get_thread_num();
-  thread_parallel_for<3>(mthr_, ithr,
+  int ithr = el_get_thread_num();
+  THREAD_FOR(3, mthr_, ithr,
       [&](int _t2, int _oc3, int _O2) {
         MD3(BiasType, abias, bias, xc->oc3, xc->O2, V);
         MD2(ToutputType, atoutput2, toutput, xc->t2,

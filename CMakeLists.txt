@@ -8,6 +8,8 @@ option(WITH_TEST "Build with test cases" ON)
 option(WITH_VNNI "With CLX VNNI support" OFF)
 option(ENABLE_USER_FP16 "user fp16 type support" OFF)
 
+STRING(TOLOWER "${MT_RUNTIME}" MT_RUNTIME)
+
 set(EULER_VERSION_MAJOR 0)
 set(EULER_VERSION_MINOR 0)
 set(EULER_VERSION_PATCH 1)
@@ -144,7 +146,11 @@ link_directories(lib)
 # build lib
 add_library(${lib_name} SHARED ${__euler_source} ${__euler_gemm_kernel_source})
 set_target_properties(${lib_name} PROPERTIES CXX_VISIBILITY_PRESET hidden)
-target_link_libraries(${lib_name} PUBLIC iomp5)
+if (MT_RUNTIME STREQUAL "tbb")
+  target_link_libraries(${lib_name} PUBLIC tbb)
+elseif (MT_RUNTIME STREQUAL "omp")
+  target_link_libraries(${lib_name} PUBLIC iomp5)
+endif()
 target_link_libraries(${lib_name} PUBLIC rt)
 
 if (WITH_TEST)

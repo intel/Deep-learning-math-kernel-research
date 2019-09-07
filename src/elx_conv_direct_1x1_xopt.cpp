@@ -83,7 +83,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_b061(
       MD2(TinputType, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
       MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
           this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
-      size_t ithr = omp_get_thread_num();
+      size_t ithr = el_get_thread_num();
       trans_input(
           &md2(atinput, ithr, 0),
           &md3(ainput, _t3, _ic4, 0),
@@ -96,46 +96,44 @@ void Instance_elx_conv_direct_1x1_t::__execute_b061(
           _ic4);
     }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
   } else {
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-    {
-      int t3_history = -1;
-      size_t ithr = omp_get_thread_num();
+    int t3_history = -1;
 
-      thread_parallel_for<5, 1>(mthr_, ithr,
-          [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
-        MD3(InputType, ainput, input, this->t3, this->ic4,
-            this->ic3 * this->I2 * this->ih * this->iw * V);
-        MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
-        MD5(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
-            this->oc3 * this->O2, this->ht, this->wt, this->T * V);
-        MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+    parallel_for<5, 1>(mthr_, [&, t3_history](int _t3, int _ic4, int _oc4,
+                                              int _ht, int _wt) mutable {
+      MD3(InputType, ainput, input, this->t3, this->ic4,
+          this->ic3 * this->I2 * this->ih * this->iw * V);
+      MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
+      MD5(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
+          this->oc3 * this->O2, this->ht, this->wt, this->T * V);
+      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
-        MD4(TinputType, atinput, tinput_, mthr_, this->ht, this->wt,
-            this->ic3 * this->I2 * this->T * V);
-        MD4(unsigned char, atinput_msk, tinput_msk_, mthr_,
-            this->ic4, this->ht, this->wt);
-        MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
-            this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
+      MD4(TinputType, atinput, tinput_, mthr_, this->ht, this->wt,
+          this->ic3 * this->I2 * this->T * V);
+      MD4(unsigned char, atinput_msk, tinput_msk_, mthr_,
+          this->ic4, this->ht, this->wt);
+      MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
+          this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
 
-        if (_t3 != t3_history) {
-          memset(&md4(atinput_msk, ithr, 0, 0, 0), 0, this->ic4 * this->ht * this->wt);
-          t3_history = _t3;
-        }
-        if (md4(atinput_msk, ithr, _ic4, _ht, _wt) == 0) {
-          trans_input(
-              &md4(atinput, ithr, _ht, _wt, 0),
-              &md3(ainput, _t3, _ic4, 0),
-              _ht, _wt);
-          md4(atinput_msk, ithr, _ic4, _ht, _wt) = 1;
-        }
-        gemm_b061(
-            &md5(aoutput2, _oc4, 0, _ht, _wt, 0),
+      int ithr = el_get_thread_num();
+
+      if (_t3 != t3_history) {
+        memset(&md4(atinput_msk, ithr, 0, 0, 0), 0, this->ic4 * this->ht * this->wt);
+        t3_history = _t3;
+      }
+      if (md4(atinput_msk, ithr, _ic4, _ht, _wt) == 0) {
+        trans_input(
             &md4(atinput, ithr, _ht, _wt, 0),
-            &md3(atweights, _oc4, _ic4, 0),
-            &md2(abias, _oc4, 0),
-            _ic4);
-      }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
-    }
+            &md3(ainput, _t3, _ic4, 0),
+            _ht, _wt);
+        md4(atinput_msk, ithr, _ic4, _ht, _wt) = 1;
+      }
+      gemm_b061(
+          &md5(aoutput2, _oc4, 0, _ht, _wt, 0),
+          &md4(atinput, ithr, _ht, _wt, 0),
+          &md3(atweights, _oc4, _ic4, 0),
+          &md2(abias, _oc4, 0),
+          _ic4);
+    }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
   }
 
   if (inference_acc_)
@@ -185,7 +183,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
           this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
       MD2(ToutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
 
-      size_t ithr = omp_get_thread_num();
+      size_t ithr = el_get_thread_num();
         trans_input(
             &md2(atinput, ithr, 0),
             &md2(ainput, _t3, 0),
@@ -202,44 +200,42 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
             _oc4, _ht, _wt);
     }, this->t3, this->oc4, this->ht, this->wt);
   } else { // nchw
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-    {
-      int t3_history = -1;
-      size_t ithr = omp_get_thread_num();
-      thread_parallel_for<4>(mthr_, ithr, [&](int _t3, int _oc4, int _ht, int _wt) {
-        MD2(InputType, ainput, input, this->t3, this->ic * this->ih * this->iw);
-        MD2(OutputType, aoutput, output, this->t3, this->oc * this->oh * this->ow);
-        MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-        MD4(TinputType, atinput, tinput_, mthr_, this->ht, this->wt,
-            this->ic3 * this->I2 * this->T * V);
-        MD3(unsigned char, atinput_msk, tinput_msk_, mthr_, this->ht, this->wt);
-        MD2(ToutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
-        MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
-            this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
+    int t3_history = -1;
+    parallel_for<4>(mthr_, [&, t3_history]
+                    (int _t3, int _oc4, int _ht, int _wt) mutable {
+      MD2(InputType, ainput, input, this->t3, this->ic * this->ih * this->iw);
+      MD2(OutputType, aoutput, output, this->t3, this->oc * this->oh * this->ow);
+      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+      MD4(TinputType, atinput, tinput_, mthr_, this->ht, this->wt,
+          this->ic3 * this->I2 * this->T * V);
+      MD3(unsigned char, atinput_msk, tinput_msk_, mthr_, this->ht, this->wt);
+      MD2(ToutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
+      MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
+          this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
+      int ithr = el_get_thread_num();
 
-        if (_t3 != t3_history) {
-          memset(&md3(atinput_msk, ithr, 0, 0), 0, this->ht * this->wt);
-          t3_history = _t3;
-        }
-        if (md3(atinput_msk, ithr,  _ht, _wt) == 0) {
-          trans_input(
-              &md4(atinput, ithr, _ht, _wt, 0),
-              &md2(ainput, _t3, 0),
-              _ht, _wt);
-          md3(atinput_msk, ithr, _ht, _wt) = 1;
-        }
-        gemm_a061(
-            &md2(atoutput, ithr, 0),
+      if (_t3 != t3_history) {
+        memset(&md3(atinput_msk, ithr, 0, 0), 0, this->ht * this->wt);
+        t3_history = _t3;
+      }
+      if (md3(atinput_msk, ithr,  _ht, _wt) == 0) {
+        trans_input(
             &md4(atinput, ithr, _ht, _wt, 0),
-            &md3(atweights, _oc4, 0, 0),
-            &md2(abias, _oc4, 0),
-            0);
-        trans_output(
-            &md2(aoutput, _t3, 0),
-            &md2(atoutput, ithr, 0),
-            _oc4, _ht, _wt);
-      }, this->t3, this->oc4, this->ht, this->wt);
-    }
+            &md2(ainput, _t3, 0),
+            _ht, _wt);
+        md3(atinput_msk, ithr, _ht, _wt) = 1;
+      }
+      gemm_a061(
+          &md2(atoutput, ithr, 0),
+          &md4(atinput, ithr, _ht, _wt, 0),
+          &md3(atweights, _oc4, 0, 0),
+          &md2(abias, _oc4, 0),
+          0);
+      trans_output(
+          &md2(aoutput, _t3, 0),
+          &md2(atoutput, ithr, 0),
+          _oc4, _ht, _wt);
+    }, this->t3, this->oc4, this->ht, this->wt);
   }
 
   if (inference_acc_)
@@ -284,7 +280,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_f061(
           this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
       MD2(ToutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
 
-      size_t ithr = omp_get_thread_num();
+      size_t ithr = el_get_thread_num();
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       trans_input2(
            &md2(atinput, ithr, 0),
@@ -302,45 +298,44 @@ void Instance_elx_conv_direct_1x1_t::__execute_f061(
           _oc4, _t2, Tz);
     }, this->t3, this->oc4, this->t2);
   } else { // nchw
-#pragma omp parallel num_threads(mthr_) proc_bind(close)
-    {
-      int t3_history = -1;
-      size_t ithr = omp_get_thread_num();
-      thread_parallel_for<3>(mthr_, ithr, [&](int _t3, int _oc4, int _t2) {
-        MD2(InputType, ainput, input, this->t3, this->ic * this->ih * this->iw);
-        MD2(OutputType, aoutput, output, this->t3, this->oc * this->oh * this->ow);
-        MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-        MD3(TinputType, atinput, tinput_, mthr_, this->t2,
-            this->ic3 * this->I2 * this->T * V);
-        MD2(unsigned char, atinput_msk, tinput_msk_, mthr_, this->t2);
-        MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
-            this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
-        MD2(ToutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
+    int t3_history = -1;
+    parallel_for<3>(mthr_, [&, t3_history]
+                    (int _t3, int _oc4, int _t2) mutable {
+      MD2(InputType, ainput, input, this->t3, this->ic * this->ih * this->iw);
+      MD2(OutputType, aoutput, output, this->t3, this->oc * this->oh * this->ow);
+      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+      MD3(TinputType, atinput, tinput_, mthr_, this->t2,
+          this->ic3 * this->I2 * this->T * V);
+      MD2(unsigned char, atinput_msk, tinput_msk_, mthr_, this->t2);
+      MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
+          this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
+      MD2(ToutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
 
-        int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-        if (_t3 != t3_history) {
-          memset(&md2(atinput_msk, ithr, 0), 0, this->t2);
-          t3_history = _t3;
-        }
-        if (md2(atinput_msk, ithr, _t2) == 0) {
-          trans_input2(
-              &md3(atinput, ithr, _t2, 0),
-              &md2(ainput, _t3, 0),
-              _t2, Tz);
-          md2(atinput_msk, ithr, _t2) = 1;
-        }
-        gemm_f061(
-            &md2(atoutput, ithr, 0),
+      int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+      int ithr = el_get_thread_num();
+
+      if (_t3 != t3_history) {
+        memset(&md2(atinput_msk, ithr, 0), 0, this->t2);
+        t3_history = _t3;
+      }
+      if (md2(atinput_msk, ithr, _t2) == 0) {
+        trans_input2(
             &md3(atinput, ithr, _t2, 0),
-            &md3(atweights, _oc4, 0, 0),
-            &md2(abias, _oc4, 0),
+            &md2(ainput, _t3, 0),
             _t2, Tz);
-        trans_output2(
-            &md2(aoutput, _t3, 0),
-            &md2(atoutput, ithr, 0),
-            _oc4, _t2, Tz);
-      }, this->t3, this->oc4, this->t2);
-    }
+        md2(atinput_msk, ithr, _t2) = 1;
+      }
+      gemm_f061(
+          &md2(atoutput, ithr, 0),
+          &md3(atinput, ithr, _t2, 0),
+          &md3(atweights, _oc4, 0, 0),
+          &md2(abias, _oc4, 0),
+          _t2, Tz);
+      trans_output2(
+          &md2(aoutput, _t3, 0),
+          &md2(atoutput, ithr, 0),
+          _oc4, _t2, Tz);
+    }, this->t3, this->oc4, this->t2);
   }
 
   if (inference_acc_)

@@ -38,7 +38,7 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
   CREATE_LOOP_ORDER(4, oc4, ic4, t3, t2);
 
   auto loop_for = [&](int a0, int a1, int a2, int a3) {
-    auto ithr = omp_get_thread_num();
+    auto ithr = el_get_thread_num();
     int _t3, _oc4, _ic4, _t2;
     if (CHECK_LOOP_ORDER(4, t3, oc4, ic4, t2)) {
       _t3 = a0; _oc4 = a1; _ic4 = a2; _t2 = a3;
@@ -118,7 +118,7 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_b161(
   CREATE_LOOP_ORDER(5, oc4, ic4, t3, ht, wt);
 
   auto loop_for = [&](int a0, int a1, int a2, int a3, int a4) {
-    auto ithr = omp_get_thread_num();
+    auto ithr = el_get_thread_num();
     int _t3, _oc4, _ic4, _ht, _wt;
     if (CHECK_LOOP_ORDER(5, t3, oc4, ic4, ht, wt)) {
       _t3 = a0, _oc4 = a1, _ic4 = a2, _ht = a3, _wt = a4;

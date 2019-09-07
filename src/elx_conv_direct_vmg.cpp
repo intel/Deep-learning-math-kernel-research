@@ -12,7 +12,7 @@ Instance_elx_conv_direct_vmg_t::elx_conv_direct_vmg_t(eld_conv_t &dc)
 {
   // user input
   xopt_ = this->execution_mode;
-  mthr_ = omp_get_max_threads();
+  mthr_ = el_get_max_threads();
 
   this->G = 1;
   this->vmg = 1;

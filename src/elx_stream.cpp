@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <omp.h>
 #include "elx_stream.hpp"
 #include "elx_conv.hpp"
 

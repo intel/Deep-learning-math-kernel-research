@@ -97,7 +97,7 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t &dc)
   attr_ = 0x0;
   is_first_run_ = true;
   inference_acc_ = false;
-  mthr_ = omp_get_max_threads();
+  mthr_ = el_get_max_threads();
   inference_acc_ = this->prop_kind == forward_inference;
 
   attr_ = this->with_bias ? set_attr(attr_, bias_idx) : attr_;
