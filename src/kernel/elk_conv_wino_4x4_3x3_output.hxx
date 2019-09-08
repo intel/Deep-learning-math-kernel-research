@@ -34,7 +34,7 @@ struct elk_conv_wino_trans_output<float,OutputType, BiasType, format,
     bool fuse_relu = with_relu && (bias != nullptr);
 
     alignas(64) OutputType dummy[16];
-    auto p_cb = [&](int _h, int _w) {
+    auto out_ptr = [&](int _h, int _w) {
       if (format == TKF_COMPACT) {
         MD3(OutputType, aoutput, output, A - K + 1, A - K + 1, V);
         return &md3(aoutput, _h, _w, 0);
@@ -53,16 +53,9 @@ struct elk_conv_wino_trans_output<float,OutputType, BiasType, format,
       }
     };
 
-#undef P
-#undef T
-#undef t
 #undef STORE
 #undef BIAS
 #undef STORE
-
-#define T(_h, _w) (&md3(atoutput, _h, _w, 0))
-#define P(_h, _w) p_cb(_h, _w)
-#define t(m, n) t##m##n
 
 #define BIAS                                                                   \
   std::is_same<BiasType, float>::value                                         \
@@ -100,21 +93,21 @@ struct elk_conv_wino_trans_output<float,OutputType, BiasType, format,
 
 #define STORE(i, j)                                                            \
   if (std::is_same<OutputType, float>::value) {                                \
-    STORE_PS(P(i, j), p##j);                                                   \
+    STORE_PS(out_ptr(i, j), p##j);                                             \
   } else if (std::is_same<OutputType, uint8_t>::value) {                       \
     __i<V> mresu32 = _mm<V>::cvt_roundps_epu32(                                \
         p##j, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);                  \
     __m128i mresu8 = _mm<V>::cvtusepi32_epi8(mresu32);                         \
-    STORE_SI128((__m128i *)P(i, j), mresu8);                                   \
+    STORE_SI128((__m128i *)out_ptr(i, j), mresu8);                             \
   } else if (std::is_same<OutputType, int8_t>::value) {                        \
     __i<V> mresi32 = _mm<V>::cvt_roundps_epi32(                                \
         p##j, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);                  \
     __m128i mresi8 = _mm<V>::cvtsepi32_epi8(mresi32);                          \
-    STORE_SI128((__m128i *)P(i, j), mresi8);                                   \
+    STORE_SI128((__m128i *)out_ptr(i, j), mresi8);                             \
   } else {                                                                     \
     auto f16 = _mm<V>::cvtps_ph(                                               \
         p##j, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);                  \
-    STORE_SI256((__m256i *)P(i, j), f16);                                      \
+    STORE_SI256((__m256i *)out_ptr(i, j), f16);                                \
   }
 
     float M[4][6][16];
@@ -125,16 +118,16 @@ struct elk_conv_wino_trans_output<float,OutputType, BiasType, format,
     __m<V> z3 = _mm<V>::set1_ps(0.625f);
     __m<V> z4 = _mm<V>::set1_ps(0.390625f);
     __m<V> z5 = _mm<V>::set1_ps(0.244140625f);
-    __m<V> z = XOR(z, z);
+    __m<V> z = _mm<V>::xor_ps(z, z);
 
 #pragma unroll
     for (int i = 0; i < 6; i++) {
-      auto f0 = _mm<V>::load_ps(T(0, i));
-      auto f1 = _mm<V>::load_ps(T(1, i));
-      auto f2 = _mm<V>::load_ps(T(2, i));
-      auto f3 = _mm<V>::load_ps(T(3, i));
-      auto f4 = _mm<V>::load_ps(T(4, i));
-      auto f5 = _mm<V>::load_ps(T(5, i));
+      auto f0 = _mm<V>::load_ps(&md3(atoutput, 0, i, 0));
+      auto f1 = _mm<V>::load_ps(&md3(atoutput, 1, i, 0));
+      auto f2 = _mm<V>::load_ps(&md3(atoutput, 2, i, 0));
+      auto f3 = _mm<V>::load_ps(&md3(atoutput, 3, i, 0));
+      auto f4 = _mm<V>::load_ps(&md3(atoutput, 4, i, 0));
+      auto f5 = _mm<V>::load_ps(&md3(atoutput, 5, i, 0));
       auto t0 = f1 + f2;
       auto t1 = f3 + f4;
       auto t2 = f1 - f2;
@@ -178,27 +171,27 @@ struct elk_conv_wino_trans_output<float,OutputType, BiasType, format,
       }
       if (fuse_ip_sum) {
         if (std::is_same<OutputType, uint8_t>::value) {
-          p0 += _cvtepu8_ps(P(i, 0));
-          p1 += _cvtepu8_ps(P(i, 1));
-          p2 += _cvtepu8_ps(P(i, 2));
-          p3 += _cvtepu8_ps(P(i, 3));
+          p0 += _cvtepu8_ps(out_ptr(i, 0));
+          p1 += _cvtepu8_ps(out_ptr(i, 1));
+          p2 += _cvtepu8_ps(out_ptr(i, 2));
+          p3 += _cvtepu8_ps(out_ptr(i, 3));
         } else if (std::is_same<OutputType, int8_t>::value) {
-          p0 += _cvtepi8_ps(P(i, 0));
-          p1 += _cvtepi8_ps(P(i, 1));
-          p2 += _cvtepi8_ps(P(i, 2));
-          p3 += _cvtepi8_ps(P(i, 3));
+          p0 += _cvtepi8_ps(out_ptr(i, 0));
+          p1 += _cvtepi8_ps(out_ptr(i, 1));
+          p2 += _cvtepi8_ps(out_ptr(i, 2));
+          p3 += _cvtepi8_ps(out_ptr(i, 3));
         } else {
-          p0 += *(__m<V> *)P(i, 0);
-          p1 += *(__m<V> *)P(i, 1);
-          p2 += *(__m<V> *)P(i, 2);
-          p3 += *(__m<V> *)P(i, 3);
+          p0 += *(__m<V> *)out_ptr(i, 0);
+          p1 += *(__m<V> *)out_ptr(i, 1);
+          p2 += *(__m<V> *)out_ptr(i, 2);
+          p3 += *(__m<V> *)out_ptr(i, 3);
         }
       }
       if (fuse_relu) {
-        p0 = MAX(p0, z);
-        p1 = MAX(p1, z);
-        p2 = MAX(p2, z);
-        p3 = MAX(p3, z);
+        p0 = _mm<V>::max_ps(p0, z);
+        p1 = _mm<V>::max_ps(p1, z);
+        p2 = _mm<V>::max_ps(p2, z);
+        p3 = _mm<V>::max_ps(p3, z);
       }
       STORE(i, 0)
       STORE(i, 1)

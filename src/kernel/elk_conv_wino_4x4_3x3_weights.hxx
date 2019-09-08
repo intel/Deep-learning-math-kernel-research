@@ -19,17 +19,6 @@ struct elk_conv_wino_trans_weights<float, WeightsType, ISA_SKX_AVX512,
       float atweights[A][A][V][V], WeightsType aweights[K][K][V][V])
   {
     ENABLE_AVX512F();
-#undef F
-#undef T
-#undef f
-#define F(h, w) aweights[h][w][_V]
-#define T(h, w) atweights[h][w][_V]
-#define f(m, n) f##m##n
-
-#define LOAD(m, n)                                                             \
-  std::is_same<WeightsType, float>::value                                      \
-      ? _mm<V>::load_ps(F(m, n))                                               \
-      : _mm<V>::cvtph_ps(_mm<V / 2>::load_si256((__m256i *)F(m, n)))
 
     float M[6][3][16];
 
@@ -43,9 +32,16 @@ struct elk_conv_wino_trans_weights<float, WeightsType, ISA_SKX_AVX512,
     for (int _V = 0; _V < 16; _V++) {
 #pragma unroll
       for (int i = 0; i < 3; i++) {
-        auto f0 = LOAD(0, i);
-        auto f1 = LOAD(1, i);
-        auto f2 = LOAD(2, i);
+        __m<V> f0, f1, f2;
+        if (std::is_same<WeightsType, float>::value) {
+          f0 = _mm<V>::load_ps(aweights[0][i][_V]);
+          f1 = _mm<V>::load_ps(aweights[1][i][_V]);
+          f2 = _mm<V>::load_ps(aweights[2][i][_V]);
+        } else {
+          f0 = _mm<V>::cvtph_ps(_mm<V / 2>::load_si256((__m256i *)aweights[0][i][_V]));
+          f1 = _mm<V>::cvtph_ps(_mm<V / 2>::load_si256((__m256i *)aweights[1][i][_V]));
+          f2 = _mm<V>::cvtph_ps(_mm<V / 2>::load_si256((__m256i *)aweights[2][i][_V]));
+        }
         auto t0 = z0 * f2;
         auto t1 = z1 * f0 - t0;
         auto t2 = t0 + z2 * f0;
@@ -66,12 +62,12 @@ struct elk_conv_wino_trans_weights<float, WeightsType, ISA_SKX_AVX512,
         auto t1 = z1 * f0 - t0;
         auto t2 = t0 + z2 * f0;
 
-        *(__m<V> *)T(i, 0) = z3 * f0;
-        *(__m<V> *)T(i, 1) = t1 - z4 * f1;
-        *(__m<V> *)T(i, 2) = t1 + z4 * f1;
-        *(__m<V> *)T(i, 3) = t2 + z5 * f1;
-        *(__m<V> *)T(i, 4) = t2 - z5 * f1;
-        *(__m<V> *)T(i, 5) = f2;
+        *(__m<V> *)atweights[i][0][_V] = z3 * f0;
+        *(__m<V> *)atweights[i][1][_V] = t1 - z4 * f1;
+        *(__m<V> *)atweights[i][2][_V] = t1 + z4 * f1;
+        *(__m<V> *)atweights[i][3][_V] = t2 + z5 * f1;
+        *(__m<V> *)atweights[i][4][_V] = t2 - z5 * f1;
+        *(__m<V> *)atweights[i][5][_V] = f2;
       }
     }
   }

@@ -9,77 +9,76 @@ namespace euler {
 #undef FUSE_BIAS
 #define FUSE_BIAS(p)                                                           \
   if (std::is_same<BiasType, float>::value) {                                  \
-    p = ADD(p, *(__m<V>*)bias);                                                \
+    p = p + *(__m<V>*)bias;                                                    \
   } else {                                                                     \
     auto f16v = _mm<V/2>::load_si256((__m256i *)bias);                         \
-    p = ADD(p, _mm<V>::cvtph_ps(f16v));                                        \
+    p = p + _mm<V>::cvtph_ps(f16v);                                            \
   }
 
 #define AVX512_CALCULATE_O_0(z, n, nil)                                        \
-  c##n = ADD(ADD(ADD(ADD(ADD(t##n##0, t##n##1), t##n##2), t##n##3), t##n##4),  \
-         t##n##5);
+  c##n = t##n##0 + t##n##1 + t##n##2 + t##n##3 + t##n##4 + t##n##5;
 #define AVX512_CALCULATE_O_1(z, n, nil)                                        \
-  c##n = ADD(FMADD(z2, SUB(t##n##2, t##n##3), t##n##0), FMSUB(z1_2,            \
-         SUB(t##n##4, t##n##5), t##n##1));
+  c##n = ((z2 * (t##n##2 - t##n##3) + t##n##0)                                 \
+          + (z1_2 * (t##n##4 - t##n##5) - t##n##1));
 #define AVX512_CALCULATE_O_2(z, n, nil)                                        \
-  c##n = ADD(FMADD(z4, ADD(t##n##2, t##n##3), t##n##0), FMADD(z1_4,            \
-         ADD(t##n##4, t##n##5), t##n##1));
+  c##n = ((z4 * (t##n##2 + t##n##3) + t##n##0)                                 \
+          + (z1_4 * (t##n##4 + t##n##5) + t##n##1));
 #define AVX512_CALCULATE_O_3(z, n, nil)                                        \
-  c##n = ADD(FMADD(z8, SUB(t##n##2, t##n##3), t##n##0), FMSUB(z1_8,            \
-         SUB(t##n##4, t##n##5), t##n##1));
+  c##n = ((z8 * (t##n##2 - t##n##3) + t##n##0)                                 \
+          + (z1_8 * (t##n##4 - t##n##5) - t##n##1));
 #define AVX512_CALCULATE_O_4(z, n, nil)                                        \
-  c##n = ADD(FMADD(z16, ADD(t##n##2, t##n##3), ADD(t##n##0, t##n##1)),         \
-         FMADD(z1_16, ADD(t##n##4, t##n##5), t##n##6));
+  c##n = ((z16 * (t##n##2 + t##n##3) + (t##n##0 + t##n##1))                    \
+          + (z1_16 * (t##n##4 + t##n##5) + t##n##6));
 
 #undef STORE
 #define STORE(i, j)                                                            \
   if (std::is_same<OutputType, float>::value)                                  \
-    _mm<V>::store_ps(P(i, j), p##i##j);                                        \
+    _mm<V>::store_ps(out_ptr(i, j), p##i##j);                                  \
   else {                                                                       \
     auto f16 = _mm<V>::cvtps_ph(p##i##j,                                       \
         _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);                        \
-    _mm<V/2>::store_si256((__m256i *)P(i, j), f16);                            \
+    _mm<V/2>::store_si256((__m256i *)out_ptr(i, j), f16);                      \
   }
 
 #define AVX512_CALCULATE_O(n)                                                  \
-  __m<V> p0##n = ADD(ADD(ADD(ADD(ADD(c0, c1), c2), c3), c4), c5);              \
+  __m<V> p0##n = c0 + c1 + c2 + c3 + c4 + c5;                                  \
   if (fuse_bias) {FUSE_BIAS(p0##n)}                                            \
   if (fuse_ip_sum)                                                             \
-    p0##n = ADD(p0##n, *(__m<V>*)P(0, n));                                     \
+    p0##n = p0##n + *(__m<V>*)out_ptr(0, n);                                   \
   if (fuse_relu) {                                                             \
-    zero = XOR(zero, zero);                                                    \
-    p0##n = MAX(p0##n, zero);                                                  \
+    zero = _mm<V>::xor_ps(zero, zero);                                         \
+    p0##n = _mm<V>::max_ps(p0##n, zero);                                       \
   }                                                                            \
   STORE(0, n)                                                                  \
-  __m<V> p1##n = ADD(FMADD(z2, SUB(c2, c3), c0), FMSUB(z1_2, SUB(c4, c5), c1));\
+  __m<V> p1##n = (z2 * (c2 - c3) + c0) + (z1_2 * (c4 - c5) - c1);              \
   if (fuse_bias) {FUSE_BIAS(p1##n)}                                            \
   if (fuse_ip_sum)                                                             \
-    p1##n = ADD(p1##n, *(__m<V>*)P(1, n));                                     \
+    p1##n = (p1##n + *(__m<V>*)out_ptr(1, n));                                 \
   if (fuse_relu)                                                               \
-    p1##n = MAX(p1##n, zero);                                                  \
+    p1##n = _mm<V>::max_ps(p1##n, zero);                                       \
   STORE(1, n)                                                                  \
-  __m<V> p2##n = ADD(FMADD(z4, ADD(c2, c3), c0), FMADD(z1_4, ADD(c4, c5), c1));\
+  __m<V> p2##n = (z4 * (c2 + c3) + c0) + (z1_4 * (c4 + c5) + c1);              \
   if (fuse_bias) {FUSE_BIAS(p2##n)}                                            \
   if (fuse_ip_sum)                                                             \
-    p2##n = ADD(p2##n, *(__m<V>*)P(2, n));                                     \
+    p2##n = p2##n + *(__m<V>*)out_ptr(2, n);                                   \
   if (fuse_relu)                                                               \
-    p2##n = MAX(p2##n, zero);                                                  \
+    p2##n = _mm<V>::max_ps(p2##n, zero);                                       \
   STORE(2, n)                                                                  \
-  __m<V> p3##n = ADD(FMADD(z8, SUB(c2, c3), c0), FMSUB(z1_8, SUB(c4, c5), c1));\
+  __m<V> p3##n = (z8 * (c2 - c3) + c0) + (z1_8 * (c4 - c5) - c1);              \
   if (fuse_bias) {FUSE_BIAS(p3##n)}                                            \
   if (fuse_ip_sum)                                                             \
-    p3##n = ADD(p3##n, *(__m<V>*)P(3, n));                                     \
+    p3##n = p3##n + *(__m<V>*)out_ptr(3, n);                                   \
   if (fuse_relu)                                                               \
-    p3##n = MAX(p3##n, zero);                                                  \
+    p3##n = _mm<V>::max_ps(p3##n, zero);                                       \
   STORE(3, n)                                                                  \
-  __m<V> p4##n = ADD(FMADD(z16, ADD(c2, c3), c0), FMADD(z1_16, ADD(c4, c5), c1));
+  __m<V> p4##n = (z16 * (c2 + c3) + c0) + (z1_16 * (c4 + c5) + c1);
 
 #define AVX512_ADD_B(n);                                                       \
   if (fuse_bias) {FUSE_BIAS(p4##n)}                                            \
   if (fuse_ip_sum)                                                             \
-    p4##n = ADD(p4##n, *(__m<V>*)P(4, n));                                     \
+    p4##n = p4##n + *(__m<V>*)out_ptr(4, n);                                   \
   if (fuse_relu)                                                               \
-    p4##n = MAX(p4##n, zero);                                                  \
+    p4##n = _mm<V>::max_ps(p4##n, zero);                                       \
   STORE(4, n)
 
 template <typename OutputType, typename BiasType,
@@ -100,7 +99,7 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
 
     MD3(float, atoutput, toutput, A, A, V);
     alignas(64) OutputType dummy[16];
-    auto p_cb = [&](int _h, int _w) {
+    auto out_ptr = [&](int _h, int _w) {
       if (format == TKF_COMPACT) {
         MD3(OutputType, aoutput, output, A - K + 1, A - K + 1, V);
         return &md3(aoutput, _h, _w, 0);
@@ -119,11 +118,6 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
       }
     };
 
-#undef P
-#undef T
-#define T(_h, _w) (&md3(atoutput, _h, _w, 0))
-#define P(_h, _w) p_cb(_h, _w)
-
     __m<V> c0, c1, c2, c3, c4, c5, zero;
 
     __m<V> z2 = _mm<V>::set_ps(IMM_BCAST16(2.0f));
@@ -135,47 +129,79 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
     __m<V> z1_8 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 8.0f));
     __m<V> z1_16 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 16.0f));
 
-#undef t
-#undef OP
-#define t(m, n) t##m##n
-#define OP(m,n) __m<V> t(m,n) = _mm<V>::load_ps(T(m, n))
-    MATRIX_DEF(7, 6);
+    __m<V> t00 = _mm<V>::load_ps(&md3(atoutput, 0, 0, 0));
+    __m<V> t01 = _mm<V>::load_ps(&md3(atoutput, 0, 1, 0));
+    __m<V> t02 = _mm<V>::load_ps(&md3(atoutput, 0, 2, 0));
+    __m<V> t03 = _mm<V>::load_ps(&md3(atoutput, 0, 3, 0));
+    __m<V> t04 = _mm<V>::load_ps(&md3(atoutput, 0, 4, 0));
+    __m<V> t05 = _mm<V>::load_ps(&md3(atoutput, 0, 5, 0));
+    __m<V> t10 = _mm<V>::load_ps(&md3(atoutput, 1, 0, 0));
+    __m<V> t11 = _mm<V>::load_ps(&md3(atoutput, 1, 1, 0));
+    __m<V> t12 = _mm<V>::load_ps(&md3(atoutput, 1, 2, 0));
+    __m<V> t13 = _mm<V>::load_ps(&md3(atoutput, 1, 3, 0));
+    __m<V> t14 = _mm<V>::load_ps(&md3(atoutput, 1, 4, 0));
+    __m<V> t15 = _mm<V>::load_ps(&md3(atoutput, 1, 5, 0));
+    __m<V> t20 = _mm<V>::load_ps(&md3(atoutput, 2, 0, 0));
+    __m<V> t21 = _mm<V>::load_ps(&md3(atoutput, 2, 1, 0));
+    __m<V> t22 = _mm<V>::load_ps(&md3(atoutput, 2, 2, 0));
+    __m<V> t23 = _mm<V>::load_ps(&md3(atoutput, 2, 3, 0));
+    __m<V> t24 = _mm<V>::load_ps(&md3(atoutput, 2, 4, 0));
+    __m<V> t25 = _mm<V>::load_ps(&md3(atoutput, 2, 5, 0));
+    __m<V> t30 = _mm<V>::load_ps(&md3(atoutput, 3, 0, 0));
+    __m<V> t31 = _mm<V>::load_ps(&md3(atoutput, 3, 1, 0));
+    __m<V> t32 = _mm<V>::load_ps(&md3(atoutput, 3, 2, 0));
+    __m<V> t33 = _mm<V>::load_ps(&md3(atoutput, 3, 3, 0));
+    __m<V> t34 = _mm<V>::load_ps(&md3(atoutput, 3, 4, 0));
+    __m<V> t35 = _mm<V>::load_ps(&md3(atoutput, 3, 5, 0));
+    __m<V> t40 = _mm<V>::load_ps(&md3(atoutput, 4, 0, 0));
+    __m<V> t41 = _mm<V>::load_ps(&md3(atoutput, 4, 1, 0));
+    __m<V> t42 = _mm<V>::load_ps(&md3(atoutput, 4, 2, 0));
+    __m<V> t43 = _mm<V>::load_ps(&md3(atoutput, 4, 3, 0));
+    __m<V> t44 = _mm<V>::load_ps(&md3(atoutput, 4, 4, 0));
+    __m<V> t45 = _mm<V>::load_ps(&md3(atoutput, 4, 5, 0));
+    __m<V> t50 = _mm<V>::load_ps(&md3(atoutput, 5, 0, 0));
+    __m<V> t51 = _mm<V>::load_ps(&md3(atoutput, 5, 1, 0));
+    __m<V> t52 = _mm<V>::load_ps(&md3(atoutput, 5, 2, 0));
+    __m<V> t53 = _mm<V>::load_ps(&md3(atoutput, 5, 3, 0));
+    __m<V> t54 = _mm<V>::load_ps(&md3(atoutput, 5, 4, 0));
+    __m<V> t55 = _mm<V>::load_ps(&md3(atoutput, 5, 5, 0));
+    __m<V> t60 = _mm<V>::load_ps(&md3(atoutput, 6, 0, 0));
+    __m<V> t61 = _mm<V>::load_ps(&md3(atoutput, 6, 1, 0));
+    __m<V> t62 = _mm<V>::load_ps(&md3(atoutput, 6, 2, 0));
+    __m<V> t63 = _mm<V>::load_ps(&md3(atoutput, 6, 3, 0));
+    __m<V> t64 = _mm<V>::load_ps(&md3(atoutput, 6, 4, 0));
+    __m<V> t65 = _mm<V>::load_ps(&md3(atoutput, 6, 5, 0));
 
     BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_0, nil)
     AVX512_CALCULATE_O(0);
-    p40 = ADD(ADD(ADD(ADD(ADD(ADD(p40, t60), t61), t62), t63), t64), t65);
+    p40 = p40 + t60 + t61 + t62 + t63 + t64 + t65;
     AVX512_ADD_B(0)
 
     BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_1, nil)
     AVX512_CALCULATE_O(1);
-    p41 = ADD(p41,
-        FMADD(z2, SUB(t62, t63), FMADD(z1_2, SUB(t64, t65), SUB(t60, t61))));
+    p41 = p41 + z2 * (t62 - t63) + (z1_2 * (t64 - t65) + (t60 - t61));
     AVX512_ADD_B(1)
 
     BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_2, nil)
     AVX512_CALCULATE_O(2);
-    p42 = ADD(p42,
-        FMADD(z4, ADD(t62, t63), FMADD(z1_4, ADD(t64, t65), ADD(t60, t61))));
+    p42 = p42 + (z4 * (t62 + t63) + (z1_4 * (t64 + t65) + (t60 + t61)));
     AVX512_ADD_B(2)
 
     BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_3, nil)
     AVX512_CALCULATE_O(3);
-    p43 = ADD(p43,
-        FMADD(z8, SUB(t62, t63), FMADD(z1_8, SUB(t64, t65), SUB(t60, t61))));
+    p43 = p43 + (z8 * (t62 - t63) + (z1_8 * (t64 - t65) + (t60 - t61)));
     AVX512_ADD_B(3)
 
-    __m<V> t06 = _mm<V>::load_ps(T(0, 6));
-    __m<V> t16 = _mm<V>::load_ps(T(1, 6));
-    __m<V> t26 = _mm<V>::load_ps(T(2, 6));
-    __m<V> t36 = _mm<V>::load_ps(T(3, 6));
-    __m<V> t46 = _mm<V>::load_ps(T(4, 6));
-    __m<V> t56 = _mm<V>::load_ps(T(5, 6));
-    __m<V> t66 = _mm<V>::load_ps(T(6, 6));
+    __m<V> t06 = _mm<V>::load_ps(&md3(atoutput, 0, 6, 0));
+    __m<V> t16 = _mm<V>::load_ps(&md3(atoutput, 1, 6, 0));
+    __m<V> t26 = _mm<V>::load_ps(&md3(atoutput, 2, 6, 0));
+    __m<V> t36 = _mm<V>::load_ps(&md3(atoutput, 3, 6, 0));
+    __m<V> t46 = _mm<V>::load_ps(&md3(atoutput, 4, 6, 0));
+    __m<V> t56 = _mm<V>::load_ps(&md3(atoutput, 5, 6, 0));
+    __m<V> t66 = _mm<V>::load_ps(&md3(atoutput, 6, 6, 0));
     BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_4, nil)
     AVX512_CALCULATE_O(4);
-    p44 = ADD(p44,
-        FMADD(z16, ADD(t62, t63),
-            FMADD(z1_16, ADD(t64, t65), ADD(ADD(t60, t61), t66))));
+    p44 = p44 + (z16 * (t62 + t63) + (z1_16 * (t64 + t65) + (t60 + t61 + t66)));
     AVX512_ADD_B(4)
   }
 }; // elk_conv_wino_trans_output

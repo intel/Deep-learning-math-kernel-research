@@ -8,9 +8,11 @@
 
 namespace euler {
 
+
 template <typename WeightsType, int V>
 struct elk_conv_wino_trans_weights<float, WeightsType, ISA_SKX_AVX512,
     4, 3, V> {
+
   constexpr static int A = 4;
   constexpr static int K = 3;
   constexpr static int I = ISA_SKX_AVX512;
@@ -18,6 +20,7 @@ struct elk_conv_wino_trans_weights<float, WeightsType, ISA_SKX_AVX512,
   static void execute(
       float atweights[A][A][V][V], WeightsType aweights[K][K][V][V])
   {
+
     ENABLE_AVX512F();
 
     // Constants
@@ -32,61 +35,76 @@ struct elk_conv_wino_trans_weights<float, WeightsType, ISA_SKX_AVX512,
     // Outputs
     __m<V> /* t00, */ t10, t20, /* t30, */ t01, t11, t21, t31, t02, t12, t22,
         t32, /* t03, */ t13, t23 /*, t33 */;
-#undef F
-#undef T
-#define F(h, w) aweights[h][w][_V]
-#define T(h, w) atweights[h][w][_V]
 
-#undef f
-#undef OP
-#define f(m, n) f##m##n
-#define OP(m, n)                                                               \
-  if (std::is_same<WeightsType, float>::value)                                 \
-    f(m, n) = _mm<V>::load_ps(F(m, n));                                        \
-  else {                                                                       \
-    auto f16 = _mm<V / 2>::load_si256((__m256i *)F(m, n));                     \
-    f(m, n) = _mm<V>::cvtph_ps(f16);                                           \
-  }
     for (int _V = 0; _V < 16; ++_V) {
-      MATRIX_DEF(3, 3);
+      if (std::is_same<WeightsType, float>::value) {
+        f00 = _mm<V>::load_ps(aweights[0][0][_V]);
+        f01 = _mm<V>::load_ps(aweights[0][1][_V]);
+        f02 = _mm<V>::load_ps(aweights[0][2][_V]);
+        f10 = _mm<V>::load_ps(aweights[1][0][_V]);
+        f11 = _mm<V>::load_ps(aweights[1][1][_V]);
+        f12 = _mm<V>::load_ps(aweights[1][2][_V]);
+        f20 = _mm<V>::load_ps(aweights[2][0][_V]);
+        f21 = _mm<V>::load_ps(aweights[2][1][_V]);
+        f22 = _mm<V>::load_ps(aweights[2][2][_V]);
+      } else {
+        auto f16 = _mm<V / 2>::load_si256((__m256i *)aweights[0][0][_V]);
+        f00 = _mm<V>::cvtph_ps(f16);
+        f16 = _mm<V / 2>::load_si256((__m256i *)aweights[0][1][_V]);
+        f01 = _mm<V>::cvtph_ps(f16);
+        f16 = _mm<V / 2>::load_si256((__m256i *)aweights[0][2][_V]);
+        f02 = _mm<V>::cvtph_ps(f16);
+        f16 = _mm<V / 2>::load_si256((__m256i *)aweights[1][0][_V]);
+        f10 = _mm<V>::cvtph_ps(f16);
+        f16 = _mm<V / 2>::load_si256((__m256i *)aweights[1][1][_V]);
+        f11 = _mm<V>::cvtph_ps(f16);
+        f16 = _mm<V / 2>::load_si256((__m256i *)aweights[1][2][_V]);
+        f12 = _mm<V>::cvtph_ps(f16);
+        f16 = _mm<V / 2>::load_si256((__m256i *)aweights[2][0][_V]);
+        f20 = _mm<V>::cvtph_ps(f16);
+        f16 = _mm<V / 2>::load_si256((__m256i *)aweights[2][1][_V]);
+        f21 = _mm<V>::cvtph_ps(f16);
+        f16 = _mm<V / 2>::load_si256((__m256i *)aweights[2][2][_V]);
+        f22 = _mm<V>::cvtph_ps(f16);
+      }
 
-      _mm<V>::store_ps(T(0, 0), f00);
-      t10 = MUL(r2, ADD(SUB(f00, f10), f20));
-      _mm<V>::store_ps(T(1, 0), t10);
-      t20 = MUL(r2, ADD(ADD(f00, f10), f20));
-      _mm<V>::store_ps(T(2, 0), t20);
-      _mm<V>::store_ps(T(3, 0), f20);
+      _mm<V>::store_ps(atweights[0][0][_V], f00);
+      t10 = (r2 * ((f00 - f10) + f20));
+      _mm<V>::store_ps(atweights[1][0][_V], t10);
+      t20 = (r2 * ((f00 + f10) + f20));
+      _mm<V>::store_ps(atweights[2][0][_V], t20);
+      _mm<V>::store_ps(atweights[3][0][_V], f20);
 
-      c10 = MUL(r4, ADD(SUB(f00, f01), f02));
-      c11 = MUL(r4, ADD(SUB(f10, f11), f12));
-      c12 = MUL(r4, ADD(SUB(f20, f21), f22));
-      t01 = MUL(z2, c10);
-      _mm<V>::store_ps(T(0, 1), t01);
-      t11 = ADD(SUB(c10, c11), c12);
-      _mm<V>::store_ps(T(1, 1), t11);
-      t21 = ADD(ADD(c10, c11), c12);
-      _mm<V>::store_ps(T(2, 1), t21);
-      t31 = MUL(z2, c12);
-      _mm<V>::store_ps(T(3, 1), t31);
+      c10 = (r4 * ((f00 - f01) + f02));
+      c11 = (r4 * ((f10 - f11) + f12));
+      c12 = (r4 * ((f20 - f21) + f22));
+      t01 = (z2 * c10);
+      _mm<V>::store_ps(atweights[0][1][_V], t01);
+      t11 = c10 - c11 + c12;
+      _mm<V>::store_ps(atweights[1][1][_V], t11);
+      t21 = c10 + c11 + c12;
+      _mm<V>::store_ps(atweights[2][1][_V], t21);
+      t31 = z2 * c12;
+      _mm<V>::store_ps(atweights[3][1][_V], t31);
 
-      c20 = MUL(r4, ADD(ADD(f00, f01), f02));
-      c21 = MUL(r4, ADD(ADD(f10, f11), f12));
-      c22 = MUL(r4, ADD(ADD(f20, f21), f22));
-      t02 = MUL(z2, c20);
-      _mm<V>::store_ps(T(0, 2), t02);
-      t12 = ADD(SUB(c20, c21), c22);
-      _mm<V>::store_ps(T(1, 2), t12);
-      t22 = ADD(ADD(c20, c21), c22);
-      _mm<V>::store_ps(T(2, 2), t22);
-      t32 = MUL(z2, c22);
-      _mm<V>::store_ps(T(3, 2), t32);
+      c20 = r4 * (f00 + f01 + f02);
+      c21 = r4 * (f10 + f11 + f12);
+      c22 = r4 * (f20 + f21 + f22);
+      t02 = z2 * c20;
+      _mm<V>::store_ps(atweights[0][2][_V], t02);
+      t12 = c20 - c21 + c22;
+      _mm<V>::store_ps(atweights[1][2][_V], t12);
+      t22 = c20 + c21 + c22;
+      _mm<V>::store_ps(atweights[2][2][_V], t22);
+      t32 = z2 * c22;
+      _mm<V>::store_ps(atweights[3][2][_V], t32);
 
-      _mm<V>::store_ps(T(0, 3), f02);
-      t13 = MUL(r2, ADD(SUB(f02, f12), f22));
-      _mm<V>::store_ps(T(1, 3), t13);
-      t23 = MUL(r2, ADD(ADD(f02, f12), f22));
-      _mm<V>::store_ps(T(2, 3), t23);
-      _mm<V>::store_ps(T(3, 3), f22);
+      _mm<V>::store_ps(atweights[0][3][_V], f02);
+      t13 = r2 * (f02 - f12 + f22);
+      _mm<V>::store_ps(atweights[1][3][_V], t13);
+      t23 = r2 * (f02 + f12 + f22);
+      _mm<V>::store_ps(atweights[2][3][_V], t23);
+      _mm<V>::store_ps(atweights[3][3][_V], f22);
     }
   }
 

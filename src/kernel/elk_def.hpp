@@ -83,17 +83,6 @@
 
 #define IMM_BCAST16(x) x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x
 
-// TODO: avx2/sse
-#define ADD     _mm512_add_ps
-#define SUB     _mm512_sub_ps
-#define MUL     _mm512_mul_ps
-#define FMADD   _mm512_fmadd_ps
-#define FMSUB   _mm512_fmsub_ps
-#define FNMADD  _mm512_fnmadd_ps
-#define FNMSUB  _mm512_fnmsub_ps
-#define MAX     _mm512_max_ps
-#define XOR     _mm512_xor_ps
-
 namespace euler {
 
 // Transform kernel format

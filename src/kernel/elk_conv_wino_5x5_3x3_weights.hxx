@@ -9,32 +9,32 @@
 namespace euler {
 
 #define AVX512_CALCULATE_W_5_0(z, n, nil)                                      \
-  c##n = MUL(r4_81, ADD(ADD(f##n##0, f##n##1), f##n##2));
+  c##n = (r4_81 * (f##n##0 + f##n##1 + f##n##2));
 #define AVX512_CALCULATE_W_5_1(z, n, nil)                                      \
-  c##n = MUL(r4_81, ADD(SUB(f##n##0, f##n##1), f##n##2));
+  c##n = (r4_81 * (f##n##0 - f##n##1 + f##n##2));
 #define AVX512_CALCULATE_W_5_2(z, n, nil)                                      \
-  c##n = FMADD(r2_405, f##n##0, FMADD(r4_405, f##n##1, MUL(r8_405, f##n##2)));
+  c##n = (r2_405 * f##n##0 + (r4_405 * f##n##1 + (r8_405 * f##n##2)));
 #define AVX512_CALCULATE_W_5_3(z, n, nil)                                      \
-  c##n = FMSUB(r4_405, f##n##1, FMADD(r2_405, f##n##0, MUL(r8_405, f##n##2)));
+  c##n = (r4_405 * f##n##1 - (r2_405 * f##n##0 + (r8_405 * f##n##2)));
 #define AVX512_CALCULATE_W_5_4(z, n, nil)                                      \
-  c##n = FMADD(r32_405, f##n##0, FMADD(r16_405, f##n##1, MUL(r8_405, f##n##2)));
+  c##n = (r32_405 * f##n##0 + (r16_405 * f##n##1 + (r8_405 * f##n##2)));
 #define AVX512_CALCULATE_W_5_5(z, n, nil)                                      \
-  c##n = FMSUB(r16_405, f##n##1, FMADD(r32_405, f##n##0, MUL(r8_405, f##n##2)));
+  c##n = (r16_405 * f##n##1 - (r32_405 * f##n##0 + (r8_405 * f##n##2)));
 
 #define AVX512_CALCULATE_W_5(n)                                                \
-  t0##n = ADD(ADD(c0, c1), c2);                                                \
+  t0##n = (c0 + c1 + c2);                                                      \
   _mm<V>::store_ps(T(0, n), t0##n);                                            \
-  t1##n = ADD(SUB(c0, c1), c2);                                                \
+  t1##n = (c0 - c1 + c2);                                                      \
   _mm<V>::store_ps(T(1, n), t1##n);                                            \
-  t2##n = FMADD(r1_10, c0, FMADD(r1_5, c1, MUL(r2_5, c2)));                    \
+  t2##n = (r1_10 * c0 + (r1_5 * c1 + (r2_5 * c2)));                            \
   _mm<V>::store_ps(T(2, n), t2##n);                                            \
-  t3##n = FMSUB(r1_5, c1, FMADD(r1_10, c0, MUL(r2_5, c2)));                    \
+  t3##n = (r1_5 * c1 - (r1_10 * c0 + (r2_5 * c2)));                            \
   _mm<V>::store_ps(T(3, n), t3##n);                                            \
-  t4##n = FMADD(r8_5, c0, FMADD(r4_5, c1, MUL(r2_5, c2)));                     \
+  t4##n = (r8_5 * c0 + (r4_5 * c1 + (r2_5 * c2)));                             \
   _mm<V>::store_ps(T(4, n), t4##n);                                            \
-  t5##n = FMSUB(r4_5, c1, FMADD(r8_5, c0, MUL(r2_5, c2)));                     \
+  t5##n = (r4_5 * c1 - (r8_5 * c0 + (r2_5 * c2)));                             \
   _mm<V>::store_ps(T(5, n), t5##n);                                            \
-  t6##n = MUL(r9_2, c2);                                                       \
+  t6##n = (r9_2 * c2);                                                         \
   _mm<V>::store_ps(T(6, n), t6##n);
 
 template <typename WeightsType, int V>
@@ -122,20 +122,20 @@ struct elk_conv_wino_trans_weights<float, WeightsType, ISA_SKX_AVX512,
       __m<V> r8_45 = _mm<V>::set_ps(IMM_BCAST16(8.0f / 45.0f));
       __m<V> r16_45 = _mm<V>::set_ps(IMM_BCAST16(16.0f / 45.0f));
 
-      c0 = MUL(r2_9, ADD(f02, f22));
-      c1 = FMADD(r1_45, f02, MUL(r4_45, f22));
-      c2 = FMADD(r16_45, f02, MUL(r4_45, f22));
-      t06 = FMADD(r2_9, f12, c0);
+      c0 = (r2_9 * (f02 + f22));
+      c1 = (r1_45 * f02 + r4_45 * f22);
+      c2 = (r16_45 * f02 + r4_45 * f22);
+      t06 = (r2_9 * f12 + c0);
       _mm<V>::store_ps(T(0, 6), t06);
-      t16 = -FMSUB(r2_9, f12, c0);
+      t16 = -(r2_9 * f12 - c0);
       _mm<V>::store_ps(T(1, 6), t16);
-      t26 = FMADD(r2_45, f12, c1);
+      t26 = (r2_45 * f12 + c1);
       _mm<V>::store_ps(T(2, 6), t26);
-      t36 = FMSUB(r2_45, f12, c1);
+      t36 = (r2_45 * f12 - c1);
       _mm<V>::store_ps(T(3, 6), t36);
-      t46 = FMADD(r8_45, f12, c2);
+      t46 = (r8_45 * f12 + c2);
       _mm<V>::store_ps(T(4, 6), t46);
-      t56 = FMSUB(r8_45, f12, c2);
+      t56 = (r8_45 * f12 - c2);
       _mm<V>::store_ps(T(5, 6), t56);
       t66 = f22;
       _mm<V>::store_ps(T(6, 6), t66);

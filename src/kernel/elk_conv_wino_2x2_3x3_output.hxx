@@ -20,7 +20,7 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
   {
     ENABLE_AVX512F();
 
-    __m<V> z = XOR(z, z);
+    __m<V> z = _mm<V>::xor_ps(z, z);
     __m<V> mrepS, mzp;
 
     MD3(float, atoutput, toutput, A, A, V);
@@ -35,7 +35,7 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
     bool fuse_relu = with_relu && (bias != nullptr);
 
     alignas(64) OutputType dummy[16];
-    auto p_cb = [&](int _h, int _w) {
+    auto out_ptr = [&](int _h, int _w) {
       if (format == TKF_COMPACT) {
         MD3(OutputType, aoutput, output, A - K + 1, A - K + 1, V);
         return &md3(aoutput, _h, _w, 0);
@@ -54,17 +54,7 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
       }
     };
 
-#undef P
-#undef T
-#undef OP
 #undef BIAS
-#define T(_h, _w) (&md3(atoutput, _h, _w, 0))
-#define P(_h, _w) p_cb(_h, _w)
-
-    __m<V> c0, c1, c2, c3, zero;
-#define t(m, n) t##m##n
-#define OP(m,n) __m<V> t(m,n) = _mm<V>::load_ps(T(m, n))
-
 #define BIAS                                                                   \
   std::is_same<BiasType, float>::value                                         \
       ? *(__m<V> *)bias                                                        \
@@ -80,17 +70,33 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
     _mm<V>::cvtepi32_ps(_mm<V>::cvtepi8_epi32(*(__m128i *)addr));              \
   })
 
-    MATRIX_DEF(4, 4);
+    __m<V> c0, c1, c2, c3, zero;
+    __m<V> t00 = _mm<V>::load_ps((&md3(atoutput, 0, 0, 0)));
+    __m<V> t01 = _mm<V>::load_ps((&md3(atoutput, 0, 1, 0)));
+    __m<V> t02 = _mm<V>::load_ps((&md3(atoutput, 0, 2, 0)));
+    __m<V> t03 = _mm<V>::load_ps((&md3(atoutput, 0, 3, 0)));
+    __m<V> t10 = _mm<V>::load_ps((&md3(atoutput, 1, 0, 0)));
+    __m<V> t11 = _mm<V>::load_ps((&md3(atoutput, 1, 1, 0)));
+    __m<V> t12 = _mm<V>::load_ps((&md3(atoutput, 1, 2, 0)));
+    __m<V> t13 = _mm<V>::load_ps((&md3(atoutput, 1, 3, 0)));
+    __m<V> t20 = _mm<V>::load_ps((&md3(atoutput, 2, 0, 0)));
+    __m<V> t21 = _mm<V>::load_ps((&md3(atoutput, 2, 1, 0)));
+    __m<V> t22 = _mm<V>::load_ps((&md3(atoutput, 2, 2, 0)));
+    __m<V> t23 = _mm<V>::load_ps((&md3(atoutput, 2, 3, 0)));
+    __m<V> t30 = _mm<V>::load_ps((&md3(atoutput, 3, 0, 0)));
+    __m<V> t31 = _mm<V>::load_ps((&md3(atoutput, 3, 1, 0)));
+    __m<V> t32 = _mm<V>::load_ps((&md3(atoutput, 3, 2, 0)));
+    __m<V> t33 = _mm<V>::load_ps((&md3(atoutput, 3, 3, 0)));
 
-    c0 = ADD(ADD(t10, t11), t12);
-    c1 = ADD(ADD(t20, t21), t22);
-    c2 = SUB(ADD(t12, t13), t11);
-    c3 = SUB(ADD(t22, t23), t21);
+    c0 = t10 + t11 + t12;
+    c1 = t20 + t21 + t22;
+    c2 = t12 + t13 - t11;
+    c3 = t22 + t23 - t21;
 
-    __m<V> p00 = ADD(ADD(ADD(ADD(t00, t01), t02), c0), c1);
-    __m<V> p10 = ADD(ADD(ADD(SUB(c1, c0), t30), t31), t32);
-    __m<V> p01 = ADD(ADD(ADD(SUB(t02, t01), t03), c2), c3);
-    __m<V> p11 = ADD(ADD(SUB(SUB(c3, c2), t31), t32), t33);
+    __m<V> p00 = t00 + t01 + t02 + c0 + c1;
+    __m<V> p10 = c1 - c0 + t30 + t31 + t32;
+    __m<V> p01 = t02 - t01 + t03 + c2 + c3;
+    __m<V> p11 = c3 - c2 - t31 + t32 + t33;
 
     if (fuse_bias) {
       p00 += BIAS;
@@ -107,48 +113,48 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
     }
     if (fuse_ip_sum) {
       if (std::is_same<OutputType, uint8_t>::value) {
-        p00 += _cvtepu8_ps(P(0, 0));
-        p10 += _cvtepu8_ps(P(1, 0));
-        p01 += _cvtepu8_ps(P(0, 1));
-        p11 += _cvtepu8_ps(P(1, 1));
+        p00 += _cvtepu8_ps(out_ptr(0, 0));
+        p10 += _cvtepu8_ps(out_ptr(1, 0));
+        p01 += _cvtepu8_ps(out_ptr(0, 1));
+        p11 += _cvtepu8_ps(out_ptr(1, 1));
       } else if (std::is_same<OutputType, int8_t>::value) {
-        p00 += _cvtepi8_ps(P(0, 0));
-        p10 += _cvtepi8_ps(P(1, 0));
-        p01 += _cvtepi8_ps(P(0, 1));
-        p11 += _cvtepi8_ps(P(1, 1));
+        p00 += _cvtepi8_ps(out_ptr(0, 0));
+        p10 += _cvtepi8_ps(out_ptr(1, 0));
+        p01 += _cvtepi8_ps(out_ptr(0, 1));
+        p11 += _cvtepi8_ps(out_ptr(1, 1));
       } else {
-        p00 += *(__m<V>*)P(0, 0);
-        p10 += *(__m<V>*)P(1, 0);
-        p01 += *(__m<V>*)P(0, 1);
-        p11 += *(__m<V>*)P(1, 1);
+        p00 += *(__m<V>*)out_ptr(0, 0);
+        p10 += *(__m<V>*)out_ptr(1, 0);
+        p01 += *(__m<V>*)out_ptr(0, 1);
+        p11 += *(__m<V>*)out_ptr(1, 1);
       }
     }
     if (fuse_relu) {
-      p00 = MAX(p00, z);
-      p10 = MAX(p10, z);
-      p01 = MAX(p01, z);
-      p11 = MAX(p11, z);
+      p00 = _mm<V>::max_ps(p00, z);
+      p10 = _mm<V>::max_ps(p10, z);
+      p01 = _mm<V>::max_ps(p01, z);
+      p11 = _mm<V>::max_ps(p11, z);
     }
 
 #undef OP
 #define p_(m, n) p##m##n
 #define OP(m,n)                                                                \
   if (std::is_same<OutputType, float>::value) {                                \
-    _mm<V>::store_ps(P(m, n), p_(m, n));                                       \
+    _mm<V>::store_ps(out_ptr(m, n), p_(m, n));                                 \
   } else if (std::is_same<OutputType, uint8_t>::value) {                       \
     __i<V> mresu32 = _mm<V>::cvt_roundps_epu32(                                \
         p_(m, n), _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);              \
     __m128i mresu8 = _mm<V>::cvtusepi32_epi8(mresu32);                         \
-    _mm_store_si128((__m128i *)P(m, n), mresu8);                               \
+    _mm_store_si128((__m128i *)out_ptr(m, n), mresu8);                         \
   } else if (std::is_same<OutputType, int8_t>::value) {                        \
     __i<V> mresi32 = _mm<V>::cvt_roundps_epi32(                                \
         p_(m, n), _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);              \
     __m128i mresi8 = _mm<V>::cvtsepi32_epi8(mresi32);                          \
-    _mm_store_si128((__m128i *)P(m, n), mresi8);                               \
+    _mm_store_si128((__m128i *)out_ptr(m, n), mresi8);                         \
   } else {                                                                     \
     auto f16 = _mm<V>::cvtps_ph(p_(m, n),                                      \
         _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);                        \
-    _mm<V/2>::store_si256((__m256i *)P(m, n), f16);                            \
+    _mm<V/2>::store_si256((__m256i *)out_ptr(m, n), f16);                      \
   }
 
     MATRIX_DEF(2, 2);

@@ -47,7 +47,7 @@ struct elk_conv_wino_trans_input<float, InputType, format, is_border,
     (msrcu8); \
   })
 
-    auto f_cb = [&](int _h, int _w) {
+    auto readin = [&](int _h, int _w) {
       if (format == TKF_COMPACT) {
         MD3(InputType, ainput, input, A, A, V);
         if (std::is_same<InputType, float>::value) {
@@ -87,17 +87,6 @@ struct elk_conv_wino_trans_input<float, InputType, format, is_border,
       }
     };
 
-#undef F
-#undef C
-#undef T
-#define F(_h, _w) f_cb(_h, _w)
-#define T(h, w) (&md3(atinput, h, w, 0))
-
-#undef f
-#undef OP
-#define f(m, n) f##m##n
-#define OP(m, n) f(m, n) = F(m, n)
-
     __m<V> M[5][5];
 
     auto z0 = _mm<V>::set1_ps(0.5f);
@@ -105,11 +94,11 @@ struct elk_conv_wino_trans_input<float, InputType, format, is_border,
 
 #pragma unroll
     for (int i = 0; i < 5; i++) {
-      auto f0 = F(0, i);
-      auto f1 = F(1, i);
-      auto f2 = F(2, i);
-      auto f3 = F(3, i);
-      auto f4 = F(4, i);
+      auto f0 = readin(0, i);
+      auto f1 = readin(1, i);
+      auto f2 = readin(2, i);
+      auto f3 = readin(3, i);
+      auto f4 = readin(4, i);
 
       auto t0 = f1 * z0;
       auto t1 = f2 * z0;
@@ -134,11 +123,11 @@ struct elk_conv_wino_trans_input<float, InputType, format, is_border,
       auto t1 = f2 * z0;
       auto t2 = f3 - f1;
 
-      *(__m<V> *)T(i, 0) = f0 * z0 - t1 - t2;
-      *(__m<V> *)T(i, 1) = f3 - t0 - t1;
-      *(__m<V> *)T(i, 2) = f2 * z1 + f3 + t0;
-      *(__m<V> *)T(i, 3) = t2;
-      *(__m<V> *)T(i, 4) = f3 * z0 + f4 - f2 - t0;
+      *(__m<V> *)(&md3(atinput, i, 0, 0)) = f0 * z0 - t1 - t2;
+      *(__m<V> *)(&md3(atinput, i, 1, 0)) = f3 - t0 - t1;
+      *(__m<V> *)(&md3(atinput, i, 2, 0)) = f2 * z1 + f3 + t0;
+      *(__m<V> *)(&md3(atinput, i, 3, 0)) = t2;
+      *(__m<V> *)(&md3(atinput, i, 4, 0)) = f3 * z0 + f4 - f2 - t0;
     }
   }
 }; // elk_conv_wino_trans_input
