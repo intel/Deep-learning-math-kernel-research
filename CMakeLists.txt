@@ -6,33 +6,45 @@ project(Euler CXX C)
 
 option(WITH_TEST "Build with test cases" ON)
 option(WITH_VNNI "With CLX VNNI support" OFF)
-option(ENABLE_USER_FP16 "user fp16 type support" OFF)
+option(ENABLE_USER_FP16 "User FP16 type support" OFF)
 
 STRING(TOLOWER "${MT_RUNTIME}" MT_RUNTIME)
 
+# Build Euler version string
 find_package (Git)
+if (${GIT_FOUND})
+  # Get current branch
+  execute_process(
+    COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE retval
+    OUTPUT_VARIABLE GIT_BRANCH
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if (${retval})
+    set(GIT_BRANCH "not-a-git-repo-branch")
+  endif ()
 
-# Get the current working branch
-execute_process(
-  COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  OUTPUT_VARIABLE GIT_BRANCH
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
-# Get the latest abbreviated commit hash of the working branch
-execute_process(
-  COMMAND ${GIT_EXECUTABLE} log -1 --format=%h
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  OUTPUT_VARIABLE GIT_COMMIT_HASH
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+  # Get current commit hash
+  execute_process(
+    COMMAND ${GIT_EXECUTABLE} log -1 --format=%h
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE retval
+    OUTPUT_VARIABLE GIT_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if (${retval})
+    set(GIT_COMMIT_HASH "not-a-git-repo-hash")
+  endif ()
+else()
+  set(GIT_BRANCH "no-git-found-branch")
+  set(GIT_COMMIT_HASH "no-git-found-hash")
+endif()
 
 set(EULER_VERSION_MAJOR 0)
 set(EULER_VERSION_MINOR 0)
 set(EULER_VERSION_PATCH 1)
 set(EULER_VERSION
-  "${EULER_VERSION_MAJOR}.${EULER_VERSION_MINOR}.${EULER_VERSION_PATCH}-${GIT_BRANCH}.${GIT_COMMIT_HASH}")
+  "v${EULER_VERSION_MAJOR}.${EULER_VERSION_MINOR}.${EULER_VERSION_PATCH}+${GIT_BRANCH}.${GIT_COMMIT_HASH}")
+message("-- Euler version: " ${EULER_VERSION})
 
 cmake_policy(SET CMP0015 NEW)
 cmake_policy(SET CMP0042 NEW)
