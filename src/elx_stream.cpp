@@ -1,7 +1,6 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
-#include <omp.h>
 #include "elx_stream.hpp"
 #include "elx_conv.hpp"
 
@@ -12,17 +11,14 @@ namespace euler {
 elx_stream global_stream;
 extern int euler_verbose;
 
-int set_cpu_affinity(int i) {
-  kmp_affinity_mask_t mask;
-  kmp_create_affinity_mask(&mask);
-  kmp_set_affinity_mask_proc(i, &mask);
-
-  return (kmp_set_affinity(&mask) == 0);
+int set_cpu_affinity() {
+  // TODO
+  return 0;
 }
 
 elx_stream::elx_stream() {
   _threadx = new std::thread([&]{
-    set_cpu_affinity(28);
+    set_cpu_affinity();
     // executor thread
     while (true) {
       run();

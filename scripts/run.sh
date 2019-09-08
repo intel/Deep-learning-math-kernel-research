@@ -15,15 +15,23 @@ nsockets=${nsockets:=$( lscpu | grep 'Socket(s)' | cut -d: -f2 )}
 ncores_per_socket=${ncores_per_socket:=$( lscpu | grep 'Core(s) per socket' | cut -d: -f2 )}
 nthreads=${nthreads:=$(( nsockets  * ncores_per_socket * nthreads_per_core ))}
 
+euler_mt_runtime="OMP"
+if EULER_VERBOSE=1 build/tests/elt_conv -version | grep -i 'MT_RUNTIME: TBB' >& /dev/null; then
+  euler_mt_runtime="TBB"
+fi
+
+if [ $euler_mt_runtime = "OMP" ]; then
 OMP_ENV="OMP_NUM_THREADS=$(( nthreads )) \
   KMP_HW_SUBSET=$(( nsockets ))s,$(( ncores_per_socket ))c,$(( nthreads_per_core ))t \
   KMP_AFFINITY=compact,granularity=fine \
   KMP_BLOCKTIME=infinite"
+else # TBB
+  if [ "x$NTHREADS" != "x" ] || [ "x$NSOCKETS" != "x" ]; then
+    echo -e "Warning: \$NSOCKETS or \$NTHREADS is not supported in TBB mode\n"
+  fi
+  OMP_ENV="KMP_BLOCKTIME=0"
+fi
 echo OMP Environment: $OMP_ENV
-
-function build() {
-  cd "$ROOT_DIR" && make distclean && make -j all && cd -
-}
 
 function conv_test() {
   # Default
@@ -226,22 +234,17 @@ cat <<@
 
 Euler test script:
   -h        display this help and exit.
-  -b        rebuild
   -c        convolution test
 
 @
 }
 
 OPTIND=1
-while getopts ":hbc" opt; do
+while getopts ":hc" opt; do
   case "$opt" in
     h)
       show_help
       exit 0
-      ;;
-    b)
-      echo Release Build...
-      build
       ;;
     c)
       echo Run convolution test...

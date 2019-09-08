@@ -182,7 +182,7 @@ __attribute__((constructor)) void global_init(void) {
   }
  
   if (euler_verbose > 0)
-    printf("\r\nEuler version: %s, MT runtime: %s\r\n",
+    printf("\nEuler version: %s, MT_RUNTIME: %s\n",
            XSTRINGIFY(EULER_VERSION), mt_runtime_to_string(MT_RUNTIME));
 }
 

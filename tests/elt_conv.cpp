@@ -48,6 +48,10 @@ float tinput_cali_s = FLT_MAX;
 float tinput_cali_z = FLT_MAX;
 
 int parse_cmd_options(int argc, char **argv) {
+
+  gflags_namespace::SetUsageMessage("Euler convolution benchmark test");
+  gflags_namespace::SetVersionString("0.0.1");
+
   gflags_namespace::ParseCommandLineFlags(&argc, &argv, true);
   mb = FLAGS_mb;
   g  = FLAGS_g;
