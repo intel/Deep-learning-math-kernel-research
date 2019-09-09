@@ -8,6 +8,9 @@ option(WITH_TEST "Build with test cases" ON)
 option(WITH_VNNI "With CLX VNNI support" OFF)
 option(ENABLE_USER_FP16 "User FP16 type support" OFF)
 
+if (NOT DEFINED MT_RUNTIME)
+  set(MT_RUNTIME "omp")
+endif()
 STRING(TOLOWER "${MT_RUNTIME}" MT_RUNTIME)
 
 # Build Euler version string

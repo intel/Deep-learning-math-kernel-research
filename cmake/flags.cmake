@@ -32,10 +32,6 @@ if (WITH_VNNI)
   list(APPEND __opt_flags "-DWITH_VNNI")
 endif()
 
-if (NOT DEFINED MT_RUNTIME)
-  set(MT_RUNTIME "omp")
-endif()
-
 if(MT_RUNTIME STREQUAL "omp")
   list(APPEND __opt_flags "-DMT_RUNTIME=MT_RUNTIME_OMP")
 elseif(MT_RUNTIME STREQUAL "tbb")
