@@ -145,8 +145,6 @@ int Instance_elx_conv_direct_depthwise_lp_t::prepare_execute_opt()
   tweights_size_ = 0;
   tweights_ = nullptr;
   toutput_ = nullptr;
-  scratch_ = nullptr;
-  workspace_ = nullptr;
 
   switch (xopt_) {
   case 0xa160:
@@ -165,26 +163,18 @@ int Instance_elx_conv_direct_depthwise_lp_t::prepare_execute_opt()
   if (tweights_size_ > 0)
     tweights_size_ += WEIGHTS_MAX_PRELOAD * V;
 
-  size_t workspace_size = tweights_size_ + input_scale_size_ +
-                          weights_scale_size_ + weights_factor_size_;
-  // TODO: user provided buffer
-  if (workspace_size != 0) {
-    MEMALIGN64(&workspace_, workspace_size);
-    tweights_ = (TweightsType *)workspace_;
-  }
-  size_t scratchpad_size = 0;
-  if (scratchpad_size != 0) {
-    scratch_ = galloc::acquire(scratchpad_size);
-  }
+  workspace_size_ = tweights_size_ + input_scale_size_ +
+    weights_scale_size_ + weights_factor_size_;
+  scratch_size_ = 0;
 
   return 0;
 }
 
 Template_elx_conv_direct_depthwise_lp_t
-void Instance_elx_conv_direct_depthwise_lp_t::set_trans_buffers()
+void Instance_elx_conv_direct_depthwise_lp_t::set_workspace_buffers(void *base)
 {
-  if (workspace_ != nullptr) {
-    weights_scale_ = (TscaleType *)workspace_;
+  if (base != nullptr) {
+    weights_scale_ = (TscaleType *)base;
     weights_factor_ = (TscaleType *)((char *)weights_scale_ + weights_scale_size_);
     input_scale_ = (TscaleType *)((char *)weights_factor_ + weights_factor_size_);
     tweights_s8_ = (int8_t *)((char *)input_scale_ + input_scale_size_);
@@ -192,12 +182,13 @@ void Instance_elx_conv_direct_depthwise_lp_t::set_trans_buffers()
 }
 
 Template_elx_conv_direct_depthwise_lp_t
+void Instance_elx_conv_direct_depthwise_lp_t::set_scratch_buffers(void *base)
+{
+}
+
+Template_elx_conv_direct_depthwise_lp_t
 Instance_elx_conv_direct_depthwise_lp_t::~elx_conv_direct_depthwise_lp_t()
 {
-  if (workspace_ != nullptr)
-    ::free(workspace_);
-
-  galloc::release();
 }
 
 // weights: g2, V, kh, kw

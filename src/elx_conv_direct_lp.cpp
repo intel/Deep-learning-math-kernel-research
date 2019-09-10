@@ -144,8 +144,6 @@ int Instance_elx_conv_direct_lp_t::prepare_execute_opt()
   weights_scale_size_ = 0;
   weights_factor_size_ = 0;
   toutput_ = nullptr;
-  scratch_ = nullptr;
-  workspace_ = nullptr;
   tweights_s8_ = nullptr;
   input_scale_ = nullptr;
   weights_scale_ = nullptr;
@@ -176,28 +174,16 @@ int Instance_elx_conv_direct_lp_t::prepare_execute_opt()
 
   workspace_size_ = tweights_s8_size_ + weights_scale_size_
       + weights_factor_size_ + input_scale_size_;
-  size_t scratchpad_size = toutput_size_;
+  scratch_size_ = toutput_size_;
 
-  // TODO: user provided buffer
-  workspace_ = nullptr;
-  if (scratchpad_size != 0) {
-    scratch_ = galloc::acquire(scratchpad_size);
-  }
-
-  printf("nthreads=%d, mthr_=%d\n", this->nthreads, mthr_);
-  printf("sampling_kind = %d\n", this->sampling_kind);
-  printf("input_quant_S = %f\n", this->input_quant_S);
-  printf("input_quant_z = %f\n", this->input_quant_z);
-  printf("output_quant_S = %f\n", this->output_quant_S);
-  printf("output_quant_z = %f\n", this->output_quant_z);
   return 0;
 }
 
 Template_elx_conv_direct_lp_t
-void Instance_elx_conv_direct_lp_t::set_workspace_buffers()
+void Instance_elx_conv_direct_lp_t::set_workspace_buffers(void *base)
 {
-  if (workspace_ != nullptr) {
-    weights_scale_ = (TscaleType *)workspace_;
+  if (base != nullptr) {
+    weights_scale_ = (TscaleType *)base;
     weights_factor_ = (TscaleType *)((char *)weights_scale_ + weights_scale_size_);
     input_scale_ = (TscaleType *)((char *)weights_factor_ + weights_factor_size_);
     tweights_s8_ = (int8_t *)((char *)input_scale_ + input_scale_size_);
@@ -205,9 +191,10 @@ void Instance_elx_conv_direct_lp_t::set_workspace_buffers()
 }
 
 Template_elx_conv_direct_lp_t
-void Instance_elx_conv_direct_lp_t::set_scratchpad_buffers()
+void Instance_elx_conv_direct_lp_t::set_scratch_buffers(void *base)
 {
-  toutput_ = (ToutputType *)galloc::get();
+  if (base != nullptr)
+    toutput_ = (ToutputType *)base;
 }
 
 Template_elx_conv_direct_lp_t
@@ -227,17 +214,6 @@ void Instance_elx_conv_direct_lp_t::prepare_quant_calibration(eld_conv_t &dc)
 Template_elx_conv_direct_lp_t
 Instance_elx_conv_direct_lp_t::~elx_conv_direct_lp_t()
 {
-  if (workspace_ != nullptr && !this->shared_workspace_enabled) {
-    walloc::release(workspace_);
-    workspace_ = nullptr;
-  } else {
-    const char *key = this->shared_workspace_key.c_str();
-    shwalloc::release(workspace_, key);
-    workspace_ = nullptr;
-    workspace_ = nullptr;
-  }
-
-  galloc::release();
 }
 
 Template_elx_conv_direct_lp_t void
@@ -441,7 +417,7 @@ Instance_elx_conv_direct_lp_t::__trans_weights_acc(TscaleType *weights_scale,
 // weights (blocked): oc2, ic2, kh, kw, V, V
 // tweights: oc4, ic4, oc3, _ic3, kh, kw, O1, I2, V1, O, V, Vx
 Template_elx_conv_direct_lp_t void Instance_elx_conv_direct_lp_t::
-__trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
+trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
                 int8_t *tweights_s8, WeightsType *weights, BiasType *bias) {
   _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
@@ -514,29 +490,6 @@ __trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
   }, this->oc2);
 
   __trans_weights_acc(weights_scale, weights_factor, tweights_s8, bias);
-}
-
-Template_elx_conv_direct_lp_t void Instance_elx_conv_direct_lp_t::
-trans_weights(WeightsType *weights, BiasType *bias) {
-  if (inference_acc_ && this->shared_workspace_enabled) {
-    const char *key = this->shared_workspace_key.c_str();
-    process_singleton_t process_singleton(key);
-    {
-      workspace_ = shwalloc::acquire(workspace_size_, key);
-      set_workspace_buffers();
-      if (!shwalloc::is_setup_done(workspace_)) {
-        __trans_weights(weights_scale_, weights_factor_, tweights_s8_,
-                        weights, bias);
-        shwalloc::set_setup_done(workspace_);
-      }
-    }
-  } else {
-    workspace_ = walloc::acquire(workspace_size_);
-    set_workspace_buffers();
-    __trans_weights(weights_scale_, weights_factor_, tweights_s8_,
-                    weights, bias);
-
-  }
 }
 
 Template_elx_conv_direct_lp_t

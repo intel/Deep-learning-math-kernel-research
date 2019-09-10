@@ -44,9 +44,8 @@ Template_elx_conv_direct_lp_t class elx_conv_direct_lp_t : public elx_conv_t {
 
   void __trans_weights_acc(TscaleType *weights_scale, TscaleType * weights_factor,
       int8_t *weights_s8, BiasType *bias);
-  void __trans_weights(TscaleType *weights_scale, TscaleType * weights_factor,
+  void trans_weights(TscaleType *weights_scale, TscaleType * weights_factor,
       int8_t *weights_s8, WeightsType *weights, BiasType *bias);
-  void trans_weights(WeightsType *weights, BiasType *bias);
 
   void conv_a160(OutputType *output, ToutputType *toutput, InputType *input,
       int8_t *tweights, BiasType *bias, TscaleType *src_scale,
@@ -58,8 +57,8 @@ Template_elx_conv_direct_lp_t class elx_conv_direct_lp_t : public elx_conv_t {
       int _ic4, int _oc4, int _ht, int _wt);
 
   int prepare_execute_opt();
-  void set_scratchpad_buffers();
-  void set_workspace_buffers();
+  void set_scratch_buffers(void *base);
+  void set_workspace_buffers(void *base);
   void bind_execute_functions();
   void prepare_weights_acc();
   void prepare_quant_calibration(eld_conv_t &);
@@ -86,7 +85,6 @@ Template_elx_conv_direct_lp_t class elx_conv_direct_lp_t : public elx_conv_t {
                           // wt: number of T
                           //     3: left/middle/right, for input-z != 0
                           //     1: input-z = 0
-  size_t workspace_size_;
   size_t tweights_s8_size_;
   size_t toutput_size_;
   size_t input_scale_size_;
@@ -101,8 +99,6 @@ Template_elx_conv_direct_lp_t class elx_conv_direct_lp_t : public elx_conv_t {
   unsigned int xopt_;
   int attr_;
   int mthr_;
-  void *scratch_;
-  void *workspace_;
 };
 
 // int8-u8f32u8f32

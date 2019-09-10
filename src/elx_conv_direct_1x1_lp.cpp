@@ -186,47 +186,35 @@ int Instance_elx_conv_direct_1x1_lp_t::prepare_execute_opt()
   input_scale_size_ = input_scale_size > 0 ? alignup(input_scale_size, align) : 0;
   weights_scale_size_ = weights_scale_size > 0 ? alignup(weights_scale_size, align) : 0;
 
-  scratch_ = nullptr;
-  workspace_ = nullptr;
   workspace_size_ = tweights_size_ + tweights_s8_size_
       + weights_scale_size_ + input_scale_size_;
-  size_t scratch_size = tinput_size_ + toutput_size_
+  scratch_size_ = tinput_size_ + toutput_size_
       + binput_size_ + bweights_size_ + boutput_size_;
-  // TODO: user provided buffer
-  if (scratch_size != 0)
-    scratch_ = galloc::acquire(scratch_size);
 
-  workspace_ = nullptr;
-
-  // dbg
-  printf("nthreads=%d, mthr_=%d\n", this->nthreads, mthr_);
-  printf("sampling_kind = %d\n", this->sampling_kind);
-  printf("input_quant_S = %f\n", this->input_quant_S);
-  printf("input_quant_z = %f\n", this->input_quant_z);
-  printf("output_quant_S = %f\n", this->output_quant_S);
-  printf("output_quant_z = %f\n", this->output_quant_z);
-  printf("sum_quant_S = %f\n", this->sum_quant_S);
-  printf("sum_quant_z = %f\n", this->sum_quant_z);
   return 0;
 }
 
 Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::set_scratchpad_buffers()
+void Instance_elx_conv_direct_1x1_lp_t::set_scratch_buffers(void *base)
 {
-  tinput_ = (TinputType *)galloc::get();
-  toutput_ = (ToutputType *)((char *)tinput_ + tinput_size_);
-  binput_ = (InputType *)((char *)toutput_ + toutput_size_);
-  bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
-  boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);
+  if (base != nullptr) {
+    tinput_ = (TinputType *)base;
+    toutput_ = (ToutputType *)((char *)tinput_ + tinput_size_);
+    binput_ = (InputType *)((char *)toutput_ + toutput_size_);
+    bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
+    boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);
+  }
 }
 
 Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::set_workspace_buffers()
+void Instance_elx_conv_direct_1x1_lp_t::set_workspace_buffers(void *base)
 {
-  tweights_ = (TweightsType *)workspace_;
-  input_scale_ = (TscaleType *)((char *)tweights_ + tweights_size_);
-  weights_scale_ = (TscaleType *)((char *)input_scale_ + input_scale_size_);
-  tweights_s8_ = (int8_t *)((char *)weights_scale_ + weights_scale_size_);
+  if (base != nullptr) {
+    tweights_ = (TweightsType *)base;
+    input_scale_ = (TscaleType *)((char *)tweights_ + tweights_size_);
+    weights_scale_ = (TscaleType *)((char *)input_scale_ + input_scale_size_);
+    tweights_s8_ = (int8_t *)((char *)weights_scale_ + weights_scale_size_);
+  }
 }
 
 Template_elx_conv_direct_1x1_lp_t
@@ -248,20 +236,10 @@ void Instance_elx_conv_direct_1x1_lp_t::prepare_quant_calibration(eld_conv_t &dc
 Template_elx_conv_direct_1x1_lp_t
 Instance_elx_conv_direct_1x1_lp_t::~elx_conv_direct_1x1_lp_t()
 {
-  if (workspace_ != nullptr && !this->shared_workspace_enabled) {
-    walloc::release(workspace_);
-    workspace_ = nullptr;
-  } else {
-    const char *key = this->shared_workspace_key.c_str();
-    shwalloc::release(workspace_, key);
-    workspace_ = nullptr;
-  }
-
-  galloc::release();
 }
 
 Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked_oc(
+void Instance_elx_conv_direct_1x1_lp_t::trans_weights_s8_blocked_oc(
     TscaleType *weights_scale, int8_t *tweights_s8, WeightsType *weights,
     BiasType *bias)
 {
@@ -371,35 +349,6 @@ void Instance_elx_conv_direct_1x1_lp_t::__trans_weights_s8_blocked_oc(
       mmqf -= sum_z * sum_S;
     }
   }, this->oc4, this->oc3, this->O2);
-}
-
-Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::trans_weights_s8_oc(
-    WeightsType *weights, BiasType *bias)
-{
-  auto transform_weights = [&]() {
-    if (weights_is_bfmt_ || weights_as_bfmt_)
-      __trans_weights_s8_blocked_oc(weights_scale_, tweights_s8_, weights, bias);
-    else
-      el_error("Unimplement format");
-  };
-
-  if (inference_acc_ && this->shared_workspace_enabled) {
-    const char *key = this->shared_workspace_key.c_str();
-    process_singleton_t process_singleton(key);
-    {
-      workspace_ = shwalloc::acquire(workspace_size_, key);
-      set_workspace_buffers();
-      if (!shwalloc::is_setup_done(workspace_)) {
-        transform_weights();
-        shwalloc::set_setup_done(workspace_);
-      }
-    }
-  } else {
-    workspace_ = walloc::acquire(workspace_size_);
-    set_workspace_buffers();
-    transform_weights();
-  }
 }
 
 Template_elx_conv_direct_1x1_lp_t

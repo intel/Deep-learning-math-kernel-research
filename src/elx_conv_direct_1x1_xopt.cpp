@@ -34,7 +34,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_c060(
   // output:  t3*, oc4*, oc3, O2, t2*, T(Tr), V
 
   if (is_first_run_) {
-    trans_weights(tweights_, weights);
+    setup_workspace([&]() { trans_weights(tweights_, weights); });
   }
 
   parallel_for<4, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _t2) {
@@ -68,7 +68,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_b061(
   // output:  t3*, oc4*, oc3, O2(O2r), t2*, T(Tr), V
 
   if (is_first_run_) {
-    trans_weights(tweights_, weights);
+    setup_workspace([&]() { trans_weights(tweights_, weights); });
   }
 
   if (this->oc4 == 1) {
@@ -146,7 +146,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
 {
 
   if (is_first_run_) {
-    trans_weights(tweights_, weights);
+    setup_workspace([&]() { trans_weights(tweights_, weights); });
   }
 
   if (this->input_fmt == nhwc) {
@@ -247,7 +247,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_f061(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   if (is_first_run_) {
-    trans_weights(tweights_, weights);
+    setup_workspace([&]() { trans_weights(tweights_, weights); });
   }
 
   if (this->input_fmt == nhwc) {
@@ -346,8 +346,6 @@ Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::execute(
     void *output, void *input, void *weights, void *bias)
 {
-  set_trans_buffers();
-
   if (is_bfmt_)
     (this->*execute_opt_)((OutputType *)output,
         (InputType *)input, (WeightsType *)weights, (BiasType *)bias);

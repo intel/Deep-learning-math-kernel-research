@@ -110,9 +110,65 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
       this->shared_workspace_key = std::string(".euler_key_") + env_numa_node;
     }
   }
+
+  scratch_size_ = 0;
+  workspace_size_ = 0;
+  workspace_ = nullptr;
+  has_scratch_ = false;
+  on_destroy_ = false;
 }
 
-void elx_conv_t::set_data(void *output, void *input, void *weights, void *bias)
+void elx_conv_t::set_workspace_buffers() {
+  if (workspace_size_ != 0 && workspace_ == nullptr) {
+    if (this->shared_workspace_enabled) {
+      const char *key = this->shared_workspace_key.c_str();
+      workspace_ = shwalloc::acquire(workspace_size_, key);
+    } else {
+      workspace_ = walloc::acquire(workspace_size_);
+    }
+  }
+  if (workspace_ != nullptr)
+    set_workspace_buffers(workspace_);
+}
+
+void elx_conv_t::set_scratch_buffers() {
+  void *scratch = nullptr;
+  if (scratch_size_ != 0 && !has_scratch_) {
+    scratch = galloc::acquire(scratch_size_);
+    has_scratch_ = true;
+  }
+  if (scratch != nullptr)
+    set_scratch_buffers(galloc::get());
+}
+
+void elx_conv_t::teardown() {
+  if (workspace_ != nullptr && !this->shared_workspace_enabled) {
+    walloc::release(workspace_);
+    workspace_ = nullptr;
+  } else {
+    const char *key = this->shared_workspace_key.c_str();
+    shwalloc::release(workspace_, key);
+    workspace_ = nullptr;
+  }
+
+  if (scratch_size_ > 0 && has_scratch_)
+    galloc::release();
+}
+
+elx_conv_t::~elx_conv_t() {
+  if (eager_mode) {
+    teardown();
+  } else {
+    // submit an end-of-life request
+    this->stream_sync = true;
+    on_destroy_ = true;
+    global_stream.submit(this);
+    global_stream.wait(this);
+  }
+}
+
+void elx_conv_t::set_user_buffers(
+    void *output, void *input, void *weights, void *bias)
 {
   output_ptr = output;
   input_ptr = input;
@@ -154,13 +210,15 @@ int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *b
     return ELX_GENERAL_ERROR;
   }
 
+  xc->set_scratch_buffers();
+
   if (xc->eager_mode) {
     if (euler_verbose)
       xc->execute_verbose(output, input, weights, bias);
     else
       xc->execute(output, input, weights, bias);
   } else {
-    xc->set_data(output, input, weights, bias);
+    xc->set_user_buffers(output, input, weights, bias);
     global_stream.submit(xc);
     if (xc->stream_sync)
       global_stream.wait(xc);

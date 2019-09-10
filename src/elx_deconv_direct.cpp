@@ -142,8 +142,6 @@ int Instance_elx_deconv_direct_t::prepare_execute_opt()
   tweights_size_ = 0;
   tweights_ = nullptr;
   toutput_ = nullptr;
-  scratch_ = nullptr;
-  workspace_ = nullptr;
 
   switch (xopt_) {
   case 0xa060:
@@ -159,33 +157,29 @@ int Instance_elx_deconv_direct_t::prepare_execute_opt()
   if (tweights_size_ > 0)
     tweights_size_ += WEIGHTS_MAX_PRELOAD * V;
 
-  size_t workspace_size = tweights_size_;
-  // TODO: user provided buffer
-  if (workspace_size != 0) {
-    MEMALIGN64(&workspace_, workspace_size);
-    tweights_ = (TweightsType *)workspace_;
-  }
-  size_t scratchpad_size = toutput_size_;
-  if (scratchpad_size != 0) {
-    scratch_ = galloc::acquire(scratchpad_size);
-  }
+  workspace_size_ = tweights_size_;
+  scratch_size_ = toutput_size_;
 
   return 0;
 }
 
 Template_elx_deconv_direct_t
-void Instance_elx_deconv_direct_t::set_trans_buffers()
+void Instance_elx_deconv_direct_t::set_scratch_buffers(void *base)
 {
-  toutput_ = (ToutputType*)galloc::get();
+  if (base != nullptr)
+    toutput_ = (ToutputType *)base;
+}
+
+Template_elx_deconv_direct_t
+void Instance_elx_deconv_direct_t::set_workspace_buffers(void *base)
+{
+  if (base != nullptr)
+    tweights_ = (TweightsType *)base;
 }
 
 Template_elx_deconv_direct_t
 Instance_elx_deconv_direct_t::~elx_deconv_direct_t()
 {
-  if (workspace_ != nullptr)
-    ::free(workspace_);
-
-  galloc::release();
 }
 
 Template_elx_deconv_direct_t

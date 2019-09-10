@@ -51,13 +51,17 @@ int elx_stream::run() {
   mlock.unlock();
 
   if (xc != nullptr) {
-    if (euler_verbose) {
-      xc->execute_verbose(xc->output_ptr, xc->input_ptr, xc->weights_ptr,
-                          xc->bias_ptr);
+    if (xc->on_destroy()) {
+      xc->teardown();
     } else {
-      xc->execute(xc->output_ptr, xc->input_ptr, xc->weights_ptr, xc->bias_ptr);
+      if (euler_verbose) {
+        xc->execute_verbose(
+            xc->output_ptr, xc->input_ptr, xc->weights_ptr, xc->bias_ptr);
+      } else {
+        xc->execute(
+            xc->output_ptr, xc->input_ptr, xc->weights_ptr, xc->bias_ptr);
+      }
     }
-
     if (xc->stream_sync) {
       xc->mu.unlock();
     }

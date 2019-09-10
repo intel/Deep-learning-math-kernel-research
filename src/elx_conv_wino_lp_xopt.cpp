@@ -22,7 +22,10 @@ void Instance_elx_conv_wino_lp_t::__execute_a133(
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
   if (is_first_run_) {
-    trans_weights(weights);
+    setup_workspace([&]() {
+      trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
+                       tweights_s8_, tweights_, weights, this->oc4);
+    });
   }
 
   MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
@@ -69,7 +72,10 @@ void Instance_elx_conv_wino_lp_t::__execute_a161(
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
   if (is_first_run_) {
-    trans_weights(weights);
+    setup_workspace([&]() {
+      trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
+                       tweights_s8_, tweights_, weights, this->oc4);
+    });
   }
 
   auto t2_history = -1;
@@ -119,7 +125,10 @@ void Instance_elx_conv_wino_lp_t::__execute_a173(
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
   if (is_first_run_) {
-    trans_weights(weights);
+    setup_workspace([&]() {
+      trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
+                       tweights_s8_, tweights_, weights, this->oc4);
+    });
   }
 
   int last_ic4 = -1, last_t2 = -1;
@@ -173,8 +182,6 @@ void Instance_elx_conv_wino_lp_t::execute(
     void * __restrict output, void * __restrict input,
     void * __restrict weights, void * __restrict bias)
 {
-  set_scratchpad_buffers();
-
   if (is_bfmt_)
     return (this->*execute_opt_)((OutputType *)output,
         (InputType *)input, (WeightsType *)weights, (BiasType *)bias);

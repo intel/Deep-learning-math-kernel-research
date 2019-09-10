@@ -108,12 +108,43 @@ struct elx_conv_t : elx_conv_params_t {
 public:
   elx_conv_t(eld_conv_t &dc);
 
-  void set_data(void *output, void *input, void *weights, void *bias);
-  void execute_verbose(void *output, void *input, void *weights, void *bias);
+  void set_user_buffers(void *output, void *input, void *weights, void *bias);
+  void set_scratch_buffers();
+  void set_workspace_buffers();
 
-  virtual void execute(
-      void *output, void *input, void *weights, void *bias) = 0;
-  virtual ~elx_conv_t() {}
+  void execute_verbose(void *output, void *input, void *weights, void *bias);
+  virtual void execute(void *output, void *input, void *weights, void *bias) = 0;
+  virtual ~elx_conv_t();
+  void teardown();
+  bool on_destroy() { return on_destroy_; }
+  template <typename F> void setup_workspace(F func) {
+    if (this->prop_kind == forward_inference
+        && this->shared_workspace_enabled) {
+      const char *key = this->shared_workspace_key.c_str();
+      process_singleton_t process_singleton(key);
+      {
+        set_workspace_buffers();
+        if (!shwalloc::is_setup_done(workspace_)) {
+          func();
+          shwalloc::set_setup_done(workspace_);
+        }
+      }
+    } else {
+      set_workspace_buffers();
+      func();
+    }
+  }
+
+  size_t scratch_size_;
+  size_t workspace_size_;
+
+private:
+  virtual void set_workspace_buffers(void *base) = 0;
+  virtual void set_scratch_buffers(void *base) = 0;
+
+  void *workspace_;
+  bool has_scratch_;
+  bool on_destroy_;
 };
 
 }  // namespace euler

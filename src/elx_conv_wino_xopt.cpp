@@ -34,7 +34,9 @@ void Instance_elx_conv_wino_t::__execute_a061(
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
   if (is_first_run_) {
-    trans_weights(tweights_, weights, this->oc4);
+    setup_workspace([&](){
+      trans_weights(tweights_, weights, this->oc4);
+    });
   }
   auto t2_history = -1;
 
@@ -76,7 +78,9 @@ void Instance_elx_conv_wino_t::__execute_a071(
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
   if (is_first_run_) {
-    trans_weights(tweights_, weights, this->oc4);
+    setup_workspace([&](){
+      trans_weights(tweights_, weights, this->oc4);
+    });
   }
   int last_ic4 = -1, last_t2 = -1;
 
@@ -122,7 +126,9 @@ void Instance_elx_conv_wino_t::__execute_a073(
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
   if (is_first_run_) {
-    trans_weights(tweights_, weights, this->oc4);
+    setup_workspace([&](){
+      trans_weights(tweights_, weights, this->oc4);
+    });
   }
 
   int last_ic4 = -1, last_t2 = -1;
@@ -243,8 +249,11 @@ void Instance_elx_conv_wino_t::__execute_a000(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  if (is_first_run_)
-    trans_weights(tweights_, weights);
+  if (is_first_run_) {
+    setup_workspace([&](){
+      trans_weights(tweights_, weights);
+    });
+  }
 
   THREAD_PARALLEL()
   {
@@ -268,7 +277,9 @@ void Instance_elx_conv_wino_t::__execute_a033(
   MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
 
   if (is_first_run_) {
-    trans_weights(tweights_, weights, this->oc4);
+    setup_workspace([&](){
+      trans_weights(tweights_, weights, this->oc4);
+    });
   }
 
   TinputType *_tinput = this->use_scratch_pad
@@ -300,8 +311,6 @@ void Instance_elx_conv_wino_t::execute(
     void * __restrict output, void * __restrict input,
     void * __restrict weights, void * __restrict bias)
 {
-  set_trans_buffers();
-
   if (is_bfmt_)
     return (this->*execute_opt_)((OutputType *)output,
         (InputType *)input, (WeightsType *)weights, (BiasType *)bias);

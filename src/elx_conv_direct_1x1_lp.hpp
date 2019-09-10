@@ -51,8 +51,7 @@ public:
   void __execute_b161(OutputType *, InputType *, WeightsType *, BiasType *);
   void __execute_c160(OutputType *, InputType *, WeightsType *, BiasType *);
 
-  inline void __trans_weights_s8_blocked_oc(TscaleType *, int8_t *, WeightsType *, BiasType *);
-  void trans_weights_s8_oc(WeightsType *, BiasType *);
+  inline void trans_weights_s8_blocked_oc(TscaleType *, int8_t *, WeightsType *, BiasType *);
 
   void requant_output(OutputType *, ToutputType *);
 
@@ -63,8 +62,8 @@ public:
       TscaleType *, TscaleType *, BiasType *, int, int, int);
 
   void prepare_quant_calibration(eld_conv_t &);
-  void set_scratchpad_buffers();
-  void set_workspace_buffers();
+  void set_scratch_buffers(void *base);
+  void set_workspace_buffers(void *base);
   int prepare_execute_opt();
   void bind_execute_functions();
 
@@ -103,7 +102,6 @@ public:
   unsigned int xopt_;
   int attr_;
   int mthr_;
-  size_t workspace_size_;
   size_t tweights_size_;
   size_t tinput_size_;
   size_t toutput_size_;
@@ -113,8 +111,6 @@ public:
   size_t input_scale_size_;
   size_t tweights_s8_size_;
   size_t weights_scale_size_;
-  void *scratch_;
-  void *workspace_;
 };
 
 //u8f32u8f32-u8s8f32

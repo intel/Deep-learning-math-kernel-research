@@ -202,32 +202,31 @@ int  Instance_elx_conv_direct_1x1_t::prepare_execute_opt()
   bweights_size_ = bweights_size > 0 ? alignup(bweights_size, align) : 0;
   boutput_size_ = boutput_size > 0 ? alignup(boutput_size, align) : 0;
 
-  scratch_ = nullptr;
-  workspace_ = nullptr;
-  size_t workspace_size = tweights_size_;
-  size_t scratch_size = tinput_size_ + toutput_size_
-      + binput_size_ + bweights_size_ + boutput_size_;
-  // TODO: user provided buffer
-  if (scratch_size != 0)
-    scratch_ = galloc::acquire(scratch_size);
-  if (workspace_size != 0)
-    MEMALIGN64(&workspace_, workspace_size);
+  workspace_size_ = tweights_size_;
+  scratch_size_ = tinput_size_ + toutput_size_
+    + binput_size_ + bweights_size_ + boutput_size_;
 
-  // dbg
-  printf("nthreads=%d, mthr_=%d\n", this->nthreads, mthr_);
   return 0;
 }
 
 Template_elx_conv_direct_1x1_t
-void Instance_elx_conv_direct_1x1_t::set_trans_buffers()
+void Instance_elx_conv_direct_1x1_t::set_scratch_buffers(void *base)
 {
-  if (workspace_ != nullptr)
-    tweights_ = (TweightsType *)workspace_;
-  tinput_ = (TinputType *)galloc::get();
-  toutput_ = (ToutputType *)((char *)tinput_ + tinput_size_);
-  binput_ = (InputType *)((char *)toutput_ + toutput_size_);
-  bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
-  boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);
+  if (base != nullptr) {
+    tinput_ = (TinputType *)base;
+    toutput_ = (ToutputType *)((char *)tinput_ + tinput_size_);
+    binput_ = (InputType *)((char *)toutput_ + toutput_size_);
+    bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
+    boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);
+  }
+}
+
+Template_elx_conv_direct_1x1_t
+void Instance_elx_conv_direct_1x1_t::set_workspace_buffers(void *base)
+{
+  if (base != nullptr) {
+    tweights_ = (TweightsType *)base;
+  }
 }
 
 Template_elx_conv_direct_1x1_t
@@ -237,13 +236,6 @@ Instance_elx_conv_direct_1x1_t::~elx_conv_direct_1x1_t()
     ::free(tinput_msk_);
     tinput_msk_ = nullptr;
   }
-
-  if (workspace_ != nullptr) {
-    ::free(workspace_);
-    workspace_ = nullptr;
-  }
-
-  galloc::release();
 }
 
 // n, ic, ih, iw => n, ic2, ih, iw, V

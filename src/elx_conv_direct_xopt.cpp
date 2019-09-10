@@ -28,7 +28,9 @@ void Instance_elx_conv_direct_t::__execute_a060(
   // output (blocked):  t3*, oc4*, oc3, O2(O2r), ht*wt*, T, V
   // output (nhwc):  t3*, ht*wt*, T, oc4*, oc3, O2(O2r), V
   if (is_first_run_) {
-    trans_weights_to_compact(tweights_, weights);
+    setup_workspace([&]() {
+      trans_weights_to_compact(tweights_, weights);
+    });
   }
 
   if (this->input_fmt == nchw) { // nchw => blocked
@@ -102,7 +104,9 @@ void Instance_elx_conv_direct_t::__execute_b060(
   // output (blocked):  t3*, oc4*, oc3, O2(O2r), ht*wt*, T, V
   // output (nhwc):  t3*, ht*wt*, T, oc4*, oc3, O2(O2r), V
   if (is_first_run_) {
-    trans_weights_to_compact(tweights_, weights);
+    setup_workspace([&]() {
+      trans_weights_to_compact(tweights_, weights);
+    });
   }
 
   THREAD_PARALLEL()
@@ -205,7 +209,9 @@ void Instance_elx_conv_direct_t::__execute_d060(
   // weights: oc4*, oc3, O2, ic4*, ic3, I2, V(Ir), V
   // output:  t3*, oc4*, oc3, O2(O2r), ht*wt*, T(Tr), V
   if (is_first_run_) {
-    trans_weights_to_compact(tweights_, weights);
+    setup_workspace([&]() {
+      trans_weights_to_compact(tweights_, weights);
+    });
   }
 
   if (this->input_fmt == nhwc) { // nhwc -> nhwc
@@ -252,8 +258,6 @@ Template_elx_conv_direct_t
 void Instance_elx_conv_direct_t::execute(
     void *output, void *input, void *weights, void *bias)
 {
-  set_trans_buffers();
-
   (this->*execute_opt_)((OutputType *)output,
       (InputType *)input, (WeightsType *)weights, (BiasType *)bias);
 }

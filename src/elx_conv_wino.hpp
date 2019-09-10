@@ -89,7 +89,8 @@ private:
   void __execute_a07b(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
 
-  void set_trans_buffers();
+  void set_scratch_buffers(void *base);
+  void set_workspace_buffers(void *base);
   int prepare_execute_opt();
   void bind_execute_functions();
 
@@ -124,8 +125,6 @@ private:
   size_t binput_size_;
   size_t bweights_size_;
   size_t boutput_size_;
-  void *workspace_;
-  void *scratch_;
 
   TweightsType *tweights_;
   TinputType *tinput_;

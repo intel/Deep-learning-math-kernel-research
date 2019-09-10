@@ -18,14 +18,17 @@ void Instance_elx_conv_direct_depthwise_lp_t::__execute_a160(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   if (is_first_run_) {
-    trans_weights_3x3(weights_scale_, weights_factor_, tweights_s8_, weights, bias);
-    if (this->sampling_kind == CALIBRATED) {
-      MD2(TscaleType, atinput_scale, input_scale_, 2, this->T);
-      iter_each(_T, this->T) {
-        md2(atinput_scale, 0, _T) = this->input_quant_S;
-        md2(atinput_scale, 1, _T) = this->input_quant_z;
+    setup_workspace([&]() {
+      trans_weights_3x3(
+          weights_scale_, weights_factor_, tweights_s8_, weights, bias);
+      if (this->sampling_kind == CALIBRATED) {
+        MD2(TscaleType, atinput_scale, input_scale_, 2, this->T);
+        iter_each(_T, this->T) {
+          md2(atinput_scale, 0, _T) = this->input_quant_S;
+          md2(atinput_scale, 1, _T) = this->input_quant_z;
+        }
       }
-    }
+    });
   }
 
   parallel_for<3>(mthr_, [&](int _t3, int _ht, int _wt) {
@@ -64,8 +67,6 @@ Template_elx_conv_direct_depthwise_lp_t
 void Instance_elx_conv_direct_depthwise_lp_t::execute(
     void *output, void *input, void *weights, void *bias)
 {
-  set_trans_buffers();
-
   (this->*execute_opt_)((OutputType *)output,
       (InputType *)input, (WeightsType *)weights, (BiasType *)bias);
 }

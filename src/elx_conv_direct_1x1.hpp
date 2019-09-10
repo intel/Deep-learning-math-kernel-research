@@ -78,7 +78,8 @@ class elx_conv_direct_1x1_t : public elx_conv_t {
   void trans_weights_2_blocked(WeightsType *tweghts, WeightsType *weights);
   void trans_output_2_plain(OutputType *output, OutputType *toutput);
 
-  void set_trans_buffers();
+  void set_scratch_buffers(void *base);
+  void set_workspace_buffers(void *base);
   int prepare_execute_opt();
   void bind_execute_functions();
 
@@ -119,8 +120,6 @@ class elx_conv_direct_1x1_t : public elx_conv_t {
   size_t binput_size_;
   size_t bweights_size_;
   size_t boutput_size_;
-  void *scratch_;
-  void *workspace_;
 };
 
 //fp32-f32f32f32

@@ -196,49 +196,41 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   bweights_size_ = bweights_size > 0 ? alignup(bweights_size, align) : 0;
   boutput_size_ = boutput_size > 0 ? alignup(boutput_size, align) : 0;
 
-  workspace_ = nullptr, scratch_ = nullptr;
-  size_t workspace_size = tweights_size_;
-  size_t scratch_size = tinput_size_ + toutput_size_
+  workspace_size_ = tweights_size_;
+  scratch_size_ = tinput_size_ + toutput_size_
       + binput_size_ + bweights_size_ + boutput_size_;
 
   if (xopt_ == 0xa079 || xopt_ == 0xa07b) {
-    scratch_size += tweights_size_;
-    workspace_size = 0;
+    scratch_size_ += tweights_size_;
+    workspace_size_ = 0;
   }
-  // TODO: user provided buffer
-  if (scratch_size != 0)
-    scratch_ = galloc::acquire(scratch_size);
-  if (workspace_size != 0)
-    MEMALIGN64(&workspace_, workspace_size);
 
-  // dbg
-  printf("nthreads=%d, mthr_=%d\n", this->nthreads, mthr_);
   return 0;
 }
 
 Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::set_trans_buffers()
+void Instance_elx_conv_wino_t::set_workspace_buffers(void *base)
 {
-  if (workspace_ != nullptr) {
-    tweights_ = (TweightsType *)workspace_;
-    tinput_ = (TinputType *)galloc::get();
-  } else {
-    tweights_ = (TweightsType *)galloc::get();
-    tinput_ = (TinputType *)((char *)tweights_ + tweights_size_);
+  if (base != nullptr) {
+    tweights_ = (TweightsType *)base;
   }
-  toutput_ = (ToutputType *)((char *)tinput_ + tinput_size_);
-  binput_ = (InputType *)((char *)toutput_ + toutput_size_);
-  bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
-  boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);
+}
+
+Template_elx_conv_wino_t
+void Instance_elx_conv_wino_t::set_scratch_buffers(void *base)
+{
+  if (base != nullptr) {
+    tinput_ = (TinputType *)base;
+    toutput_ = (ToutputType *)((char *)tinput_ + tinput_size_);
+    binput_ = (InputType *)((char *)toutput_ + toutput_size_);
+    bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
+    boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);
+  }
 }
 
 Template_elx_conv_wino_t
 Instance_elx_conv_wino_t::~elx_conv_wino_t()
 {
-  if (workspace_ != nullptr)
-    ::free(workspace_);
-
-  galloc::release();
 }
 
 } // namespace euler
