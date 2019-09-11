@@ -141,6 +141,7 @@ struct shwalloc {
     uint32_t setup_done_;
     size_t size_;
   };
+  static const int hdr_size = ALIGNUP(sizeof(shwhdr_t), 64);;
 
   static void *&get() {
     static void *ptr_ = nullptr;
@@ -186,7 +187,6 @@ struct shwalloc {
       }
       ptr_ = mmap(0, WS_BLOCK_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);
     }
-    auto hdr_size = alignup(sizeof(shwhdr_t), 64);
     auto sz = alignup(size + hdr_size, 64);
     auto old_sz = sz_;
     auto new_sz = sz_ + sz;
@@ -237,7 +237,7 @@ struct shwalloc {
 
   static bool is_setup_done(void *ptr) {
     if (in_range(ptr)) {
-      shwhdr_t *hdr = (shwhdr_t *)ptr;
+      shwhdr_t *hdr = (shwhdr_t *)((char *)ptr - hdr_size);
       if (hdr->size_ != 0)
         return hdr->setup_done_ == SETUP_DONE_MASK;
     }
@@ -246,7 +246,7 @@ struct shwalloc {
 
   static void set_setup_done(void *ptr) {
     if (in_range(ptr)) {
-      shwhdr_t *hdr = (shwhdr_t *)ptr;
+      shwhdr_t *hdr = (shwhdr_t *)((char *)ptr - hdr_size);
       hdr->setup_done_ = SETUP_DONE_MASK;
     }
   }
