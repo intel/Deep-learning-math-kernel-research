@@ -3,13 +3,13 @@
 #include <sys/types.h>
 #include "elx_stream.hpp"
 #include "elx_conv.hpp"
+#include "el_init.hpp"
 
 #define gettid() syscall(SYS_gettid)
 
 namespace euler {
 
 elx_stream global_stream;
-extern int euler_verbose;
 
 int set_cpu_affinity() {
   // TODO
@@ -54,7 +54,7 @@ int elx_stream::run() {
     if (xc->on_destroy()) {
       xc->teardown();
     } else {
-      if (euler_verbose) {
+      if (ego.verbose) {
         xc->execute_verbose(
             xc->output_ptr, xc->input_ptr, xc->weights_ptr, xc->bias_ptr);
       } else {

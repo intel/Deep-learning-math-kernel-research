@@ -11,10 +11,9 @@
 #include "pmmintrin.h"
 #endif
 #include "elx_stream.hpp"
+#include "el_init.hpp"
 
 namespace euler {
-
-int euler_verbose = 0;
 
 elx_conv_t::elx_conv_t(eld_conv_t &dc)
 {
@@ -213,7 +212,7 @@ int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *b
   xc->set_scratch_buffers();
 
   if (xc->eager_mode) {
-    if (euler_verbose)
+    if (ego.verbose)
       xc->execute_verbose(output, input, weights, bias);
     else
       xc->execute(output, input, weights, bias);
@@ -226,22 +225,6 @@ int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *b
   }
   
   return ELX_OK;
-}
-
-__attribute__((constructor)) void global_init(void) {
-#if __ICC_COMPILER
-  _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
-  _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
-#endif
-
-  auto env_verbose = getenv("EULER_VERBOSE");
-  if (env_verbose != nullptr && env_verbose[0] == '1') {
-    euler_verbose = 1;
-  }
- 
-  if (euler_verbose > 0)
-    printf("\nEuler version: %s, MT_RUNTIME: %s\n",
-           XSTRINGIFY(EULER_VERSION), mt_runtime_to_string(MT_RUNTIME));
 }
 
 }  // namespace euler
