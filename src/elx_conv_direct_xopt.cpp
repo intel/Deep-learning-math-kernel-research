@@ -146,8 +146,12 @@ void Instance_elx_conv_direct_t::__execute_b060(
                 this->oc2, V);
             out += *(__m<V> *)&md2(atoutput1, _oc2, 0);
           }
-          if (this->with_relu)
-            out = _mm<V>::max_ps(out, zero);
+          if (this->with_relu) {
+            auto lower = *(__m<V> *)(this->relu_bound_lower_vec);
+            auto upper = *(__m<V> *)(this->relu_bound_upper_vec);
+            out = _mm<V>::max_ps(out, lower);
+            out = _mm<V>::min_ps(out, upper);
+          }
           if (this->Or != V && _oc2 == this->oc2 - 1) {
             iter_each (_V, this->Or) {
               md2(aoutput1, _oc2, _V) = out[_V];
@@ -187,8 +191,12 @@ void Instance_elx_conv_direct_t::__execute_b060(
           for (int _ic4 = 0; _ic4 < this->ic4; ++_ic4) {
             out += *(__m<V> *)&md3(atoutput, _ic4, o, 0);
           }
-          if (this->with_relu)
-            out = _mm<V>::max_ps(out, zero);
+          if (this->with_relu) {
+            auto lower = *(__m<V> *)(this->relu_bound_lower_vec);
+            auto upper = *(__m<V> *)(this->relu_bound_upper_vec);
+            out = _mm<V>::max_ps(out, lower);
+            out = _mm<V>::min_ps(out, upper);
+          }
           *(__m<V> *)&md2(aoutput, o, 0) = out;
         } else {
           el_error("Unsupported data type");

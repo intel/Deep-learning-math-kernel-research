@@ -90,6 +90,8 @@ struct elx_conv_params_t {
   float output_quant_repS;
   float sum_quant_S;
   float sum_quant_z;
+  float relu_bound_lower;
+  float relu_bound_upper;
   sampling_kind_t sampling_kind;
 
   bool eager_mode;
@@ -102,6 +104,10 @@ struct elx_conv_params_t {
   void *scratch_pad;
   void *output_ptr, *input_ptr, *weights_ptr, *bias_ptr;
   std::mutex mu;
+
+  // Redundant data for performance
+  alignas(64) float relu_bound_lower_vec[16];
+  alignas(64) float relu_bound_upper_vec[16];
 };
 
 struct elx_conv_t : elx_conv_params_t {

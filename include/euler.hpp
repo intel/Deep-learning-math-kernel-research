@@ -144,6 +144,7 @@ struct EULER_API eld_conv_t {
   bool disable_autoparam;
   bool eager_mode;
   bool stream_sync;
+  struct { float lower = 0, upper = FLT_MAX; } relu_bound;
 
   // Performance:
   // Number of thread teams, number of threads per team

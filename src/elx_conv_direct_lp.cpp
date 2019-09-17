@@ -669,8 +669,12 @@ void Instance_elx_conv_direct_lp_t::gemm_d160(OutputType *output,
           auto factor = *(__m<V> *)&md3(aweights_factor, _oc3, _O2, 0);
           tout = tout * scale + factor;
           // fuse relu
-          if (this->with_relu)
-            tout = _mm<V>::max_ps(tout, _mm<V>::setzero_ps());
+          if (this->with_relu) {
+            auto lower = *(__m<V> *)(this->relu_bound_lower_vec);
+            auto upper = *(__m<V> *)(this->relu_bound_upper_vec);
+            tout = _mm<V>::max_ps(tout, lower);
+            tout = _mm<V>::min_ps(tout, upper);
+          }
 
           if (std::is_same<OutputType, int8_t>::value ||
               std::is_same<OutputType, uint8_t>::value) {

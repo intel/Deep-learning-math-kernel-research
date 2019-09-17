@@ -549,8 +549,11 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
               iter_each (_T, Tz) {
                 MD4(OutputType, aoutput1, &md4(aoutput0, _ht, ows0 + _T, 0, 0),
                     this->oc4, this->oc3, this->O2, V);
-                auto s = _mm<V>::max_ps(*(__m<V> *)&md4(aoutput1, 0, _oc3, _O2, 0),
-                                        _mm<V>::setzero_ps());
+                auto s = *(__m<V> *)&md4(aoutput1, 0, _oc3, _O2, 0);
+                auto lower = *(__m<V> *)(this->relu_bound_lower_vec);
+                auto upper = *(__m<V> *)(this->relu_bound_upper_vec);
+                s = _mm<V>::max_ps(s, lower);
+                s = _mm<V>::min_ps(s, upper);
                 _mm512_mask_store_ps(&md4(aoutput1, 0, _oc3, _O2, 0), k, s);
               }
             } else el_error("direct: d060: unimplemented");
@@ -595,9 +598,11 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           iter_each (_O2, this->O2) {
           iter_each (_T, Tz) {
             if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value) {
-              auto s = _mm<V>::max_ps(
-                  *(__m<V> *)&md5(aoutput, _oc3, _O2, _ht, ows0 + _T, 0),
-                  _mm<V>::setzero_ps());
+              auto s = *(__m<V> *)&md5(aoutput, _oc3, _O2, _ht, ows0 + _T, 0);
+              auto lower = *(__m<V> *)(this->relu_bound_lower_vec);
+              auto upper = *(__m<V> *)(this->relu_bound_upper_vec);
+              s = _mm<V>::max_ps(s, lower);
+              s = _mm<V>::min_ps(s, upper);
               _mm<V>::store_ps(&md5(aoutput, _oc3, _O2, _ht, ows0 + _T, 0), s);
             } else
               el_error("direct: d060: unimplemented");

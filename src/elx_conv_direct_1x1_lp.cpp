@@ -408,12 +408,11 @@ void Instance_elx_conv_direct_1x1_lp_t::gemm_b161(ToutputType *toutput,
     int attr = _ic4 == 0 && _ic3 == 0
         ? set_attr(attr_, r_output_idx)
         : attr_;
-    attr = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
-        ? set_attr(attr, relu_idx)
-        : attr;
-    attr = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
-        ? set_attr(attr, c_output_idx)
-        : attr;
+    if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+      if (this->with_relu)
+        attr = set_attr(attr, relu_idx);
+      attr = set_attr(attr, c_output_idx);
+    }
     auto ain = this->input_fmt == nhwc
         ? &md2(ainput_nhwc, _ic3, 0) : &md2(ainput_blocked, _ic3, 0);
     iter_each (_oc3, this->oc3) {
@@ -468,12 +467,12 @@ void Instance_elx_conv_direct_1x1_lp_t::gemm_c160(ToutputType *toutput,
     int attr = _ic4 == 0 && _ic3 == 0
         ? set_attr(attr_, r_output_idx)
         : attr_;
-    attr = this->with_relu && _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
-        ? set_attr(attr, relu_idx)
-        : attr;
-    attr = _ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1
-        ? set_attr(attr, c_output_idx)
-        : attr;
+
+    if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+      if (this->with_relu)
+        attr = set_attr(attr, relu_idx);
+      attr = set_attr(attr, c_output_idx);
+    }
 
     auto ain = this->input_fmt == nhwc
              ? &md3(ainput2_nhwc, _ic4, _ic3, 0)

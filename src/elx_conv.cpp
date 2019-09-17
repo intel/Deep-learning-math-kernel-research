@@ -51,6 +51,14 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   this->with_argmax = dc.with_argmax;
   this->f16c_opt = dc.f16c_opt;
   this->use_scratch_pad = dc.use_scratch_pad;
+  this->relu_bound_lower = dc.relu_bound.lower;
+  this->relu_bound_upper = dc.relu_bound.upper;
+
+  // redundant
+  for (auto i = 0; i < sizeof(this->relu_bound_lower_vec); ++i)
+    this->relu_bound_lower_vec[i] = this->relu_bound_lower;
+  for (auto i = 0; i < sizeof(this->relu_bound_upper_vec); ++i)
+    this->relu_bound_upper_vec[i] = this->relu_bound_upper;
 
   this->scratch_pad = dc.scratch_pad;
 

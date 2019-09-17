@@ -230,8 +230,10 @@ struct vmg_conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
               ? &md2(aoutput_blocked1, _T, 0) : &md3(aoutput_nhwc1, 0, _O, 0);
 
     if (get_attr(attr, relu_idx)) {
-      __m<V> zero = _mm<V>::setzero_ps();
-      res = _mm<V>::max_ps(res, zero);
+      auto lower = *(__m<V> *)(xc.relu_bound_lower_vec);
+      auto upper = *(__m<V> *)(xc.relu_bound_upper_vec);
+      res = _mm<V>::max_ps(res, lower);
+      res = _mm<V>::min_ps(res, upper);
     }
     if (get_attr(attr, s_output_idx)) {
       if (std::is_same<OutputType, float>::value) {
@@ -270,8 +272,10 @@ struct vmg_conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     assert(F_traits<F>::is_nhwc_output);
 
     if (get_attr(attr, relu_idx)) {
-      __m<V> zero = _mm<V>::setzero_ps();
-      res = _mm<V>::max_ps(res, zero);
+      auto lower = *(__m<V> *)(xc.relu_bound_lower_vec);
+      auto upper = *(__m<V> *)(xc.relu_bound_upper_vec);
+      res = _mm<V>::max_ps(res, lower);
+      res = _mm<V>::min_ps(res, upper);
     }
     if (std::is_same<OutputType, float>::value) {
       _mm512_mask_store_ps(aout, k, res);
