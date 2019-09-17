@@ -42,28 +42,28 @@ NSOCKETS=1 ./scripts/run.sh -c -i1024 -h8 -o1001 -H8 -k1 -K1 -s1 -S1 -p0 -P0 -n1
 
 echo "Compute group conv"
 # mb1_g32ic32oc32_ih112oh112kh3sh1dh0ph1_iw112ow112kw3sw1dw0pw1
-NSOCKETS=1 ./scripts/run.sh -c -g32 -i32 -h112 -o32 -H112 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=28 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=ghwio
+NSOCKETS=1 ./scripts/run.sh -c -g32 -i32 -h112 -o32 -H112 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=28 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw
 
 # mb1_g64ic64oc64_ih112oh56kh3sh2dh0ph0_iw112ow56kw3sw2dw0pw0
-NSOCKETS=1 ./scripts/run.sh -c -g64 -i64 -h112 -o64 -H56 -k3 -K3 -s2 -S2 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=28 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=ghwio 
+NSOCKETS=1 ./scripts/run.sh -c -g64 -i64 -h112 -o64 -H56 -k3 -K3 -s2 -S2 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=28 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
 
 # mb1_g128ic128oc128_ih56oh56kh3sh1dh0ph1_iw56ow56kw3sw1dw0pw1
-NSOCKETS=1 ./scripts/run.sh -c -g128 -i128 -h56 -o128 -H56 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=ghwio 
+NSOCKETS=1 ./scripts/run.sh -c -g128 -i128 -h56 -o128 -H56 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
 
 # mb1_g128ic128oc128_ih56oh28kh3sh2dh0ph0_iw56ow28kw3sw2dw0pw0
-NSOCKETS=1 ./scripts/run.sh -c -g128 -i128 -h56 -o128 -H28 -k3 -K3 -s2 -S2 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=28 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=ghwio 
+NSOCKETS=1 ./scripts/run.sh -c -g128 -i128 -h56 -o128 -H28 -k3 -K3 -s2 -S2 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=28 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
 
 # mb1_g256ic256oc256_ih28oh28kh3sh1dh0ph1_iw28ow28kw3sw1dw0pw1
-NSOCKETS=1 ./scripts/run.sh -c -g256 -i256 -h28 -o256 -H28 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=28 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=ghwio 
+NSOCKETS=1 ./scripts/run.sh -c -g256 -i256 -h28 -o256 -H28 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=28 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
 
 # mb1_g256ic256oc256_ih28oh14kh3sh2dh0ph0_iw28ow14kw3sw2dw0pw0
-NSOCKETS=1 ./scripts/run.sh -c -g256 -i256 -h28 -o256 -H14 -k3 -K3 -s2 -S2 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=ghwio 
+NSOCKETS=1 ./scripts/run.sh -c -g256 -i256 -h28 -o256 -H14 -k3 -K3 -s2 -S2 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
 
 # mb1_g512ic512oc512_ih14oh14kh3sh1dh0ph1_iw14ow14kw3sw1dw0pw1
-NSOCKETS=1 ./scripts/run.sh -c -g512 -i512 -h14 -o512 -H14 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=ghwio 
+NSOCKETS=1 ./scripts/run.sh -c -g512 -i512 -h14 -o512 -H14 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
 
 # mb1_g512ic512oc512_ih14oh7kh3sh2dh0ph0_iw14ow7kw3sw2dw0pw0
-NSOCKETS=1 ./scripts/run.sh -c -g512 -i512 -h14 -o512 -H7 -k3 -K3 -s2 -S2 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=7 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=ghwio 
+NSOCKETS=1 ./scripts/run.sh -c -g512 -i512 -h14 -o512 -H7 -k3 -K3 -s2 -S2 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=7 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
 
 # mb1_g1024ic1024oc1024_ih7oh7kh3sh1dh0ph1_iw7ow7kw3sw1dw0pw1
-NSOCKETS=1 ./scripts/run.sh -c -g1024 -i1024 -h7 -o1024 -H7 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=7 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=ghwio 
+NSOCKETS=1 ./scripts/run.sh -c -g1024 -i1024 -h7 -o1024 -H7 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=7 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 

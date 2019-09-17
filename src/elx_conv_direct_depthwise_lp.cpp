@@ -80,7 +80,7 @@ Instance_elx_conv_direct_depthwise_lp_t::elx_conv_direct_depthwise_lp_t(eld_conv
   if (this->T <= this->lp || this->Tr <= this->rp) {
     el_error("direct_depthwise: (T,Tr) must greater than (lp,rp)");
   }
-  bool format_ok = estl::any_of(this->weights_fmt, ghwio) &&
+  bool format_ok = estl::any_of(this->weights_fmt, ghwio, goihw) &&
                    estl::any_of(this->input_fmt, nchw, nChw16c) &&
                    estl::any_of(this->output_fmt, nchw, nChw16c);
   if (!format_ok) {
