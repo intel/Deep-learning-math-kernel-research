@@ -108,6 +108,7 @@ struct elx_conv_params_t {
   // Redundant data for performance
   alignas(64) float relu_bound_lower_vec[16];
   alignas(64) float relu_bound_upper_vec[16];
+  alignas(64) float sum_quant_S_vec[16];
 };
 
 struct elx_conv_t : elx_conv_params_t {

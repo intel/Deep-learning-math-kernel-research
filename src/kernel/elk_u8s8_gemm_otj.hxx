@@ -225,7 +225,7 @@ struct u8s8_gemm_kernel_otj<GarrayTypes, OoutputType, V, Vx, ISA_SKX_AVX512,
     if (ip_sum) {
       if (std::is_same<OoutputType, uint8_t>::value
           || std::is_same<OoutputType, int8_t>::value) {
-        __m<V> sum_S = _mm<V>::set1_ps(xc.sum_quant_S);
+        __m<V> sum_S = *(__m<V> *)(xc.sum_quant_S_vec);
         __m128i &mmoo = *(__m128i *)aoout;
         __i<V> mmoos32;
         if (std::is_same<OoutputType, int8_t>::value)

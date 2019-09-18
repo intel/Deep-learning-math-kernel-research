@@ -94,6 +94,8 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   this->output_quant_S = dc.output_quant.scale;
   this->output_quant_z = dc.output_quant.z;
   this->sum_quant_S = dc.sum_quant.scale;
+  for (auto i = 0; i < sizeof(this->sum_quant_S_vec); ++i)
+    this->sum_quant_S_vec[i] = this->sum_quant_S;
   this->sum_quant_z = dc.sum_quant.z;
   this->sampling_kind = dc.sampling_kind;
 
