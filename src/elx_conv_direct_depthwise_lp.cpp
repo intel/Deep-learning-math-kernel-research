@@ -29,8 +29,7 @@ Instance_elx_conv_direct_depthwise_lp_t::elx_conv_direct_depthwise_lp_t(eld_conv
                   estl::any_of(this->kh, 3) &&
                   estl::any_of(this->kw, 3) &&
                   estl::any_of(this->ws, 1, 2) &&
-                  estl::any_of(this->hs, 1, 2) &&
-                  this->lp == (this->kw / 2) && (this->tp == this->kh / 2);
+                  estl::any_of(this->hs, 1, 2);
   if (!shape_ok) {
     el_error("direct_depthwise_lp: shape not supported");
   }
@@ -128,10 +127,10 @@ Template_elx_conv_direct_depthwise_lp_t void
 Instance_elx_conv_direct_depthwise_lp_t::prepare_quant_calibration(
     eld_conv_t &dc) {
   this->input_quant_S = dc.input_quant.scale;
-  this->input_quant_repS = 1 / dc.input_quant.scale;
+  this->input_quant_repS = 1.0f / dc.input_quant.scale;
   this->input_quant_z = dc.input_quant.z;
   this->output_quant_S = dc.output_quant.scale;
-  this->output_quant_repS = 1 / dc.output_quant.scale;
+  this->output_quant_repS = 1.0f / dc.output_quant.scale;
   this->output_quant_z = dc.output_quant.z;
 
   if (this->sampling_kind != CALIBRATED)
