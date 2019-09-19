@@ -29,7 +29,11 @@ Instance_elx_conv_direct_depthwise_lp_t::elx_conv_direct_depthwise_lp_t(eld_conv
                   estl::any_of(this->kh, 3) &&
                   estl::any_of(this->kw, 3) &&
                   estl::any_of(this->ws, 1, 2) &&
-                  estl::any_of(this->hs, 1, 2);
+                  estl::any_of(this->hs, 1, 2) &&
+                  estl::any_of(this->lp, 0, 1) &&
+                  estl::any_of(this->rp, 0, 1) &&
+                  estl::any_of(this->tp, 0, 1) &&
+                  estl::any_of(this->bp, 0, 1);
   if (!shape_ok) {
     el_error("direct_depthwise_lp: shape not supported");
   }
@@ -295,12 +299,12 @@ void Instance_elx_conv_direct_depthwise_lp_t::conv_a160(OutputType *output,
   int khs = estl::max(0, this->tp - this->hs * _ht);
   int khe = estl::min(this->kh, this->ih + this->tp - this->hs * _ht);
   int kws = _wt == 0 ? this->lp : 0;
-  int kwe = _wt == this->wt - 1 ? this->kw - this->lp : this->kw;
+  int kwe = _wt == this->wt - 1 ? this->kw - this->rp : this->kw;
 
   auto _ih = _ht * this->hs + (this->kh / 2) - this->tp;
   auto _iw = _wt * this->T * this->ws + (this->kw / 2) - this->lp;
   int pad_l = (_wt == 0) && (this->lp > 0);
-  int pad_r = (_wt == this->wt - 1) && (this->lp > 0);
+  int pad_r = (_wt == this->wt - 1) && (this->rp > 0);
 
   MD2(TscaleType, asrc_scale, src_scale, 2, T);
   MD3(InputType, ainput_blocked, input_u8, this->ih, this->iw, V);

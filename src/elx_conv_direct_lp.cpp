@@ -505,12 +505,12 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
   int khs = estl::max(0, this->tp - this->hs * _ht);
   int khe = estl::min(this->kh, this->ih + this->tp - this->hs * _ht);
   int kws = _wt == 0 ? this->lp : 0;
-  int kwe = _wt == this->wt - 1 ? this->kw - this->lp : this->kw;
+  int kwe = _wt == this->wt - 1 ? this->kw - this->rp : this->kw;
 
   auto _ih = _ht * this->hs + (this->kh / 2) - this->tp;
   auto _iw = _wt * this->T * this->ws + (this->kw / 2) - this->lp;
   int pad_l = (_wt == 0) && (this->lp > 0);
-  int pad_r = (_wt == this->wt - 1) && (this->lp > 0);
+  int pad_r = (_wt == this->wt - 1) && (this->rp > 0);
 
   int _wacc_wt =
       (_wt == 0 || wacc_wt_ == 1) ? 0 : _wt == this->wt - 1 ? wacc_wt_ - 1 : 1;
