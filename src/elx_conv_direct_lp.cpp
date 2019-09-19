@@ -646,9 +646,8 @@ void Instance_elx_conv_direct_lp_t::gemm_d160(OutputType *output,
       }
     }
 
+    __mmask16 k = _cvtu32_mask16((1 << this->Or) - 1);
     if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
-      __m<V> out_repS = _mm<V>::set1_ps(this->output_quant_repS);
-      __m<V> out_z = _mm<V>::set1_ps(this->output_quant_z);
       iter_each (_O2, this->O2) {
       iter_each (_T, Tz) {
         MD4(ToutputType, atoutput1_nhwc, &md3(atoutput0_nhwc, _ht, ows0 + _T, 0),
@@ -691,8 +690,16 @@ void Instance_elx_conv_direct_lp_t::gemm_d160(OutputType *output,
           } else if (std::is_same<OutputType, float>::value) {
             if (this->with_argmax)
               _mm<V>::store_ps(atout, tout);
-            else
-              _mm<V>::store_ps(aout, tout);
+            else {
+              bool last_oc = (_oc4 == this->oc4 - 1
+                              && _oc3 == this->oc3 - 1
+                              && _O2 == this->O2 - 1);
+              if (last_oc) {
+                _mm<V>::mask_store_ps(aout, k, tout);
+              } else {
+                _mm<V>::store_ps(aout, tout);
+              }
+            }
           } else {
             el_error("direct: d160: unimplemented");
           }

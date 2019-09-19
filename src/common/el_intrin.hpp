@@ -62,6 +62,9 @@ template <> struct _mm<16> {
   static inline void store_ps(void *adrs, __m<V> m) noexcept {
     _mm512_store_ps(adrs, m);
   }
+  static inline void mask_store_ps(void *adrs, __mmask16 k, __m<V> m) noexcept {
+    _mm512_mask_store_ps(adrs, k, m);
+  }
   static inline void stream_ps(void *adrs, __m<V> m) noexcept {
     _mm512_stream_ps((float *)adrs, m);
   }
@@ -321,6 +324,7 @@ template <> struct _mm<16> {
   static constexpr auto load_ps = _mm512_load_ps;
   static constexpr auto loadu_ps = _mm512_loadu_ps;
   static constexpr auto store_ps = _mm512_store_ps;
+  static constexpr auto mask_store_ps = _mm512_mask_store_ps;
   static constexpr auto setzero_ps = _mm512_setzero_ps;
   static constexpr auto set1_ps = _mm512_set1_ps;
   static constexpr auto add_ps = _mm512_add_ps;
@@ -349,6 +353,9 @@ template <> struct _mm<8> {
   }
   static inline void store_ps(float *adrs, __m<V> m) noexcept {
     _mm256_store_ps(adrs, m);
+  }
+  static inline void mask_store_ps(float *adrs, __mmask8 k, __m<V> m) noexcept {
+    _mm256_mask_store_ps(adrs, k, m);
   }
   static inline void stream_ps(float *adrs, __m<V> m) noexcept {
     _mm256_stream_ps(adrs, m);
