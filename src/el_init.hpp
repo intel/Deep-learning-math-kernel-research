@@ -1,5 +1,10 @@
 #pragma once
 
+#if __ICC_COMPILER
+#include "xmmintrin.h"
+#include "pmmintrin.h"
+#endif
+
 namespace euler {
 
 struct el_global_option {

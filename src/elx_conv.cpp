@@ -6,10 +6,6 @@
 #include "el_def.hpp"
 #include "el_utils.hpp"
 #include "elx_conv.hpp"
-#if __ICC_COMPILER
-#include "xmmintrin.h"
-#include "pmmintrin.h"
-#endif
 #include "elx_stream.hpp"
 #include "el_init.hpp"
 
