@@ -285,7 +285,7 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
 
     // return output
     __i<V> u32 = _mm<V>::cvt_roundps_epi32(
-        fout, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
+        fout, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
     return u32;
   }
 

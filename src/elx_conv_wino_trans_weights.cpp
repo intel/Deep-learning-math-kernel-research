@@ -442,7 +442,6 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
     TscaleType *__restrict tweights_quant_factor,
     int8_t *__restrict tweights_s8,
     TweightsType *__restrict tweights, int oc4) {
-  _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
   __m<V> zero = _mm<V>::set1_ps(0.0);
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
 

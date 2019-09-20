@@ -605,7 +605,6 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input, int _t2, int Tz)
 {
-  _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
   MD7(InputType, ainput_blocked, input,
       xc->n, xc->ic4, xc->ic3, xc->I2, xc->ih, xc->iw, V);
   MD7(InputType, ainput_nhwc, input,

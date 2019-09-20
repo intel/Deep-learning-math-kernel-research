@@ -419,7 +419,6 @@ Instance_elx_conv_direct_lp_t::__trans_weights_acc(TscaleType *weights_scale,
 Template_elx_conv_direct_lp_t void Instance_elx_conv_direct_lp_t::
 trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
                 int8_t *tweights_s8, WeightsType *weights, BiasType *bias) {
-  _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
 
   auto Vr = this->ic % V ? this->ic % V : V;
