@@ -521,11 +521,11 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
         if (pad_l) {
           int _kw = 0; // K = 3, 5, 7
           gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), 1, _kh, _kw, 0);
-          if (K > 3) {
+          if (pad_l > 1 && K > 3) {
             _kw = 1; // K = 5, 7
             gemm_OVxxT(input, &md3(aweights, _kh, _kw, 0), 1, _kh, _kw, 0);
           }
-          if (K > 5) {
+          if (pad_l > 2 && K > 5) {
             _kw = 2; // K = 7
             gemm_OVxxxT(input, &md3(aweights, _kh, _kw, 0), 1, _kh, _kw, 0);
           }
@@ -534,11 +534,11 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
         if (pad_r) {
           int _kw = K - 1; // K = 3, 5, 7
           gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), 1, _kh, _kw, 0);
-          if (K > 3) {
+          if (pad_r > 1 && K > 3) {
             _kw = K - 2; // K = 5, 7
             gemm_OVTxx(input, &md3(aweights, _kh, _kw, 0), 1, _kh, _kw, 0);
           }
-          if (K > 5) {
+          if (pad_r > 2 && K > 5) {
             _kw = K - 3; // K = 7
             gemm_OVTxxx(input, &md3(aweights, _kh, _kw, 0), 1, _kh, _kw, 0);
           }
@@ -570,7 +570,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
 #else
             gemm_OVxT_opt(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
 #endif
-            if (K > 3) {
+            if (pad_l > 1 && K > 3) {
               _kw = 1; // K = 5, 7
 #if defined(WITH_VNNI)
               gemm_OVxxT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
@@ -578,7 +578,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
               gemm_OVxxT_opt(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
 #endif
             }
-            if (K > 5) {
+            if (pad_l > 2 && K > 5) {
               _kw = 2; // K = 7
 #if defined(WITH_VNNI)
               gemm_OVxxxT(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
@@ -595,7 +595,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
 #else
             gemm_OVTx_opt(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
 #endif
-            if (K > 3) {
+            if (pad_r > 1 && K > 3) {
               _kw = K - 2; // K = 5, 7
 #if defined(WITH_VNNI)
               gemm_OVTxx(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
@@ -603,7 +603,7 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
               gemm_OVTxx_opt(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
 #endif
             }
-            if (K > 5) {
+            if (pad_r > 2 && K > 5) {
               _kw = K - 3; // K = 7
 #if defined(WITH_VNNI)
               gemm_OVTxxx(input, &md3(aweights, _kh, _kw, 0), V1, _kh, _kw, _I2);
@@ -623,11 +623,11 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           if (pad_l) {
             int _kw = 0; // K = 3, 5, 7
             gemm_OVxT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
-            if (K > 3) {
+            if (pad_l > 1 && K > 3) {
               _kw = 1; // K = 5, 7
               gemm_OVxxT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
             }
-            if (K > 5) {
+            if (pad_l > 2 && K > 5) {
               _kw = 2; // K = 7
               gemm_OVxxxT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
             }
@@ -636,11 +636,11 @@ struct u8s8_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx, ISA_SKX_AVX512,
           if (pad_r) {
             int _kw = K - 1; // K = 3, 5, 7
             gemm_OVTx(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
-            if (K > 3) {
+            if (pad_r > 1 && K > 3) {
               _kw = K - 2; // K = 5, 7
               gemm_OVTxx(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
             }
-            if (K > 5) {
+            if (pad_r > 2 && K > 5) {
               _kw = K - 3; // K = 7
               gemm_OVTxxx(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
             }
