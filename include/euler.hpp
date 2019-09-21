@@ -154,7 +154,7 @@ struct EULER_API eld_conv_t {
   // Flatting/Blocking/Partition
   struct { int o, t; } flatting;
   struct { int i, o; } blocking;
-  struct { int i, o; } partition;
+  struct { int i, o, g; } partition;
   // Streaming hint: STORE_DEFAULT | STORE_NORMAL | STORE_STREAMING
   struct { int input, output; } streaming_hint;
   // Use blocked format internally for plain format

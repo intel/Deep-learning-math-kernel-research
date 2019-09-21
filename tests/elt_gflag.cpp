@@ -36,6 +36,7 @@ DEFINE_int32(blk_i, 1, "IC blocking");
 DEFINE_int32(blk_o, 1, "OC blocking");
 DEFINE_int32(pat_i, 1, "Partition on ic");
 DEFINE_int32(pat_o, 1, "Partition on oc");
+DEFINE_int32(pat_g, 1, "Partition on g");
 DEFINE_int32(streaming_input, 0,
              "Streaming hint for winograd transformed input");
 DEFINE_int32(streaming_output, 0,

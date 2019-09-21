@@ -77,6 +77,7 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
 
   this->ic4 = dc.partition.i;
   this->oc4 = dc.partition.o;
+  this->g3 = dc.partition.g;
 
   this->streaming_input = dc.streaming_hint.input;
   this->streaming_output = dc.streaming_hint.output;

@@ -28,7 +28,7 @@ int nthreads = 0;
 int execution_mode = 0;
 int flt_o = 1, flt_t = 1;
 int blk_i = 1, blk_o = 1;
-int pat_i = 1, pat_o = 1;
+int pat_i = 1, pat_o = 1, pat_g = 1;
 int tile_size = 0;
 int streaming_input = 0, streaming_output = 0;
 bool input_as_blocked = false, weights_as_blocked = false,
@@ -84,6 +84,7 @@ int parse_cmd_options(int argc, char **argv) {
   blk_o = FLAGS_blk_o;
   pat_i = FLAGS_pat_i;
   pat_o = FLAGS_pat_o;
+  pat_g = FLAGS_pat_g;
   streaming_input = FLAGS_streaming_input;
   streaming_output = FLAGS_streaming_output;
   input_as_blocked = FLAGS_input_as_blocked;
@@ -222,14 +223,14 @@ int parse_cmd_options(int argc, char **argv) {
          "ph:%d, pw:%d, sh:%d, sw:%d, dh:%d, dw:%d\n"
          "with_bias:%d, with_relu:%d, with_ip_sum:%d, with_argmax:%d, "
          "f16c_opt=%d, data_type_cfg=%d, validate_results:%d\n"
-         "flt_o:%d, flt_t:%d, blk_i:%d, blk_o:%d, pat_i:%d, pat_o:%d\n"
+         "flt_o:%d, flt_t:%d, blk_i:%d, blk_o:%d, pat_i:%d, pat_o:%d, pat_g:%d\n"
          "streaming-hint:%d, %d\n"
          "nthreads:%d\n"
          "execution-mode:%x\n",
          mb, g, ic, ih, iw, oc, oh, ow, kh, kw, ph, pw, sh, sw, dh, dw,
          with_bias, with_relu, with_ip_sum, with_argmax,
          f16c_opt, data_type_cfg, validate_results,
-         flt_o, flt_t, blk_i, blk_o, pat_i, pat_o, streaming_input,
+         flt_o, flt_t, blk_i, blk_o, pat_i, pat_o, pat_g, streaming_input,
          streaming_output, nthreads, execution_mode);
 
   std::unordered_map<int, const char *> prop_kind_str{
@@ -325,7 +326,7 @@ static inline eld_conv_t &create_conv_desc(eld_conv_t &desc,
   desc.execution_mode = execution_mode;
   desc.flatting = {flt_o, flt_t};
   desc.blocking = {blk_i, blk_o};
-  desc.partition = {pat_i, pat_o};
+  desc.partition = {pat_i, pat_o, pat_g};
   desc.streaming_hint = {streaming_input, streaming_output};
   desc.format_as_blocked = {input_as_blocked, weights_as_blocked,
                             output_as_blocked};

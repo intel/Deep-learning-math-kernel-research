@@ -62,7 +62,6 @@ Template_elx_conv_direct_depthwise_lp_t class elx_conv_direct_depthwise_lp_t : p
   bool is_first_run_;
   bool inference_acc_;
 
-  int G, g2; // aligned-up g, blocked g
   size_t tweights_size_;
   TweightsType *tweights_;
   size_t tweights_s8_size_;

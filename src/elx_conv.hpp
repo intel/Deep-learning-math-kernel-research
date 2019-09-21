@@ -18,9 +18,9 @@ struct elx_conv_params_t {
   // dimensions
   int g, ic, oc, ih, iw, oh, ow, n, t, kh, kw;
   // dimensions in packed unit
-  int ic2, oc2, ih2, iw2, oh2, ow2, t2;
+  int g2, ic2, oc2, ih2, iw2, oh2, ow2, t2;
   // dimensions in pack-in-pack unit
-  int ic3, oc3, ih3, iw3, oh3, ow3, t3;
+  int g3, ic3, oc3, ih3, iw3, oh3, ow3, t3;
   // dimensions in tripple level packed unit
   int ic4, oc4;
   // redundant dim size
@@ -36,9 +36,9 @@ struct elx_conv_params_t {
   // register working set
   int T;
   // padding (IC/OC) & tailing dimensions: Ir, Or, Tr
-  int IC, OC, Ir, Or, Tr, O2r, oc3r;
+  int G, IC, OC, Ir, Or, Tr, O2r, oc3r;
   // 2nd/r3d level cache blocking unit(in pack) to ic, oc
-  int I2, O, O1, O2, I3, O3;
+  int G2, I2, O, O1, O2, I3, O3;
   // padding
   int lp, rp, tp, bp;
   // stride

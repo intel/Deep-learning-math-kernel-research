@@ -41,6 +41,7 @@ DECLARE_int32(blk_i);
 DECLARE_int32(blk_o);
 DECLARE_int32(pat_i);
 DECLARE_int32(pat_o);
+DECLARE_int32(pat_g);
 DECLARE_int32(streaming_input);
 DECLARE_int32(streaming_output);
 DECLARE_string(input_format);

@@ -54,7 +54,7 @@ Template_elx_conv_direct_vmg_t class elx_conv_direct_vmg_t : public elx_conv_t {
   void (elx_conv_direct_vmg_t::*execute_opt_)(
       OutputType *, InputType *, WeightsType *, BiasType *);
 
-  int G, C;
+  int C;
   bool is_first_run_;
   bool inference_acc_;
 
