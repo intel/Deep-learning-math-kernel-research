@@ -318,7 +318,7 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
     MD2(ScaleType, aweights_factor, weights_factor, xc.ic2, V);
     MD2(RoutputType, aroutput, routput, xc.ic2, xc.oh * xc.ow * V);
 
-    for (int _g2 = 0; _g2 < xc.ic2; ++_g2) {
+    for (int _g2 = 0; _g2 < xc.g2; ++_g2) {
       // clear output
       unroll_for (_T, T) {
         mmout[_T] = _mm<V>::setzero_epi32();;
