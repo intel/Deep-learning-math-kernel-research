@@ -167,6 +167,7 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
 #define WEIGHTS_MAX_PRELOAD 4
   if (tweights_size_ > 0)
     tweights_size_ += WEIGHTS_MAX_PRELOAD * V;
+  workspace_size_ = tweights_size_;
   scratch_size_ = toutput_size_;
 
   return 0;
