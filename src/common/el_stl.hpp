@@ -276,4 +276,10 @@ inline const T& min(const T& m, const T& n) {
     return m < n ? m : n;
 }
 
+template <typename T, std::size_t N>
+std::size_t size(T (&)[N])
+{
+    return N;
+}
+
 } // estl
