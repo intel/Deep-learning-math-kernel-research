@@ -143,12 +143,12 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
     _mm<V>::store_ps(out_ptr(m, n), p_(m, n));                                 \
   } else if (std::is_same<OutputType, uint8_t>::value) {                       \
     __i<V> mresu32 = _mm<V>::cvt_roundps_epu32(                                \
-        p_(m, n), _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);              \
+        p_(m, n), _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);                  \
     __m128i mresu8 = _mm<V>::cvtusepi32_epi8(mresu32);                         \
     _mm_store_si128((__m128i *)out_ptr(m, n), mresu8);                         \
   } else if (std::is_same<OutputType, int8_t>::value) {                        \
     __i<V> mresi32 = _mm<V>::cvt_roundps_epi32(                                \
-        p_(m, n), _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);              \
+        p_(m, n), _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);                  \
     __m128i mresi8 = _mm<V>::cvtsepi32_epi8(mresi32);                          \
     _mm_store_si128((__m128i *)out_ptr(m, n), mresi8);                         \
   } else {                                                                     \
