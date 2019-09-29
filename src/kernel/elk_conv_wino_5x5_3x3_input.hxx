@@ -13,7 +13,7 @@ namespace euler {
   _mm<V>::store_ps(&md3(atinput, 0, n, 0), t0##n);                             \
   t1##n = ((z17_5 * c4 + (c5 - c6)) - (z17_10 * c3 - (c1 - c2)));              \
   _mm<V>::store_ps(&md3(atinput, 1, n, 0), t1##n);                             \
-  t2##n = -(((z1_2 * c1 - c3) - (z1_4 * c2 - c4)) + (z2 * c5 + c6));           \
+  t2##n = -(((z1_2 * c1 - c3) + (z1_4 * c2 - c4)) + (z2 * c5 + c6));           \
   _mm<V>::store_ps(&md3(atinput, 2, n, 0), t2##n);                             \
   t3##n = (((z1_2 * c1 - c3) - (z1_4 * c2 - c4)) + (z2 * c5 - c6));            \
   _mm<V>::store_ps(&md3(atinput, 3, n, 0), t3##n);                             \
