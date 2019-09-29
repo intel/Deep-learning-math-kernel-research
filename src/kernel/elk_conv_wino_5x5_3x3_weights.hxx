@@ -8,17 +8,17 @@
 
 namespace euler {
 
-#define AVX512_CALCULATE_W_5_0(z, n, nil)                                      \
+#define AVX512_CALCULATE_W_5_0(n)                                              \
   c##n = (r4_81 * (f##n##0 + f##n##1 + f##n##2));
-#define AVX512_CALCULATE_W_5_1(z, n, nil)                                      \
+#define AVX512_CALCULATE_W_5_1(n)                                              \
   c##n = (r4_81 * (f##n##0 - f##n##1 + f##n##2));
-#define AVX512_CALCULATE_W_5_2(z, n, nil)                                      \
+#define AVX512_CALCULATE_W_5_2(n)                                              \
   c##n = (r2_405 * f##n##0 + (r4_405 * f##n##1 + (r8_405 * f##n##2)));
-#define AVX512_CALCULATE_W_5_3(z, n, nil)                                      \
+#define AVX512_CALCULATE_W_5_3(n)                                              \
   c##n = (r4_405 * f##n##1 - (r2_405 * f##n##0 + (r8_405 * f##n##2)));
-#define AVX512_CALCULATE_W_5_4(z, n, nil)                                      \
+#define AVX512_CALCULATE_W_5_4(n)                                              \
   c##n = (r32_405 * f##n##0 + (r16_405 * f##n##1 + (r8_405 * f##n##2)));
-#define AVX512_CALCULATE_W_5_5(z, n, nil)                                      \
+#define AVX512_CALCULATE_W_5_5(n)                                              \
   c##n = (r16_405 * f##n##1 - (r32_405 * f##n##0 + (r8_405 * f##n##2)));
 
 #define AVX512_CALCULATE_W_5(n)                                                \
@@ -72,9 +72,9 @@ struct elk_conv_wino_trans_weights<float, WeightsType, ISA_SKX_AVX512,
 #define T(h, w) atweights[h][w][_V]
 
 #undef f
-#undef OP
+#undef LOAD 
 #define f(m, n) f##m##n
-#define OP(m, n)                                                               \
+#define LOAD(m, n)                                                             \
   if (std::is_same<WeightsType, float>::value)                                 \
     f(m, n) = _mm<V>::load_ps(F(m, n));                                        \
   else {                                                                       \
@@ -83,35 +83,55 @@ struct elk_conv_wino_trans_weights<float, WeightsType, ISA_SKX_AVX512,
   }
 
     for (int _V = 0; _V < V; ++_V) {
-      MATRIX_DEF(3, 3);
+      LOAD(0, 0);
+      LOAD(0, 1);
+      LOAD(0, 2);
+      LOAD(1, 0);
+      LOAD(1, 1);
+      LOAD(1, 2);
+      LOAD(2, 0);
+      LOAD(2, 1);
+      LOAD(2, 2);
 
       // col 1
-      BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_5_0, nil)
+      AVX512_CALCULATE_W_5_0(0);
+      AVX512_CALCULATE_W_5_0(1);
+      AVX512_CALCULATE_W_5_0(2);
       AVX512_CALCULATE_W_5(0)
 
       // col 2
-      BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_5_1, nil)
+      AVX512_CALCULATE_W_5_1(0);
+      AVX512_CALCULATE_W_5_1(1);
+      AVX512_CALCULATE_W_5_1(2);
       AVX512_CALCULATE_W_5(1)
 
       // col 3
       __m<V> r2_405 = _mm<V>::set_ps(IMM_BCAST16(2.0f / 405.0f));
       __m<V> r4_405 = _mm<V>::set_ps(IMM_BCAST16(4.0f / 405.0f));
       __m<V> r8_405 = _mm<V>::set_ps(IMM_BCAST16(8.0f / 405.0f));
-      BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_5_2, nil)
+      AVX512_CALCULATE_W_5_2(0);
+      AVX512_CALCULATE_W_5_2(1);
+      AVX512_CALCULATE_W_5_2(2);
       AVX512_CALCULATE_W_5(2)
 
       // col 4
-      BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_5_3, nil)
+      AVX512_CALCULATE_W_5_3(0);
+      AVX512_CALCULATE_W_5_3(1);
+      AVX512_CALCULATE_W_5_3(2);
       AVX512_CALCULATE_W_5(3)
 
       // col 5
       __m<V> r16_405 = _mm<V>::set_ps(IMM_BCAST16(16.0f / 405.0f));
       __m<V> r32_405 = _mm<V>::set_ps(IMM_BCAST16(32.0f / 405.0f));
-      BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_5_4, nil)
+      AVX512_CALCULATE_W_5_4(0);
+      AVX512_CALCULATE_W_5_4(1);
+      AVX512_CALCULATE_W_5_4(2);
       AVX512_CALCULATE_W_5(4)
 
       // col 6
-      BOOST_PP_REPEAT(3, AVX512_CALCULATE_W_5_5, nil)
+      AVX512_CALCULATE_W_5_5(0);
+      AVX512_CALCULATE_W_5_5(1);
+      AVX512_CALCULATE_W_5_5(2);
       AVX512_CALCULATE_W_5(5)
 
       // col 7

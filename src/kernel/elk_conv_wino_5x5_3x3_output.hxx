@@ -15,18 +15,18 @@ namespace euler {
     p = p + _mm<V>::cvtph_ps(f16v);                                            \
   }
 
-#define AVX512_CALCULATE_O_0(z, n, nil)                                        \
+#define AVX512_CALCULATE_O_0(n)                                                \
   c##n = t##n##0 + t##n##1 + t##n##2 + t##n##3 + t##n##4 + t##n##5;
-#define AVX512_CALCULATE_O_1(z, n, nil)                                        \
+#define AVX512_CALCULATE_O_1(n)                                                \
   c##n = ((z2 * (t##n##2 - t##n##3) + t##n##0)                                 \
           + (z1_2 * (t##n##4 - t##n##5) - t##n##1));
-#define AVX512_CALCULATE_O_2(z, n, nil)                                        \
+#define AVX512_CALCULATE_O_2(n)                                                \
   c##n = ((z4 * (t##n##2 + t##n##3) + t##n##0)                                 \
           + (z1_4 * (t##n##4 + t##n##5) + t##n##1));
-#define AVX512_CALCULATE_O_3(z, n, nil)                                        \
+#define AVX512_CALCULATE_O_3(n)                                                \
   c##n = ((z8 * (t##n##2 - t##n##3) + t##n##0)                                 \
           + (z1_8 * (t##n##4 - t##n##5) - t##n##1));
-#define AVX512_CALCULATE_O_4(z, n, nil)                                        \
+#define AVX512_CALCULATE_O_4(n)                                                \
   c##n = ((z16 * (t##n##2 + t##n##3) + (t##n##0 + t##n##1))                    \
           + (z1_16 * (t##n##4 + t##n##5) + t##n##6));
 
@@ -172,22 +172,42 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
     __m<V> t64 = _mm<V>::load_ps(&md3(atoutput, 6, 4, 0));
     __m<V> t65 = _mm<V>::load_ps(&md3(atoutput, 6, 5, 0));
 
-    BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_0, nil)
+    AVX512_CALCULATE_O_0(0);
+    AVX512_CALCULATE_O_0(1);
+    AVX512_CALCULATE_O_0(2);
+    AVX512_CALCULATE_O_0(3);
+    AVX512_CALCULATE_O_0(4);
+    AVX512_CALCULATE_O_0(5);
     AVX512_CALCULATE_O(0);
     p40 = p40 + t60 + t61 + t62 + t63 + t64 + t65;
     AVX512_ADD_B(0)
 
-    BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_1, nil)
+    AVX512_CALCULATE_O_1(0);
+    AVX512_CALCULATE_O_1(1);
+    AVX512_CALCULATE_O_1(2);
+    AVX512_CALCULATE_O_1(3);
+    AVX512_CALCULATE_O_1(4);
+    AVX512_CALCULATE_O_1(5);
     AVX512_CALCULATE_O(1);
     p41 = p41 + z2 * (t62 - t63) + (z1_2 * (t64 - t65) + (t60 - t61));
     AVX512_ADD_B(1)
 
-    BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_2, nil)
+    AVX512_CALCULATE_O_2(0);
+    AVX512_CALCULATE_O_2(1);
+    AVX512_CALCULATE_O_2(2);
+    AVX512_CALCULATE_O_2(3);
+    AVX512_CALCULATE_O_2(4);
+    AVX512_CALCULATE_O_2(5);
     AVX512_CALCULATE_O(2);
     p42 = p42 + (z4 * (t62 + t63) + (z1_4 * (t64 + t65) + (t60 + t61)));
     AVX512_ADD_B(2)
 
-    BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_3, nil)
+    AVX512_CALCULATE_O_3(0);
+    AVX512_CALCULATE_O_3(1);
+    AVX512_CALCULATE_O_3(2);
+    AVX512_CALCULATE_O_3(3);
+    AVX512_CALCULATE_O_3(4);
+    AVX512_CALCULATE_O_3(5);
     AVX512_CALCULATE_O(3);
     p43 = p43 + (z8 * (t62 - t63) + (z1_8 * (t64 - t65) + (t60 - t61)));
     AVX512_ADD_B(3)
@@ -199,7 +219,12 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
     __m<V> t46 = _mm<V>::load_ps(&md3(atoutput, 4, 6, 0));
     __m<V> t56 = _mm<V>::load_ps(&md3(atoutput, 5, 6, 0));
     __m<V> t66 = _mm<V>::load_ps(&md3(atoutput, 6, 6, 0));
-    BOOST_PP_REPEAT(6, AVX512_CALCULATE_O_4, nil)
+    AVX512_CALCULATE_O_4(0);
+    AVX512_CALCULATE_O_4(1);
+    AVX512_CALCULATE_O_4(2);
+    AVX512_CALCULATE_O_4(3);
+    AVX512_CALCULATE_O_4(4);
+    AVX512_CALCULATE_O_4(5);
     AVX512_CALCULATE_O(4);
     p44 = p44 + (z16 * (t62 + t63) + (z1_16 * (t64 + t65) + (t60 + t61 + t66)));
     AVX512_ADD_B(4)

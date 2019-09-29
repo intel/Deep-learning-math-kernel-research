@@ -75,8 +75,6 @@ elseif(${CMAKE_BUILD_TYPE} MATCHES "Profiling")
 endif()
 
 include("cmake/flags.cmake")
-include("cmake/required.cmake")
-
 
 # find src files
 file (GLOB __euler_source

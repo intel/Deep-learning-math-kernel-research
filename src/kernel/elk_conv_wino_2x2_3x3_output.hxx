@@ -136,9 +136,9 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
       p11 = _mm<V>::max_ps(p11, z);
     }
 
-#undef OP
+#undef STORE
 #define p_(m, n) p##m##n
-#define OP(m,n)                                                                \
+#define STORE(m,n)                                                             \
   if (std::is_same<OutputType, float>::value) {                                \
     _mm<V>::store_ps(out_ptr(m, n), p_(m, n));                                 \
   } else if (std::is_same<OutputType, uint8_t>::value) {                       \
@@ -157,7 +157,10 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
     _mm<V/2>::store_si256((__m256i *)out_ptr(m, n), f16);                      \
   }
 
-    MATRIX_DEF(2, 2);
+    STORE(0, 0);
+    STORE(0, 1);
+    STORE(1, 0);
+    STORE(1, 1);
   }
 
 }; // elk_conv_wino_trans_output
