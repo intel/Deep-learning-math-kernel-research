@@ -50,11 +50,11 @@ Template_elx_conv_direct_lp_t class elx_conv_direct_lp_t : public elx_conv_t {
   void conv_a160(OutputType *output, ToutputType *toutput, InputType *input,
       int8_t *tweights, BiasType *bias, TscaleType *src_scale,
       TscaleType *weights_scale, TscaleType *weights_factor,
-      int _ic4, int _oc4, int _ht, int _wt);
+      int _I4, int _O4, int _ht, int _wt);
   void gemm_d160(OutputType *output, ToutputType *toutput, InputType *input,
       int8_t *tweights, BiasType *bias, TscaleType *src_scale,
       TscaleType *weights_scale, TscaleType *weights_factor,
-      int _ic4, int _oc4, int _ht, int _wt);
+      int _I4, int _O4, int _ht, int _wt);
 
   int prepare_execute_opt();
   void set_scratch_buffers(void *base);

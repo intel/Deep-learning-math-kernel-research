@@ -96,7 +96,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
     MD3(OutputType, aoutput_nhwc0, output, T, xc.g, xc.oc);
-    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.O4 * xc.O3 * xc.O1, xc.O, V);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
               : F_traits<F>::is_blocked_output
@@ -121,7 +121,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
     MD3(OutputType, aoutput_nhwc0, output, T, xc.g, xc.oc);
-    MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0), xc.O4 * xc.O3 * xc.O1, xc.O, V);
     assert(F_traits<F>::is_nhwc_output);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
@@ -187,7 +187,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
         return _mm<V>::set1_ps(*(float *)(&md5(ainput0, _I2, _T, 0, _V, _P) - 1));
     } else if (F_traits<F>::is_nhwc_input) {
       MD5(InputType, ainput0, input, xc.wt, T, S, xc.g, xc.ic);
-      MD5(InputType, ainput1, &md5(ainput0, 0, _T, 0, 0, 0), xc.ic4, xc.ic3, xc.I2, V/P, P);
+      MD5(InputType, ainput1, &md5(ainput0, 0, _T, 0, 0, 0), xc.I4, xc.I3, xc.I2, V/P, P);
       if (std::is_same<InputType, float>::value)
         return _mm<V>::set1_ps(md5(ainput1, 0, 0, _I2, _V, _P));
       else
@@ -222,7 +222,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
     MD3(OutputType, aoutput_nhwc0, output, T, xc.g, xc.oc);
-    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.O4 * xc.O3 * xc.O1, xc.O, V);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
               : F_traits<F>::is_blocked_output
@@ -263,7 +263,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
     MD3(OutputType, aoutput_nhwc0, output, T, xc.g, xc.oc);
-    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.O4 * xc.O3 * xc.O1, xc.O, V);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
               : F_traits<F>::is_blocked_output
@@ -433,7 +433,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     MD2(OutputType, aoutput_compact, output, xc.O1, O * T * V);
     MD2(OutputType, aoutput_blocked, output, xc.O1, O * xc.oh * xc.ow * V);
-    MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.g, xc.oc4 * xc.oc3, xc.O1, O * V);
+    MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.g, xc.O4 * xc.O3, xc.O1, O * V);
 
     MD2(WeightsType, aweights, weights, xc.O1, W_stride);
     MD2(BiasType, abias, bias, xc.O1, O * V);
@@ -466,7 +466,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     MD3(OutputType, aoutput_compact, output, xc.O1, O, T * V);
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
-    MD6(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.g, xc.oc4 * xc.oc3, xc.O1, O, V);
+    MD6(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.g, xc.O4 * xc.O3, xc.O1, O, V);
 
     MD4(WeightsType, aweights, weights, xc.O1, W_stride0, O, W_stride1);
     MD3(BiasType, abias, bias, xc.O1, O, V);
@@ -505,7 +505,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
 
     MD3(OutputType, aoutput_compact, output, xc.O1, O, T * V);
     MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
-    MD6(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.g, xc.oc4 * xc.oc3, xc.O1, O, V);
+    MD6(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.g, xc.O4 * xc.O3, xc.O1, O, V);
 
     MD4(WeightsType, aweights, weights, xc.O1, W_stride0, O, W_stride1);
     MD3(BiasType, abias, bias, xc.O1, O, V);

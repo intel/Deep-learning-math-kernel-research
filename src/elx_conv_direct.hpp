@@ -44,18 +44,18 @@ Template_elx_conv_direct_t class elx_conv_direct_t : public elx_conv_t {
 
   void trans_weights_to_compact(TweightsType *tweights, WeightsType *weights);
   inline void __trans_weights_post(WeightsType *aweights, TweightsType *tweights,
-      int _g, int _oc4, int _ic4, int _oc3, int _ic3, int _kh, int _kw, int _O1,
+      int _g, int _O4, int _I4, int _O3, int _I3, int _kh, int _kw, int _O1,
       int _I2, int _iV, int _O);
   inline void __trans_weights_Or_post(WeightsType *aweights, TweightsType *tweights,
-      int _g, int _oc4, int _ic4, int _oc3, int _ic3, int _kh, int _kw, int _O1,
+      int _g, int _O4, int _I4, int _O3, int _I3, int _kh, int _kw, int _O1,
       int _I2, int _iV, int _O);
 
   void conv_a060(OutputType *output, InputType *input, TweightsType *weights,
-      BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
+      BiasType *bias, int _I4, int _O4, int _ht, int _wt);
   void conv_b060(OutputType *output, InputType *input, TweightsType *weights,
-      BiasType *bias, int _ic4, int _ic3, int _oc4, int _ht, int _wt);
+      BiasType *bias, int _I4, int _I3, int _O4, int _ht, int _wt);
   void gemm_d060(OutputType *toutput, InputType *tinput, TweightsType *tweights,
-      BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
+      BiasType *bias, int _I4, int _O4, int _ht, int _wt);
 
   void set_workspace_buffers(void *base);
   void set_scratch_buffers(void *base);

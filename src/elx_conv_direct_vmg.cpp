@@ -55,14 +55,14 @@ Instance_elx_conv_direct_vmg_t::elx_conv_direct_vmg_t(eld_conv_t &dc)
   if (this->T == 0) this->T = 1;
   this->I2 = 1;
 
-  this->oc4 = 1;
-  this->oc3 = 1;
+  this->O4 = 1;
+  this->O3 = 1;
   this->O = 1;
   this->O1 = 1;
   this->O2 = this->O * this->O1;
   
-  this->ic4 = 1;
-  this->ic3 = 1;
+  this->I4 = 1;
+  this->I3 = 1;
   this->I2 = 1;
 
   this->ic2 = this->IC / V;
@@ -70,8 +70,7 @@ Instance_elx_conv_direct_vmg_t::elx_conv_direct_vmg_t(eld_conv_t &dc)
 
   xopt_ = 0xa060;
 
-  // t3, t2, (T, Tr)
-  this->t3 = this->n;
+  // n, t2, (T, Tr)
   this->ht = this->oh;
   this->wt = (this->ow + this->T - 1) / this->T;
   this->Tr = this->ow % this->T ? this->ow % this->T : this->T;
@@ -95,11 +94,11 @@ Instance_elx_conv_direct_vmg_t::elx_conv_direct_vmg_t(eld_conv_t &dc)
   this->ormask = (1 << this->Or) - 1;
 
   // IC = V = G * C; ic_orig = g * G * C
-  if (this->ic4 * this->ic3 * this->I2 * V != this->IC) {
+  if (this->I4 * this->I3 * this->I2 * V != this->IC) {
     el_error("IC blocking error");
   }
   // OC = V = G * C; oc_orig = g * G * C
-  if (this->oc4 * this->oc3 * this->O2 * V != this->OC) {
+  if (this->O4 * this->O3 * this->O2 * V != this->OC) {
     el_error("OC blocking error");
   }
 
@@ -117,11 +116,11 @@ Instance_elx_conv_direct_vmg_t::elx_conv_direct_vmg_t(eld_conv_t &dc)
   // dbg
   printf("T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d\n",
       this->T, this->Tr, this->t2, this->ht, this->wt, this->t);
-  printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic4=%d, IC=%d, g=%d\n",
-      V, this->Ir, this->I2, this->ic3, this->ic4, this->IC, this->g);
-  printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), oc3=%d, oc4=%d, O2r=%d, oc3r=%d, OC=%d, g=%d, G=%d, C=%d\n",
+  printf("V=%d, Ir=%d, I2=%d, I3=%d, I4=%d, IC=%d, g=%d\n",
+      V, this->Ir, this->I2, this->I3, this->I4, this->IC, this->g);
+  printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d, g=%d, G=%d, C=%d\n",
       V, this->Or, this->O2, this->O, this->O1,
-      this->oc3, this->oc4, this->O2r, this->oc3r, this->OC, this->g, G, C);
+      this->O3, this->O4, this->O2r, this->O3r, this->OC, this->g, G, C);
 }
 
 Template_elx_conv_direct_vmg_t
@@ -210,14 +209,14 @@ void Instance_elx_conv_direct_vmg_t::trans_weights_to_compact(
 // kh,kw=odd, lp=rp=standard, ih=oh*hs, iw=ow*ws, hs=ws=1
 Template_elx_conv_direct_vmg_t void
 Instance_elx_conv_direct_vmg_t::conv_a060(OutputType *output,
-    InputType *input, TweightsType *weights, BiasType *bias, int _ic4, int _oc4,
+    InputType *input, TweightsType *weights, BiasType *bias, int _I4, int _O4,
     int _ht, int _wt)
 {
-  // input:   ic3*, I2, V, ht*, hs*, wt*, T, ws
-  // output:  oc3*, O2, ht*, wt*, T, V
-  MD3(TweightsType, aweights, weights, this->oc3, this->ic3,
+  // input:   I3*, I2, V, ht*, hs*, wt*, T, ws
+  // output:  O3*, O2, ht*, wt*, T, V
+  MD3(TweightsType, aweights, weights, this->O3, this->I3,
       this->kh * this->kw * this->O2 * this->I2 * V * C);
-  MD2(BiasType, abias, bias, this->oc3, this->O2 * V);
+  MD2(BiasType, abias, bias, this->O3, this->O2 * V);
 
   auto ker_conv = _wt == this->wt - 1 ? ker_conv_Tr_ : ker_conv_;
 
@@ -228,38 +227,38 @@ Instance_elx_conv_direct_vmg_t::conv_a060(OutputType *output,
   assert(this->T > this->lp && this->Tr > this->rp);
 
   if (this->input_fmt == nhwc) {
-    MD2(InputType, ainput, input, this->ic3, this->I2 * V);
-    MD2(OutputType, aoutput, output, this->oc3, this->O2 * V);
+    MD2(InputType, ainput, input, this->I3, this->I2 * V);
+    MD2(OutputType, aoutput, output, this->O3, this->O2 * V);
 
-    iter_each(_oc3, this->oc3) {
-    iter_each(_ic3, this->ic3) {
-      int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
-      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+    iter_each(_O3, this->O3) {
+    iter_each(_I3, this->I3) {
+      int attr = (_I4 == 0 && _I3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
+      if (_I4 == this->I4 - 1 && _I3 == this->I3 - 1) {
         if (this->Ir != C) attr = set_attr(attr, has_Ir_idx);
         if (this->with_relu) attr = set_attr(attr, relu_idx);
       }
-      if (this->Or != V && _oc4 == this->oc4 - 1 && _oc3 == this->oc3 - 1) {
+      if (this->Or != V && _O4 == this->O4 - 1 && _O3 == this->O3 - 1) {
         attr = set_attr(attr, has_Or_idx);
       }
-      ker_conv(*this, &md2(aoutput, _oc3, 0),
-          &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
+      ker_conv(*this, &md2(aoutput, _O3, 0),
+          &md2(ainput, _I3, 0), &md3(aweights, _O3, _I3, 0),
+          &md2(abias, _O3, 0), _wt, khs, khe, kws, kwe, attr);
     }}
   } else {
     // blocked or nchw
-    MD2(InputType, ainput, input, this->ic3, this->I2 * V * this->ih * this->iw);
-    MD2(OutputType, aoutput, output, this->oc3, this->O2 * this->ht * this->ow * V);
+    MD2(InputType, ainput, input, this->I3, this->I2 * V * this->ih * this->iw);
+    MD2(OutputType, aoutput, output, this->O3, this->O2 * this->ht * this->ow * V);
 
-    iter_each(_oc3, this->oc3) {
-    iter_each(_ic3, this->ic3) {
-      int attr = (_ic4 == 0 && _ic3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
-      if (_ic4 == this->ic4 - 1 && _ic3 == this->ic3 - 1) {
+    iter_each(_O3, this->O3) {
+    iter_each(_I3, this->I3) {
+      int attr = (_I4 == 0 && _I3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
+      if (_I4 == this->I4 - 1 && _I3 == this->I3 - 1) {
         if (this->Ir != C) attr = set_attr(attr, has_Ir_idx);
         if (this->with_relu) attr = set_attr(attr, relu_idx);
       }
-      ker_conv(*this, &md2(aoutput, _oc3, 0),
-          &md2(ainput, _ic3, 0), &md3(aweights, _oc3, _ic3, 0),
-          &md2(abias, _oc3, 0), _wt, khs, khe, kws, kwe, attr);
+      ker_conv(*this, &md2(aoutput, _O3, 0),
+          &md2(ainput, _I3, 0), &md3(aweights, _O3, _I3, 0),
+          &md2(abias, _O3, 0), _wt, khs, khe, kws, kwe, attr);
     }}
   }
 }

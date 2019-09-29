@@ -48,12 +48,12 @@ Template_elx_conv_wino_lp_t Instance_elx_conv_wino_lp_t::elx_conv_wino_lp_t(
   }
   inference_acc_ = this->prop_kind == forward_inference;
 
-  this->oc4 = this->oc4 == 0 ? 1 : this->oc4;
-  this->ic4 = this->ic4 == 0 ? 1 : this->ic4;
+  this->O4 = this->O4 == 0 ? 1 : this->O4;
+  this->I4 = this->I4 == 0 ? 1 : this->I4;
 
   // further divide packed oc/ic
-  this->oc3 = this->oc2 / this->O2;
-  this->ic3 = this->ic2 / this->I2;
+  this->O3 = this->oc2 / this->O2;
+  this->I3 = this->ic2 / this->I2;
 
   this->t2 = (this->t + this->T - 1) / this->T;
 
@@ -72,28 +72,28 @@ Template_elx_conv_wino_lp_t Instance_elx_conv_wino_lp_t::elx_conv_wino_lp_t(
   // dbg
   printf("############################################################\n");
   printf("T=%d, Tr=%d, t2=%d, t=%d\n", this->T, this->Tr, this->t2, this->t);
-  printf("V=%d, Ir=%d, Vx=%d, I2=%d, ic3=%d, ic4=%d, IC=%d\n",
-      V, this->Ir, this->Vx, this->I2, this->ic3, this->ic4, this->IC);
-  printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), oc3=%d, oc4=%d, OC=%d\n",
-      V, this->Or, this->O2, this->O, this->O1, this->oc3, this->oc4, this->OC);
+  printf("V=%d, Ir=%d, Vx=%d, I2=%d, I3=%d, I4=%d, IC=%d\n",
+      V, this->Ir, this->Vx, this->I2, this->I3, this->I4, this->IC);
+  printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, OC=%d\n",
+      V, this->Or, this->O2, this->O, this->O1, this->O3, this->O4, this->OC);
 
 #ifdef DEBUG
-  if (V * this->I2 * this->ic3 * this->ic4 != this->IC) {
-    el_warn("V * I2 * ic3 * ic4 != this->IC\n Force ic4 = IC / (V * I2 * ic3)");
-    this->ic4 = this->IC / (V * this->I2 * this->ic3);
+  if (V * this->I2 * this->I3 * this->I4 != this->IC) {
+    el_warn("V * I2 * I3 * I4 != this->IC\n Force I4 = IC / (V * I2 * I3)");
+    this->I4 = this->IC / (V * this->I2 * this->I3);
   }
 
-  if (V * this->O2 * this->oc3 * this->oc4 != this->OC) {
-    el_warn("V * O2 * oc3 * oc4 != this->OC\n Force oc4 = OC / (V * O2 * oc3)");
-    this->oc4 = this->OC / (V * this->O2 * this->oc3);
+  if (V * this->O2 * this->O3 * this->O4 != this->OC) {
+    el_warn("V * O2 * O3 * O4 != this->OC\n Force O4 = OC / (V * O2 * O3)");
+    this->O4 = this->OC / (V * this->O2 * this->O3);
   }
 #else
-  if (V * this->I2 * this->ic3 * this->ic4 != this->IC) {
-    el_error("V * I2 * ic3 * ic4 != this->IC\n)");
+  if (V * this->I2 * this->I3 * this->I4 != this->IC) {
+    el_error("V * I2 * I3 * I4 != this->IC\n)");
   }
 
-  if (V * this->O2 * this->oc3 * this->oc4 != this->OC) {
-    el_error("V * O2 * oc3 * oc4 != this->OC\n)");
+  if (V * this->O2 * this->O3 * this->O4 != this->OC) {
+    el_error("V * O2 * O3 * O4 != this->OC\n)");
   }
 #endif
 }
@@ -108,15 +108,15 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
       tweights_quant_scale_size = 0, tweights_quant_factor_size = 0;
 
   if (xopt_ & FUS_O) {
-    this->oc3 /= this->oc4;
-    if (V * this->O2 * this->oc3 * this->oc4 != this->OC) {
+    this->O3 /= this->O4;
+    if (V * this->O2 * this->O3 * this->O4 != this->OC) {
       el_error("Config error!");
       return -1;
     }
   }
   if (xopt_ & FUS_I) {
-    this->ic3 /= this->ic4;
-    if (V * this->I2 * this->ic3 * this->ic4 != this->IC) {
+    this->I3 /= this->I4;
+    if (V * this->I2 * this->I3 * this->I4 != this->IC) {
       el_error("Config error!");
       return -1;
     }
@@ -160,13 +160,13 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
   switch (xopt_) {
   case 0xa133:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
-    tinput_size = A * A * (this->IC / this->ic4) * this->t * sizeof(TinputType);
-    toutput_size = A * A * (this->OC / this->oc4) * this->t * sizeof(ToutputType);
-    tinput_u8_size = A * A * (this->IC / this->ic4) * this->t * sizeof(uint8_t);
-    tinput_quant_scale_size = this->t * this->ic3 * 2 * A * A * sizeof(TscaleType);
+    tinput_size = A * A * (this->IC / this->I4) * this->t * sizeof(TinputType);
+    toutput_size = A * A * (this->OC / this->O4) * this->t * sizeof(ToutputType);
+    tinput_u8_size = A * A * (this->IC / this->I4) * this->t * sizeof(uint8_t);
+    tinput_quant_scale_size = this->t * this->I3 * 2 * A * A * sizeof(TscaleType);
     tweights_s8_size = tweights_size / sizeof(TweightsType);
-    tweights_quant_scale_size = this->ic4 * this->OC * A * A * sizeof(TscaleType);
-    tweights_quant_factor_size = this->ic4 * this->OC * A * A * sizeof(TscaleType);
+    tweights_quant_scale_size = this->I4 * this->OC * A * A * sizeof(TscaleType);
+    tweights_quant_factor_size = this->I4 * this->OC * A * A * sizeof(TscaleType);
     break;
   case 0xa161:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
@@ -174,28 +174,28 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
       tinput_size = this->IC * A * A * this->T * mthr_ * sizeof(TinputType);
     else
       tinput_size = A * A * this->I2 * V * mthr_ * sizeof(TinputType);
-    toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
+    toutput_size = A * A * (this->OC / this->O4) * this->T * mthr_ * sizeof(ToutputType);
     tinput_u8_size = A * A * this->IC * mthr_ * this->T * sizeof(uint8_t);
-    tinput_quant_scale_size = mthr_ * 2 * this->ic3 * this->T * A * A * sizeof(TscaleType);
+    tinput_quant_scale_size = mthr_ * 2 * this->I3 * this->T * A * A * sizeof(TscaleType);
     tweights_s8_size = tweights_size / sizeof(TweightsType);
 
     // FIXME: To implement OC sampling for weights transformation.
-    // Current weights transformation includes a sampling involving OC and ic4.
-    // As to a161, sampling scope should be only in OC. However, ic4 must be 1
-    // in current execution mode. So far, we temporarily borrow OC and ic4
-    // sampling for weights transformation, where ic4 is 1.
+    // Current weights transformation includes a sampling involving OC and I4.
+    // As to a161, sampling scope should be only in OC. However, I4 must be 1
+    // in current execution mode. So far, we temporarily borrow OC and I4
+    // sampling for weights transformation, where I4 is 1.
     tweights_quant_scale_size = this->OC * A * A * sizeof(TscaleType);
-    tweights_quant_factor_size = this->OC * A * A * sizeof(TscaleType); // * this->ic4
+    tweights_quant_factor_size = this->OC * A * A * sizeof(TscaleType); // * this->I4
     break;
   case 0xa173:
     tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
-    tinput_size = A * A * (this->IC / this->ic4) * mthr_ * sizeof(TinputType);
-    toutput_size = A * A * (this->OC / this->oc4) * this->T * mthr_ * sizeof(ToutputType);
-    tinput_u8_size = A * A * (this->IC / this->ic4) * mthr_ * this->T * sizeof(uint8_t);
-    tinput_quant_scale_size = mthr_ * 2 * this->ic3 * this->T * A * A * sizeof(TscaleType);
+    tinput_size = A * A * (this->IC / this->I4) * mthr_ * sizeof(TinputType);
+    toutput_size = A * A * (this->OC / this->O4) * this->T * mthr_ * sizeof(ToutputType);
+    tinput_u8_size = A * A * (this->IC / this->I4) * mthr_ * this->T * sizeof(uint8_t);
+    tinput_quant_scale_size = mthr_ * 2 * this->I3 * this->T * A * A * sizeof(TscaleType);
     tweights_s8_size = tweights_size / sizeof(TweightsType);
-    tweights_quant_scale_size = this->ic4 * this->OC * A * A * sizeof(TscaleType);
-    tweights_quant_factor_size = this->ic4 * this->OC * A * A * sizeof(TscaleType);
+    tweights_quant_scale_size = this->I4 * this->OC * A * A * sizeof(TscaleType);
+    tweights_quant_factor_size = this->I4 * this->OC * A * A * sizeof(TscaleType);
     break;
   default:
       el_error("Config error!");

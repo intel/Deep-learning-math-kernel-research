@@ -123,7 +123,7 @@ struct vmg_conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
     MD3(OutputType, aoutput_nhwc0, output, T, xc.g, xc.oc);
-    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.O4 * xc.O3 * xc.O1, xc.O, V);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
               : F_traits<F>::is_blocked_output
@@ -148,7 +148,7 @@ struct vmg_conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
     MD3(OutputType, aoutput_nhwc0, output, T, xc.g, xc.oc);
-    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.O4 * xc.O3 * xc.O1, xc.O, V);
     assert(F_traits<F>::is_nhwc_output);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
@@ -223,7 +223,7 @@ struct vmg_conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
     MD3(OutputType, aoutput_nhwc0, output, T, xc.g, xc.oc);
-    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.O4 * xc.O3 * xc.O1, xc.O, V);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
               : F_traits<F>::is_blocked_output
@@ -264,7 +264,7 @@ struct vmg_conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
 
     MD3(OutputType, aoutput_nhwc0, output, T, xc.g, xc.oc);
-    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.oc4 * xc.oc3 * xc.O1, xc.O, V);
+    MD3(OutputType, aoutput_nhwc1, &md3(aoutput_nhwc0, _T, 0, 0), xc.O4 * xc.O3 * xc.O1, xc.O, V);
 
     auto aout = F_traits<F>::is_compact_output ? &md3(aoutput_compact0, _O, _T, 0)
               : F_traits<F>::is_blocked_output
@@ -295,7 +295,7 @@ struct vmg_conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     if (F_traits<F>::is_nhwc_input) {
       MD3(InputType, ainput0, input, xc.ih, xc.iw, xc.g * xc.ic);
       MD5(InputType, ainput1, &md3(ainput0, _ih, _iw, 0), xc.wt, T, S, xc.g, xc.ic);
-      MD4(InputType, ainput2, &md5(ainput1, 0, _T, 0, 0, 0), xc.ic4, xc.ic3, xc.I2, V);
+      MD4(InputType, ainput2, &md5(ainput1, 0, _T, 0, 0, 0), xc.I4, xc.I3, xc.I2, V);
       vin = _mm<V>::load_ps(&md4(ainput2, 0, 0, _I2, 0));
     } else { // blocked
       MD4(InputType, ainput0, input, xc.I2, xc.ih, xc.iw, V);
@@ -807,7 +807,7 @@ struct vmg_conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     MD3(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1,
         xc.I2 * Vr * O * V); // compact
     MD2(OutputType, aoutput_blocked, output, xc.O1, O * xc.oh * xc.ow * V);
-    MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.g, xc.oc4 * xc.oc3, xc.O1, O * V);
+    MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.g, xc.O4 * xc.O3, xc.O1, O * V);
     MD2(BiasType, abias, bias, xc.O1, O * V);
 
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {

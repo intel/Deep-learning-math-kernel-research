@@ -19,15 +19,15 @@ public:
   // INT8 GEMM
   void execute(ToutputType *toutput, uint8_t *tinput, int8_t *tweights,
       TscaleType *src_scale, TscaleType *weights_scale, TscaleType *weights_factor,
-      int _t2, int Tz, int _ic4 = 0);
+      int _t2, int Tz, int _I4 = 0);
 
   void execute_na(ToutputType *toutput, uint8_t *tinput, int8_t *tweights,
       TscaleType *src_scale, TscaleType *weights_scale, TscaleType *weights_factor,
-      int _t2, int Tz, int _ic4 = 0);
+      int _t2, int Tz, int _I4 = 0);
 
   void execute_na(ToutputType *toutput, uint8_t *tinput, int8_t *tweights,
       TscaleType *src_scale, TscaleType *src_factor, TscaleType *weights_scale,
-      TscaleType *weights_factor, int _ic4 = 0);
+      TscaleType *weights_factor, int _I4 = 0);
 
 private:
   void bind_kernel_functions();

@@ -18,16 +18,16 @@ public:
 
   // FP32 GEMM
   void execute(ToutputType *toutput, TinputType *tinput,
-      TweightsType *tweights, int _t2, int Tz, int _ic4 = 0);
+      TweightsType *tweights, int _t2, int Tz, int _I4 = 0);
 
   void execute_na(ToutputType *toutput, TinputType *tinput,
-      TweightsType *tweights, int _t2, int Tz, int _ic4);
+      TweightsType *tweights, int _t2, int Tz, int _I4);
 
   void execute(ToutputType *toutput, TinputType *tinput,
-      TweightsType *tweights, int _ic4 = 0);
+      TweightsType *tweights, int _I4 = 0);
 
   void execute_na(ToutputType *toutput, TinputType *tinput,
-      TweightsType *tweights, int _ic4 = 0);
+      TweightsType *tweights, int _I4 = 0);
 
 private:
   void bind_kernel_functions();

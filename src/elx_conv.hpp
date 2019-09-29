@@ -10,21 +10,13 @@ namespace euler {
 // nChw16c input     : n, ic2, ih, iw, V
 // nChw16c output    : n, oc2, oh, ow, V
 // OIhw16i16o weights: oc2, ic2, kh, kw, V, V
-// wino-gemm tinput  : t2, A*A, ic3, I2, T, V
+// wino-gemm tinput  : t2, A*A, I3, I2, T, V
 // wino-gemm toutput : t2, A*A, oc3, O2, T, V
-// wino-gemm tweights: oc3, ic3, A*A, O2, I2, V, V
+// wino-gemm tweights: oc3, I3, A*A, O2, I2, V, V
 
 struct elx_conv_params_t {
   // dimensions
   int g, ic, oc, ih, iw, oh, ow, n, t, kh, kw;
-  // dimensions in packed unit
-  int g2, ic2, oc2, ih2, iw2, oh2, ow2, t2;
-  // dimensions in pack-in-pack unit
-  int g3, ic3, oc3, ih3, iw3, oh3, ow3, t3;
-  // dimensions in tripple level packed unit
-  int ic4, oc4;
-  // redundant dim size
-  int ic234, ic34, oc234, oc34;
   // dimensions in tiles: tiles per (image, line, column)
   int nt, ht, wt;
   // pack size
@@ -36,9 +28,14 @@ struct elx_conv_params_t {
   // register working set
   int T;
   // padding (IC/OC) & tailing dimensions: Ir, Or, Tr
-  int G, IC, OC, Ir, Or, Tr, O2r, oc3r;
-  // 2nd/r3d level cache blocking unit(in pack) to ic, oc
-  int G2, I2, O, O1, O2, I3, O3;
+  int G, IC, OC, Ir, Or, Tr, O2r, O3r;
+  // 2nd/3rd/4-th level cache blocking unit(in pack) to g, ic, oc
+  int G2, G3, I2, I3, I4, O, O1, O2, O3, O4;
+  // dimensions in packed unit
+  int g23, ic2, oc2, ih2, iw2, oh2, ow2, t2;
+  // dimensions in pack-in-pack unit
+  int ic34, oc34, ih3, iw3, oh3, ow3;
+
   // padding
   int lp, rp, tp, bp;
   // stride

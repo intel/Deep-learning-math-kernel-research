@@ -13,9 +13,9 @@
 // ------+-----+--------+-----+--------------------------------------
 //       | ker | fusion | dup |             notes
 // ------+-----+--------+-----+--------------------------------------
-//  a061 |  a  |   t+o  |  I  | plain, stride>=1, padding, Ir, oh=wt*T, ic4=1
+//  a061 |  a  |   t+o  |  I  | plain, stride>=1, padding, Ir, oh=wt*T, I4=1
 // ------+-----+--------+-----+--------------------------------------
-//  f061 |  a  |   t+o  |  I  | plain, stride=1, Ir, Tr, ic4=1
+//  f061 |  a  |   t+o  |  I  | plain, stride=1, Ir, Tr, I4=1
 // ------+-----+--------+-----+--------------------------------------
 //  b061 |  b  |   t+o  |  I  | blocked, stride>=1, oh=wt*T
 // ------+-----+--------+-----+--------------------------------------
@@ -29,31 +29,31 @@ Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::__execute_c060(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
-  // weights: oc4*, oc3, O2, ic4*, ic3, I2, V, V
-  // input:   t3*, ic4*, ic3, I2, t2*, T(Tr), V
-  // output:  t3*, oc4*, oc3, O2, t2*, T(Tr), V
+  // weights: O4*, O3, O2, I4*, I3, I2, V, V
+  // input:   n*, I4*, I3, I2, t2*, T(Tr), V
+  // output:  n*, O4*, O3, O2, t2*, T(Tr), V
 
   if (is_first_run_) {
     setup_workspace([&]() { trans_weights(tweights_, weights); });
   }
 
-  parallel_for<4, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _t2) {
-    MD3(InputType, ainput, input, this->t3, this->ic4,
-        this->ic3 * this->I2 * this->ih * this->iw * V);
-    MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
-    MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  parallel_for<4, 1>(mthr_, [&](int _n, int _I4, int _O4, int _t2) {
+    MD3(InputType, ainput, input, this->n, this->I4,
+        this->I3 * this->I2 * this->ih * this->iw * V);
+    MD2(OutputType, aoutput, output, this->n, this->OC * this->oh * this->ow);
+    MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
 
-    MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
-      this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
-    MD2(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
-        this->oc3 * this->O2 * this->oh * this->ow * V);
+    MD3(TweightsType, atweights, tweights_, this->O4, this->I4,
+      this->O3 * this->I3 * this->O2 * this->I2 * V * V);
+    MD2(OutputType, aoutput2, &md2(aoutput, _n, 0), this->O4,
+        this->O3 * this->O2 * this->oh * this->ow * V);
     gemm_c060(
-        &md2(aoutput2, _oc4, 0),
-        &md3(ainput, _t3, _ic4, 0),
-        &md3(atweights, _oc4, _ic4, 0),
-        &md2(abias, _oc4, 0),
-        _ic4, _oc4, _t2);
-  }, this->t3, this->ic4, this->oc4, this->t2);
+        &md2(aoutput2, _O4, 0),
+        &md3(ainput, _n, _I4, 0),
+        &md3(atweights, _O4, _I4, 0),
+        &md2(abias, _O4, 0),
+        _I4, _O4, _t2);
+  }, this->n, this->I4, this->O4, this->t2);
 
   if (inference_acc_)
     is_first_run_ = false;
@@ -63,77 +63,77 @@ Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::__execute_b061(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
-  // weights: oc4*, oc3, O2(O2r), ic4*, ic3, I2, V, V
-  // input:   t3*, ic4*, ic3, I2, t2*, T(Tr), V
-  // output:  t3*, oc4*, oc3, O2(O2r), t2*, T(Tr), V
+  // weights: O4*, O3, O2(O2r), I4*, I3, I2, V, V
+  // input:   n*, I4*, I3, I2, t2*, T(Tr), V
+  // output:  n*, O4*, O3, O2(O2r), t2*, T(Tr), V
 
   if (is_first_run_) {
     setup_workspace([&]() { trans_weights(tweights_, weights); });
   }
 
-  if (this->oc4 == 1) {
-    parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
-      MD3(InputType, ainput, input, this->t3, this->ic4,
-          this->ic3 * this->I2 * this->ih * this->iw * V);
-      MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
-      MD5(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
-          this->oc3 * this->O2, this->ht, this->wt, this->T * V);
-      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+  if (this->O4 == 1) {
+    parallel_for<5, 1>(mthr_, [&](int _n, int _I4, int _O4, int _ht, int _wt) {
+      MD3(InputType, ainput, input, this->n, this->I4,
+          this->I3 * this->I2 * this->ih * this->iw * V);
+      MD2(OutputType, aoutput, output, this->n, this->OC * this->oh * this->ow);
+      MD5(OutputType, aoutput2, &md2(aoutput, _n, 0), this->O4,
+          this->O3 * this->O2, this->ht, this->wt, this->T * V);
+      MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
 
-      MD2(TinputType, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
-      MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
-          this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
+      MD2(TinputType, atinput, tinput_, mthr_, this->I3 * this->I2 * this->T * V);
+      MD3(TweightsType, atweights, tweights_, this->O4, this->I4,
+          this->O3 * this->I3 * this->O2 * this->I2 * V * V);
       size_t ithr = el_get_thread_num();
       trans_input(
           &md2(atinput, ithr, 0),
-          &md3(ainput, _t3, _ic4, 0),
+          &md3(ainput, _n, _I4, 0),
           _ht, _wt);
       gemm_b061(
-          &md5(aoutput2, _oc4, 0, _ht, _wt, 0),
+          &md5(aoutput2, _O4, 0, _ht, _wt, 0),
           &md2(atinput, ithr, 0),
-          &md3(atweights, _oc4, _ic4, 0),
-          &md2(abias, _oc4, 0),
-          _ic4);
-    }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
+          &md3(atweights, _O4, _I4, 0),
+          &md2(abias, _O4, 0),
+          _I4);
+    }, this->n, this->I4, this->O4, this->ht, this->wt);
   } else {
-    int t3_history = -1;
+    int n_history = -1;
 
-    parallel_for<5, 1>(mthr_, [&, t3_history](int _t3, int _ic4, int _oc4,
+    parallel_for<5, 1>(mthr_, [&, n_history](int _n, int _I4, int _O4,
                                               int _ht, int _wt) mutable {
-      MD3(InputType, ainput, input, this->t3, this->ic4,
-          this->ic3 * this->I2 * this->ih * this->iw * V);
-      MD2(OutputType, aoutput, output, this->t3, this->OC * this->oh * this->ow);
-      MD5(OutputType, aoutput2, &md2(aoutput, _t3, 0), this->oc4,
-          this->oc3 * this->O2, this->ht, this->wt, this->T * V);
-      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+      MD3(InputType, ainput, input, this->n, this->I4,
+          this->I3 * this->I2 * this->ih * this->iw * V);
+      MD2(OutputType, aoutput, output, this->n, this->OC * this->oh * this->ow);
+      MD5(OutputType, aoutput2, &md2(aoutput, _n, 0), this->O4,
+          this->O3 * this->O2, this->ht, this->wt, this->T * V);
+      MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
 
       MD4(TinputType, atinput, tinput_, mthr_, this->ht, this->wt,
-          this->ic3 * this->I2 * this->T * V);
+          this->I3 * this->I2 * this->T * V);
       MD4(unsigned char, atinput_msk, tinput_msk_, mthr_,
-          this->ic4, this->ht, this->wt);
-      MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
-          this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
+          this->I4, this->ht, this->wt);
+      MD3(TweightsType, atweights, tweights_, this->O4, this->I4,
+          this->O3 * this->I3 * this->O2 * this->I2 * V * V);
 
       int ithr = el_get_thread_num();
 
-      if (_t3 != t3_history) {
-        memset(&md4(atinput_msk, ithr, 0, 0, 0), 0, this->ic4 * this->ht * this->wt);
-        t3_history = _t3;
+      if (_n != n_history) {
+        memset(&md4(atinput_msk, ithr, 0, 0, 0), 0, this->I4 * this->ht * this->wt);
+        n_history = _n;
       }
-      if (md4(atinput_msk, ithr, _ic4, _ht, _wt) == 0) {
+      if (md4(atinput_msk, ithr, _I4, _ht, _wt) == 0) {
         trans_input(
             &md4(atinput, ithr, _ht, _wt, 0),
-            &md3(ainput, _t3, _ic4, 0),
+            &md3(ainput, _n, _I4, 0),
             _ht, _wt);
-        md4(atinput_msk, ithr, _ic4, _ht, _wt) = 1;
+        md4(atinput_msk, ithr, _I4, _ht, _wt) = 1;
       }
       gemm_b061(
-          &md5(aoutput2, _oc4, 0, _ht, _wt, 0),
+          &md5(aoutput2, _O4, 0, _ht, _wt, 0),
           &md4(atinput, ithr, _ht, _wt, 0),
-          &md3(atweights, _oc4, _ic4, 0),
-          &md2(abias, _oc4, 0),
-          _ic4);
-    }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
+          &md3(atweights, _O4, _I4, 0),
+          &md2(abias, _O4, 0),
+          _I4);
+    }, this->n, this->I4, this->O4, this->ht, this->wt);
   }
 
   if (inference_acc_)
@@ -150,92 +150,92 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
   }
 
   if (this->input_fmt == nhwc) {
-    parallel_for<4>(mthr_, [&](int _t3, int _oc4, int _ht, int _wt) {
-      MD5(InputType, ainput0, input, this->t3, this->ht, this->hs,
+    parallel_for<4>(mthr_, [&](int _n, int _O4, int _ht, int _wt) {
+      MD5(InputType, ainput0, input, this->n, this->ht, this->hs,
           this->iw, this->ic);
-      MD4(InputType, ainput1, &md5(ainput0, _t3, _ht, 0, 0, 0), this->wt,
+      MD4(InputType, ainput1, &md5(ainput0, _n, _ht, 0, 0, 0), this->wt,
           this->T, this->ws, this->ic);
-      MD2(InputType, ainput2, &md4(ainput1, _wt, 0, 0, 0), this->ic4,
-          this->ic3 * this->I2 * V);
-      MD4(OutputType, aoutput0, output, this->t3, this->ht, this->ow, this->oc);
-      MD3(OutputType, aoutput1, &md4(aoutput0, _t3, _ht, 0, 0), this->wt,
+      MD2(InputType, ainput2, &md4(ainput1, _wt, 0, 0, 0), this->I4,
+          this->I3 * this->I2 * V);
+      MD4(OutputType, aoutput0, output, this->n, this->ht, this->ow, this->oc);
+      MD3(OutputType, aoutput1, &md4(aoutput0, _n, _ht, 0, 0), this->wt,
           this->T, this->oc);
-      MD2(OutputType, aoutput2, &md3(aoutput1, _wt, 0, 0), this->oc4,
-          this->oc3 * this->O2 * V);
-      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-      MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
-          this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
+      MD2(OutputType, aoutput2, &md3(aoutput1, _wt, 0, 0), this->O4,
+          this->O3 * this->O2 * V);
+      MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
+      MD3(TweightsType, atweights, tweights_, this->O4, this->I4,
+          this->O3 * this->I3 * this->O2 * this->I2 * V * V);
 
       gemm_a061(
-          &md2(aoutput2, _oc4, 0),
+          &md2(aoutput2, _O4, 0),
           &md2(ainput2, 0, 0),
-          &md3(atweights, _oc4, 0, 0),
-          &md2(abias, _oc4, 0),
+          &md3(atweights, _O4, 0, 0),
+          &md2(abias, _O4, 0),
           0);
-    }, this->t3, this->oc4, this->ht, this->wt);
-  } else if (this->oc4 == 1) { // nchw
-    parallel_for<4>(mthr_, [&](int _t3, int _oc4, int _ht, int _wt) {
-      MD2(InputType, ainput, input, this->t3, this->ic * this->ih * this->iw);
-      MD2(OutputType, aoutput, output, this->t3, this->oc * this->oh * this->ow);
-      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-      MD2(TinputType, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
-      MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
-          this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
-      MD2(ToutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
+    }, this->n, this->O4, this->ht, this->wt);
+  } else if (this->O4 == 1) { // nchw
+    parallel_for<4>(mthr_, [&](int _n, int _O4, int _ht, int _wt) {
+      MD2(InputType, ainput, input, this->n, this->ic * this->ih * this->iw);
+      MD2(OutputType, aoutput, output, this->n, this->oc * this->oh * this->ow);
+      MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
+      MD2(TinputType, atinput, tinput_, mthr_, this->I3 * this->I2 * this->T * V);
+      MD3(TweightsType, atweights, tweights_, this->O4, this->I4,
+          this->O3 * this->I3 * this->O2 * this->I2 * V * V);
+      MD2(ToutputType, atoutput, toutput_, mthr_, this->O3 * this->O2 * this->T * V);
 
       size_t ithr = el_get_thread_num();
         trans_input(
             &md2(atinput, ithr, 0),
-            &md2(ainput, _t3, 0),
+            &md2(ainput, _n, 0),
             _ht, _wt);
         gemm_a061(
             &md2(atoutput, ithr, 0),
             &md2(atinput, ithr, 0),
-            &md3(atweights, _oc4, 0, 0),
-            &md2(abias, _oc4, 0),
+            &md3(atweights, _O4, 0, 0),
+            &md2(abias, _O4, 0),
             0);
         trans_output(
-            &md2(aoutput, _t3, 0),
+            &md2(aoutput, _n, 0),
             &md2(atoutput, ithr, 0),
-            _oc4, _ht, _wt);
-    }, this->t3, this->oc4, this->ht, this->wt);
+            _O4, _ht, _wt);
+    }, this->n, this->O4, this->ht, this->wt);
   } else { // nchw
-    int t3_history = -1;
-    parallel_for<4>(mthr_, [&, t3_history]
-                    (int _t3, int _oc4, int _ht, int _wt) mutable {
-      MD2(InputType, ainput, input, this->t3, this->ic * this->ih * this->iw);
-      MD2(OutputType, aoutput, output, this->t3, this->oc * this->oh * this->ow);
-      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+    int n_history = -1;
+    parallel_for<4>(mthr_, [&, n_history]
+                    (int _n, int _O4, int _ht, int _wt) mutable {
+      MD2(InputType, ainput, input, this->n, this->ic * this->ih * this->iw);
+      MD2(OutputType, aoutput, output, this->n, this->oc * this->oh * this->ow);
+      MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
       MD4(TinputType, atinput, tinput_, mthr_, this->ht, this->wt,
-          this->ic3 * this->I2 * this->T * V);
+          this->I3 * this->I2 * this->T * V);
       MD3(unsigned char, atinput_msk, tinput_msk_, mthr_, this->ht, this->wt);
-      MD2(ToutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
-      MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
-          this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
+      MD2(ToutputType, atoutput, toutput_, mthr_, this->O3 * this->O2 * this->T * V);
+      MD3(TweightsType, atweights, tweights_, this->O4, this->I4,
+          this->O3 * this->I3 * this->O2 * this->I2 * V * V);
       int ithr = el_get_thread_num();
 
-      if (_t3 != t3_history) {
+      if (_n != n_history) {
         memset(&md3(atinput_msk, ithr, 0, 0), 0, this->ht * this->wt);
-        t3_history = _t3;
+        n_history = _n;
       }
       if (md3(atinput_msk, ithr,  _ht, _wt) == 0) {
         trans_input(
             &md4(atinput, ithr, _ht, _wt, 0),
-            &md2(ainput, _t3, 0),
+            &md2(ainput, _n, 0),
             _ht, _wt);
         md3(atinput_msk, ithr, _ht, _wt) = 1;
       }
       gemm_a061(
           &md2(atoutput, ithr, 0),
           &md4(atinput, ithr, _ht, _wt, 0),
-          &md3(atweights, _oc4, 0, 0),
-          &md2(abias, _oc4, 0),
+          &md3(atweights, _O4, 0, 0),
+          &md2(abias, _O4, 0),
           0);
       trans_output(
-          &md2(aoutput, _t3, 0),
+          &md2(aoutput, _n, 0),
           &md2(atoutput, ithr, 0),
-          _oc4, _ht, _wt);
-    }, this->t3, this->oc4, this->ht, this->wt);
+          _O4, _ht, _wt);
+    }, this->n, this->O4, this->ht, this->wt);
   }
 
   if (inference_acc_)
@@ -251,91 +251,91 @@ void Instance_elx_conv_direct_1x1_t::__execute_f061(
   }
 
   if (this->input_fmt == nhwc) {
-    parallel_for<3>(mthr_, [&](int _t3, int _oc4, int _t2) {
-      MD2(InputType, ainput, input, this->t3, this->ih * this->iw * this->ic);
-      MD3(InputType, ainput1, &md2(ainput, _t3, 0), this->t2, this->T, this->ic);
-      MD2(InputType, ainput2, &md3(ainput1, _t2, 0, 0), this->ic4, this->ic3 * this->I2 * V);
-      MD2(OutputType, aoutput, output, this->t3, this->oh * this->ow * this->oc);
-      MD3(OutputType, aoutput1, &md2(aoutput, _t3, 0), this->t2, this->T, this->oc);
-      MD2(OutputType, aoutput2, &md3(aoutput1, _t2, 0, 0), this->oc4,
-          this->oc3 * this->O2 * V);
-      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-      MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
-          this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
+    parallel_for<3>(mthr_, [&](int _n, int _O4, int _t2) {
+      MD2(InputType, ainput, input, this->n, this->ih * this->iw * this->ic);
+      MD3(InputType, ainput1, &md2(ainput, _n, 0), this->t2, this->T, this->ic);
+      MD2(InputType, ainput2, &md3(ainput1, _t2, 0, 0), this->I4, this->I3 * this->I2 * V);
+      MD2(OutputType, aoutput, output, this->n, this->oh * this->ow * this->oc);
+      MD3(OutputType, aoutput1, &md2(aoutput, _n, 0), this->t2, this->T, this->oc);
+      MD2(OutputType, aoutput2, &md3(aoutput1, _t2, 0, 0), this->O4,
+          this->O3 * this->O2 * V);
+      MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
+      MD3(TweightsType, atweights, tweights_, this->O4, this->I4,
+          this->O3 * this->I3 * this->O2 * this->I2 * V * V);
 
       gemm_f061(
-          &md2(aoutput2, _oc4, 0),
+          &md2(aoutput2, _O4, 0),
           &md2(ainput2, 0, 0),
-          &md3(atweights, _oc4, 0, 0),
-          &md2(abias, _oc4, 0),
+          &md3(atweights, _O4, 0, 0),
+          &md2(abias, _O4, 0),
           _t2, 0);
-    }, this->t3, this->oc4, this->t2);
-  } else if (this->oc4 == 1) { // nchw
-    parallel_for<3>(mthr_, [&](int _t3, int _oc4, int _t2) {
-      MD2(InputType, ainput, input, this->t3, this->ic * this->ih * this->iw);
-      MD2(OutputType, aoutput, output, this->t3, this->oc * this->oh * this->ow);
-      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-      MD2(TinputType, atinput, tinput_, mthr_, this->ic3 * this->I2 * this->T * V);
-      MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
-          this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
-      MD2(ToutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
+    }, this->n, this->O4, this->t2);
+  } else if (this->O4 == 1) { // nchw
+    parallel_for<3>(mthr_, [&](int _n, int _O4, int _t2) {
+      MD2(InputType, ainput, input, this->n, this->ic * this->ih * this->iw);
+      MD2(OutputType, aoutput, output, this->n, this->oc * this->oh * this->ow);
+      MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
+      MD2(TinputType, atinput, tinput_, mthr_, this->I3 * this->I2 * this->T * V);
+      MD3(TweightsType, atweights, tweights_, this->O4, this->I4,
+          this->O3 * this->I3 * this->O2 * this->I2 * V * V);
+      MD2(ToutputType, atoutput, toutput_, mthr_, this->O3 * this->O2 * this->T * V);
 
       size_t ithr = el_get_thread_num();
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       trans_input2(
            &md2(atinput, ithr, 0),
-           &md2(ainput, _t3, 0),
+           &md2(ainput, _n, 0),
            _t2, Tz);
       gemm_f061(
           &md2(atoutput, ithr, 0),
           &md2(atinput, ithr, 0),
-          &md3(atweights, _oc4, 0, 0),
-          &md2(abias, _oc4, 0),
+          &md3(atweights, _O4, 0, 0),
+          &md2(abias, _O4, 0),
           _t2, Tz);
       trans_output2(
-          &md2(aoutput, _t3, 0),
+          &md2(aoutput, _n, 0),
           &md2(atoutput, ithr, 0),
-          _oc4, _t2, Tz);
-    }, this->t3, this->oc4, this->t2);
+          _O4, _t2, Tz);
+    }, this->n, this->O4, this->t2);
   } else { // nchw
-    int t3_history = -1;
-    parallel_for<3>(mthr_, [&, t3_history]
-                    (int _t3, int _oc4, int _t2) mutable {
-      MD2(InputType, ainput, input, this->t3, this->ic * this->ih * this->iw);
-      MD2(OutputType, aoutput, output, this->t3, this->oc * this->oh * this->ow);
-      MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+    int n_history = -1;
+    parallel_for<3>(mthr_, [&, n_history]
+                    (int _n, int _O4, int _t2) mutable {
+      MD2(InputType, ainput, input, this->n, this->ic * this->ih * this->iw);
+      MD2(OutputType, aoutput, output, this->n, this->oc * this->oh * this->ow);
+      MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
       MD3(TinputType, atinput, tinput_, mthr_, this->t2,
-          this->ic3 * this->I2 * this->T * V);
+          this->I3 * this->I2 * this->T * V);
       MD2(unsigned char, atinput_msk, tinput_msk_, mthr_, this->t2);
-      MD3(TweightsType, atweights, tweights_, this->oc4, this->ic4,
-          this->oc3 * this->ic3 * this->O2 * this->I2 * V * V);
-      MD2(ToutputType, atoutput, toutput_, mthr_, this->oc3 * this->O2 * this->T * V);
+      MD3(TweightsType, atweights, tweights_, this->O4, this->I4,
+          this->O3 * this->I3 * this->O2 * this->I2 * V * V);
+      MD2(ToutputType, atoutput, toutput_, mthr_, this->O3 * this->O2 * this->T * V);
 
       int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
       int ithr = el_get_thread_num();
 
-      if (_t3 != t3_history) {
+      if (_n != n_history) {
         memset(&md2(atinput_msk, ithr, 0), 0, this->t2);
-        t3_history = _t3;
+        n_history = _n;
       }
       if (md2(atinput_msk, ithr, _t2) == 0) {
         trans_input2(
             &md3(atinput, ithr, _t2, 0),
-            &md2(ainput, _t3, 0),
+            &md2(ainput, _n, 0),
             _t2, Tz);
         md2(atinput_msk, ithr, _t2) = 1;
       }
       gemm_f061(
           &md2(atoutput, ithr, 0),
           &md3(atinput, ithr, _t2, 0),
-          &md3(atweights, _oc4, 0, 0),
-          &md2(abias, _oc4, 0),
+          &md3(atweights, _O4, 0, 0),
+          &md2(abias, _O4, 0),
           _t2, Tz);
       trans_output2(
-          &md2(aoutput, _t3, 0),
+          &md2(aoutput, _n, 0),
           &md2(atoutput, ithr, 0),
-          _oc4, _t2, Tz);
-    }, this->t3, this->oc4, this->t2);
+          _O4, _t2, Tz);
+    }, this->n, this->O4, this->t2);
   }
 
   if (inference_acc_)

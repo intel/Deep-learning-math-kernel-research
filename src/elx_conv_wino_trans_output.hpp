@@ -32,32 +32,32 @@ public:
   void setup(elx_conv_params_t *xc);
 
   void execute(OutputType *output, ToutputType *toutput, BiasType *bias, int Tz,
-      int _t2, int _oc4, int _ic4);
+      int _t2, int _O4, int _I4);
   void execute(OutputType *output, ToutputType *toutput, BiasType *bias,
-      int _oc4, int _ic4);
+      int _O4, int _I4);
 
   void operator() (OutputType *output, ToutputType *toutput, BiasType *bias,
-      int Tz, int _t2, int _oc4, int _ic4) {
-    execute(output, toutput, bias, Tz, _t2, _oc4, _ic4);
+      int Tz, int _t2, int _O4, int _I4) {
+    execute(output, toutput, bias, Tz, _t2, _O4, _I4);
   }
   void operator() (OutputType *output, ToutputType *toutput, BiasType *bias,
-      int _oc4, int _ic4) {
-    execute(output, toutput, bias, _oc4, _ic4);
+      int _O4, int _I4) {
+    execute(output, toutput, bias, _O4, _I4);
   }
 
   private:
   inline void __execute_nhwc(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int Tz, int _t2, int _oc4, int _ic4);
+      BiasType *bias, int Tz, int _t2, int _O4, int _I4);
   inline void __execute_nchw(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int Tz, int _t2, int _oc4, int _ic4);
+      BiasType *bias, int Tz, int _t2, int _O4, int _I4);
   inline void __execute_blocked(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int Tz, int _t2, int _oc4, int _ic4);
+      BiasType *bias, int Tz, int _t2, int _O4, int _I4);
   inline void __execute_nhwc(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int _oc4, int _ic4);
+      BiasType *bias, int _O4, int _I4);
   inline void __execute_nchw(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int _oc4, int _ic4);
+      BiasType *bias, int _O4, int _I4);
   inline void __execute_blocked(OutputType *output, ToutputType *toutput,
-      BiasType *bias, int _oc4, int _ic4);
+      BiasType *bias, int _O4, int _I4);
 
   void bind_kernel_functions();
 

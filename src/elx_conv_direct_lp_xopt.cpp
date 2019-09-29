@@ -19,9 +19,9 @@ Template_elx_conv_direct_lp_t
 void Instance_elx_conv_direct_lp_t::__execute_a160(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
-  // input (blocked): t3*, ic4*, ic3, I2, ht*, S, wt*, T, S, V(V1, Vx)
-  // weights: oc4*, oc3, O2, ic4*, ic3, I2, kh, kw, V(V1, Vx), V
-  // output (blocked):  t3*, oc4*, oc3, O2, ht*wt*, T(Tr), V
+  // input (blocked): n*, I4*, I3, I2, ht*, S, wt*, T, S, V(V1, Vx)
+  // weights: O4*, O3, O2, I4*, I3, I2, kh, kw, V(V1, Vx), V
+  // output (blocked):  n*, O4*, O3, O2, ht*wt*, T(Tr), V
   if (is_first_run_) {
     setup_workspace([&]() {
       trans_weights(weights_scale_, weights_factor_, tweights_s8_,
@@ -32,77 +32,77 @@ void Instance_elx_conv_direct_lp_t::__execute_a160(
   auto V1 = compact_ir_weights_ ? this->Ir : this->V1;
 
   INIT_LOOP_ORDER(5);
-  CREATE_LOOP_ORDER(5, t3, ic4, oc4, ht, wt);
-  CREATE_LOOP_ORDER(5, ic4, oc4, t3, ht, wt);
+  CREATE_LOOP_ORDER(5, n, I4, O4, ht, wt);
+  CREATE_LOOP_ORDER(5, I4, O4, n, ht, wt);
 
   auto loop_for = [&](int a0, int a1, int a2, int a3, int a4) {
-    int _t3, _ic4, _oc4, _ht, _wt;
-    if (CHECK_LOOP_ORDER(5, t3, ic4, oc4, ht, wt)) {
-      _t3 = a0, _ic4 = a1, _oc4 = a2, _ht = a3, _wt = a4;
+    int _n, _I4, _O4, _ht, _wt;
+    if (CHECK_LOOP_ORDER(5, n, I4, O4, ht, wt)) {
+      _n = a0, _I4 = a1, _O4 = a2, _ht = a3, _wt = a4;
     } else {
-      _ic4 = a0, _oc4 = a1, _t3 = a2, _ht = a3, _wt = a4;
+      _I4 = a0, _O4 = a1, _n = a2, _ht = a3, _wt = a4;
     }
-    MD3(int8_t, atweights_s8, tweights_s8_, this->oc4, this->ic4, V1 * Vx * V
-        * this->kh * this->kw * this->ic3 * this->oc3 * this->I2 * this->O2);
-    MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
-    MD2(TscaleType, atweights_scale, weights_scale_, this->oc4,
-        this->oc3 * this->O2 * V);
-    MD2(TscaleType, aweights_factor, weights_factor_, this->oc4,
-        this->oc3 * this->O2 * T * V);
+    MD3(int8_t, atweights_s8, tweights_s8_, this->O4, this->I4, V1 * Vx * V
+        * this->kh * this->kw * this->I3 * this->O3 * this->I2 * this->O2);
+    MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
+    MD2(TscaleType, atweights_scale, weights_scale_, this->O4,
+        this->O3 * this->O2 * V);
+    MD2(TscaleType, aweights_factor, weights_factor_, this->O4,
+        this->O3 * this->O2 * T * V);
     // nhwc input
-    MD4(InputType, ainput0_nhwc, input, this->t3, this->ih, this->iw,
+    MD4(InputType, ainput0_nhwc, input, this->n, this->ih, this->iw,
         this->g * this->ic);
-    MD2(InputType, ainput1_nhwc, &md4(ainput0_nhwc, _t3, 0, 0, 0), this->ic4,
-        this->ic3 * this->I2 * V);
+    MD2(InputType, ainput1_nhwc, &md4(ainput0_nhwc, _n, 0, 0, 0), this->I4,
+        this->I3 * this->I2 * V);
     // blocked input
-    MD4(InputType, ainput_blocked, input, this->t3, this->ic4,
-        this->ic3 * this->I2, this->ih * this->iw * V);
+    MD4(InputType, ainput_blocked, input, this->n, this->I4,
+        this->I3 * this->I2, this->ih * this->iw * V);
     // nhwc output
-    MD4(OutputType, aoutput0_nhwc, output, this->t3, this->ht, this->ow, this->oc);
-    MD3(OutputType, aoutput1_nhwc, &md4(aoutput0_nhwc, _t3, _ht, 0, 0), this->wt,
+    MD4(OutputType, aoutput0_nhwc, output, this->n, this->ht, this->ow, this->oc);
+    MD3(OutputType, aoutput1_nhwc, &md4(aoutput0_nhwc, _n, _ht, 0, 0), this->wt,
         this->T, this->oc);
-    MD2(OutputType, aoutput2_nhwc, &md3(aoutput1_nhwc, _wt, 0, 0), this->oc4,
-        this->oc3 * this->O2 * V);
+    MD2(OutputType, aoutput2_nhwc, &md3(aoutput1_nhwc, _wt, 0, 0), this->O4,
+        this->O3 * this->O2 * V);
     // blocked output
-    MD5(OutputType, aoutput0_blocked, output, this->t3, this->oc4,
-        this->oc3 * this->O2, this->ht, this->ow * V);
-    MD3(OutputType, aoutput1_blocked, &md5(aoutput0_blocked, _t3, _oc4, 0, _ht, 0),
+    MD5(OutputType, aoutput0_blocked, output, this->n, this->O4,
+        this->O3 * this->O2, this->ht, this->ow * V);
+    MD3(OutputType, aoutput1_blocked, &md5(aoutput0_blocked, _n, _O4, 0, _ht, 0),
         this->wt, this->T, V);
     // nhwc toutput
-    MD4(ToutputType, atoutput0_nhwc, toutput_, this->t3, this->ht, this->ow, this->oc);
-    MD3(ToutputType, atoutput1_nhwc, &md4(atoutput0_nhwc, _t3, _ht, 0, 0),
+    MD4(ToutputType, atoutput0_nhwc, toutput_, this->n, this->ht, this->ow, this->oc);
+    MD3(ToutputType, atoutput1_nhwc, &md4(atoutput0_nhwc, _n, _ht, 0, 0),
         this->wt, this->T, this->oc);
-    MD2(ToutputType, atoutput2_nhwc, &md3(atoutput1_nhwc, _wt, 0, 0), this->oc4,
-        this->oc3 * this->O2 * V);
+    MD2(ToutputType, atoutput2_nhwc, &md3(atoutput1_nhwc, _wt, 0, 0), this->O4,
+        this->O3 * this->O2 * V);
     // blocked toutput
-    MD5(ToutputType, atoutput0_blocked, toutput_, this->t3, this->oc4,
-        this->oc3 * this->O2, this->ht, this->ow * V);
-    MD3(ToutputType, atoutput1_blocked, &md5(atoutput0_blocked, _t3, _oc4, 0, _ht, 0),
+    MD5(ToutputType, atoutput0_blocked, toutput_, this->n, this->O4,
+        this->O3 * this->O2, this->ht, this->ow * V);
+    MD3(ToutputType, atoutput1_blocked, &md5(atoutput0_blocked, _n, _O4, 0, _ht, 0),
         this->wt, this->T, V);
 
     auto ainput = this->input_fmt == nhwc
-                       ? &md2(ainput1_nhwc, _ic4, 0)
-                       : &md4(ainput_blocked, _t3, _ic4, 0, 0);
+                       ? &md2(ainput1_nhwc, _I4, 0)
+                       : &md4(ainput_blocked, _n, _I4, 0, 0);
     auto aoutput = this->output_fmt == nhwc
-                       ? &md2(aoutput2_nhwc, _oc4, 0)
+                       ? &md2(aoutput2_nhwc, _O4, 0)
                        : &md3(aoutput1_blocked, _wt, 0, 0);
     auto atoutput = this->output_fmt == nhwc
-                       ? &md2(atoutput2_nhwc, _oc4, 0)
+                       ? &md2(atoutput2_nhwc, _O4, 0)
                        : &md3(atoutput1_blocked, _wt, 0, 0);
     conv_a160(aoutput, atoutput, ainput,
-              &md3(atweights_s8, _oc4, _ic4, 0),
-              &md2(abias, _oc4, 0), input_scale_, &md2(atweights_scale, _oc4, 0),
-              &md2(aweights_factor, _oc4, 0), _ic4, _oc4, _ht, _wt);
+              &md3(atweights_s8, _O4, _I4, 0),
+              &md2(abias, _O4, 0), input_scale_, &md2(atweights_scale, _O4, 0),
+              &md2(aweights_factor, _O4, 0), _I4, _O4, _ht, _wt);
   };
 
   if (this->oh <= 7 && this->ow <= 7) {
-    SET_LOOP_ORDER(5, ic4, oc4, t3, ht, wt);
+    SET_LOOP_ORDER(5, I4, O4, n, ht, wt);
     parallel_for<5, 0>(mthr_, loop_for,
-                       this->ic4, this->oc4, this->t3, this->ht, this->wt);
+                       this->I4, this->O4, this->n, this->ht, this->wt);
   } else {
-    SET_LOOP_ORDER(5, t3, ic4, oc4, ht, wt);
+    SET_LOOP_ORDER(5, n, I4, O4, ht, wt);
     parallel_for<5, 1>(mthr_, loop_for,
-                       this->t3, this->ic4, this->oc4, this->ht, this->wt);
+                       this->n, this->I4, this->O4, this->ht, this->wt);
   }
 
   if (inference_acc_)
@@ -113,9 +113,9 @@ Template_elx_conv_direct_lp_t
 void Instance_elx_conv_direct_lp_t::__execute_d160(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
-  // input (blocked): t3*, ic4*, ic3, I2, ih, iw, V(V1, Vx)
-  // weights: oc4*, oc3, O2, ic4*, ic3, I2, kh, kw, V(V1, Vx), V
-  // output (blocked):  t3*, oc4*, oc3, O2, ht*wt*, T(Tr), V
+  // input (blocked): n*, I4*, I3, I2, ih, iw, V(V1, Vx)
+  // weights: O4*, O3, O2, I4*, I3, I2, kh, kw, V(V1, Vx), V
+  // output (blocked):  n*, O4*, O3, O2, ht*wt*, T(Tr), V
   if (is_first_run_) {
     setup_workspace([&]() {
       trans_weights(weights_scale_, weights_factor_, tweights_s8_,
@@ -123,50 +123,50 @@ void Instance_elx_conv_direct_lp_t::__execute_d160(
     });
   }
 
-  parallel_for<5, 1>(mthr_, [&](int _t3, int _ic4, int _oc4, int _ht, int _wt) {
+  parallel_for<5, 1>(mthr_, [&](int _n, int _I4, int _O4, int _ht, int _wt) {
     MD3(int8_t, atweights_s8, tweights_s8_,
-        this->oc4, this->ic4, V * V * this->kh * this->kw
-        * this->ic3 * this->oc3 * this->I2 * this->O2);
-    MD2(BiasType, abias, bias, this->oc4, this->oc3 * this->O2 * V);
+        this->O4, this->I4, V * V * this->kh * this->kw
+        * this->I3 * this->O3 * this->I2 * this->O2);
+    MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
     MD2(TscaleType, atweights_scale, weights_scale_,
-        this->oc4, this->oc3 * this->O2 * V);
+        this->O4, this->O3 * this->O2 * V);
     MD2(TscaleType, aweights_factor, weights_factor_,
-        this->oc4, this->oc3 * this->O2 * V);
+        this->O4, this->O3 * this->O2 * V);
 
     // input
-    MD4(InputType, ainput0_nhwc, input, this->t3, this->ih, this->iw, this->ic);
-    MD2(InputType, ainput1_nhwc, &md4(ainput0_nhwc, _t3, 0, 0, 0),
-        this->ic4, this->ic3 * this->I2 * V);
+    MD4(InputType, ainput0_nhwc, input, this->n, this->ih, this->iw, this->ic);
+    MD2(InputType, ainput1_nhwc, &md4(ainput0_nhwc, _n, 0, 0, 0),
+        this->I4, this->I3 * this->I2 * V);
     MD3(InputType, ainput_blocked, input,
-        this->t3, this->ic4, this->ic3 * this->I2 * this->ih * this->iw * V);
+        this->n, this->I4, this->I3 * this->I2 * this->ih * this->iw * V);
 
     // output
-    MD4(OutputType, aoutput0_nhwc, output, this->t3, this->ht, this->ow, this->oc);
-    MD2(OutputType, aoutput1_nhwc, &md4(aoutput0_nhwc, _t3, 0, 0, 0),
-        this->oc4, this->oc3 * this->O2 * V);
+    MD4(OutputType, aoutput0_nhwc, output, this->n, this->ht, this->ow, this->oc);
+    MD2(OutputType, aoutput1_nhwc, &md4(aoutput0_nhwc, _n, 0, 0, 0),
+        this->O4, this->O3 * this->O2 * V);
     MD3(OutputType, aoutput_blocked, output,
-        this->t3, this->oc4, this->oc3 * this->O2 * this->ht * this->ow * V);
+        this->n, this->O4, this->O3 * this->O2 * this->ht * this->ow * V);
 
     // toutput
     MD4(ToutputType, atoutput0_nhwc, toutput_,
-        this->t3, this->ht, this->ow, this->OC);
-    MD2(ToutputType, atoutput1_nhwc, &md4(atoutput0_nhwc, _t3, 0, 0, 0),
-        this->oc4, this->oc3 * this->O2 * V);
+        this->n, this->ht, this->ow, this->OC);
+    MD2(ToutputType, atoutput1_nhwc, &md4(atoutput0_nhwc, _n, 0, 0, 0),
+        this->O4, this->O3 * this->O2 * V);
     MD3(ToutputType, atoutput_blocked, toutput_,
-        this->t3, this->oc4, this->oc3 * this->O2 * this->ht * this->ow * V);
+        this->n, this->O4, this->O3 * this->O2 * this->ht * this->ow * V);
 
     auto ain = this->input_fmt == nhwc
-           ? &md2(ainput1_nhwc, _ic4, 0) : &md3(ainput_blocked, _t3, _ic4, 0);
+           ? &md2(ainput1_nhwc, _I4, 0) : &md3(ainput_blocked, _n, _I4, 0);
     auto aout = this->output_fmt == nhwc
-           ? &md2(aoutput1_nhwc, _oc4, 0) : &md3(aoutput_blocked, _t3, _oc4, 0);
+           ? &md2(aoutput1_nhwc, _O4, 0) : &md3(aoutput_blocked, _n, _O4, 0);
     auto atout = this->output_fmt == nhwc
-           ? &md2(atoutput1_nhwc, _oc4, 0) : &md3(atoutput_blocked, _t3, _oc4, 0);
+           ? &md2(atoutput1_nhwc, _O4, 0) : &md3(atoutput_blocked, _n, _O4, 0);
 
       gemm_d160(aout, atout, ain,
-                &md3(atweights_s8, _oc4, _ic4, 0), &md2(abias, _oc4, 0),
-                input_scale_, &md2(atweights_scale, _oc4, 0),
-                &md2(aweights_factor, _oc4, 0), _ic4, _oc4, _ht, _wt);
-  }, this->t3, this->ic4, this->oc4, this->ht, this->wt);
+                &md3(atweights_s8, _O4, _I4, 0), &md2(abias, _O4, 0),
+                input_scale_, &md2(atweights_scale, _O4, 0),
+                &md2(aweights_factor, _O4, 0), _I4, _O4, _ht, _wt);
+  }, this->n, this->I4, this->O4, this->ht, this->wt);
 
   int oc2 = this->Or ? this->oc2 - 1 : this->oc2;
   if (this->with_argmax) {

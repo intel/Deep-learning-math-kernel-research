@@ -86,28 +86,28 @@ public:
   virtual ~elx_conv_wino_trans_input_t() {}
 
   void execute(TinputType *__restrict t_input,
-      InputType *__restrict input, int Tz, int _t2, int _ic4);
+      InputType *__restrict input, int Tz, int _t2, int _I4);
   void execute(TinputType *__restrict t_input,
-      InputType *__restrict input, int _ic4);
+      InputType *__restrict input, int _I4);
 
   void operator () (TinputType *__restrict t_input,
-      InputType *__restrict input, int Tz, int _t2, int _ic4) {
-    execute(t_input, input, Tz, _t2, _ic4);
+      InputType *__restrict input, int Tz, int _t2, int _I4) {
+    execute(t_input, input, Tz, _t2, _I4);
   }
   void operator () (TinputType *__restrict t_input,
-      InputType *__restrict input, int _ic4) {
-    execute(t_input, input, _ic4);
+      InputType *__restrict input, int _I4) {
+    execute(t_input, input, _I4);
   }
 
 protected:
   inline void __execute_blocked(TinputType *__restrict tinput,
-      InputType *__restrict input, int Tz, int _t2, int _ic4);
+      InputType *__restrict input, int Tz, int _t2, int _I4);
 
   inline void __execute_blocked(TinputType *__restrict tinput,
-      InputType *__restrict input, int _ic4);
+      InputType *__restrict input, int _I4);
 
   inline void __execute_post(TinputType * __restrict tinput,
-      op_type *at, int Tz, int _ic3, int _I2, int _T);
+      op_type *at, int Tz, int _I3, int _I2, int _T);
 
   using super::xc;
   using super::hA_end_;
@@ -120,14 +120,14 @@ protected:
   using super::mthr_;
 
   inline void __execute_nhwc(TinputType *__restrict t_input,
-      InputType *__restrict input, int Tz, int _t2, int _ic4);
+      InputType *__restrict input, int Tz, int _t2, int _I4);
   inline void __execute_nchw(TinputType *__restrict t_input,
-      InputType *__restrict input, int Tz, int _t2, int _ic4);
+      InputType *__restrict input, int Tz, int _t2, int _I4);
 
   inline void __execute_nhwc(TinputType *__restrict t_input,
-      InputType *__restrict input, int _ic4);
+      InputType *__restrict input, int _I4);
   inline void __execute_nchw(TinputType *__restrict t_input,
-      InputType *__restrict input, int _ic4);
+      InputType *__restrict input, int _I4);
 };
 
 template <typename InputType, int I, int A, int K, int V>
@@ -154,7 +154,7 @@ public:
   void execute(TscaleType *__restrict tinput_quant_scale,
       uint8_t *__restrict t_input_u8,
       TinputType *__restrict t_input,
-      InputType *__restrict input, int _ic4);
+      InputType *__restrict input, int _I4);
 
   void execute(TscaleType *__restrict tinput_quant_scale,
       uint8_t *__restrict t_input_u8,
@@ -165,8 +165,8 @@ public:
   void operator() (TscaleType *__restrict tinput_quant_scale,
       uint8_t *__restrict t_input_u8,
       TinputType *__restrict t_input,
-      InputType *__restrict input, int _ic4) {
-    execute(tinput_quant_scale, t_input_u8, t_input, input, _ic4);
+      InputType *__restrict input, int _I4) {
+    execute(tinput_quant_scale, t_input_u8, t_input, input, _I4);
   }
 
   void operator() (TscaleType *__restrict tinput_quant_scale,
@@ -181,12 +181,12 @@ protected:
   inline void __execute_blocked_nhwc(TscaleType *__restrict tinput_quant_scale,
       uint8_t *__restrict t_input_u8,
       TinputType *__restrict t_input,
-      InputType *__restrict input, int _ic4);
+      InputType *__restrict input, int _I4);
 
   inline void __execute_nchw(TscaleType *__restrict tinput_quant_scale,
       uint8_t *__restrict t_input_u8,
       TinputType *__restrict t_input,
-      InputType *__restrict input, int _ic4);
+      InputType *__restrict input, int _I4);
 
   inline void __execute_blocked_nhwc(TscaleType *__restrict tinput_quant_scale,
       uint8_t *__restrict t_input_u8,

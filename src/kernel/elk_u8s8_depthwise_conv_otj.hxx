@@ -174,14 +174,14 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
   }
 
   static inline __i<V> op_load_input(elx_conv_params_t &xc, InputType *input,
-      const int _ih, const int _iw, const int _g2, const int _T, __mmask64 k,
+      const int _ih, const int _iw, const int _G2, const int _T, __mmask64 k,
       __m512i index_8)
   {
     __i<V> res;
 #if defined(WITH_VNNI)
     if (F_traits<F>::is_blocked_input) {
       MD4(InputType, ainput0, input, xc.I2, xc.ih, xc.iw, V);
-      MD3(InputType, ainput1, &md4(ainput0, _g2, _ih, _iw, 0), T, S, V);
+      MD3(InputType, ainput1, &md4(ainput0, _G2, _ih, _iw, 0), T, S, V);
       __i<V> in = _mm<V>::load_epi32(&md3(ainput1, _T, 0, 0));
 #if defined(WITH_VBMI)
       res = _mm512_maskz_permutexvar_epi8(k, index, in);
@@ -204,13 +204,13 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
   }
 
   static inline __i<V> op_load_weights(elx_conv_params_t &xc,
-      WeightsType *weights, const int _g2, const int _kh)
+      WeightsType *weights, const int _G2, const int _kh)
   {
     __i<V> res;
 #if defined(WITH_VNNI)
     MD3(int8_t, aweights, weights, xc.ic2, xc.kh, V * Vx);
     if (F_traits<F>::is_compact_weights) {
-      res = _mm<V>::load_epi32(&md3(aweights, _g2, _kh, 0));
+      res = _mm<V>::load_epi32(&md3(aweights, _G2, _kh, 0));
     } else {
       el_error("elk: not supported weights format");
     }
@@ -318,7 +318,7 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
     MD2(ScaleType, aweights_factor, weights_factor, xc.ic2, V);
     MD2(RoutputType, aroutput, routput, xc.ic2, xc.oh * xc.ow * V);
 
-    for (int _g2 = 0; _g2 < xc.g2; ++_g2) {
+    for (int _G2 = 0; _G2 < xc.G2; ++_G2) {
       // clear output
       unroll_for (_T, T) {
         mmout[_T] = _mm<V>::setzero_epi32();;
@@ -328,11 +328,11 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
         __i<V> mmwei_x210, mmwei_210x;
         if (!pad_l && !pad_r) { // mid
           for (int _kh = khs; _kh < khe; ++_kh) {
-            mmwei_x210 = op_load_weights(xc, weights, _g2, _kh);
+            mmwei_x210 = op_load_weights(xc, weights, _G2, _kh);
             mmwei_210x = _mm512_slli_epi32(mmwei_x210, 8);
 
             unroll_for(_T, (T + 1) / 2) {
-              mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, 2 * _T, k_mid, index_mid);
+              mminp = op_load_input(xc, input, _kh - AKH, -1, _G2, 2 * _T, k_mid, index_mid);
               mmout[2 * _T] = op_int8_fma(mmout[2 * _T], mminp, mmwei_x210);
               if ((2 * _T + 1) < T)
                 mmout[2 * _T + 1] = op_int8_fma(mmout[2 * _T + 1], mminp, mmwei_210x);
@@ -340,14 +340,14 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
           }
         } else if (pad_l && !pad_r) { // left-mid
           for (int _kh = khs; _kh < khe; ++_kh) {
-            mmwei_x210 = op_load_weights(xc, weights, _g2, _kh);
+            mmwei_x210 = op_load_weights(xc, weights, _G2, _kh);
             mmwei_210x = _mm512_slli_epi32(mmwei_x210, 8);
 
-            mminp = op_load_input(xc, input, _kh - AKH, 0, _g2, 0, k_left, index_left);
+            mminp = op_load_input(xc, input, _kh - AKH, 0, _G2, 0, k_left, index_left);
             mmout[0] = op_int8_fma(mmout[0], mminp, mmwei_x210);
 
             unroll_for(_T, T / 2) {
-              mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, 2 * _T + 1, k_mid, index_mid);
+              mminp = op_load_input(xc, input, _kh - AKH, -1, _G2, 2 * _T + 1, k_mid, index_mid);
               mmout[2 * _T + 1] = op_int8_fma(mmout[2 * _T + 1], mminp, mmwei_x210);
               if ((2 * _T + 2) < T)
                 mmout[2 * _T + 2] = op_int8_fma(mmout[2 * _T + 2], mminp, mmwei_210x);
@@ -355,59 +355,59 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
           }
         } else if (!pad_l && pad_r) { // mid-right
           for (int _kh = khs; _kh < khe; ++_kh) {
-            mmwei_x210 = op_load_weights(xc, weights, _g2, _kh);
+            mmwei_x210 = op_load_weights(xc, weights, _G2, _kh);
             mmwei_210x = _mm512_slli_epi32(mmwei_x210, 8);
 
             unroll_for(_T, T / 2) {
-              mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, 2 * _T, k_mid, index_mid);
+              mminp = op_load_input(xc, input, _kh - AKH, -1, _G2, 2 * _T, k_mid, index_mid);
               mmout[2 * _T] = op_int8_fma(mmout[2 * _T], mminp, mmwei_x210);
               if ((2 * _T + 1) < (T - 1))
                 mmout[2 * _T + 1] = op_int8_fma(mmout[2 * _T + 1], mminp, mmwei_210x);
             }
-            mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, T - 1, k_right, index_right);
+            mminp = op_load_input(xc, input, _kh - AKH, -1, _G2, T - 1, k_right, index_right);
             mmout[T - 1] = op_int8_fma(mmout[T - 1], mminp, mmwei_x210);
           }
         } else { // left-mid-right
           for (int _kh = khs; _kh < khe; ++_kh) {
-            mmwei_x210 = op_load_weights(xc, weights, _g2, _kh);
+            mmwei_x210 = op_load_weights(xc, weights, _G2, _kh);
             mmwei_210x = _mm512_slli_epi32(mmwei_x210, 8);
 
-            mminp = op_load_input(xc, input, _kh - AKH, 0, _g2, 0, k_left, index_left);
+            mminp = op_load_input(xc, input, _kh - AKH, 0, _G2, 0, k_left, index_left);
             mmout[0] = op_int8_fma(mmout[0], mminp, mmwei_x210);
 
             unroll_for(_T, (T - 1) / 2) {
-              mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, 2 * _T + 1, k_mid, index_mid);
+              mminp = op_load_input(xc, input, _kh - AKH, -1, _G2, 2 * _T + 1, k_mid, index_mid);
               mmout[2 * _T + 1] = op_int8_fma(mmout[2 * _T + 1], mminp, mmwei_x210);
               if ((2 * _T + 2) < (T - 1))
                 mmout[2 * _T + 2] = op_int8_fma(mmout[2 * _T + 2], mminp, mmwei_210x);
             }
-            mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, T - 1, k_right, index_right);
+            mminp = op_load_input(xc, input, _kh - AKH, -1, _G2, T - 1, k_right, index_right);
             mmout[T - 1] = op_int8_fma(mmout[T - 1], mminp, mmwei_x210);
           }
         }
       } else {
         __i<V> mmwei;
         for (int _kh = khs; _kh < khe; ++_kh) {
-          mmwei = op_load_weights(xc, weights, _g2, _kh);
+          mmwei = op_load_weights(xc, weights, _G2, _kh);
           // left
           if (pad_l) {
-            mminp = op_load_input(xc, input, _kh - AKH, 0, _g2, 0, k_left, index_left);
+            mminp = op_load_input(xc, input, _kh - AKH, 0, _G2, 0, k_left, index_left);
             mmout[0] = op_int8_fma(mmout[0], mminp, mmwei);
           } else {
-            mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, 0, k_mid, index_mid);
+            mminp = op_load_input(xc, input, _kh - AKH, -1, _G2, 0, k_mid, index_mid);
             mmout[0] = op_int8_fma(mmout[0], mminp, mmwei);
           }
           // mid
           unroll_from_to(_T, 1, T - 1) {
-            mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, _T, k_mid, index_mid);
+            mminp = op_load_input(xc, input, _kh - AKH, -1, _G2, _T, k_mid, index_mid);
             mmout[_T] = op_int8_fma(mmout[_T], mminp, mmwei);
           }
           // right
           if (pad_r) {
-            mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, T - 1, k_right, index_right);
+            mminp = op_load_input(xc, input, _kh - AKH, -1, _G2, T - 1, k_right, index_right);
             mmout[T-1] = op_int8_fma(mmout[T - 1], mminp, mmwei);
           } else {
-            mminp = op_load_input(xc, input, _kh - AKH, -1, _g2, T - 1, k_mid, index_mid);
+            mminp = op_load_input(xc, input, _kh - AKH, -1, _G2, T - 1, k_mid, index_mid);
             mmout[T-1] = op_int8_fma(mmout[T - 1], mminp, mmwei);
           }
         }
@@ -419,33 +419,33 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
           __i<V> out_u32, out_u32_tmp;
           // restore
           out_u32 = op_restore_output_u32(xc, output,
-                            &md2(aroutput, _g2, 0),
-                            &md2(abias, _g2, 0), mmout[4 * _T],
+                            &md2(aroutput, _G2, 0),
+                            &md2(abias, _G2, 0), mmout[4 * _T],
                             src_scale, src_factor,
-                            &md2(aweights_scale, _g2, 0),
-                            &md2(aweights_factor, _g2, 0), _T, attr);
+                            &md2(aweights_scale, _G2, 0),
+                            &md2(aweights_factor, _G2, 0), _T, attr);
           out_u32_tmp = op_restore_output_u32(xc, output,
-                            &md2(aroutput, _g2, 0),
-                            &md2(abias, _g2, 0), mmout[4 * _T + 1],
+                            &md2(aroutput, _G2, 0),
+                            &md2(abias, _G2, 0), mmout[4 * _T + 1],
                             src_scale, src_factor,
-                            &md2(aweights_scale, _g2, 0),
-                            &md2(aweights_factor, _g2, 0), _T, attr);
+                            &md2(aweights_scale, _G2, 0),
+                            &md2(aweights_factor, _G2, 0), _T, attr);
           out_u32_tmp = _mm512_slli_epi32(out_u32_tmp, 8);
           out_u32 += out_u32_tmp;
           out_u32_tmp = op_restore_output_u32(xc, output,
-                            &md2(aroutput, _g2, 0),
-                            &md2(abias, _g2, 0), mmout[4 * _T + 2],
+                            &md2(aroutput, _G2, 0),
+                            &md2(abias, _G2, 0), mmout[4 * _T + 2],
                             src_scale, src_factor,
-                            &md2(aweights_scale, _g2, 0),
-                            &md2(aweights_factor, _g2, 0), _T, attr);
+                            &md2(aweights_scale, _G2, 0),
+                            &md2(aweights_factor, _G2, 0), _T, attr);
           out_u32_tmp = _mm512_slli_epi32(out_u32_tmp, 16);
           out_u32 += out_u32_tmp;
           out_u32_tmp = op_restore_output_u32(xc, output,
-                            &md2(aroutput, _g2, 0),
-                            &md2(abias, _g2, 0), mmout[4 * _T + 3],
+                            &md2(aroutput, _G2, 0),
+                            &md2(abias, _G2, 0), mmout[4 * _T + 3],
                             src_scale, src_factor,
-                            &md2(aweights_scale, _g2, 0),
-                            &md2(aweights_factor, _g2, 0), _T, attr);
+                            &md2(aweights_scale, _G2, 0),
+                            &md2(aweights_factor, _G2, 0), _T, attr);
           out_u32_tmp = _mm512_slli_epi32(out_u32_tmp, 24);
           out_u32 += out_u32_tmp;
 
@@ -460,25 +460,25 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
           out_u32 = _mm512_permutexvar_epi32(index_32, out_u32);
 
           // store
-          MD2(RoutputType, arout, &md2(aroutput, _g2, 0), T, V);
+          MD2(RoutputType, arout, &md2(aroutput, _G2, 0), T, V);
           _mm<V>::store_epi32(&md2(arout, 4 * _T, 0), out_u32);
         }
         unroll_for (_T, T % 4) {
           op_restore_output(xc, output,
-                            &md2(aroutput, _g2, 0),
-                            &md2(abias, _g2, 0), mmout[4 * (T / 4) + _T],
+                            &md2(aroutput, _G2, 0),
+                            &md2(abias, _G2, 0), mmout[4 * (T / 4) + _T],
                             src_scale, src_factor,
-                            &md2(aweights_scale, _g2, 0),
-                            &md2(aweights_factor, _g2, 0), 4 * (T / 4) + _T, attr);
+                            &md2(aweights_scale, _G2, 0),
+                            &md2(aweights_factor, _G2, 0), 4 * (T / 4) + _T, attr);
         }
       } else {
         unroll_for (_T, T) {
           op_restore_output(xc, output,
-                            &md2(aroutput, _g2, 0),
-                            &md2(abias, _g2, 0), mmout[_T],
+                            &md2(aroutput, _G2, 0),
+                            &md2(abias, _G2, 0), mmout[_T],
                             src_scale, src_factor,
-                            &md2(aweights_scale, _g2, 0),
-                            &md2(aweights_factor, _g2, 0), _T, attr);
+                            &md2(aweights_scale, _G2, 0),
+                            &md2(aweights_factor, _G2, 0), _T, attr);
         }
       }
     }

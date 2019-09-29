@@ -42,9 +42,9 @@ Instance_elx_conv_direct_depthwise_lp_t::elx_conv_direct_depthwise_lp_t(eld_conv
   // vector multi-group number
   this->G = ALIGNUP(this->g, V);
   this->vmg = V / this->ocg;
-  this->g2 = this->G / this->g3 / V;
-  this->G2 = this->g2 * this->g3;
-  if (V * this->g2 * this->g3 != this->G) {
+  this->G2 = this->G / this->G3 / V;
+  this->g23 = this->G2 * this->G3;
+  if (V * this->G2 * this->G3 != this->G) {
     el_error("conv: g blocking error for depthwise conv");
   }
   if (this->O != 1) {
@@ -60,14 +60,14 @@ Instance_elx_conv_direct_depthwise_lp_t::elx_conv_direct_depthwise_lp_t(eld_conv
   if (this->T == 0) this->T = 1;
   this->I2 = 1;
 
-  this->oc4 = 1;
-  this->oc3 = 1;
+  this->O4 = 1;
+  this->O3 = 1;
   this->O = 1;
   this->O1 = 1;
   this->O2 = this->O * this->O1;
   
-  this->ic4 = 1;
-  this->ic3 = 1;
+  this->I4 = 1;
+  this->I3 = 1;
   this->I2 = 1;
 
   this->ic2 = this->G / V;
@@ -75,8 +75,7 @@ Instance_elx_conv_direct_depthwise_lp_t::elx_conv_direct_depthwise_lp_t(eld_conv
 
   xopt_ = 0xa160;
 
-  // t3, t2, (T, Tr)
-  this->t3 = this->n;
+  // n, t2, (T, Tr)
   this->ht = this->oh;
   this->wt = (this->ow + this->T - 1) / this->T;
   this->Tr = this->ow % this->T ? this->ow % this->T : this->T;
@@ -100,11 +99,11 @@ Instance_elx_conv_direct_depthwise_lp_t::elx_conv_direct_depthwise_lp_t(eld_conv
   this->ormask = 0;
 
   // IC = V = G * C; ic_orig = g * G * C
-  if (this->ic4 * this->ic3 * this->I2 * V != this->IC) {
+  if (this->I4 * this->I3 * this->I2 * V != this->IC) {
     el_error("IC blocking error");
   }
   // OC = V = G * C; oc_orig = g * G * C
-  if (this->oc4 * this->oc3 * this->O2 * V != this->OC) {
+  if (this->O4 * this->O3 * this->O2 * V != this->OC) {
     el_error("OC blocking error");
   }
 
@@ -124,11 +123,11 @@ Instance_elx_conv_direct_depthwise_lp_t::elx_conv_direct_depthwise_lp_t(eld_conv
   // dbg
   printf("T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d\n",
       this->T, this->Tr, this->t2, this->ht, this->wt, this->t);
-  printf("V=%d, Ir=%d, I2=%d, ic3=%d, ic4=%d, IC=%d, g2=%d, g3=%d, g=%d, G=%d\n",
-      V, this->Ir, this->I2, this->ic3, this->ic4, this->IC, this->g2, this->g3, this->g, this->G);
-  printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), oc3=%d, oc4=%d, O2r=%d, oc3r=%d, OC=%d\n",
+  printf("V=%d, Ir=%d, I2=%d, I3=%d, I4=%d, IC=%d, G2=%d, G3=%d, g=%d, G=%d\n",
+      V, this->Ir, this->I2, this->I3, this->I4, this->IC, this->G2, this->G3, this->g, this->G);
+  printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d\n",
       V, this->Or, this->O2, this->O, this->O1,
-      this->oc3, this->oc4, this->O2r, this->oc3r, this->OC);
+      this->O3, this->O4, this->O2r, this->O3r, this->OC);
 }
 
 Template_elx_conv_direct_depthwise_lp_t void
@@ -198,65 +197,65 @@ Instance_elx_conv_direct_depthwise_lp_t::~elx_conv_direct_depthwise_lp_t()
 {
 }
 
-// weights: G2, V, kh, kw
-// tweights: G2, kh, V, KW // kw-padded goih16g4w
+// weights: g23, V, kh, kw
+// tweights: g23, kh, V, KW // kw-padded goih16g4w
 Template_elx_conv_direct_depthwise_lp_t void
 Instance_elx_conv_direct_depthwise_lp_t::trans_weights_3x3(
     TscaleType *weights_scale, TscaleType *weights_factor, int8_t *tweights_s8,
     WeightsType *weights, BiasType *bias)
 {
   // absmax
-  parallel_for<2>(mthr_, [&](int _G2, int _V) {
-    MD4(WeightsType, aweights, weights, this->G2, V, this->kh, this->kw);
-    MD2(TscaleType, aweights_scale, weights_scale, this->G2, V);
+  parallel_for<2>(mthr_, [&](int _g23, int _V) {
+    MD4(WeightsType, aweights, weights, this->g23, V, this->kh, this->kw);
+    MD2(TscaleType, aweights_scale, weights_scale, this->g23, V);
     float absmax = 0.0;
     iter_each (_kh, this->kh) {
       iter_each (_kw, this->kw) {
-        float val = md4(aweights, _G2, _V, _kh, _kw);
+        float val = md4(aweights, _g23, _V, _kh, _kw);
         absmax = estl::max(std::abs(val), absmax);
       }
     }
-    md2(aweights_scale, _G2, _V) = absmax;
-  }, this->G2, V);
+    md2(aweights_scale, _g23, _V) = absmax;
+  }, this->g23, V);
 
   // quantization
   std::fesetround(FE_TONEAREST);
-  parallel_for<4>(mthr_, [&](int _G2, int _kh, int _V, int _kw) {
-    MD4(int8_t, atweights_s8, tweights_s8, this->G2, this->kh, V, this->KW);
-    MD4(WeightsType, aweights, weights, this->G2, V, this->kh, this->kw);
-    MD2(TscaleType, aweights_scale, weights_scale, this->G2, V);
+  parallel_for<4>(mthr_, [&](int _g23, int _kh, int _V, int _kw) {
+    MD4(int8_t, atweights_s8, tweights_s8, this->g23, this->kh, V, this->KW);
+    MD4(WeightsType, aweights, weights, this->g23, V, this->kh, this->kw);
+    MD2(TscaleType, aweights_scale, weights_scale, this->g23, V);
     if (_kw < this->kw) {
       // scale
-      auto t0 = md4(aweights, _G2, _V, _kh, _kw);
-      auto absmax = md2(aweights_scale, _G2, _V);
+      auto t0 = md4(aweights, _g23, _V, _kh, _kw);
+      auto absmax = md2(aweights_scale, _g23, _V);
       t0 = t0 * INT8GEMM_TWT_QTSCALE / absmax;
       // round & store
-      md4(atweights_s8, _G2, _kh, _V, _kw) = (int8_t)std::rint(t0);
+      md4(atweights_s8, _g23, _kh, _V, _kw) = (int8_t)std::rint(t0);
     } else {
-      md4(atweights_s8, _G2, _kh, _V, _kw) = 0;
+      md4(atweights_s8, _g23, _kh, _V, _kw) = 0;
     }
-  }, this->G2, this->kh, V, this->KW);
+  }, this->g23, this->kh, V, this->KW);
 
   // weights-scale
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
-  parallel_for<1>(mthr_, [&](int _G2) {
-    MD2(TscaleType, aweights_scale, weights_scale, this->G2, V);
-    auto t0 = *(__m<V> *)&md2(aweights_scale, _G2, 0);
-    *(__m<V> *)&md2(aweights_scale, _G2, 0) = t0 / mmscale;
-  }, this->G2);
+  parallel_for<1>(mthr_, [&](int _g23) {
+    MD2(TscaleType, aweights_scale, weights_scale, this->g23, V);
+    auto t0 = *(__m<V> *)&md2(aweights_scale, _g23, 0);
+    *(__m<V> *)&md2(aweights_scale, _g23, 0) = t0 / mmscale;
+  }, this->g23);
 
   // weights-acc
-  parallel_for<2>(mthr_, [&](int _G2, int _V) {
-    MD4(int8_t, atweights_s8, tweights_s8, this->G2, this->kh, V, this->KW);
-    MD2(TscaleType, aweights_factor, weights_factor, this->G2, V);
+  parallel_for<2>(mthr_, [&](int _g23, int _V) {
+    MD4(int8_t, atweights_s8, tweights_s8, this->g23, this->kh, V, this->KW);
+    MD2(TscaleType, aweights_factor, weights_factor, this->g23, V);
     int acc = 0;
     iter_each(_kh, this->kh) {
       iter_each(_kw, this->kw) {
-        acc += md4(atweights_s8, _G2, _kh, _V, _kw);
+        acc += md4(atweights_s8, _g23, _kh, _V, _kw);
       }
     }
-    md2(aweights_factor, _G2, _V) = acc;
-  }, this->G2, V);
+    md2(aweights_factor, _g23, _V) = acc;
+  }, this->g23, V);
 
   // combine with output restore
   auto out_repS = _mm<V>::set1_ps(this->output_quant_repS);
@@ -264,24 +263,24 @@ Instance_elx_conv_direct_depthwise_lp_t::trans_weights_3x3(
   auto input_S = _mm<V>::set1_ps(this->input_quant_S);
   auto input_z = _mm<V>::set1_ps(this->input_quant_z);
 
-  parallel_for<1>(mthr_, [&](int _G2) {
-    MD2(TscaleType, aweights_scale, weights_scale, this->G2, V);
-    __m<V> &qs = *(__m<V> *)&md2(aweights_scale, _G2, 0);
+  parallel_for<1>(mthr_, [&](int _g23) {
+    MD2(TscaleType, aweights_scale, weights_scale, this->g23, V);
+    __m<V> &qs = *(__m<V> *)&md2(aweights_scale, _g23, 0);
     if (std::is_same<OutputType, float>::value) {
       qs = input_S * qs;
     } else {
       qs = input_S * qs * out_repS;
     }
-  }, this->G2);
+  }, this->g23);
 
-  parallel_for<1>(mthr_, [&](int _G2) {
-    MD2(BiasType, abias, bias, this->G2, V);
-    MD2(TscaleType, aweights_scale, weights_scale, this->G2, V);
-    MD2(TscaleType, aweights_factor, weights_factor, this->G2, V);
+  parallel_for<1>(mthr_, [&](int _g23) {
+    MD2(BiasType, abias, bias, this->g23, V);
+    MD2(TscaleType, aweights_scale, weights_scale, this->g23, V);
+    MD2(TscaleType, aweights_factor, weights_factor, this->g23, V);
 
-    __m<V> qs = *(__m<V> *)&md2(aweights_scale, _G2, 0);
-    __m<V> b = this->with_bias ? *(__m<V> *)&md2(abias, _G2, 0) : _mm<V>::setzero_ps();
-    __m<V> &qf = *(__m<V> *)&md2(aweights_factor, _G2, 0);
+    __m<V> qs = *(__m<V> *)&md2(aweights_scale, _g23, 0);
+    __m<V> b = this->with_bias ? *(__m<V> *)&md2(abias, _g23, 0) : _mm<V>::setzero_ps();
+    __m<V> &qf = *(__m<V> *)&md2(aweights_factor, _g23, 0);
 
     if (std::is_same<OutputType, float>::value) {
       qf = b - input_z * qf * qs;
@@ -289,7 +288,7 @@ Instance_elx_conv_direct_depthwise_lp_t::trans_weights_3x3(
       qf = b * out_repS + out_z - input_z * qf * qs;
     }
 
-  }, this->G2);
+  }, this->g23);
 }
 
 Template_elx_conv_direct_depthwise_lp_t

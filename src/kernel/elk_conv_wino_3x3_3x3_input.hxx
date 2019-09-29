@@ -73,7 +73,7 @@ struct elk_conv_wino_trans_input<float, InputType, format, is_border,
         MD3(InputType, ainput0, input, xc.ih, xc.iw, xc.ic);
         // TODO: overflow on last V
         MD2(InputType, ainput1, &md3(ainput0, _h, _w, 0),
-            xc.ic4 * xc.ic3 * xc.I2, V);
+            xc.I4 * xc.I3 * xc.I2, V);
         if (is_border
             && (_h < hA_start || _w < wA_start || _h > hA_end || _w > wA_end)) {
           return _mm<V>::setzero_ps();

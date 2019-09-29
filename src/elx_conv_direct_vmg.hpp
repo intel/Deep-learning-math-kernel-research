@@ -40,7 +40,7 @@ Template_elx_conv_direct_vmg_t class elx_conv_direct_vmg_t : public elx_conv_t {
   void trans_weights_to_compact(TweightsType *tweights, WeightsType *weights);
 
   void conv_a060(OutputType *output, InputType *input, TweightsType *weights,
-      BiasType *bias, int _ic4, int _oc4, int _ht, int _wt);
+      BiasType *bias, int _I4, int _O4, int _ht, int _wt);
 
   void set_scratch_buffers(void *base);
   void set_workspace_buffers(void *base);

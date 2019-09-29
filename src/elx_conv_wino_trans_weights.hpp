@@ -42,22 +42,22 @@ protected:
       op_type, WeightsType, I, A, K, V>::execute) *ker_trans_weights_;
 
   inline void __execute_blocked(TweightsType *__restrict tweights,
-      WeightsType *__restrict weights, int oc4);
+      WeightsType *__restrict weights, int O4);
   inline void __execute_oihw(TweightsType *__restrict tweights,
-      WeightsType *__restrict weights, int oc4);
+      WeightsType *__restrict weights, int O4);
   inline void __execute_hwio(TweightsType *__restrict tweights,
-      WeightsType *__restrict weights, int oc4);
+      WeightsType *__restrict weights, int O4);
 
   inline void __execute_blocked(TweightsType *__restrict tweights,
-      WeightsType *__restrict weights, int _ic4, int _oc4);
+      WeightsType *__restrict weights, int _I4, int _O4);
   inline void __execute_oihw(TweightsType *__restrict tweights,
-      WeightsType *__restrict weights, int _ic4, int _oc4);
+      WeightsType *__restrict weights, int _I4, int _O4);
   inline void __execute_hwio(TweightsType *__restrict tweights,
-      WeightsType *__restrict weights, int _ic4, int _oc4);
+      WeightsType *__restrict weights, int _I4, int _O4);
 
   inline void __execute_post(TweightsType * __restrict tweights,
       op_type at[A][A][V][V],
-      int _oc4, int _ic4, int _oc3, int _ic3,
+      int _O4, int _I4, int _O3, int _I3,
       int _O1, int _I2, int _O);
 
   bool weights_is_bfmt_, weights_as_bfmt_;
@@ -77,17 +77,17 @@ public:
   virtual ~elx_conv_wino_trans_weights_t() {}
 
   void execute(TweightsType *__restrict tweights,
-      WeightsType *__restrict weights, int oc4 = 1);
+      WeightsType *__restrict weights, int O4 = 1);
   void execute(TweightsType *__restrict tweights,
-      WeightsType *__restrict weights, int _ic4, int _oc4);
+      WeightsType *__restrict weights, int _I4, int _O4);
 
   void operator () (TweightsType *__restrict tweights,
-      WeightsType *__restrict weights, int oc4 = 1) {
-    execute(tweights, weights, oc4);
+      WeightsType *__restrict weights, int O4 = 1) {
+    execute(tweights, weights, O4);
   }
   void operator() (TweightsType *__restrict tweights,
-      WeightsType *__restrict weights, int _ic4, int _oc4) {
-    execute(tweights, weights, _ic4, _oc4);
+      WeightsType *__restrict weights, int _I4, int _O4) {
+    execute(tweights, weights, _I4, _O4);
   }
 
 protected:
@@ -115,21 +115,21 @@ public:
       TscaleType *__restrict tweights_factor,
       int8_t *__restrict t_input_s8,
       TweightsType *__restrict t_input,
-      WeightsType *__restrict input, int oc4);
+      WeightsType *__restrict input, int O4);
 
   void operator () (TscaleType *__restrict tweights_quant_scale,
       TscaleType *__restrict tweights_factor,
       int8_t *__restrict t_input_s8,
       TweightsType *__restrict t_input,
-      WeightsType *__restrict input, int oc4) {
+      WeightsType *__restrict input, int O4) {
     execute(tweights_quant_scale, tweights_factor,
-        t_input_s8, t_input, input, oc4);
+        t_input_s8, t_input, input, O4);
   }
 
   inline void quantization(TscaleType *__restrict tweights_quant_scale,
     TscaleType *__restrict tweights_quant_factor,
     int8_t *__restrict tweights_s8,
-    TweightsType *__restrict tweights, int oc4);
+    TweightsType *__restrict tweights, int O4);
 
 protected:
   using super::xc;
