@@ -13,7 +13,7 @@ Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
     : elx_conv_t(dc)
 {
   xopt_ = this->execution_mode;
-  mthr_ = el_get_max_threads();
+  mthr_ = estl::max_concurrency();
 
   this->Vx = 4;
   this->V1 = V / this->Vx;
@@ -309,7 +309,7 @@ Instance_elx_int8_conv_direct_t::__trans_weights_acc(TscaleType *weights_scale,
       (TscaleType *)malloc(wacc_h_ * wacc_w_ * this->OC * sizeof(TscaleType));
 
   // weights-acc
-  parallel_for<7>(mthr_, [&](int _wacc_h, int _wacc_w, int _O4, int _O3, int _O1, int _O, int _oV) {
+  estl::parallel_for<7>(mthr_, [&](int _wacc_h, int _wacc_w, int _O4, int _O3, int _O1, int _O, int _oV) {
     MD12(int8_t, atweights_s8, tweights_s8, this->O4, this->I4, this->O3,
          this->I3, this->kh, this->kw, this->O1, this->I2, V1, this->O,
          V, this->Vx);
@@ -351,7 +351,7 @@ Instance_elx_int8_conv_direct_t::__trans_weights_acc(TscaleType *weights_scale,
   auto input_z = _mm<V>::set1_ps(this->input_quant_z);
 
   // Combine output restore and requantization scale and factor
-  parallel_for<1>(mthr_, [&](int _oc2) {
+  estl::parallel_for<1>(mthr_, [&](int _oc2) {
     MD2(TscaleType, atweights_scale, weights_scale, this->oc2, V);
     MD2(BiasType, abias, bias, this->oc2, V);
     __m<V> &qs = *(__m<V> *)&md2(atweights_scale, _oc2, 0);
@@ -363,7 +363,7 @@ Instance_elx_int8_conv_direct_t::__trans_weights_acc(TscaleType *weights_scale,
     }
   }, this->oc2);
 
-  parallel_for<1>(mthr_, [&](int _oc2) {
+  estl::parallel_for<1>(mthr_, [&](int _oc2) {
     MD2(BiasType, abias, bias, this->oc2, V);
     MD2(TscaleType, atweights_scale, weights_scale, this->oc2, V);
     MD5(TscaleType, atweights_factor, weights_factor, wacc_h_, wacc_wt_, this->oc2, wacc_wT_, V);
@@ -424,7 +424,7 @@ trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
   auto V1 = compact_ir_weights_ ? this->Ir : this->V1;
 
   // abs-max
-  parallel_for<1>(mthr_, [&](int _oc2) {
+  estl::parallel_for<1>(mthr_, [&](int _oc2) {
     MD6(WeightsType, aweights, weights, this->oc2, this->ic2, this->kh, this->kw, V, V);
     MD2(TscaleType, atweights_scale, weights_scale, this->oc2, V);
 
@@ -442,7 +442,7 @@ trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
   }, this->oc2);
 
   // quantization
-  parallel_for<11>(mthr_, [&](int _O4, int _O3, int _O1,
+  estl::parallel_for<11>(mthr_, [&](int _O4, int _O3, int _O1,
       int _O, int _I4, int _I3, int _I2, int _kh, int _kw, int _V1, int _Vx) {
     MD12(int8_t, atweights_s8, tweights_s8, this->O4, this->I4, this->O3,
          this->I3, this->kh, this->kw, this->O1, this->I2, V1, this->O, V, this->Vx);
@@ -480,7 +480,7 @@ trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
      this->kh, this->kw, V1, this->Vx);
 
   // weights-scale
-  parallel_for<1>(mthr_, [&](int _oc2) {
+  estl::parallel_for<1>(mthr_, [&](int _oc2) {
     MD2(TscaleType, atweights_scale, weights_scale, this->oc2, V);
     auto t0 = _mm<V>::div_ps(
         *(__m<V> *)&md2(atweights_scale, _oc2, 0), mmscale);

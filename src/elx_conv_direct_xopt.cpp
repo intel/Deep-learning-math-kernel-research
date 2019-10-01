@@ -34,7 +34,7 @@ void Instance_elx_conv_direct_t::__execute_a060(
   }
 
   if (this->input_fmt == nchw) { // nchw => blocked
-    parallel_for<5, 1>(mthr_, [&](int _n, int _I4, int _O4, int _ht, int _wt) {
+    estl::parallel_for<5, 1>(mthr_, [&](int _n, int _I4, int _O4, int _ht, int _wt) {
       int Vr = this->ic < V ? this->Ir : V;
       MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
       MD3(TweightsType, atweights, tweights_, this->O4, this->I4,
@@ -52,7 +52,7 @@ void Instance_elx_conv_direct_t::__execute_a060(
           _wt);
     }, this->n, this->I4, this->O4, this->ht, this->wt);
   } else if (this->input_fmt == nhwc) { // nhwc => nhwc
-    parallel_for<6, 2>(mthr_, [&](int _n, int _g, int _I4, int _O4, int _ht, int _wt) {
+    estl::parallel_for<6, 2>(mthr_, [&](int _n, int _g, int _I4, int _O4, int _ht, int _wt) {
       MD2(BiasType, abias0, bias, this->g, this->oc);
       MD2(BiasType, abias1, &md2(abias0, _g, 0), this->O4, this->O3 * this->O2 * V);
       MD4(TweightsType, atweights, tweights_, this->g, this->O4, this->I4,
@@ -72,7 +72,7 @@ void Instance_elx_conv_direct_t::__execute_a060(
           _I4, _O4, _ht, _wt);
     },  this->n, this->g, this->I4, this->O4, this->ht, this->wt);
   } else { // blocked => blocked
-    parallel_for<6, 2>(mthr_, [&](int _n, int _g, int _I4, int _O4, int _ht, int _wt) {
+    estl::parallel_for<6, 2>(mthr_, [&](int _n, int _g, int _I4, int _O4, int _ht, int _wt) {
       MD2(BiasType, abias0, bias, this->g, this->oc);
       MD2(BiasType, abias1, &md2(abias0, _g, 0), this->O4, this->O3 * this->O2 * V);
       MD4(TweightsType, atweights, tweights_, this->g, this->O4, this->I4,
@@ -111,7 +111,7 @@ void Instance_elx_conv_direct_t::__execute_b060(
 
   THREAD_PARALLEL()
   {
-    int ithr = el_get_thread_num();
+    int ithr = estl::current_thread_index();
     if (this->input_fmt == nhwc) { // nhwc => nhwc
       THREAD_FOR2(6, 2, mthr_, ithr, [&](int _I4, int _n, int _I3,
                                          int _O4, int _ht, int _wt) {
@@ -223,7 +223,7 @@ void Instance_elx_conv_direct_t::__execute_d060(
   }
 
   if (this->input_fmt == nhwc) { // nhwc -> nhwc
-    parallel_for<6, 2>(mthr_, [&](int _n, int _g, int _I4, int _O4, int _ht, int _wt) {
+    estl::parallel_for<6, 2>(mthr_, [&](int _n, int _g, int _I4, int _O4, int _ht, int _wt) {
       MD2(BiasType, abias0, bias, this->g, this->oc);
       MD2(BiasType, abias1, &md2(abias0, _g, 0), this->O4, this->O3 * this->O2 * V);
       MD4(TweightsType, atweights, tweights_, this->g, this->O4, this->I4,
@@ -241,7 +241,7 @@ void Instance_elx_conv_direct_t::__execute_d060(
           _I4, _O4, _ht, _wt);
     }, this->n, this->g, this->I4, this->O4, this->ht, this->wt);
   } else { // blocked -> blocked
-    parallel_for<6, 2>(mthr_, [&](int _n, int _g, int _I4, int _O4, int _ht, int _wt) {
+    estl::parallel_for<6, 2>(mthr_, [&](int _n, int _g, int _I4, int _O4, int _ht, int _wt) {
       MD2(BiasType, abias0, bias, this->g, this->oc);
       MD2(BiasType, abias1, &md2(abias0, _g, 0), this->O4, this->O3 * this->O2 * V);
       MD4(TweightsType, atweights, tweights_, this->g, this->O4, this->I4,

@@ -79,8 +79,8 @@ void Instance_elx_int8_conv_wino_t::__execute_a161(
   }
 
   auto t2_history = -1;
-  parallel_for<2>(mthr_, [&, t2_history](int _t2, int _O4) mutable {
-    int ithr = el_get_thread_num();
+  estl::parallel_for<2>(mthr_, [&, t2_history](int _t2, int _O4) mutable {
+    int ithr = estl::current_thread_index();
     MD2(TinputType, atinput2, tinput_, mthr_, this->sampling_kind == COARSE ?
         A * A * this->IC * this->T : A * A * this->I2 * V);
     MD2(ToutputType, atoutput2, toutput_, mthr_,
@@ -132,10 +132,10 @@ void Instance_elx_int8_conv_wino_t::__execute_a173(
   }
 
   int last_ic4 = -1, last_t2 = -1;
-  parallel_for<3, 1>(
+  estl::parallel_for<3, 1>(
       mthr_, [&, last_ic4, last_t2](int _t2, int _I4, int _O4) mutable {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    size_t ithr = el_get_thread_num();
+    size_t ithr = estl::current_thread_index();
     MD2(TinputType, atinput2, tinput_, mthr_,
         A * A * this->I3 * this->I2 * V);
     MD2(ToutputType, atoutput2, toutput_, mthr_,
@@ -191,7 +191,7 @@ void Instance_elx_int8_conv_wino_t::execute(
     OutputType *out = output_as_bfmt_ ? boutput_ : (OutputType *)output;
 
     if (input_as_bfmt_) {
-      parallel_for<3>(mthr_, [&](int _n, int _ic2, int _ih) {
+      estl::parallel_for<3>(mthr_, [&](int _n, int _ic2, int _ih) {
         int v = _ic2 == this->ic2 - 1 ? this->Ir : V;
         MD5(InputType, abinput, binput_, this->n, this->ic2, this->ih, this->iw, V);
         MD4(InputType, ainput, input, this->n, this->ic, this->ih, this->iw);
@@ -206,7 +206,7 @@ void Instance_elx_int8_conv_wino_t::execute(
     }
 
     if (weights_as_bfmt_) {
-      parallel_for<3>(mthr_, [&](int _oc2, int _ic2, int _kh) {
+      estl::parallel_for<3>(mthr_, [&](int _oc2, int _ic2, int _kh) {
         MD6(WeightsType, abweights, bweights_, this->oc2, this->ic2,
             this->kh, this->kw, V, V);
         MD4(WeightsType, aweights, weights, this->oc, this->ic, this->kh, this->kw);
@@ -229,7 +229,7 @@ void Instance_elx_int8_conv_wino_t::execute(
         (InputType *)in, (WeightsType *)wei, (BiasType *)bias);
 
     if (output_as_bfmt_) {
-      parallel_for<3>(mthr_, [&](int _n, int _oc2, int _oh) {
+      estl::parallel_for<3>(mthr_, [&](int _n, int _oc2, int _oh) {
         MD5(OutputType, aboutput, boutput_, this->n, this->oc2, this->oh, this->ow, V);
         MD4(OutputType, aoutput, output, this->n, this->oc, this->oh, this->ow);
         int v = _oc2 == this->oc2 - 1 ? this->Or : V;

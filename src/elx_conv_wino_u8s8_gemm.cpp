@@ -93,7 +93,7 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
 
   bool scramble = (xc->T == xc->Tr) || (xc->t2 >= 2 * mthr_);
   if (scramble) {
-    int it_start = el_get_thread_num();
+    int it_start = estl::current_thread_index();
     iter_each(i, A * A) {
       int n = (it_start + i) % (A * A);
       int _wA = n % A;
@@ -161,7 +161,7 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
     TscaleType *src_scale, TscaleType *src_factor,
     TscaleType *weights_scale, TscaleType *weights_factor, int _I4)
 {
-  int ithr = el_get_thread_num();
+  int ithr = estl::current_thread_index();
   THREAD_FOR2(5, 2, mthr_, ithr,
               [&](int _hA, int _wA, int _I3, int _O3, int _t2) {
     MD2(uint8_t, atinput2, tinput, xc->t2, A * A * xc->I3 * xc->I2 * xc->T * V);

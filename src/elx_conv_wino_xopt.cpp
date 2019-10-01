@@ -40,7 +40,7 @@ void Instance_elx_conv_wino_t::__execute_a061(
   }
   auto t2_history = -1;
 
-  parallel_for<2>(mthr_, [&, t2_history](int _t2, int _O4) mutable {
+  estl::parallel_for<2>(mthr_, [&, t2_history](int _t2, int _O4) mutable {
     MD2(TinputType, atinput2, tinput_, mthr_,
         A * A * this->T * this->IC);
     MD2(ToutputType, atoutput2, toutput_, mthr_,
@@ -50,7 +50,7 @@ void Instance_elx_conv_wino_t::__execute_a061(
     MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
 
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    int ithr = el_get_thread_num();
+    int ithr = estl::current_thread_index();
 
     if (t2_history != _t2) {
       trans_input(&md2(atinput2, ithr, 0), input, Tz, _t2, 0);
@@ -84,8 +84,8 @@ void Instance_elx_conv_wino_t::__execute_a071(
   }
   int last_ic4 = -1, last_t2 = -1;
 
-  parallel_for<3, 2>(mthr_, [&, last_ic4, last_t2]
-                     (int _t2, int _O4, int _I4) mutable {
+  estl::parallel_for<3, 2>(mthr_, [&, last_ic4, last_t2]
+                           (int _t2, int _O4, int _I4) mutable {
     MD2(TinputType, atinput2, tinput_, mthr_,
         A * A * this->T * this->I3 * this->I2 * V);
     MD2(ToutputType, atoutput2, toutput_, this->t2,
@@ -95,7 +95,7 @@ void Instance_elx_conv_wino_t::__execute_a071(
     MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
 
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    int ithr = el_get_thread_num();
+    int ithr = estl::current_thread_index();
 
     MD2(ToutputType, atoutput3, &md2(atoutput2, _t2, 0),
         this->O4, A * A * Tz * this->O3 * this->O2 * V);
@@ -133,8 +133,8 @@ void Instance_elx_conv_wino_t::__execute_a073(
 
   int last_ic4 = -1, last_t2 = -1;
 
-  parallel_for<3, 2>(mthr_, [&, last_ic4, last_t2]
-                     (int _t2, int _O4, int _I4) mutable {
+  estl::parallel_for<3, 2>(mthr_, [&, last_ic4, last_t2]
+                           (int _t2, int _O4, int _I4) mutable {
     MD2(TinputType, atinput2, tinput_, mthr_,
         A * A * this->T * this->I3 * this->I2 * V);
     MD2(ToutputType, atoutput2, toutput_, mthr_,
@@ -144,7 +144,7 @@ void Instance_elx_conv_wino_t::__execute_a073(
     MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
 
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    int ithr = el_get_thread_num();
+    int ithr = estl::current_thread_index();
 
     if (last_ic4 != _I4 || last_t2 != _t2) {
       trans_input(&md2(atinput2, ithr, 0), input, Tz, _t2, _I4);
@@ -171,8 +171,8 @@ void Instance_elx_conv_wino_t::__execute_a07b(
 {
   int last_ic4 = -1, last_t2 = -1, last_oc4 = -1;
 
-  parallel_for<3, 1>(mthr_, [&, last_ic4, last_t2, last_oc4]
-                     (int _O4, int _I4, int _t2) mutable {
+  estl::parallel_for<3, 1>(mthr_, [&, last_ic4, last_t2, last_oc4]
+                           (int _O4, int _I4, int _t2) mutable {
     MD2(TinputType, atinput2, tinput_, mthr_,
         A * A * this->T * this->I3 * this->I2 * V);
     MD2(ToutputType, atoutput2, toutput_, mthr_,
@@ -182,7 +182,7 @@ void Instance_elx_conv_wino_t::__execute_a07b(
     MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
 
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    int ithr = el_get_thread_num();
+    int ithr = estl::current_thread_index();
 
     if (last_ic4 != _I4 || last_oc4 != _O4) {
       trans_weights(&md2(atweights2, ithr, 0), weights, _I4, _O4);
@@ -208,8 +208,8 @@ void Instance_elx_conv_wino_t::__execute_a079(
 {
   int last_ic4 = -1, last_t2 = -1, last_oc4 = -1;
 
-  parallel_for<3, 1>(mthr_, [&, last_ic4, last_t2, last_oc4]
-                     (int _O4, int _I4, int _t2) mutable {
+  estl::parallel_for<3, 1>(mthr_, [&, last_ic4, last_t2, last_oc4]
+                           (int _O4, int _I4, int _t2) mutable {
     MD2(TinputType, atinput2, tinput_, mthr_,
         A * A * this->T * this->I3 * this->I2 * V);
     MD2(ToutputType, atoutput2, toutput_, this->t2,
@@ -219,7 +219,7 @@ void Instance_elx_conv_wino_t::__execute_a079(
     MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
 
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
-    int ithr = el_get_thread_num();
+    int ithr = estl::current_thread_index();
 
     MD2(ToutputType, atoutput3, &md2(atoutput2, _t2, 0),
         this->O4, A * A * Tz * this->O3 * this->O2 * V);
@@ -320,7 +320,7 @@ void Instance_elx_conv_wino_t::execute(
     OutputType *out = output_as_bfmt_ ? boutput_ : (OutputType *)output;
 
     if (input_as_bfmt_) {
-      parallel_for<3>(mthr_, [&](int _n, int _ic2, int _ih) {
+      estl::parallel_for<3>(mthr_, [&](int _n, int _ic2, int _ih) {
         MD5(InputType, abinput, binput_, this->n, this->ic2, this->ih, this->iw, V);
         MD4(InputType, ainput, (InputType *)input, this->n, this->ic, this->ih, this->iw);
 
@@ -336,7 +336,7 @@ void Instance_elx_conv_wino_t::execute(
     }
 
     if (weights_as_bfmt_) {
-      parallel_for<3>(mthr_, [&](int _oc2, int _ic2, int _kh) {
+      estl::parallel_for<3>(mthr_, [&](int _oc2, int _ic2, int _kh) {
         MD6(WeightsType, abweights, bweights_, this->oc2, this->ic2,
             this->kh, this->kw, V, V);
         MD4(WeightsType, aweights, (WeightsType *)weights, this->oc, this->ic,
@@ -361,7 +361,7 @@ void Instance_elx_conv_wino_t::execute(
         (InputType *)in, (WeightsType *)wei, (BiasType *)bias);
 
     if (output_as_bfmt_) {
-      parallel_for<3>(mthr_, [&](int _n, int _oc2, int _oh) {
+      estl::parallel_for<3>(mthr_, [&](int _n, int _oc2, int _oh) {
         MD5(OutputType, aboutput, boutput_, this->n, this->oc2, this->oh, this->ow, V);
         MD4(OutputType, aoutput, (OutputType *)output, this->n, this->oc, this->oh, this->ow);
 

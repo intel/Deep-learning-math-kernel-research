@@ -12,7 +12,7 @@ Instance_elx_deconv_direct_t::elx_deconv_direct_t(eld_conv_t &dc)
 {
   // user input
   xopt_ = this->execution_mode;
-  mthr_ = el_get_max_threads();
+  mthr_ = estl::max_concurrency();
 
   this->Vx = 1;
   this->V1 = V / this->Vx;
@@ -284,8 +284,8 @@ void Instance_elx_deconv_direct_t::trans_weights_to_compact(
   // clang-format off
   if (this->weights_fmt == OIhw16i16o || this->weights_fmt == gOIhw16i16o) {
     // skip O for tasks allocation, as O == 2 will be optimized by BF16 type
-    parallel_for<8, 4>(mthr_, [&](int _g, int _O4, int _O3, int _O1, int _O,
-                                  int _I4, int _I3, int _I2) {
+    estl::parallel_for<8, 4>(mthr_, [&](int _g, int _O4, int _O3, int _O1, int _O,
+                                        int _I4, int _I3, int _I2) {
       MD12(WeightsType, aweights, weights, this->g, this->O4, this->O3, this->O1,
            this->O, this->I4, this->I3, this->I2, this->kh, this->kw, V, V);
       iter_each (_kh, this->kh) {
@@ -298,7 +298,7 @@ void Instance_elx_deconv_direct_t::trans_weights_to_compact(
       }}}
     }, this->g, this->O4, this->O3, this->O1, this->O, this->I4, this->I3, this->I2);
   } else if (this->weights_fmt == hwio || this->weights_fmt == ghwio) {
-    parallel_for<6>(mthr_, [&](int _g, int _kh, int _kw, int _I4, int _I3, int _I2) {
+    estl::parallel_for<6>(mthr_, [&](int _g, int _kh, int _kw, int _I4, int _I3, int _I2) {
       MD5(WeightsType, aweights0, weights, this->g, this->kh, this->kw, this->ic, this->oc);
       auto Ir = _I4 == this->I4 - 1 && _I3 == this->I3 - 1
            && _I2 == this->I2 - 1 ? this->Ir : V;

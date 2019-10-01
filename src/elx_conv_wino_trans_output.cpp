@@ -369,7 +369,7 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
       ? ker_trans_output0_acc_
       : ker_trans_output0_;
 
-  int ithr = el_get_thread_num();
+  int ithr = estl::current_thread_index();
   THREAD_FOR(4, mthr_, ithr,
       [&](int _t2, int _O3, int _O2, int _T) {
         // A, A, O3, O2, T, V -> n, oc2, oh, ow, V
@@ -435,7 +435,7 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
       ? ker_trans_output0_acc_
       : ker_trans_output0_;
 
-  int ithr = el_get_thread_num();
+  int ithr = estl::current_thread_index();
   THREAD_FOR(3, mthr_, ithr,
       [&](int _t2, int _O3, int _O2) {
         // A, A, O3, O2, T, V -> n, oh, ow, oc
@@ -540,7 +540,7 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
     }
   };
 
-  int ithr = el_get_thread_num();
+  int ithr = estl::current_thread_index();
   THREAD_FOR(3, mthr_, ithr,
       [&](int _t2, int _O3, int _O2) {
         MD3(BiasType, abias, bias, xc->O3, xc->O2, V);

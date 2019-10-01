@@ -44,7 +44,7 @@ void Instance_elx_int8_conv_direct_1x1_t::__execute_c160(
   CREATE_LOOP_ORDER(4, O4, I4, n, t2);
 
   auto loop_for = [&](int a0, int a1, int a2, int a3) {
-    auto ithr = el_get_thread_num();
+    auto ithr = estl::current_thread_index();
     int _n, _O4, _I4, _t2;
     if (CHECK_LOOP_ORDER(4, n, O4, I4, t2)) {
       _n = a0; _O4 = a1; _I4 = a2; _t2 = a3;
@@ -95,11 +95,11 @@ void Instance_elx_int8_conv_direct_1x1_t::__execute_c160(
 
   if (this->oh <= 14 && this->ow <= 14) {
     SET_LOOP_ORDER(4, O4, I4, n, t2);
-    parallel_for<4, 1>(mthr_, loop_for,
+    estl::parallel_for<4, 1>(mthr_, loop_for,
                        this->O4, this->I4, this->n, this->t2);
   } else {
     SET_LOOP_ORDER(4, n, O4, I4, t2);
-    parallel_for<4, 2>(mthr_, loop_for,
+    estl::parallel_for<4, 2>(mthr_, loop_for,
                        this->n, this->O4, this->I4, this->t2);
   }
 
@@ -130,7 +130,7 @@ void Instance_elx_int8_conv_direct_1x1_t::__execute_b161(
   CREATE_LOOP_ORDER(5, O4, I4, n, ht, wt);
 
   auto loop_for = [&](int a0, int a1, int a2, int a3, int a4) {
-    auto ithr = el_get_thread_num();
+    auto ithr = estl::current_thread_index();
     int _n, _O4, _I4, _ht, _wt;
     if (CHECK_LOOP_ORDER(5, n, O4, I4, ht, wt)) {
       _n = a0, _O4 = a1, _I4 = a2, _ht = a3, _wt = a4;
@@ -191,11 +191,11 @@ void Instance_elx_int8_conv_direct_1x1_t::__execute_b161(
 
   if (this->oh <= 7 && this->ow <= 7) {
     SET_LOOP_ORDER(5, O4, I4, n, ht, wt);
-    parallel_for<5, 1>(mthr_, loop_for,
+    estl::parallel_for<5, 1>(mthr_, loop_for,
                        this->O4, this->I4, this->n, this->ht, this->wt);
   } else {
     SET_LOOP_ORDER(5, n, O4, I4, ht, wt);
-    parallel_for<5, 2>(mthr_, loop_for,
+    estl::parallel_for<5, 2>(mthr_, loop_for,
                        this->n, this->O4, this->I4, this->ht, this->wt);
   }
 

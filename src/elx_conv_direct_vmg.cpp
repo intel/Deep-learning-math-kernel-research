@@ -12,7 +12,7 @@ Instance_elx_conv_direct_vmg_t::elx_conv_direct_vmg_t(eld_conv_t &dc)
 {
   // user input
   xopt_ = this->execution_mode;
-  mthr_ = el_get_max_threads();
+  mthr_ = estl::max_concurrency();
 
   this->G = 1;
   this->vmg = 1;
@@ -179,7 +179,7 @@ void Instance_elx_conv_direct_vmg_t::trans_weights_to_compact(
     TweightsType *tweights, WeightsType *weights)
 {
   if (this->weights_fmt == hwio || this->weights_fmt == ghwio) {
-    parallel_for<4>(mthr_, [&](int _g, int _kh, int _kw, int _iV) {
+    estl::parallel_for<4>(mthr_, [&](int _g, int _kh, int _kw, int _iV) {
       MD6(WeightsType, aweights, weights, this->g, G, this->kh, this->kw, C, C);
       MD5(TweightsType, atweights, tweights, this->g, this->kh, this->kw, C, V);
       WeightsType w[V] = { 0 };

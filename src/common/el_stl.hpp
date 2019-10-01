@@ -4,6 +4,7 @@
 #include "el_def.hpp"
 
 // Euler non-standard STL utilities
+namespace euler {
 namespace estl {
 
 // Integer container
@@ -255,4 +256,5 @@ std::size_t size(T (&)[N])
     return N;
 }
 
-} // estl
+} // namespace estl
+} // namepsace euler

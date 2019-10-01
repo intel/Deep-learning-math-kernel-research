@@ -6,14 +6,12 @@
 #include "el_utils.hpp"
 #include "el_parallel.hpp"
 
-// TODO: parallel_for
-
 namespace euler {
 
 template <typename Type>
 reorder<Type, nchw, nhwc>::reorder(
     Type *dst, Type *src, int n, int c, int h, int w) {
-  parallel_for<4>([&](int _n, int _c, int _h, int _w) {
+  estl::parallel_for<4>([&](int _n, int _c, int _h, int _w) {
     MD4(Type, asrc, src, n, h, w, c);
     MD4(Type, adst, dst, n, c, h, w);
 
@@ -24,7 +22,7 @@ reorder<Type, nchw, nhwc>::reorder(
 template <typename Type>
 reorder<Type, nhwc, nchw>::reorder(
     Type *dst, Type *src, int n, int c, int h, int w) {
-  parallel_for<4>([&](int _n, int _c, int _h, int _w) {
+  estl::parallel_for<4>([&](int _n, int _c, int _h, int _w) {
     MD4(Type, asrc, src, n, c, h, w);
     MD4(Type, adst, dst, n, h, w, c);
 
@@ -38,7 +36,7 @@ reorder<Type, nchw, nChw16c>::reorder(
   int C = ALIGNUP(c, 16) / 16; // padding
   int Vr = c % 16 ? c % 16 : 16;
 
-  parallel_for<4>([&](int _n, int _C, int _h, int _w) {
+  estl::parallel_for<4>([&](int _n, int _C, int _h, int _w) {
     MD5(Type, asrc, src, n, C, h, w, 16);
     MD4(Type, adst, dst, n, c, h, w);
 
@@ -55,7 +53,7 @@ reorder<Type, nChw16c, nchw>::reorder(
   int C = ALIGNUP(c, 16) / 16; // padding
   int Vr = c % 16 ? c % 16 : 16;
 
-  parallel_for<4>([&](int _n, int _C, int _h, int _w) {
+  estl::parallel_for<4>([&](int _n, int _C, int _h, int _w) {
     MD4(Type, asrc, src, n, c, h, w);
     MD5(Type, adst, dst, n, C, h, w, 16);
 
@@ -77,7 +75,7 @@ reorder<Type, OIhw16i16o, oihw>::reorder(
   int Or = o % 16 ? o % 16 : 16;
   int Ir = i % 16 ? i % 16 : 16;
 
-  parallel_for<4>([&](int _O, int _I, int _h, int _w) {
+  estl::parallel_for<4>([&](int _O, int _I, int _h, int _w) {
     MD4(Type, asrc, src, o, i, h, w);
     MD6(Type, adst, dst, O, I, h, w, 16, 16);
 
@@ -103,7 +101,7 @@ reorder<Type, gOIhw16i16o, goihw>::reorder(
   int Or = o % 16 ? o % 16 : 16;
   int Ir = i % 16 ? i % 16 : 16;
 
-  parallel_for<5>([&](int _g, int _O, int _I, int _h, int _w) {
+  estl::parallel_for<5>([&](int _g, int _O, int _I, int _h, int _w) {
     MD5(Type, asrc, src, g, o, i, h, w);
     MD7(Type, adst, dst, g, O, I, h, w, 16, 16);
 
@@ -129,7 +127,7 @@ reorder<Type, oihw, OIhw16i16o>::reorder(
   int Or = o % 16 ? o % 16 : 16;
   int Ir = i % 16 ? i % 16 : 16;
 
-  parallel_for<4>([&](int _O, int _I, int _h, int _w) {
+  estl::parallel_for<4>([&](int _O, int _I, int _h, int _w) {
     MD6(Type, asrc, src, O, I, h, w, 16, 16);
     MD4(Type, adst, dst, o, i, h, w);
 
@@ -152,7 +150,7 @@ reorder<Type, goihw, gOIhw16i16o>::reorder(
   int Or = o % 16 ? o % 16 : 16;
   int Ir = i % 16 ? i % 16 : 16;
 
-  parallel_for<5>([&](int _g, int _O, int _I, int _h, int _w) {
+  estl::parallel_for<5>([&](int _g, int _O, int _I, int _h, int _w) {
     MD7(Type, asrc, src, g, O, I, h, w, 16, 16);
     MD5(Type, adst, dst, g, o, i, h, w);
 
@@ -170,7 +168,7 @@ reorder<Type, goihw, gOIhw16i16o>::reorder(
 template <typename Type>
 reorder<Type, oihw, hwio>::reorder(
     Type *dst, Type *src, int o, int i, int h, int w) {
-  parallel_for<4>([&](int _o, int _i, int _h, int _w) {
+  estl::parallel_for<4>([&](int _o, int _i, int _h, int _w) {
     MD4(Type, asrc, src, h, w, i, o);
     MD4(Type, adst, dst, o, i, h, w);
     iter_each(_w, w)
@@ -182,7 +180,7 @@ template <typename Type>
 reorder<Type, goihw, ghwio>::reorder(
     Type *dst, Type *src, int g, int o, int i, int h, int w) {
 
-  parallel_for<5>([&](int _g, int _o, int _i, int _h, int _w) {
+  estl::parallel_for<5>([&](int _g, int _o, int _i, int _h, int _w) {
     MD5(Type, asrc, src, g, h, w, i, o);
     MD5(Type, adst, dst, g, o, i, h, w);
     iter_each(_w, w)
@@ -193,7 +191,7 @@ reorder<Type, goihw, ghwio>::reorder(
 template <typename Type>
 reorder<Type, hwio, oihw>::reorder(
     Type *dst, Type *src, int o, int i, int h, int w) {
-  parallel_for<4>([&](int _h, int _w, int _i, int _o) {
+  estl::parallel_for<4>([&](int _h, int _w, int _i, int _o) {
     MD4(Type, asrc, src, o, i, h, w);
     MD4(Type, adst, dst, h, w, i, o);
     md4(adst, _h, _w, _i, _o) = md4(asrc, _o, _i, _h, _w);
@@ -203,7 +201,7 @@ reorder<Type, hwio, oihw>::reorder(
 template <typename Type>
 reorder<Type, ghwio, goihw>::reorder(
     Type *dst, Type *src, int g, int o, int i, int h, int w) {
-  parallel_for<5>([&](int _g, int _h, int _w, int _i, int _o) {
+  estl::parallel_for<5>([&](int _g, int _h, int _w, int _i, int _o) {
     MD5(Type, asrc, src, g, o, i, h, w);
     MD5(Type, adst, dst, g, h, w, i, o);
     md5(adst, _g, _h, _w, _i, _o) = md5(asrc, _g, _o, _i, _h, _w);

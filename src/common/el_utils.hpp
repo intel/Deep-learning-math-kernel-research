@@ -18,7 +18,7 @@ typedef short float16;
 #define __tstart(n) _T(Time::time_point __s##n = Time::now());
 #define __tend(n)                                                              \
   _T(Time::time_point __e##n = Time::now());                                   \
-  _T(printf("time: %s, th=%d, %.2f ms\n", #n, el_get_thread_num(),            \
+  _T(printf("time: %s, th=%d, %.2f ms\n", #n, estl::current_thread_index(),            \
       Duration(__e##n - __s##n).count()));
 
 #define iter_each(indx, lim) for (int indx = 0; indx < (lim); ++indx)

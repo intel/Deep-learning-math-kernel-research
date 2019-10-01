@@ -4,6 +4,14 @@
 #include <cstdlib>
 #include <cassert>
 #include "el_def.hpp"
+#if MT_RUNTIME == MT_RUNTIME_OMP
+# include <omp.h>
+#elif MT_RUNTIME == MT_RUNTIME_TBB
+# include "tbb/parallel_for.h"
+# include "tbb/task_arena.h"
+#else
+# error Invalid MT_RUNTIME
+#endif
 
 #define _CAT(a, b) __CAT(a, b)
 #define __CAT(a, b) a##_##b
@@ -22,42 +30,34 @@
 #define CHECK_LOOP_ORDER(n, ...)  (__loop_order_##n == _LOOP_ORDER_##n(__VA_ARGS__))
 #define CREATE_LOOP_ORDER(n, ...) const int _LOOP_ORDER_##n(__VA_ARGS__) = ++__loop_order_##n;
 
+namespace euler {
+namespace estl {
 
 #if MT_RUNTIME == MT_RUNTIME_OMP
-#include <omp.h>
-namespace euler {
-static inline int el_get_thread_num() {
+static inline int current_thread_index() {
   return omp_get_thread_num();
 }
-static inline int el_get_max_threads() {
+static inline int max_concurrency() {
   return omp_get_max_threads();
 }
-} // namespace euler
 #define THREAD_PARALLEL() _Pragma("omp parallel")
 #define THREAD_BARRIER() _Pragma("omp barrier")
-#define THREAD_FOR(N, mthr, ithr, ...) thread_parallel_for<N>(mthr, ithr, __VA_ARGS__)
-#define THREAD_FOR2(N, M, mthr, ithr, ...) thread_parallel_for<N, M>(mthr, ithr, __VA_ARGS__)
+#define THREAD_FOR(N, mthr, ithr, ...) estl::thread_parallel_for<N>(mthr, ithr, __VA_ARGS__)
+#define THREAD_FOR2(N, M, mthr, ithr, ...) estl::thread_parallel_for<N, M>(mthr, ithr, __VA_ARGS__)
 
 #elif MT_RUNTIME == MT_RUNTIME_TBB
-#include "tbb/parallel_for.h"
-#include "tbb/task_arena.h"
-namespace euler {
-static inline int el_get_thread_num() {
+static inline int current_thread_index() {
   return tbb::this_task_arena::current_thread_index();
 }
-static inline int el_get_max_threads() {
+static inline int max_concurrency() {
   return tbb::this_task_arena::max_concurrency();
 }
-} // namespace euler
 #define THREAD_PARALLEL()
 #define THREAD_BARRIER()
-#define THREAD_FOR(N, mthr, ithr, ...) parallel_for<N>(mthr, __VA_ARGS__)
-#define THREAD_FOR2(N, M, mthr, ithr, ...) parallel_for<N, M>(mthr, __VA_ARGS__)
-#else
-#error Invalid MT_RUNTIME
-#endif
+#define THREAD_FOR(N, mthr, ithr, ...) estl::parallel_for<N>(mthr, __VA_ARGS__)
+#define THREAD_FOR2(N, M, mthr, ithr, ...) estl::parallel_for<N, M>(mthr, __VA_ARGS__)
+#endif // MT_RUNTIME
 
-namespace euler {
 // Loops over N loops in current thread.
 // The M-th loop will not be used for task allocation.
 template <int N, int M = -1> struct thread_parallel_for {
@@ -204,10 +204,12 @@ static inline void parallel_for(F func, Args... args)
     thread_parallel_for<N, -1>(mthr, ithr, func, args...);
   }
 #elif MT_RUNTIME == MT_RUNTIME_TBB
-  int mthr = el_get_max_threads();
+  int mthr = estl::max_concurrency();
   tbb::parallel_for(0, mthr, [&](int ithr) {
     thread_parallel_for<N, -1>(mthr, ithr, func, args...);
   }, tbb::static_partitioner());
 #endif
 }
+
+} // namespace estl
 } // namespace euler

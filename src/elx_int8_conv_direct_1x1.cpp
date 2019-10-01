@@ -96,7 +96,7 @@ Instance_elx_int8_conv_direct_1x1_t::elx_int8_conv_direct_1x1_t(eld_conv_t &dc)
   attr_ = set_attr(attr_, fma_opt_idx);
   is_first_run_ = true;
   inference_acc_ = false;
-  mthr_ = el_get_max_threads();
+  mthr_ = estl::max_concurrency();
   inference_acc_ = this->prop_kind == forward_inference;
 
   attr_ = this->with_bias ? set_attr(attr_, bias_idx) : attr_;
@@ -244,7 +244,7 @@ void Instance_elx_int8_conv_direct_1x1_t::trans_weights_s8_blocked_oc(
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
 
   // abs max
-  parallel_for<3>(mthr_, [&](int _O4, int _O3, int _O2) {
+  estl::parallel_for<3>(mthr_, [&](int _O4, int _O3, int _O2) {
     MD5(TscaleType, aweights_scale, weights_scale,
         this->O4, this->O3, 2, this->O2, V);
     __m<V> mmabs_max = _mm<V>::set1_ps(0.0);
@@ -265,7 +265,7 @@ void Instance_elx_int8_conv_direct_1x1_t::trans_weights_s8_blocked_oc(
   // O4, (O3, O3r), (O2, O2r), I4, I3, I2, V1, Vx, V ->
   // O4, I4, (O3, O3r), I3, I2, V1, (O2, O2r), V, Vx
   // quantization
-  parallel_for<9>(mthr_, [&](int _O4, int _I4, int _O3,
+  estl::parallel_for<9>(mthr_, [&](int _O4, int _I4, int _O3,
     int _I3, int _O1, int _I2, int _iV1, int _O, int _iVx) {
     MD10(WeightsType, aweights, weights, this->O4, this->O3, this->O1, this->O,
         this->I4, this->I3, this->I2, this->V1, this->Vx, V);
@@ -290,7 +290,7 @@ void Instance_elx_int8_conv_direct_1x1_t::trans_weights_s8_blocked_oc(
   }, this->O4, this->I4, this->O3, this->I3, this->O1, this->I2, this->V1, this->O, this->Vx);
 
   // accumulation
-  parallel_for<5>(mthr_, [&](int _O4, int _O3, int _O1, int _O, int _oV) {
+  estl::parallel_for<5>(mthr_, [&](int _O4, int _O3, int _O1, int _O, int _oV) {
     MD10(int8_t, atweights_s8, tweights_s8, this->O4, this->I4,
         this->O3, this->I3, this->O1, this->I2, this->V1, this->O, V, this->Vx);
     MD6(TscaleType, aweights_scale, weights_scale,
@@ -308,7 +308,7 @@ void Instance_elx_int8_conv_direct_1x1_t::trans_weights_s8_blocked_oc(
   }, this->O4, this->O3, this->O1, this->O, V);
 
   // scale
-  parallel_for<3>(mthr_, [&](int _O4, int _O3, int _O2) {
+  estl::parallel_for<3>(mthr_, [&](int _O4, int _O3, int _O2) {
     MD5(TscaleType, aweights_scale, weights_scale,
         this->O4, this->O3, 2, this->O2, V);
     __m<V> &mmqs = *(__m<V> *)&md5(
@@ -321,7 +321,7 @@ void Instance_elx_int8_conv_direct_1x1_t::trans_weights_s8_blocked_oc(
   __m<V> mmoz = _mm<V>::set1_ps(this->output_quant_z);
   __m<V> mmiS = _mm<V>::set1_ps(this->input_quant_S);
   __m<V> mmiz = _mm<V>::set1_ps(this->input_quant_z);
-  parallel_for<3>(mthr_, [&](int _O4, int _O3, int _O2) {
+  estl::parallel_for<3>(mthr_, [&](int _O4, int _O3, int _O2) {
     MD5(TscaleType, aweights_scale, weights_scale,
         this->O4, this->O3, 2, this->O2, V);
     MD4(BiasType, abias, bias, this->O4, this->O3, this->O2, V);
@@ -356,7 +356,7 @@ void Instance_elx_int8_conv_direct_1x1_t::requant_output(
   __m<V> mmorepS = _mm<V>::set1_ps(this->output_quant_repS);
   __m<V> mmoz = _mm<V>::set1_ps(this->output_quant_z);
 
-  parallel_for<4>(mthr_, [&](int _n, int _o, int _oh, int _ow) {
+  estl::parallel_for<4>(mthr_, [&](int _n, int _o, int _oh, int _ow) {
     MD5(ToutputType, atoutput, toutput,
         this->n, this->OC / V, this->oh, this->ow, V);
     MD5(OutputType, aoutput, output,

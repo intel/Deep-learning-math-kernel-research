@@ -36,7 +36,7 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
 
   is_first_run_ = true;
   inference_acc_ = false;
-  mthr_ = el_get_max_threads();
+  mthr_ = estl::max_concurrency();
   if (this->nthreads == 0 || this->nthreads > mthr_) {
     this->nthreads = mthr_;
   } else {

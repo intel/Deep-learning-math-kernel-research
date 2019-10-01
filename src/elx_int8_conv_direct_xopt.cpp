@@ -97,11 +97,11 @@ void Instance_elx_int8_conv_direct_t::__execute_a160(
 
   if (this->oh <= 7 && this->ow <= 7) {
     SET_LOOP_ORDER(5, I4, O4, n, ht, wt);
-    parallel_for<5, 0>(mthr_, loop_for,
+    estl::parallel_for<5, 0>(mthr_, loop_for,
                        this->I4, this->O4, this->n, this->ht, this->wt);
   } else {
     SET_LOOP_ORDER(5, n, I4, O4, ht, wt);
-    parallel_for<5, 1>(mthr_, loop_for,
+    estl::parallel_for<5, 1>(mthr_, loop_for,
                        this->n, this->I4, this->O4, this->ht, this->wt);
   }
 
@@ -123,7 +123,7 @@ void Instance_elx_int8_conv_direct_t::__execute_d160(
     });
   }
 
-  parallel_for<5, 1>(mthr_, [&](int _n, int _I4, int _O4, int _ht, int _wt) {
+  estl::parallel_for<5, 1>(mthr_, [&](int _n, int _I4, int _O4, int _ht, int _wt) {
     MD3(int8_t, atweights_s8, tweights_s8_,
         this->O4, this->I4, V * V * this->kh * this->kw
         * this->I3 * this->O3 * this->I2 * this->O2);
@@ -170,7 +170,7 @@ void Instance_elx_int8_conv_direct_t::__execute_d160(
 
   int oc2 = this->Or ? this->oc2 - 1 : this->oc2;
   if (this->with_argmax) {
-    parallel_for<3>(mthr_, [&](int _n, int _oh, int _ow) {
+    estl::parallel_for<3>(mthr_, [&](int _n, int _oh, int _ow) {
       constexpr int V8 = 8;
       MD6(float, atoutput_blocked, toutput_,
           this->n, this->oc2, this->oh, this->ow, 2, V8);

@@ -31,7 +31,7 @@ void Instance_elx_int8_conv_direct_depthwise_t::__execute_a160(
     });
   }
 
-  parallel_for<4>(mthr_, [&](int _n, int _G3, int _ht, int _wt) {
+  estl::parallel_for<4>(mthr_, [&](int _n, int _G3, int _ht, int _wt) {
     MD3(int8_t, atweights_s8, tweights_s8_,
         this->G3, this->G2, this->kh * this->KW * V);
     MD3(BiasType, abias, bias, this->G3, this->G2, V);

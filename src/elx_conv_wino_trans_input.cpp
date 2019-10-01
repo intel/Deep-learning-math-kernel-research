@@ -63,7 +63,7 @@ template <typename TinputType, typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
 ::__execute_blocked(TinputType *__restrict tinput,
     InputType *__restrict input, int _I4) {
-  int ithr = el_get_thread_num();
+  int ithr = estl::current_thread_index();
   THREAD_FOR(3, mthr_, ithr, [&](int _t2, int _I3, int _I2) {
     // n, ic2, ih, iw, V => t2, hA, wA, I3, I2, T, V
     MD2(TinputType, atinput, tinput, xc->t2,
@@ -143,7 +143,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
 ::__execute_nhwc(TinputType *__restrict tinput,
     InputType *__restrict input, int _I4) {
 
-  int ithr = el_get_thread_num();
+  int ithr = estl::current_thread_index();
   THREAD_FOR(3, mthr_, ithr, [&](int _t2, int _I3, int _I2) {
     // n, ih, iw, ic => t2, hA, wA, I3, I2, T, V
     MD2(TinputType, atinput, tinput, xc->t2,
@@ -256,7 +256,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
     }
   };
 
-  int ithr = el_get_thread_num();
+  int ithr = estl::current_thread_index();
   THREAD_FOR(3, mthr_, ithr, [&](int _t2, int _I3, int _I2) {
     // n, ic2, ih, iw, V => t2, hA, wA, I3, I2, T, V
     MD2(TinputType, atinput, tinput, xc->t2, A * A * xc->T * xc->I3 * xc->I2 * V);
@@ -371,7 +371,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
   __m<V> mrepS = _mm<V>::set1_ps(xc->input_quant_S * xc->tinput_quant_repS);
   __m<V> mz = _mm<V>::set1_ps(xc->tinput_quant_z);
 
-  int ithr = el_get_thread_num();
+  int ithr = estl::current_thread_index();
   THREAD_FOR(4, mthr_, ithr, [&](int _t2, int _I3, int _I2, int _T) {
     MD2(uint8_t, atinput2_u8, tinput_u8,
         xc->t2, A * A * xc->T * xc->I3 * xc->I2 * V);
@@ -555,7 +555,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 
   __m<V> mrepS = _mm<V>::set1_ps(xc->input_quant_S * xc->tinput_quant_repS);
   __m<V> mz = _mm<V>::set1_ps(xc->tinput_quant_z);
-  int ithr = el_get_thread_num();
+  int ithr = estl::current_thread_index();
   THREAD_FOR(3, mthr_, ithr, [&](int _t2, int _I3, int _I2) {
     // n, ic2, ih, iw, V => t2, hA, wA, I3, I2, T, V
     MD2(uint8_t, atinput2_u8, tinput_u8,
