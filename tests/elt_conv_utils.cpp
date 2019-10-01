@@ -6,9 +6,11 @@
 #include <fstream>
 #include "elt_conv_utils.hpp"
 #include "el_intrin.hpp"
+#include "el_parallel.hpp"
 #include "euler.hpp"
 #include "euler_reorder.hpp"
 
+#define MAX_PRINT_ERRORS (20)
 
 namespace euler {
 namespace test {
@@ -151,15 +153,15 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
     }
 
     // ref bias
-#pragma omp parallel for
-    for (size_t i = 0; i < desc_ref.sizes.bias; i++)
+    estl::parallel_for<1>([&](size_t i) {
       bias_ref[i] = RAND() % 100;
+    }, desc_ref.sizes.bias);
 
     // ref ouput
     if (desc_ref.with_ip_sum) {
-#pragma omp parallel for
-      for (size_t i = 0; i < desc_ref.sizes.output; i++)
+      estl::parallel_for<1>([&](size_t i) {
         output_ref[i] = RAND() % 10;
+      }, desc_ref.sizes.output);
     }
   } else {
     printf("Invalid real data file ...\n");
@@ -221,9 +223,9 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
     float *_output_ref;
     if (desc_ref.with_ip_sum) {
       MEMALIGN64(&_output_ref, desc_ref.byte_sizes.output);
-#pragma omp parallel for
-      for (size_t i = 0; i < desc_ref.sizes.output; i++)
+      estl::parallel_for<1>([&](size_t i) {
         _output_ref[i] = output_ref[i];
+      }, desc_ref.sizes.output);
     } else {
       _output_ref = output_ref;
     }
@@ -289,9 +291,9 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
     float *_output_ref;
     if (desc_ref.with_ip_sum) {
       MEMALIGN64(&_output_ref, desc_ref.byte_sizes.output);
-#pragma omp parallel for
-      for (size_t i = 0; i < desc_ref.sizes.output; i++)
+      estl::parallel_for<1>([&](size_t i) {
         _output_ref[i] = output_ref[i];
+      }, desc_ref.sizes.output);
     } else {
       _output_ref = output_ref;
     }
@@ -381,8 +383,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
       }
     }
   }
-#pragma omp parallel for
-  for (size_t i = 0; i < desc_ref.sizes.input; i++) {
+  estl::parallel_for<1>([&](size_t i) {
     if (data_type_cfg == euler::test::FP32)
       (*input)[i] = input_ref[i];
     else if (data_type_cfg == euler::test::FP16)
@@ -397,11 +398,10 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
              data_type_cfg == euler::test::U8F32F32F32z)
       (*input)[i] = (uint8_t)rounding_to_nearest_even(input_ref[i] / iscale +
                                                       desc.input_quant.z);
-  }
+  }, desc_ref.sizes.input);
 
-// weights
-#pragma omp parallel for
-  for (size_t i = 0; i < desc_ref.sizes.weights; i++) {
+  // weights
+  estl::parallel_for<1>([&](size_t i) {
     if (data_type_cfg == euler::test::FP32)
       (*weights)[i] = weights_ref[i];
     else if (data_type_cfg == euler::test::FP16)
@@ -415,11 +415,10 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
              data_type_cfg == euler::test::U8F32S8F32z ||
              data_type_cfg == euler::test::U8F32F32F32z)
       (*weights)[i] = weights_ref[i];
-  }
+  }, desc_ref.sizes.weights);
 
-// bias
-#pragma omp parallel for
-  for (size_t i = 0; i < desc_ref.sizes.bias; i++) {
+  // bias
+  estl::parallel_for<1>([&](size_t i) {
     if (data_type_cfg == euler::test::FP32)
       (*bias)[i] = bias_ref[i];
     else if (data_type_cfg == euler::test::FP16)
@@ -433,7 +432,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
              data_type_cfg == euler::test::U8F32S8F32z ||
              data_type_cfg == euler::test::U8F32F32F32z)
       (*bias)[i] = bias_ref[i];
-  }
+  }, desc_ref.sizes.bias);
 
   // output
   float oscale = 1.0, opscale = 1.0, oz = 0.0;
@@ -445,8 +444,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
       output_scale(oscale, opscale, oz);
   }
   if (desc.with_ip_sum) {
-#pragma omp parallel for
-    for (size_t i = 0; i < desc_ref.sizes.output; i++) {
+    estl::parallel_for<1>([&](size_t i) {
       if (data_type_cfg == euler::test::FP32)
         (*output)[i] = output_ref[i];
       else if (data_type_cfg == euler::test::FP16)
@@ -461,7 +459,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
             (int8_t)rounding_to_nearest_even(
             output_ref[i] / opscale);
       }
-    }
+    }, desc_ref.sizes.output);
   }
 }
 
@@ -490,10 +488,8 @@ int __compare_conv_results_blocked(eld_conv_t &desc, float *out, float *ref,
   MD5(float, aout, out, dims.n, C, dims.oh, dims.ow, V);
   MD5(float, aref, ref, dims.n, C, dims.oh, dims.ow, V);
 
-#define MAX_PRINT_ERRORS (20)
   size_t errors = 0;
 
-#pragma omp parallel for collapse(3)
   iter_each(_n, dims.n) {
     iter_each(_C, C) {
       iter_each(_h, dims.oh) {
@@ -510,7 +506,6 @@ int __compare_conv_results_blocked(eld_conv_t &desc, float *out, float *ref,
                          _n, _C, _h, _w, _v, real,
                          md5(aref, _n, _C, _h, _w, _v), delta, acc);
                 }
-#pragma omp atomic
                 errors++;
               }
             } else {
@@ -522,7 +517,6 @@ int __compare_conv_results_blocked(eld_conv_t &desc, float *out, float *ref,
                          _n, _C, _h, _w, _v, real,
                          md5(aref, _n, _C, _h, _w, _v), delta, rel_diff);
                 }
-#pragma omp atomic
                 errors++;
               }
             }
@@ -546,10 +540,8 @@ int __compare_conv_results_nchw(eld_conv_t &desc, float *out, float *ref,
   MD4(float, aout, out, dims.n, dims.oc, dims.oh, dims.ow);
   MD4(float, aref, ref, dims.n, dims.oc, dims.oh, dims.ow);
 
-#define MAX_PRINT_ERRORS (20)
   size_t errors = 0;
 
-#pragma omp parallel for collapse(3)
   iter_each(_n, dims.n) {
     iter_each(_c, dims.oc) {
       iter_each(_h, dims.oh) {
@@ -564,7 +556,6 @@ int __compare_conv_results_nchw(eld_conv_t &desc, float *out, float *ref,
                        _n, _c, _h, _w, real, md4(aref, _n, _c, _h, _w), delta,
                        acc);
               }
-#pragma omp atomic
               errors++;
             }
           } else {
@@ -576,7 +567,6 @@ int __compare_conv_results_nchw(eld_conv_t &desc, float *out, float *ref,
                        _n, _c, _h, _w, real, md4(aref, _n, _c, _h, _w), delta,
                        rel_diff);
               }
-#pragma omp atomic
               errors++;
             }
           }
@@ -599,10 +589,8 @@ int __compare_conv_results_nhwc(eld_conv_t &desc, float *out, float *ref,
   MD4(float, aout, out, dims.n, dims.oh, dims.ow, dims.oc);
   MD4(float, aref, ref, dims.n, dims.oh, dims.ow, dims.oc);
 
-#define MAX_PRINT_ERRORS (20)
   size_t errors = 0;
 
-#pragma omp parallel for collapse(3)
   iter_each(_n, dims.n) {
     iter_each(_c, dims.oc) {
       iter_each(_h, dims.oh) {
@@ -617,7 +605,6 @@ int __compare_conv_results_nhwc(eld_conv_t &desc, float *out, float *ref,
                        _n, _c, _h, _w, real, md4(aref, _n, _h, _w, _c), delta,
                        acc);
               }
-#pragma omp atomic
               errors++;
             }
           } else {
@@ -629,7 +616,6 @@ int __compare_conv_results_nhwc(eld_conv_t &desc, float *out, float *ref,
                        _n, _c, _h, _w, real, md4(aref, _n, _h, _w, _c), delta,
                        rel_diff);
               }
-#pragma omp atomic
               errors++;
             }
           }
@@ -718,54 +704,45 @@ int ref_convolution2d(eld_conv_t &desc, OutputType *output, InputType *input,
     reorder<OutputType, nchw, nhwc>(toutput, output, n, g * oc, oh, ow);
   }
 
-  MD5(InputType, ainput, desc.formats.input == nchw ? input : tinput, n, g, ic,
-      ih, iw);
-  MD5(WeightsType, aweights,
-      (desc.formats.weights == oihw || desc.formats.weights == goihw)
-          ? weights
-          : tweights,
-      g, oc, ic, kh, kw);
-  MD5(OutputType, atoutput, desc.formats.output == nchw ? output : toutput, n,
-      g, oc, oh, ow);
-  MD2(BiasType, abias, bias, g, oc);
+  estl::parallel_for<5>([&](int _n, int _g, int _oc, int _oh, int _ow) {
+    MD5(InputType, ainput, desc.formats.input == nchw ? input : tinput,
+        n, g, ic, ih, iw);
+    MD5(WeightsType, aweights,
+        (desc.formats.weights == oihw || desc.formats.weights == goihw)
+            ? weights
+            : tweights,
+        g, oc, ic, kh, kw);
+    MD5(OutputType, atoutput, desc.formats.output == nchw ? output : toutput,
+        n, g, oc, oh, ow);
+    MD2(BiasType, abias, bias, g, oc);
 
-#pragma omp parallel for collapse(5)
-  iter_each(_n, n) {
-    iter_each(_g, g) {
-      iter_each(_oc, oc) {
-        iter_each(_oh, oh) {
-          iter_each(_ow, ow) {
-            if (desc.with_ip_sum)
-              md5(atoutput, _n, _g, _oc, _oh, _ow) +=
-                  desc.with_bias ? md2(abias, _g, _oc) : 0.0f;
-            else
-              md5(atoutput, _n, _g, _oc, _oh, _ow) =
-                  desc.with_bias ? md2(abias, _g, _oc) : 0.0f;
+    if (desc.with_ip_sum)
+      md5(atoutput, _n, _g, _oc, _oh, _ow) +=
+          desc.with_bias ? md2(abias, _g, _oc) : 0.0f;
+    else
+      md5(atoutput, _n, _g, _oc, _oh, _ow) =
+          desc.with_bias ? md2(abias, _g, _oc) : 0.0f;
 
-            iter_each(_ic, ic) {
-              iter_each(_kh, kh) {
-                int _ih = _oh * sh - pt + _kh * dh;
-                if (_ih < 0 || _ih >= ih)
-                  continue;
-                iter_each(_kw, kw) {
-                  int _iw = _ow * sw - pl + _kw * dw;
-                  if (_iw < 0 || _iw >= iw)
-                    continue;
-                  md5(atoutput, _n, _g, _oc, _oh, _ow) +=
-                      md5(ainput, _n, _g, _ic, _ih, _iw) *
-                      md5(aweights, _g, _oc, _ic, _kh, _kw);
-                }
-              }
-            }
-            md5(atoutput, _n, _g, _oc, _oh, _ow) =
-                desc.with_relu && md5(atoutput, _n, _g, _oc, _oh, _ow) < 0.0f
-                    ? 0.0f
-                    : md5(atoutput, _n, _g, _oc, _oh, _ow);
-          }
+    iter_each(_ic, ic) {
+      iter_each(_kh, kh) {
+        int _ih = _oh * sh - pt + _kh * dh;
+        if (_ih < 0 || _ih >= ih)
+          continue;
+        iter_each(_kw, kw) {
+          int _iw = _ow * sw - pl + _kw * dw;
+          if (_iw < 0 || _iw >= iw)
+            continue;
+          md5(atoutput, _n, _g, _oc, _oh, _ow) +=
+              md5(ainput, _n, _g, _ic, _ih, _iw) *
+              md5(aweights, _g, _oc, _ic, _kh, _kw);
         }
       }
     }
-  }
+    md5(atoutput, _n, _g, _oc, _oh, _ow) =
+        desc.with_relu && md5(atoutput, _n, _g, _oc, _oh, _ow) < 0.0f
+            ? 0.0f
+            : md5(atoutput, _n, _g, _oc, _oh, _ow);
+  }, n, g, oc, oh, ow);
 
   if (desc.formats.output == nChw16c) {
     reorder<OutputType, nChw16c, nchw>(output, toutput, n, g * oc, oh, ow);
@@ -826,44 +803,36 @@ int ref_deconvolution2d(eld_conv_t &desc, OutputType *output, InputType *input,
     reorder<OutputType, nchw, nhwc>(toutput, output, n, oc, oh, ow);
   }
 
-  MD4(InputType, ainput, desc.formats.input == nchw ? input : tinput, n, ic, ih,
-      iw);
-  MD4(WeightsType, aweights, desc.formats.weights == oihw ? weights : tweights,
-      oc, ic, kh, kw);
-  MD4(OutputType, atoutput, desc.formats.output == nchw ? output : toutput, n,
-      oc, oh, ow);
+  estl::parallel_for<4>([&](int _n, int _oc, int _oh, int _ow) {
+    MD4(InputType, ainput, desc.formats.input == nchw ? input : tinput,
+        n, ic, ih, iw);
+    MD4(WeightsType, aweights, desc.formats.weights == oihw ? weights : tweights,
+        oc, ic, kh, kw);
+    MD4(OutputType, atoutput, desc.formats.output == nchw ? output : toutput,
+        n, oc, oh, ow);
 
-#pragma omp parallel for collapse(4)
-  iter_each(_n, n) {
-    iter_each(_oc, oc) {
-      iter_each(_oh, oh) {
-        iter_each(_ow, ow) {
-          md4(atoutput, _n, _oc, _oh, _ow) =
-              desc.with_bias ? bias[_oc] : 0.0f;
+    md4(atoutput, _n, _oc, _oh, _ow) = desc.with_bias ? bias[_oc] : 0.0f;
 
-          iter_each(_ic, ic) {
-            iter_each(_kh, kh) {
-              int _ih = (_oh + pt - _kh) / sh;
-              if (_ih < 0 || _ih >= ih)
-                continue;
-              iter_each(_kw, kw) {
-                int _iw = (_ow + pl - _kw) / sw;
-                if (_iw < 0 || _iw >= iw)
-                  continue;
-                md4(atoutput, _n, _oc, _oh, _ow) +=
-                    md4(ainput, _n, _ic, _ih, _iw) *
-                    md4(aweights, _oc, _ic, _kh, _kw);
-              }
-            }
-          }
-          md4(atoutput, _n, _oc, _oh, _ow) =
-              desc.with_relu && md4(atoutput, _n, _oc, _oh, _ow) < 0.0f
-                  ? 0.0f
-                  : md4(atoutput, _n, _oc, _oh, _ow);
+    iter_each(_ic, ic) {
+      iter_each(_kh, kh) {
+        int _ih = (_oh + pt - _kh) / sh;
+        if (_ih < 0 || _ih >= ih)
+          continue;
+        iter_each(_kw, kw) {
+          int _iw = (_ow + pl - _kw) / sw;
+          if (_iw < 0 || _iw >= iw)
+            continue;
+          md4(atoutput, _n, _oc, _oh, _ow) +=
+              md4(ainput, _n, _ic, _ih, _iw) *
+              md4(aweights, _oc, _ic, _kh, _kw);
         }
       }
     }
-  }
+    md4(atoutput, _n, _oc, _oh, _ow) =
+        desc.with_relu && md4(atoutput, _n, _oc, _oh, _ow) < 0.0f
+            ? 0.0f
+            : md4(atoutput, _n, _oc, _oh, _ow);
+  }, n, oc, oh, ow);
 
   if (desc.formats.output == nChw16c) {
     reorder<OutputType, nChw16c, nchw>(output, toutput, n, oc, oh, ow);
@@ -900,30 +869,28 @@ void post_process_conv_results(float *output_ref, eld_conv_t &desc,
       data_type_cfg == euler::test::FP16O ||
       data_type_cfg == euler::test::U8F32F32F32) {
     float *_output_res = (float *)output_res;
-#pragma omp parallel for
-    for (size_t i = 0; i < desc.sizes.output; i++)
+    estl::parallel_for<1>([&](size_t i) {
       output_ref[i] = _output_res[i];
+    }, desc.sizes.output);
   } else if (data_type_cfg == euler::test::FP16) {
     uint16_t *_output_res = (uint16_t *)output_res;
-#pragma omp parallel for
-    for (size_t i = 0; i < desc.sizes.output; i++)
+    estl::parallel_for<1>([&](size_t i) {
       output_ref[i] = half_2_float(_output_res[i]);
+    }, desc.sizes.output);
   } else if (data_type_cfg == euler::test::U8F32U8F32 ||
              data_type_cfg == euler::test::U8F32U8F32z) {
     uint8_t *_output_res = (uint8_t *)output_res;
-#pragma omp parallel for
-    for (size_t i = 0; i < desc.sizes.output; i++) {
+    estl::parallel_for<1>([&](size_t i) {
       float resu8 = (float)_output_res[i];
       output_ref[i] = (resu8 - desc.output_quant.z) * desc.output_quant.scale;
-    }
+    }, desc.sizes.output);
   } else if (data_type_cfg == euler::test::U8F32S8F32 ||
              data_type_cfg == euler::test::U8F32S8F32z) {
     int8_t *_output_res = (int8_t *)output_res;
-#pragma omp parallel for
-    for (size_t i = 0; i < desc.sizes.output; i++) {
+    estl::parallel_for<1>([&](size_t i) {
       float resi8 = (float)_output_res[i];
       output_ref[i] = (resi8 - desc.output_quant.z) * desc.output_quant.scale;
-    }
+    }, desc.sizes.output);
   }
 }
 
