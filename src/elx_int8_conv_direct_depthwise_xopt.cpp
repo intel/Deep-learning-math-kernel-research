@@ -1,4 +1,4 @@
-#include "elx_conv_direct_depthwise_lp.hpp"
+#include "elx_int8_conv_direct_depthwise.hpp"
 #include "el_parallel.hpp"
 
 // XOPT
@@ -13,8 +13,8 @@
 //
 namespace euler {
 
-Template_elx_conv_direct_depthwise_lp_t
-void Instance_elx_conv_direct_depthwise_lp_t::__execute_a160(
+Template_elx_int8_conv_direct_depthwise_t
+void Instance_elx_int8_conv_direct_depthwise_t::__execute_a160(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   if (is_first_run_) {
@@ -65,8 +65,8 @@ void Instance_elx_conv_direct_depthwise_lp_t::__execute_a160(
     is_first_run_ = false;
 }
 
-Template_elx_conv_direct_depthwise_lp_t
-void Instance_elx_conv_direct_depthwise_lp_t::execute(
+Template_elx_int8_conv_direct_depthwise_t
+void Instance_elx_int8_conv_direct_depthwise_t::execute(
     void *output, void *input, void *weights, void *bias)
 {
   (this->*execute_opt_)((OutputType *)output,

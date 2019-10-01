@@ -2,14 +2,14 @@
 #include "el_stl.hpp"
 #include "el_utils.hpp"
 #include "el_parallel.hpp"
-#include "elx_conv_direct_lp.hpp"
+#include "elx_int8_conv_direct.hpp"
 
 namespace euler {
 
 static constexpr float INT8GEMM_TWT_QTSCALE = 127.0;
 
-Template_elx_conv_direct_lp_t
-Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
+Template_elx_int8_conv_direct_t
+Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
     : elx_conv_t(dc)
 {
   xopt_ = this->execution_mode;
@@ -127,8 +127,8 @@ Instance_elx_conv_direct_lp_t::elx_conv_direct_lp_t(eld_conv_t &dc)
       this->O3, this->O4, this->O2r, this->O3r, this->OC);
 }
 
-Template_elx_conv_direct_lp_t
-int Instance_elx_conv_direct_lp_t::prepare_execute_opt()
+Template_elx_int8_conv_direct_t
+int Instance_elx_int8_conv_direct_t::prepare_execute_opt()
 {
   if (this->with_ip_sum && this->with_relu && this->output_fmt != nChw16c) {
     el_error("Unimplemented: fuse sum (plain format) and relu together");
@@ -178,8 +178,8 @@ int Instance_elx_conv_direct_lp_t::prepare_execute_opt()
   return 0;
 }
 
-Template_elx_conv_direct_lp_t
-void Instance_elx_conv_direct_lp_t::set_workspace_buffers(void *base)
+Template_elx_int8_conv_direct_t
+void Instance_elx_int8_conv_direct_t::set_workspace_buffers(void *base)
 {
   if (base != nullptr) {
     weights_scale_ = (TscaleType *)base;
@@ -189,15 +189,15 @@ void Instance_elx_conv_direct_lp_t::set_workspace_buffers(void *base)
   }
 }
 
-Template_elx_conv_direct_lp_t
-void Instance_elx_conv_direct_lp_t::set_scratch_buffers(void *base)
+Template_elx_int8_conv_direct_t
+void Instance_elx_int8_conv_direct_t::set_scratch_buffers(void *base)
 {
   if (base != nullptr)
     toutput_ = (ToutputType *)base;
 }
 
-Template_elx_conv_direct_lp_t
-void Instance_elx_conv_direct_lp_t::prepare_quant_calibration(eld_conv_t &dc)
+Template_elx_int8_conv_direct_t
+void Instance_elx_int8_conv_direct_t::prepare_quant_calibration(eld_conv_t &dc)
 {
   this->input_quant_S = dc.input_quant.scale;
   this->input_quant_repS = 1 / dc.input_quant.scale;
@@ -210,13 +210,13 @@ void Instance_elx_conv_direct_lp_t::prepare_quant_calibration(eld_conv_t &dc)
     el_error("Unsupported quantization mode in int8 direct 1x1");
 }
 
-Template_elx_conv_direct_lp_t
-Instance_elx_conv_direct_lp_t::~elx_conv_direct_lp_t()
+Template_elx_int8_conv_direct_t
+Instance_elx_int8_conv_direct_t::~elx_int8_conv_direct_t()
 {
 }
 
-Template_elx_conv_direct_lp_t void
-Instance_elx_conv_direct_lp_t::prepare_weights_acc() {
+Template_elx_int8_conv_direct_t void
+Instance_elx_int8_conv_direct_t::prepare_weights_acc() {
   if (xopt_ == 0xa160) {
     wacc_wT_ = T;
   } else {
@@ -299,8 +299,8 @@ Instance_elx_conv_direct_lp_t::prepare_weights_acc() {
       wacc_wT_, _wacc_ohfs_, _wacc_ohfe_, _wacc_owfs_, _wacc_owfe_);
 }
 
-Template_elx_conv_direct_lp_t void
-Instance_elx_conv_direct_lp_t::__trans_weights_acc(TscaleType *weights_scale,
+Template_elx_int8_conv_direct_t void
+Instance_elx_int8_conv_direct_t::__trans_weights_acc(TscaleType *weights_scale,
                                                    TscaleType *weights_factor,
                                                    int8_t *tweights_s8,
                                                    BiasType *bias) {
@@ -415,7 +415,7 @@ Instance_elx_conv_direct_lp_t::__trans_weights_acc(TscaleType *weights_scale,
 
 // weights (blocked): oc2, ic2, kh, kw, V, V
 // tweights: O4, I4, O3, _I3, kh, kw, O1, I2, V1, O, V, Vx
-Template_elx_conv_direct_lp_t void Instance_elx_conv_direct_lp_t::
+Template_elx_int8_conv_direct_t void Instance_elx_int8_conv_direct_t::
 trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
                 int8_t *tweights_s8, WeightsType *weights, BiasType *bias) {
   __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
@@ -490,8 +490,8 @@ trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
   __trans_weights_acc(weights_scale, weights_factor, tweights_s8, bias);
 }
 
-Template_elx_conv_direct_lp_t
-void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
+Template_elx_int8_conv_direct_t
+void Instance_elx_int8_conv_direct_t::conv_a160(OutputType *output,
     ToutputType *toutput, InputType *input_u8, int8_t *weights_s8,
     BiasType *bias, TscaleType *src_scale, TscaleType *weights_scale,
     TscaleType *weights_factor, int _I4, int _O4, int _ht, int _wt)
@@ -562,8 +562,8 @@ void Instance_elx_conv_direct_lp_t::conv_a160(OutputType *output,
 }
 
 // slow path
-Template_elx_conv_direct_lp_t
-void Instance_elx_conv_direct_lp_t::gemm_d160(OutputType *output,
+Template_elx_int8_conv_direct_t
+void Instance_elx_int8_conv_direct_t::gemm_d160(OutputType *output,
     ToutputType *toutput, InputType *input_u8, int8_t *weights_s8,
     BiasType *bias, TscaleType *src_scale, TscaleType *weights_scale,
     TscaleType *weights_factor, int _I4, int _O4, int _ht, int _wt)

@@ -10,13 +10,13 @@
 
 namespace euler {
 
-#define Template_elx_conv_direct_depthwise_lp_t                                \
+#define Template_elx_int8_conv_direct_depthwise_t                                \
   template <typename UserTypes, typename TarrayTypes, const int V, const int I>
 
-#define Instance_elx_conv_direct_depthwise_lp_t                                \
-  elx_conv_direct_depthwise_lp_t<UserTypes, TarrayTypes, V, I>
+#define Instance_elx_int8_conv_direct_depthwise_t                                \
+  elx_int8_conv_direct_depthwise_t<UserTypes, TarrayTypes, V, I>
 
-Template_elx_conv_direct_depthwise_lp_t class elx_conv_direct_depthwise_lp_t : public elx_conv_t {
+Template_elx_int8_conv_direct_depthwise_t class elx_int8_conv_direct_depthwise_t : public elx_conv_t {
   using InputType = typename UserTypes::InputType;
   using WeightsType = typename UserTypes::WeightsType;
   using OutputType = typename UserTypes::OutputType;
@@ -30,8 +30,8 @@ Template_elx_conv_direct_depthwise_lp_t class elx_conv_direct_depthwise_lp_t : p
   static constexpr int KW = 4;
 
   public:
-  elx_conv_direct_depthwise_lp_t(eld_conv_t &dc);
-  virtual ~elx_conv_direct_depthwise_lp_t();
+  elx_int8_conv_direct_depthwise_t(eld_conv_t &dc);
+  virtual ~elx_int8_conv_direct_depthwise_t();
 
   virtual void execute(void *output, void *input, void *weights, void *bias);
 
@@ -56,7 +56,7 @@ Template_elx_conv_direct_depthwise_lp_t class elx_conv_direct_depthwise_lp_t : p
   u8s8_depthwise_conv_kernel_binder::kconv<TarrayTypes, OutputType> *ker_conv_;
   u8s8_depthwise_conv_kernel_binder::kconv<TarrayTypes, OutputType> *ker_conv_Tr_;
 
-  void (elx_conv_direct_depthwise_lp_t::*execute_opt_)(
+  void (elx_int8_conv_direct_depthwise_t::*execute_opt_)(
       OutputType *, InputType *, WeightsType *, BiasType *);
 
   bool is_first_run_;
@@ -79,8 +79,8 @@ Template_elx_conv_direct_depthwise_lp_t class elx_conv_direct_depthwise_lp_t : p
   int mthr_;
 };
 
-template class elx_conv_direct_depthwise_lp_t<conv::U8F32U8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>;
-template class elx_conv_direct_depthwise_lp_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>;
+template class elx_int8_conv_direct_depthwise_t<conv::U8F32U8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>;
+template class elx_int8_conv_direct_depthwise_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>;
 
 } // namespace euler
 #endif // __ELX_CONV_DIRECT_DEPTHWISE_LP_HPP__

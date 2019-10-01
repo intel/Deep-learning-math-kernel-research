@@ -1,12 +1,12 @@
-#include "elx_conv_direct_1x1_lp.hpp"
+#include "elx_int8_conv_direct_1x1.hpp"
 #include "el_parallel.hpp"
 
 namespace euler {
 
 static constexpr float INT8GEMM_TWT_QTSCALE = 127.0;
 
-Template_elx_conv_direct_1x1_lp_t
-Instance_elx_conv_direct_1x1_lp_t::elx_conv_direct_1x1_lp_t(eld_conv_t &dc)
+Template_elx_int8_conv_direct_1x1_t
+Instance_elx_int8_conv_direct_1x1_t::elx_int8_conv_direct_1x1_t(eld_conv_t &dc)
     : elx_conv_t(dc)
 {
   // user input
@@ -117,8 +117,8 @@ Instance_elx_conv_direct_1x1_lp_t::elx_conv_direct_1x1_lp_t(eld_conv_t &dc)
       this->O3, this->O4, this->O2r, this->O3r, this->OC);
 }
 
-Template_elx_conv_direct_1x1_lp_t
-int Instance_elx_conv_direct_1x1_lp_t::prepare_execute_opt()
+Template_elx_int8_conv_direct_1x1_t
+int Instance_elx_int8_conv_direct_1x1_t::prepare_execute_opt()
 {
   size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
   size_t binput_size = 0, bweights_size = 0, boutput_size = 0;
@@ -192,8 +192,8 @@ int Instance_elx_conv_direct_1x1_lp_t::prepare_execute_opt()
   return 0;
 }
 
-Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::set_scratch_buffers(void *base)
+Template_elx_int8_conv_direct_1x1_t
+void Instance_elx_int8_conv_direct_1x1_t::set_scratch_buffers(void *base)
 {
   if (base != nullptr) {
     tinput_ = (TinputType *)base;
@@ -204,8 +204,8 @@ void Instance_elx_conv_direct_1x1_lp_t::set_scratch_buffers(void *base)
   }
 }
 
-Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::set_workspace_buffers(void *base)
+Template_elx_int8_conv_direct_1x1_t
+void Instance_elx_int8_conv_direct_1x1_t::set_workspace_buffers(void *base)
 {
   if (base != nullptr) {
     tweights_ = (TweightsType *)base;
@@ -215,8 +215,8 @@ void Instance_elx_conv_direct_1x1_lp_t::set_workspace_buffers(void *base)
   }
 }
 
-Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::prepare_quant_calibration(eld_conv_t &dc)
+Template_elx_int8_conv_direct_1x1_t
+void Instance_elx_int8_conv_direct_1x1_t::prepare_quant_calibration(eld_conv_t &dc)
 {
   this->input_quant_S = dc.input_quant.scale;
   this->input_quant_repS = 1 / dc.input_quant.scale;
@@ -231,13 +231,13 @@ void Instance_elx_conv_direct_1x1_lp_t::prepare_quant_calibration(eld_conv_t &dc
     el_error("Unsupported quantization mode in int8 direct 1x1");
 }
 
-Template_elx_conv_direct_1x1_lp_t
-Instance_elx_conv_direct_1x1_lp_t::~elx_conv_direct_1x1_lp_t()
+Template_elx_int8_conv_direct_1x1_t
+Instance_elx_int8_conv_direct_1x1_t::~elx_int8_conv_direct_1x1_t()
 {
 }
 
-Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::trans_weights_s8_blocked_oc(
+Template_elx_int8_conv_direct_1x1_t
+void Instance_elx_int8_conv_direct_1x1_t::trans_weights_s8_blocked_oc(
     TscaleType *weights_scale, int8_t *tweights_s8, WeightsType *weights,
     BiasType *bias)
 {
@@ -349,8 +349,8 @@ void Instance_elx_conv_direct_1x1_lp_t::trans_weights_s8_blocked_oc(
   }, this->O4, this->O3, this->O2);
 }
 
-Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::requant_output(
+Template_elx_int8_conv_direct_1x1_t
+void Instance_elx_int8_conv_direct_1x1_t::requant_output(
     OutputType *output, ToutputType *toutput)
 {
   __m<V> mmorepS = _mm<V>::set1_ps(this->output_quant_repS);
@@ -378,8 +378,8 @@ void Instance_elx_conv_direct_1x1_lp_t::requant_output(
   }, this->n, this->OC / V, this->oh, this->ow);
 }
 
-Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::gemm_b161(ToutputType *toutput,
+Template_elx_int8_conv_direct_1x1_t
+void Instance_elx_int8_conv_direct_1x1_t::gemm_b161(ToutputType *toutput,
     OutputType *output, uint8_t *input, int8_t *weights, TscaleType *input_scale,
     TscaleType *weights_scale, BiasType *bias, int _I4)
 {
@@ -430,8 +430,8 @@ void Instance_elx_conv_direct_1x1_lp_t::gemm_b161(ToutputType *toutput,
   }
 }
 
-Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::gemm_c160(ToutputType *toutput,
+Template_elx_int8_conv_direct_1x1_t
+void Instance_elx_int8_conv_direct_1x1_t::gemm_c160(ToutputType *toutput,
     OutputType *output, uint8_t *input, int8_t *weights_s8, TscaleType *input_scale,
     TscaleType *weights_scale, BiasType *bias, int _I4, int _O4, int _t2)
 {

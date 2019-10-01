@@ -1,9 +1,9 @@
-#include "elx_conv_direct_depthwise_lp.hpp"
+#include "elx_int8_conv_direct_depthwise.hpp"
 
 namespace euler {
 
-Template_elx_conv_direct_depthwise_lp_t void
-Instance_elx_conv_direct_depthwise_lp_t::bind_execute_functions()
+Template_elx_int8_conv_direct_depthwise_t void
+Instance_elx_int8_conv_direct_depthwise_t::bind_execute_functions()
 {
 #define BIND_CONV_KERNEL(S, F, K)                                              \
   if (K == 3) {                                                                \
@@ -41,7 +41,7 @@ Instance_elx_conv_direct_depthwise_lp_t::bind_execute_functions()
 #define EXECUTE_CASE(n)                                                        \
   case 0x##n:                                                                  \
     printf("execute_opt=" #n "\n");                                            \
-    execute_opt_ = &Instance_elx_conv_direct_depthwise_lp_t::__execute_##n;    \
+    execute_opt_ = &Instance_elx_int8_conv_direct_depthwise_t::__execute_##n;    \
     break
 
   switch (xopt_) {

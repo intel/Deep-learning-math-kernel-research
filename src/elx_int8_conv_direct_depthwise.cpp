@@ -4,15 +4,15 @@
 #include "el_stl.hpp"
 #include "el_utils.hpp"
 #include "el_parallel.hpp"
-#include "elx_conv_direct_depthwise_lp.hpp"
+#include "elx_int8_conv_direct_depthwise.hpp"
 
 namespace euler {
 
 static constexpr float INT8GEMM_TWT_QTSCALE = 127.0;
 
 // depth-wise
-Template_elx_conv_direct_depthwise_lp_t
-Instance_elx_conv_direct_depthwise_lp_t::elx_conv_direct_depthwise_lp_t(eld_conv_t &dc)
+Template_elx_int8_conv_direct_depthwise_t
+Instance_elx_int8_conv_direct_depthwise_t::elx_int8_conv_direct_depthwise_t(eld_conv_t &dc)
     : elx_conv_t(dc)
 {
   // user input
@@ -130,8 +130,8 @@ Instance_elx_conv_direct_depthwise_lp_t::elx_conv_direct_depthwise_lp_t(eld_conv
       this->O3, this->O4, this->O2r, this->O3r, this->OC);
 }
 
-Template_elx_conv_direct_depthwise_lp_t void
-Instance_elx_conv_direct_depthwise_lp_t::prepare_quant_calibration(
+Template_elx_int8_conv_direct_depthwise_t void
+Instance_elx_int8_conv_direct_depthwise_t::prepare_quant_calibration(
     eld_conv_t &dc) {
   this->input_quant_S = dc.input_quant.scale;
   this->input_quant_repS = 1.0f / dc.input_quant.scale;
@@ -144,8 +144,8 @@ Instance_elx_conv_direct_depthwise_lp_t::prepare_quant_calibration(
     el_error("Unsupported quantization mode in int8 direct 1x1");
 }
 
-Template_elx_conv_direct_depthwise_lp_t
-int Instance_elx_conv_direct_depthwise_lp_t::prepare_execute_opt()
+Template_elx_int8_conv_direct_depthwise_t
+int Instance_elx_int8_conv_direct_depthwise_t::prepare_execute_opt()
 {
   toutput_size_ = 0;
   tweights_size_ = 0;
@@ -176,8 +176,8 @@ int Instance_elx_conv_direct_depthwise_lp_t::prepare_execute_opt()
   return 0;
 }
 
-Template_elx_conv_direct_depthwise_lp_t
-void Instance_elx_conv_direct_depthwise_lp_t::set_workspace_buffers(void *base)
+Template_elx_int8_conv_direct_depthwise_t
+void Instance_elx_int8_conv_direct_depthwise_t::set_workspace_buffers(void *base)
 {
   if (base != nullptr) {
     weights_scale_ = (TscaleType *)base;
@@ -187,20 +187,20 @@ void Instance_elx_conv_direct_depthwise_lp_t::set_workspace_buffers(void *base)
   }
 }
 
-Template_elx_conv_direct_depthwise_lp_t
-void Instance_elx_conv_direct_depthwise_lp_t::set_scratch_buffers(void *base)
+Template_elx_int8_conv_direct_depthwise_t
+void Instance_elx_int8_conv_direct_depthwise_t::set_scratch_buffers(void *base)
 {
 }
 
-Template_elx_conv_direct_depthwise_lp_t
-Instance_elx_conv_direct_depthwise_lp_t::~elx_conv_direct_depthwise_lp_t()
+Template_elx_int8_conv_direct_depthwise_t
+Instance_elx_int8_conv_direct_depthwise_t::~elx_int8_conv_direct_depthwise_t()
 {
 }
 
 // weights: g23, V, kh, kw
 // tweights: g23, kh, V, KW // kw-padded goih16g4w
-Template_elx_conv_direct_depthwise_lp_t void
-Instance_elx_conv_direct_depthwise_lp_t::trans_weights_3x3(
+Template_elx_int8_conv_direct_depthwise_t void
+Instance_elx_int8_conv_direct_depthwise_t::trans_weights_3x3(
     TscaleType *weights_scale, TscaleType *weights_factor, int8_t *tweights_s8,
     WeightsType *weights, BiasType *bias)
 {
@@ -291,8 +291,8 @@ Instance_elx_conv_direct_depthwise_lp_t::trans_weights_3x3(
   }, this->g23);
 }
 
-Template_elx_conv_direct_depthwise_lp_t
-void Instance_elx_conv_direct_depthwise_lp_t::conv_a160(OutputType *output,
+Template_elx_int8_conv_direct_depthwise_t
+void Instance_elx_int8_conv_direct_depthwise_t::conv_a160(OutputType *output,
     ToutputType *toutput, InputType *input_u8, int8_t *weights_s8,
     BiasType *bias, TscaleType *src_scale, TscaleType *weights_scale,
     TscaleType *weights_factor, int _ht, int _wt)

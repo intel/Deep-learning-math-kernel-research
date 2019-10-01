@@ -10,14 +10,14 @@
 
 namespace euler {
 
-#define Template_elx_conv_direct_1x1_lp_t                                      \
+#define Template_elx_int8_conv_direct_1x1_t                                      \
   template <typename UserTypes, typename TarrayTypes, const int V, const int I>
 
-#define Instance_elx_conv_direct_1x1_lp_t                                      \
-    elx_conv_direct_1x1_lp_t<UserTypes, TarrayTypes, V, I>
+#define Instance_elx_int8_conv_direct_1x1_t                                      \
+    elx_int8_conv_direct_1x1_t<UserTypes, TarrayTypes, V, I>
 
-Template_elx_conv_direct_1x1_lp_t
-class elx_conv_direct_1x1_lp_t : public elx_conv_t {
+Template_elx_int8_conv_direct_1x1_t
+class elx_int8_conv_direct_1x1_t : public elx_conv_t {
 public:
   // Configurable parameters
   using elx_conv_t::IC;
@@ -42,8 +42,8 @@ public:
   using TscaleType = typename TarrayTypes::ScaleType;
 
   public:
-  elx_conv_direct_1x1_lp_t(eld_conv_t &dc);
-  virtual ~elx_conv_direct_1x1_lp_t();
+  elx_int8_conv_direct_1x1_t(eld_conv_t &dc);
+  virtual ~elx_int8_conv_direct_1x1_t();
 
   virtual void execute(void *, void *, void *, void *);
 
@@ -70,7 +70,7 @@ public:
   u8s8_gemm_kernel_binder::kgemm<TarrayTypes, OutputType> *ker_u8s8_gemm_I_O_T_;
   u8s8_gemm_kernel_binder::kgemm<TarrayTypes, OutputType> *ker_u8s8_gemm_I_O_Tr_;
 
-  void (elx_conv_direct_1x1_lp_t::*execute_opt_)(
+  void (elx_int8_conv_direct_1x1_t::*execute_opt_)(
       OutputType *, InputType *, WeightsType *, BiasType *);
 
   bool no_pad_;
@@ -114,9 +114,9 @@ public:
 };
 
 //u8f32u8f32-u8s8f32
-template class elx_conv_direct_1x1_lp_t<conv::U8F32U8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>;
+template class elx_int8_conv_direct_1x1_t<conv::U8F32U8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>;
 //u8f32s8f32-u8s8f32
-template class elx_conv_direct_1x1_lp_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>;
+template class elx_int8_conv_direct_1x1_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_SKX_AVX512>;
 
 }  // namespace euler
 #endif  // __ELX_CONV_DIRECT_1X1_HPP__

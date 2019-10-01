@@ -1,9 +1,9 @@
-#include "elx_conv_direct_1x1_lp.hpp"
+#include "elx_int8_conv_direct_1x1.hpp"
 
 namespace euler {
 
-Template_elx_conv_direct_1x1_lp_t void
-Instance_elx_conv_direct_1x1_lp_t::bind_execute_functions() {
+Template_elx_int8_conv_direct_1x1_t void
+Instance_elx_int8_conv_direct_1x1_t::bind_execute_functions() {
 #define BIND_KERNEL(S, F) u8s8_gemm_kernel_binder::bind<S, F>(O, T, func);
 
   auto bind_kernel = [&](int O, int T,
@@ -63,7 +63,7 @@ Instance_elx_conv_direct_1x1_lp_t::bind_execute_functions() {
 #define EXECUTE_CASE(n)                                                        \
   case 0x##n:                                                                  \
     printf("execute_opt=" #n "\n");                                            \
-    execute_opt_ = &Instance_elx_conv_direct_1x1_lp_t::__execute_##n;          \
+    execute_opt_ = &Instance_elx_int8_conv_direct_1x1_t::__execute_##n;          \
     break
 
   switch (xopt_) {

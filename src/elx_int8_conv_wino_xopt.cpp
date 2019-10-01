@@ -1,5 +1,5 @@
 #include "el_parallel.hpp"
-#include "elx_conv_wino_lp.hpp"
+#include "elx_int8_conv_wino.hpp"
 
 namespace euler {
 
@@ -16,8 +16,8 @@ namespace euler {
 //
 
 
-Template_elx_conv_wino_lp_t
-void Instance_elx_conv_wino_lp_t::__execute_a133(
+Template_elx_int8_conv_wino_t
+void Instance_elx_int8_conv_wino_t::__execute_a133(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
@@ -66,8 +66,8 @@ void Instance_elx_conv_wino_lp_t::__execute_a133(
     is_first_run_ = false;
 }
 
-Template_elx_conv_wino_lp_t
-void Instance_elx_conv_wino_lp_t::__execute_a161(
+Template_elx_int8_conv_wino_t
+void Instance_elx_int8_conv_wino_t::__execute_a161(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
@@ -119,8 +119,8 @@ void Instance_elx_conv_wino_lp_t::__execute_a161(
     is_first_run_ = false;
 }
 
-Template_elx_conv_wino_lp_t
-void Instance_elx_conv_wino_lp_t::__execute_a173(
+Template_elx_int8_conv_wino_t
+void Instance_elx_int8_conv_wino_t::__execute_a173(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
@@ -177,8 +177,8 @@ void Instance_elx_conv_wino_lp_t::__execute_a173(
     is_first_run_ = false;
 }
 
-Template_elx_conv_wino_lp_t
-void Instance_elx_conv_wino_lp_t::execute(
+Template_elx_int8_conv_wino_t
+void Instance_elx_int8_conv_wino_t::execute(
     void * __restrict output, void * __restrict input,
     void * __restrict weights, void * __restrict bias)
 {

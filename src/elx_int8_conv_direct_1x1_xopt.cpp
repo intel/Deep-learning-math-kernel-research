@@ -1,6 +1,6 @@
 #include <string.h>
 #include "el_parallel.hpp"
-#include "elx_conv_direct_1x1_lp.hpp"
+#include "elx_int8_conv_direct_1x1.hpp"
 
 
 // XOPT
@@ -22,8 +22,8 @@
 
 namespace euler {
 
-Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
+Template_elx_int8_conv_direct_1x1_t
+void Instance_elx_int8_conv_direct_1x1_t::__execute_c160(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   // weights: O4*, O3, O2, I4*, I3, I2, V, V
@@ -107,8 +107,8 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_c160(
     is_first_run_ = false;
 }
 
-Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::__execute_b161(
+Template_elx_int8_conv_direct_1x1_t
+void Instance_elx_int8_conv_direct_1x1_t::__execute_b161(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   // weights: O4*, O3, O2, I4*, I3, I2, V, V
@@ -203,8 +203,8 @@ void Instance_elx_conv_direct_1x1_lp_t::__execute_b161(
     is_first_run_ = false;
 }
 
-Template_elx_conv_direct_1x1_lp_t
-void Instance_elx_conv_direct_1x1_lp_t::execute(
+Template_elx_int8_conv_direct_1x1_t
+void Instance_elx_int8_conv_direct_1x1_t::execute(
     void *output, void *input, void *weights, void *bias)
 {
   (this->*execute_opt_)((OutputType *)output,

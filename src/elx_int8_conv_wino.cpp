@@ -1,12 +1,12 @@
 #include "el_parallel.hpp"
-#include "elx_conv_wino_lp.hpp"
+#include "elx_int8_conv_wino.hpp"
 
 namespace euler {
 
 const float INT8GEMM_TWT_QTSCALE = 127.0;
 const float INT8GEMM_TIN_MIN_MAX_QTSCALE = 255.0;
 
-Template_elx_conv_wino_lp_t Instance_elx_conv_wino_lp_t::elx_conv_wino_lp_t(
+Template_elx_int8_conv_wino_t Instance_elx_int8_conv_wino_t::elx_int8_conv_wino_t(
     eld_conv_t &dc)
     : elx_conv_t(dc)
 {
@@ -98,8 +98,8 @@ Template_elx_conv_wino_lp_t Instance_elx_conv_wino_lp_t::elx_conv_wino_lp_t(
 #endif
 }
 
-Template_elx_conv_wino_lp_t
-int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
+Template_elx_int8_conv_wino_t
+int Instance_elx_int8_conv_wino_t::prepare_execute_opt()
 {
   size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
   size_t binput_size = 0, bweights_size = 0, boutput_size = 0;
@@ -234,8 +234,8 @@ int Instance_elx_conv_wino_lp_t::prepare_execute_opt()
   return 0;
 }
 
-Template_elx_conv_wino_lp_t
-void Instance_elx_conv_wino_lp_t::set_workspace_buffers(void *base)
+Template_elx_int8_conv_wino_t
+void Instance_elx_int8_conv_wino_t::set_workspace_buffers(void *base)
 {
   if (base != nullptr) {
     tweights_ = (TweightsType *)base;
@@ -251,8 +251,8 @@ void Instance_elx_conv_wino_lp_t::set_workspace_buffers(void *base)
   }
 }
 
-Template_elx_conv_wino_lp_t
-void Instance_elx_conv_wino_lp_t::set_scratch_buffers(void *base)
+Template_elx_int8_conv_wino_t
+void Instance_elx_int8_conv_wino_t::set_scratch_buffers(void *base)
 {
   if (base != nullptr) {
     tinput_ = (TinputType *)base;
@@ -269,8 +269,8 @@ void Instance_elx_conv_wino_lp_t::set_scratch_buffers(void *base)
   }
 }
 
-Template_elx_conv_wino_lp_t
-void Instance_elx_conv_wino_lp_t::prepare_quant_calibration(eld_conv_t &dc)
+Template_elx_int8_conv_wino_t
+void Instance_elx_int8_conv_wino_t::prepare_quant_calibration(eld_conv_t &dc)
 {
   this->tinput_quant_S = dc.wino_tinput_quant.scale;
   this->tinput_quant_z = dc.wino_tinput_quant.z;
@@ -290,8 +290,8 @@ void Instance_elx_conv_wino_lp_t::prepare_quant_calibration(eld_conv_t &dc)
   }
 }
 
-Template_elx_conv_wino_lp_t
-Instance_elx_conv_wino_lp_t::~elx_conv_wino_lp_t()
+Template_elx_int8_conv_wino_t
+Instance_elx_int8_conv_wino_t::~elx_int8_conv_wino_t()
 {
 }
 
