@@ -184,7 +184,7 @@ struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
       MD3(InputType, ainput1, &md4(ainput0, _G2, _ih, _iw, 0), T, S, V);
       __i<V> in = _mm<V>::load_epi32(&md3(ainput1, _T, 0, 0));
 #if defined(WITH_VBMI)
-      res = _mm512_maskz_permutexvar_epi8(k, index, in);
+      res = _mm512_maskz_permutexvar_epi8(k, index_8, in);
 #else
       __i<V> index_32 = _mm<V>::set_epi32(
           15, 11, 7, 3,
