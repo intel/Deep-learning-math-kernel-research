@@ -6,10 +6,10 @@
 #include "el_utils.hpp"
 #include "el_allocator.hpp"
 #include "elx_conv.hpp"
-#include "elx_conv_wino_u8s8_gemm.hpp"
 #include "elx_conv_wino_trans_input.hpp"
 #include "elx_conv_wino_trans_output.hpp"
 #include "elx_conv_wino_trans_weights.hpp"
+#include "elx_int8_conv_wino_gemm.hpp"
 
 /*
   Winograd data types: (input,weights,output)
@@ -97,7 +97,7 @@ private:
   elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
     trans_weights_s8;
 
-  elx_conv_wino_u8s8_gemm_t<TarrayTypes, A, V, I> u8s8_gemm;
+  elx_int8_conv_wino_gemm_t<TarrayTypes, A, V, I> u8s8_gemm;
 
   elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K, V>
       trans_output;

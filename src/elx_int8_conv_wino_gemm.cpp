@@ -1,10 +1,10 @@
-#include "elx_conv_wino_u8s8_gemm.hpp"
+#include "elx_int8_conv_wino_gemm.hpp"
 #include "el_parallel.hpp"
 
 namespace euler {
 
 template <typename GarrayTypes, const int A, const int V, const int I>
-void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::setup(elx_conv_params_t *conv_xc)
+void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::setup(elx_conv_params_t *conv_xc)
 {
   attr_ = A != 6 ? set_attr(0x0, fma_opt_idx) : 0x0;
   xc    = conv_xc;
@@ -14,7 +14,7 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::setup(elx_conv_params_t *c
 }
 
 template <typename GarrayTypes, const int A, const int V, const int I>
-void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::bind_kernel_functions()
+void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::bind_kernel_functions()
 {
   u8s8_gemm_kernel_binder::bind<1, GKF_CCC>(xc->O, xc->T, &ker_u8s8_gemm_);
   u8s8_gemm_kernel_binder::bind<1, GKF_CCC>(xc->O, xc->Tr, &ker_u8s8_gemm0_);
@@ -26,7 +26,7 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::bind_kernel_functions()
 // weights_scale  O4 | O3, O2, V
 // facotr:        O4 | O3, A, A, O2, V
 template <typename GarrayTypes, const int A, const int V, const int I>
-void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute(
+void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
     ToutputType *toutput, uint8_t *tinput, int8_t *tweights,
     TscaleType *src_scale, TscaleType *weights_scale, TscaleType *weights_factor,
     int _t2, int Tz, int _I4)
@@ -76,7 +76,7 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute(
 }
 
 template <typename GarrayTypes, const int A, const int V, const int I>
-void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
+void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
     ToutputType *toutput, uint8_t *tinput, int8_t *tweights,
     TscaleType *src_scale, TscaleType *weights_scale, TscaleType *weights_factor,
     int _t2, int Tz, int _I4)
@@ -156,7 +156,7 @@ void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
 }
 
 template <typename GarrayTypes, const int A, const int V, const int I>
-void elx_conv_wino_u8s8_gemm_t<GarrayTypes, A, V, I>::execute_na(
+void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
     ToutputType *toutput, uint8_t *tinput, int8_t *tweights,
     TscaleType *src_scale, TscaleType *src_factor,
     TscaleType *weights_scale, TscaleType *weights_factor, int _I4)

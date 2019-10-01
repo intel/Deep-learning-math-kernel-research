@@ -83,11 +83,11 @@ file (GLOB __euler_source
   src/elx_conv_wino_trans_input.cpp
   src/elx_conv_wino_trans_weights.cpp
   src/elx_conv_wino_gemm.cpp
-  src/elx_conv_wino_u8s8_gemm.cpp
   src/elx_conv_wino_trans_output.cpp
   src/elx_conv_wino.cpp
   src/elx_conv_wino_xopt.cpp
   src/elx_conv_wino_bind.cpp
+  src/elx_int8_conv_wino_gemm.cpp
   src/elx_int8_conv_wino.cpp
   src/elx_int8_conv_wino_xopt.cpp
   src/elx_int8_conv_wino_bind.cpp
