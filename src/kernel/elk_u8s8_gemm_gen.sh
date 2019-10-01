@@ -13,7 +13,7 @@ fi
 __u8s8_kgemm_generate_inst__() {
   ktype=$1; dtype=$2; otype=$3; V=$4; Vx=$5; I=$6; S=$7; F=$8;
 
-  cat <<@ > $dst_dir/elk_${ktype}_otj_${dtype}_${otype}_${V}_${Vx}_${I}_${S}_${F}.cpp
+  cat <<@ > $dst_dir/elk_${ktype}_${dtype}_${otype}_${V}_${Vx}_${I}_${S}_${F}.cpp
 // _generated_kgemm_file_
 //
 #include "$src_file"

@@ -18,7 +18,7 @@
 namespace euler {
 
 template <typename GarrayTypes, int V, int Vx, int I, typename KP>
-struct conv_kernel_otj {
+struct conv_kernel {
   static inline void conv(
       elx_conv_params_t &,
       typename GarrayTypes::OutputType *,
@@ -29,7 +29,7 @@ struct conv_kernel_otj {
 };
 
 template <typename GarrayTypes, int V, int Vx, int ...Kp>
-struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
+struct conv_kernel<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     estl::integer_sequence<Kp...>> {
   using kparams = estl::integer_sequence<Kp...>;
   static_assert(sizeof...(Kp) == 5,
@@ -47,7 +47,7 @@ struct conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   constexpr static auto T = estl::get<3, int, kparams>();
   constexpr static auto K = estl::get<4, int, kparams>();
 
-  // Jamming components
+  // Loop splitting
   constexpr static int J = J_traits<O, T, K_CONV, WeightsType>::J;
   constexpr static int JO0 = J_traits<O, T, K_CONV, WeightsType>::O0;
   constexpr static int JP0 = (K > 3 || F_traits<F>::is_compact_ir_weights)

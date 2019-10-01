@@ -79,7 +79,7 @@ struct P_traits<O, T, Ktype, int8_t> {
 };
 #endif
 
-// Jamming
+// Loop splitting
 template <int O, int T, int Ktype, typename Wtype = float, typename C = void>
 struct J_traits {};
 

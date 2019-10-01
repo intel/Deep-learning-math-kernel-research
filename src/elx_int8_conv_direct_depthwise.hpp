@@ -6,7 +6,7 @@
 #include "el_utils.hpp"
 #include "el_allocator.hpp"
 #include "elx_conv.hpp"
-#include "kernel/elk_u8s8_depthwise_conv_otj_binder.hxx"
+#include "kernel/elk_u8s8_depthwise_conv_binder.hxx"
 
 namespace euler {
 

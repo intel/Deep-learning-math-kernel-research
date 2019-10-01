@@ -18,7 +18,7 @@
 namespace euler {
 
 template <typename GarrayTypes, int V, int Vx, int I, typename KP>
-struct gemm_kernel_otj {
+struct gemm_kernel {
   static inline void gemm(
       elx_conv_params_t &, typename GarrayTypes::OutputType *,
       typename GarrayTypes::InputType *,
@@ -27,7 +27,7 @@ struct gemm_kernel_otj {
 };
 
 template <typename GarrayTypes, int V, int Vx, int ...Kp>
-struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
+struct gemm_kernel<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     estl::integer_sequence<Kp...>> {
   using kparams = estl::integer_sequence<Kp...>;
   static_assert(sizeof...(Kp) == 5,
@@ -44,7 +44,7 @@ struct gemm_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   constexpr static auto O = estl::get<2, int, kparams>();
   constexpr static auto T = estl::get<3, int, kparams>();
 
-  // Jamming components
+  // Loop splitting
   constexpr static int J   = J_traits<O, T, K_GEMM, WeightsType>::J;
   constexpr static int JO0 = J_traits<O, T, K_GEMM, WeightsType>::O0;
   constexpr static int JP0 = J_traits<O, T, K_GEMM, WeightsType>::P0;

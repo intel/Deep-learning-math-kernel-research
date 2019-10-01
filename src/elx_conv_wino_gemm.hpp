@@ -1,6 +1,6 @@
 #pragma once
 
-#include "kernel/elk_gemm_otj_binder.hxx"
+#include "kernel/elk_gemm_binder.hxx"
 
 namespace euler {
 

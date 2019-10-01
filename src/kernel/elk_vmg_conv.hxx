@@ -21,13 +21,13 @@ namespace euler {
 // G: number of vmg
 // C: ic/oc per group
 // For V=16,
-//    G = 1 (normal, see conv_kernel_otj)
+//    G = 1 (normal, see conv_kernel)
 //    G = 2, C = 8
 //    G = 4, C = 4
 //    G = 8, C = 2
 //    G = 16, C = 1 (depth-wise)
 template <typename GarrayTypes, int V, int Vx, int I, typename KP>
-struct vmg_conv_kernel_otj {
+struct vmg_conv_kernel {
   static inline void conv(
       elx_conv_params_t &,
       typename GarrayTypes::OutputType *,
@@ -40,7 +40,7 @@ struct vmg_conv_kernel_otj {
 #define _MIN(a, b) ((a) <= (b) ? (a) : (b))
 
 template <typename GarrayTypes, int V, int Vx, int ...Kp>
-struct vmg_conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
+struct vmg_conv_kernel<GarrayTypes, V, Vx, ISA_SKX_AVX512,
     estl::integer_sequence<Kp...>> {
   using kparams = estl::integer_sequence<Kp...>;
   static_assert(sizeof...(Kp) == 6,
@@ -65,7 +65,7 @@ struct vmg_conv_kernel_otj<GarrayTypes, V, Vx, ISA_SKX_AVX512,
   // ic/oc per group
   constexpr static int C = V / G;
 
-  // Jamming components
+  // Loop splitting
   constexpr static int J = 1;
   constexpr static int JO0 = 1;
   constexpr static int JP0 =

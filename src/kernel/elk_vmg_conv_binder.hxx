@@ -15,13 +15,13 @@
 
 #if !defined(BUILD_OTJ_TBL)
 #include "src/kernel/elk_def.hpp"
-#include "src/kernel/elk_vmg_conv_otj.hxx"
+#include "src/kernel/elk_vmg_conv.hxx"
 
 namespace euler {
 
 struct vmg_conv_kernel_binder {
   template <typename GarrayTypes, int V, int Vx, int I, int... Kp>
-  using conv_ker_cls = typename euler::vmg_conv_kernel_otj<GarrayTypes,
+  using conv_ker_cls = typename euler::vmg_conv_kernel<GarrayTypes,
       V, Vx, I, estl::integer_sequence<Kp...>>;
 
   template <typename GarrayTypes>

@@ -58,7 +58,7 @@ Template_elx_int8_conv_wino_t Instance_elx_int8_conv_wino_t::elx_int8_conv_wino_
   this->t2 = (this->t + this->T - 1) / this->T;
 
   if (this->sampling_kind != CALIBRATED) {
-    el_error("Winograd: to enable sampling from elk_u8s8_gemm_otj");
+    el_error("Winograd: to enable sampling from elk_u8s8_gemm");
   }
   prepare_quant_calibration(dc);
 

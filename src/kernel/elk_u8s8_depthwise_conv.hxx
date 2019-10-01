@@ -126,7 +126,7 @@
 namespace euler {
 
 template <typename GarrayTypes, typename RoutputType, int V, int Vx, int I, typename KP>
-struct u8s8_depthwise_conv_kernel_otj {
+struct u8s8_depthwise_conv_kernel {
   static inline void conv(
       elx_conv_params_t &,
       typename GarrayTypes::OutputType *,
@@ -142,7 +142,7 @@ struct u8s8_depthwise_conv_kernel_otj {
 };
 
 template <typename GarrayTypes, typename RoutputType, int V, int Vx, int ...Kp>
-struct u8s8_depthwise_conv_kernel_otj<GarrayTypes, RoutputType, V, Vx,
+struct u8s8_depthwise_conv_kernel<GarrayTypes, RoutputType, V, Vx,
   ISA_SKX_AVX512, estl::integer_sequence<Kp...>> {
   using kparams = estl::integer_sequence<Kp...>;
   static_assert(sizeof...(Kp) == 5,

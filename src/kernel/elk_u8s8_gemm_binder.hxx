@@ -14,13 +14,13 @@
 
 #if !defined(BUILD_OTJ_TBL)
 #include "src/kernel/elk_def.hpp"
-#include "src/kernel/elk_u8s8_gemm_otj.hxx"
+#include "src/kernel/elk_u8s8_gemm.hxx"
 
 namespace euler {
 
 struct u8s8_gemm_kernel_binder {
   template <typename GarrayTypes, typename OoutputType, int V, int Vx, int I, int... Kp>
-  using gemm_ker_cls = typename euler::u8s8_gemm_kernel_otj<GarrayTypes,
+  using gemm_ker_cls = typename euler::u8s8_gemm_kernel<GarrayTypes,
       OoutputType, V, Vx, I, estl::integer_sequence<Kp...>>;
 
   template <typename GarrayTypes, typename OoutputType>

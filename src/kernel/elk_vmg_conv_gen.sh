@@ -13,7 +13,7 @@ fi
 __vmg_kconv_generate_inst__() {
   ktype=$1; dtype=$2; V=$3; Vx=$4; I=$5; S=$6; F=$7
 
-  cat <<@ > $dst_dir/elk_${ktype}_otj_${dtype}_${V}_${Vx}_${I}_${S}_${F}.cpp
+  cat <<@ > $dst_dir/elk_${ktype}_${dtype}_${V}_${Vx}_${I}_${S}_${F}.cpp
 // _generated_kernel_file_
 //
 #include "$src_file"
