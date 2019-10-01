@@ -35,7 +35,7 @@ Instance_elx_int8_conv_direct_depthwise_t::elx_int8_conv_direct_depthwise_t(eld_
                   estl::any_of(this->tp, 0, 1) &&
                   estl::any_of(this->bp, 0, 1);
   if (!shape_ok) {
-    el_error("direct_depthwise_lp: shape not supported");
+    el_error("direct_depthwise: int8: shape not supported");
   }
 
   // compute multiple groups in one FMA

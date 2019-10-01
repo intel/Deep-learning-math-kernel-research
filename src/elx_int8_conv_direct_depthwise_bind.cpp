@@ -24,7 +24,7 @@ Instance_elx_int8_conv_direct_depthwise_t::bind_execute_functions()
           el_error("Stride > 2 not yet bounded");
         }
       } else {
-        el_error("direct_depthwise_lp:int8: kernel fmt not supported");
+        el_error("direct_depthwise: int8: kernel fmt not supported");
       }
       break;
     default:
@@ -47,7 +47,7 @@ Instance_elx_int8_conv_direct_depthwise_t::bind_execute_functions()
   switch (xopt_) {
     EXECUTE_CASE(a160);
   default:
-    el_error("direct_depthwise_lp: Unimplemented xopt");
+    el_error("direct_depthwise: int8: Unimplemented xopt");
     break;
   }
 }

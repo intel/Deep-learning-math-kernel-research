@@ -37,7 +37,7 @@ Instance_elx_int8_conv_direct_1x1_t::elx_int8_conv_direct_1x1_t(eld_conv_t &dc)
   // n, t2, (T, Tr)
   bool shape_ok = this->hs < 3 && this->ws < 3 && no_pad_;
   if (!shape_ok)
-    el_error("direct_1x1_lp: Shape not supported");
+    el_error("direct_1x1: int8: Shape not supported");
 
   if (xopt_ == 0xc160) {
     this->ht = this->oh;
@@ -54,10 +54,10 @@ Instance_elx_int8_conv_direct_1x1_t::elx_int8_conv_direct_1x1_t(eld_conv_t &dc)
     this->Tr = this->T;
     this->t = this->nt * this->n;
     if (this->ow % T != 0) {
-      el_error("direct_1x1_lp: b161: No Tr support");
+      el_error("direct_1x1: int8: b161: No Tr support");
     }
   } else {
-    el_error("direct_1x1_lp: xopt not supported");
+    el_error("direct_1x1: int8: xopt not supported");
   }
 
   this->Ir = this->ic % V ? this->ic % V : V;
