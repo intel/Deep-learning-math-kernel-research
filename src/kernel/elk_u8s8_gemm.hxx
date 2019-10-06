@@ -241,7 +241,7 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
     }
 
     // fuse relu
-    if (get_attr(attr, relu_idx)) {
+    if (test_bit(attr, AT_RELU_MASK)) {
       auto lower = *(__m<V> *)(xc.relu_bound_lower_vec);
       auto upper = *(__m<V> *)(xc.relu_bound_upper_vec);
       fout = _mm<V>::max_ps(fout, lower);
@@ -286,12 +286,12 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
 #endif
 
     int I2 = xc.I2, Ir = 0;
-    if (get_attr(attr, has_Ir_idx)) {
+    if (test_bit(attr, AT_Ir_MASK)) {
       I2 = xc.I2 - 1;
       Ir = xc.Ir;
     }
 
-    if (get_attr(attr, r_output_idx)) {
+    if (test_bit(attr, AT_CLEAR_OUTPUT_MASK)) {
       // clear output
       __i<V> tmp = _mm<V>::setzero_epi32();
       unroll_for (_O, JO)
@@ -306,7 +306,7 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
     }
 
 #if !defined(WITH_VNNI)
-    if (get_attr(attr, fma_opt_idx)) {
+    if (test_bit(attr, AT_FMAOPT_MASK)) {
       for (int _I2 = 0; _I2 < I2; ++_I2) {
         if (P == 1) {
 #pragma nounroll
@@ -385,8 +385,8 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
     }
 
     // store output
-    if (get_attr(attr, c_output_idx)) {
-      if (get_attr(attr, ip_sum_idx)) {
+    if (test_bit(attr, AT_RESTORE_OUTPUT_MASK)) {
+      if (test_bit(attr, AT_INP_SUM_MASK)) {
         unroll_for (_O, JO) {
         unroll_for (_T, T) {
             op_int8_restore_output<JO, true>(xc, output, ooutput, bias,
@@ -439,7 +439,7 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
           ? &md4(aooutput_nhwc, 0, 0, _O1, 0)
           : F_traits<F>::is_compact_output ? &md2(aooutput_compact, _O1, 0)
                                            : &md2(aooutput_blocked, _O1, 0);
-      if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
+      if (F_traits<F>::is_nhwc_output && test_bit(attr, AT_Or_MASK)
           && _O1 == xc.O1 - 1) {
         op_gemm<JO0, JP0, MP0, true>(xc, aout, aoout, input, &md2(aweights, _O1, 0),
             &md2(abias, _O1, 0), attr, src_scale, src_factor, weights_scale,
@@ -495,7 +495,7 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
           ? &md5(aooutput_nhwc, 0, 0, _O1, JO0, 0)
           : F_traits<F>::is_compact_output ? &md3(aooutput_compact, _O1, JO0, 0)
                                            : &md3(aooutput_blocked, _O1, JO0, 0);
-      if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
+      if (F_traits<F>::is_nhwc_output && test_bit(attr, AT_Or_MASK)
           && _O1 == xc.O1 - 1) {
         op_gemm<JO1, JP1, MP1, true>(xc, aout, aoout, input, &md4(aweights, _O1, 0, JO0, 0),
             &md3(abias, _O1, JO0, 0), attr, src_scale, src_factor,
@@ -564,7 +564,7 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
           : F_traits<F>::is_compact_output
               ? &md3(aooutput_compact, _O1, JO0 + JO1, 0)
               : &md3(aooutput_blocked, _O1, JO0 + JO1, 0);
-      if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
+      if (F_traits<F>::is_nhwc_output && test_bit(attr, AT_Or_MASK)
           && _O1 == xc.O1 - 1) {
         op_gemm<JO2, JP2, MP2, true>(xc, aout, aoout, input,
             &md4(aweights, _O1, 0, JO0 + JO1, 0),

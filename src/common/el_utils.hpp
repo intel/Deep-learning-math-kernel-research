@@ -46,26 +46,16 @@ static inline size_t alignup(size_t v, size_t a) {
   return (v + a - 1) & ~(a - 1);
 }
 
-// convolution attributes indexes
-enum {
-  bias_idx = 0x1,         // with bias
-  relu_idx = 0x2,         // fuse with relu
-  ip_sum_idx = 0x4,       // fuse with in-place sum
-  op_sum_idx = 0x8,       // fuse with out-of-place sum
-  r_output_idx = 0x10,    // clear output
-  s_output_idx = 0x20,    // streaming output
-  c_output_idx = 0x40,    // convert and restore output for int8 gemm
-  has_Ir_idx = 0x100,     // has Ir
-  has_Or_idx = 0x200,     // has_Or
-  fma_opt_idx = 0x400,    // fma optimization
-};
-
-inline int set_attr(int attr, int index) {
-  return attr | index;
+inline uint32_t set_bit(const uint32_t v, const uint32_t mask) {
+  return v | mask;
 }
 
-inline bool get_attr(int attr, int index) {
-  return (attr & index) != 0;
+inline bool test_bit(const uint32_t v, const uint32_t mask) {
+  return v & mask;
+}
+
+inline uint32_t clear_bit(const uint32_t v, const uint32_t mask) {
+  return v & ~mask;
 }
 
 inline void el_error(const char *msg) {

@@ -224,7 +224,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     fout = fout * scale + factor;
 
     // fuse relu
-    if (get_attr(attr, relu_idx)) {
+    if (test_bit(attr, AT_RELU_MASK)) {
       auto lower = *(__m<V> *)(xc.relu_bound_lower_vec);
       auto upper = *(__m<V> *)(xc.relu_bound_upper_vec);
       fout = _mm<V>::max_ps(fout, lower);
@@ -268,7 +268,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     __i<V> mmout[JO][T], mmwei[JO][2];
 #endif
 
-    if (get_attr(attr, r_output_idx)) {
+    if (test_bit(attr, AT_CLEAR_OUTPUT_MASK)) {
       // clear output
       __i<V> tmp = _mm<V>::setzero_epi32();
       unroll_for (_O, JO)
@@ -546,7 +546,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
       }
     } else {
       int I2 = xc.I2, Ir = 0;
-      if (get_attr(attr, has_Ir_idx)) {
+      if (test_bit(attr, AT_Ir_MASK)) {
         I2 = xc.I2 - 1;
         Ir = xc.Ir;
       }
@@ -650,7 +650,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     }
 
     // store output
-    if (get_attr(attr, c_output_idx)) {
+    if (test_bit(attr, AT_RESTORE_OUTPUT_MASK)) {
       unroll_for (_O, JO) {
       unroll_for (_T, T) {
         op_restore_output<JO>(xc, output, routput, bias, mmout[_O][_T],
@@ -677,7 +677,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     constexpr int AKW = 3 / 2;
 
     int I2 = xc.I2, Ir = 0;
-    if (get_attr(attr, has_Ir_idx)) {
+    if (test_bit(attr, AT_Ir_MASK)) {
       I2 = xc.I2 - 1;
       Ir = xc.Ir;
     }
@@ -686,7 +686,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
 
     __i<V> mmout[JO][T], mmwei[JO][P];
 
-    if (get_attr(attr, r_output_idx)) {
+    if (test_bit(attr, AT_CLEAR_OUTPUT_MASK)) {
       // clear output
       __i<V> tmp = _mm<V>::setzero_epi32();
       unroll_for (_O, JO)
@@ -874,7 +874,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     }     // _kh loop
 
     // store output
-    if (get_attr(attr, c_output_idx)) {
+    if (test_bit(attr, AT_RESTORE_OUTPUT_MASK)) {
       unroll_for (_O, JO) {
       unroll_for (_T, T) {
         op_restore_output<JO>(xc, output, routput, bias, mmout[_O][_T],

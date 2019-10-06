@@ -110,9 +110,9 @@ Instance_elx_int8_conv_direct_depthwise_t::elx_int8_conv_direct_depthwise_t(eld_
   inference_acc_ = false;
   inference_acc_ = this->prop_kind == forward_inference;
 
-  attr_ = this->with_bias ? set_attr(attr_, bias_idx) : attr_;
-  attr_ = this->with_ip_sum ? set_attr(attr_, ip_sum_idx) : attr_;
-  attr_ = this->with_relu ? set_attr(attr_, relu_idx) : attr_;
+  attr_ = this->with_bias ? set_bit(attr_, AT_BIAS_MASK) : attr_;
+  attr_ = this->with_ip_sum ? set_bit(attr_, AT_INP_SUM_MASK) : attr_;
+  attr_ = this->with_relu ? set_bit(attr_, AT_RELU_MASK) : attr_;
 
   prepare_quant_calibration(dc);
   prepare_execute_opt();

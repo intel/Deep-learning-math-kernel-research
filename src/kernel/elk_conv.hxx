@@ -208,13 +208,13 @@ struct conv_kernel<GarrayTypes, V, Vx, ISA_AVX512,
               : F_traits<F>::is_blocked_output
               ? &md2(aoutput_blocked1, _T, 0) : &md3(aoutput_nhwc1, 0, _O, 0);
 
-    if (get_attr(attr, relu_idx)) {
+    if (test_bit(attr, AT_RELU_MASK)) {
       auto lower = *(__m<V> *)(xc.relu_bound_lower_vec);
       auto upper = *(__m<V> *)(xc.relu_bound_upper_vec);
       res = _mm<V>::max_ps(res, lower);
       res = _mm<V>::min_ps(res, upper);
     }
-    if (get_attr(attr, s_output_idx)) {
+    if (test_bit(attr, AT_STREAMING_OUTPUT_MASK)) {
       if (std::is_same<OutputType, float>::value) {
         _mm<V>::stream_ps(aout, res);
       } else {
@@ -250,7 +250,7 @@ struct conv_kernel<GarrayTypes, V, Vx, ISA_AVX512,
               ? &md2(aoutput_blocked1, _T, 0) : &md3(aoutput_nhwc1, 0, _O, 0);
     assert(F_traits<F>::is_nhwc_output);
 
-    if (get_attr(attr, relu_idx)) {
+    if (test_bit(attr, AT_RELU_MASK)) {
       auto lower = *(__m<V> *)(xc.relu_bound_lower_vec);
       auto upper = *(__m<V> *)(xc.relu_bound_upper_vec);
       res = _mm<V>::max_ps(res, lower);
@@ -298,7 +298,7 @@ struct conv_kernel<GarrayTypes, V, Vx, ISA_AVX512,
     constexpr int AKW = K / 2;
 
     int I2 = xc.I2, Ir = 0;
-    if (get_attr(attr, has_Ir_idx)) {
+    if (test_bit(attr, AT_Ir_MASK)) {
       I2 = xc.I2 - 1;
       Ir = xc.Ir;
     }
@@ -309,8 +309,8 @@ struct conv_kernel<GarrayTypes, V, Vx, ISA_AVX512,
     __m<V> mmout[JO][T], mmwei[JO][P];
     __mmask16 k = _cvtu32_mask16(xc.ormask);
 
-    if (get_attr(attr, r_output_idx)) {
-      if (get_attr(attr, bias_idx)) {
+    if (test_bit(attr, AT_CLEAR_OUTPUT_MASK)) {
+      if (test_bit(attr, AT_BIAS_MASK)) {
         // load bias
         unroll_for (_O, JO - 1) {
           unroll_for (_T, T)
@@ -331,7 +331,7 @@ struct conv_kernel<GarrayTypes, V, Vx, ISA_AVX512,
             mmout[_O][_T] = tmp;
       }
       // load output
-      if (get_attr(attr, ip_sum_idx)) {
+      if (test_bit(attr, AT_INP_SUM_MASK)) {
         unroll_for (_O, JO - 1) {
           unroll_for (_T, T)
             mmout[_O][_T] += op_load_output<JO>(xc, output, _O, _T);
@@ -541,7 +541,7 @@ struct conv_kernel<GarrayTypes, V, Vx, ISA_AVX512,
     constexpr int AKW = 3 / 2;
 
     int I2 = xc.I2, Ir = 0;
-    if (get_attr(attr, has_Ir_idx)) {
+    if (test_bit(attr, AT_Ir_MASK)) {
       I2 = xc.I2 - 1;
       Ir = xc.Ir;
     }
@@ -551,8 +551,8 @@ struct conv_kernel<GarrayTypes, V, Vx, ISA_AVX512,
     __m<V> mmout[JO][T], mmwei[JO][P];
     __mmask16 k = _cvtu32_mask16(xc.ormask);
 
-    if (get_attr(attr, r_output_idx)) {
-      if (get_attr(attr, bias_idx)) {
+    if (test_bit(attr, AT_CLEAR_OUTPUT_MASK)) {
+      if (test_bit(attr, AT_BIAS_MASK)) {
         // load bias
         unroll_for (_O, JO - 1) {
           unroll_for (_T, T)
@@ -573,7 +573,7 @@ struct conv_kernel<GarrayTypes, V, Vx, ISA_AVX512,
             mmout[_O][_T] = tmp;
       }
       // load output
-      if (get_attr(attr, ip_sum_idx)) {
+      if (test_bit(attr, AT_INP_SUM_MASK)) {
         unroll_for (_O, JO - 1) {
           unroll_for (_T, T)
             mmout[_O][_T] += op_load_output<JO>(xc, output, _O, _T);
@@ -758,7 +758,7 @@ struct conv_kernel<GarrayTypes, V, Vx, ISA_AVX512,
     for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
       auto aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, 0, _O1, 0)
                                               : &md2(aoutput_blocked, _O1, 0);
-      if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
+      if (F_traits<F>::is_nhwc_output && test_bit(attr, AT_Or_MASK)
           && _O1 == xc.O1 - 1) {
         op_conv<JO0, JP0, true>(xc, aout, input, &md3(aweights, 0, _O1, 0),
             &md2(abias, _O1, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
@@ -791,7 +791,7 @@ struct conv_kernel<GarrayTypes, V, Vx, ISA_AVX512,
           &md3(abias, _O1, 0, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
       aout = F_traits<F>::is_nhwc_output ? &md6(aoutput_nhwc, 0, 0, 0, _O1, JO0, 0)
                                          : &md3(aoutput_blocked, _O1, JO0, 0);
-      if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
+      if (F_traits<F>::is_nhwc_output && test_bit(attr, AT_Or_MASK)
           && _O1 == xc.O1 - 1) {
         op_conv<JO1, JP1, true>(xc, aout, input,
             &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
@@ -831,7 +831,7 @@ struct conv_kernel<GarrayTypes, V, Vx, ISA_AVX512,
       aout = F_traits<F>::is_nhwc_output
           ? &md6(aoutput_nhwc, 0, 0, 0, _O1, JO0 + JO1, 0)
           : &md3(aoutput_blocked, _O1, JO0 + JO1, 0);
-      if (F_traits<F>::is_nhwc_output && get_attr(attr, has_Or_idx)
+      if (F_traits<F>::is_nhwc_output && test_bit(attr, AT_Or_MASK)
           && _O1 == xc.O1 - 1) {
         op_conv<JO2, JP2, true>(xc, aout, input,
             &md5(aweights, 0, _O1, 0, JO0 + JO1, 0),

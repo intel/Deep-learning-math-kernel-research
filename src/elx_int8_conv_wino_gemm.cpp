@@ -6,7 +6,7 @@ namespace euler {
 template <typename GarrayTypes, const int A, const int V, const int I>
 void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::setup(elx_conv_params_t *conv_xc)
 {
-  attr_ = A != 6 ? set_attr(0x0, fma_opt_idx) : 0x0;
+  attr_ = A != 6 ? set_bit(0x0, AT_FMAOPT_MASK) : 0x0;
   xc    = conv_xc;
   mthr_ = xc->nthreads;
 
@@ -45,11 +45,11 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
   iter_each (_wA, A) {
   iter_each (_I3, xc->I3) {
   iter_each (_O3, xc->O3) {
-    int attr = _I3 == 0 && _I4 == 0 ?  set_attr(attr_, r_output_idx) : attr_;
+    int attr = _I3 == 0 && _I4 == 0 ?  set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
     if (_I4 == xc->I4 - 1 && _I3 == xc->I3 - 1) {
-      attr = set_attr(attr, c_output_idx);
+      attr = set_bit(attr, AT_RESTORE_OUTPUT_MASK);
       if (xc->Ir != V)
-        attr = set_attr(attr, has_Ir_idx);
+        attr = set_bit(attr, AT_Ir_MASK);
     }
 
     TscaleType *asrc_s = nullptr, *asrc_z = nullptr;
@@ -100,11 +100,11 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
       int _hA = n / A;
       iter_each(_I3, xc->I3) {
       iter_each(_O3, xc->O3) {
-        auto attr = _I3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+        auto attr = _I3 == 0 ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
         if (_I4 == xc->I4 - 1 && _I3 == xc->I3 - 1) {
-          attr = set_attr(attr, c_output_idx);
+          attr = set_bit(attr, AT_RESTORE_OUTPUT_MASK);
           if (xc->Ir != V)
-            attr = set_attr(attr, has_Ir_idx);
+            attr = set_bit(attr, AT_Ir_MASK);
         }
 
         TscaleType *asrc_s = nullptr, *asrc_z = nullptr;
@@ -134,11 +134,11 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
     iter_each(_wA, A) {
     iter_each(_I3, xc->I3) {
     iter_each(_O3, xc->O3) {
-      auto attr = _I3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+      auto attr = _I3 == 0 ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
       if (_I4 == xc->I4 - 1 && _I3 == xc->I3 - 1) {
-        attr = set_attr(attr, c_output_idx);
+        attr = set_bit(attr, AT_RESTORE_OUTPUT_MASK);
         if (xc->Ir != V)
-          attr = set_attr(attr, has_Ir_idx);
+          attr = set_bit(attr, AT_Ir_MASK);
       }
 
       ker_gemm(*(elx_conv_params_t *)xc,
@@ -175,11 +175,11 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
     MD6(ToutputType, atoutput6, &md2(atoutput2, _t2, 0), A, A, xc->O3, xc->O2, Tz, V);
     auto ker_gemm = (_t2 == xc->t2 - 1) ? ker_u8s8_gemm0_ : ker_u8s8_gemm_;
 
-    int attr = _I3 == 0 ?  set_attr(attr_, r_output_idx) : attr_;
+    int attr = _I3 == 0 ?  set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
     if (_I3 == xc->I3 - 1) {
-      attr = set_attr(attr, c_output_idx);
+      attr = set_bit(attr, AT_RESTORE_OUTPUT_MASK);
       if (_I4 == xc->I4 - 1 && xc->Ir != V)
-        attr = set_attr(attr, has_Ir_idx);
+        attr = set_bit(attr, AT_Ir_MASK);
     }
 
     TscaleType *asrc_s = nullptr, *asrc_z = nullptr;

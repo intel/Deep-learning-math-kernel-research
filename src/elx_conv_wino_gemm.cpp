@@ -46,7 +46,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
         int I3 = last_ic4 ? xc->I3 - 1 : xc->I3;
         iter_each(_I3, I3) {
           int attr = _I3 == 0 && _I4 == 0
-              ? set_attr(attr_, r_output_idx) : attr_;
+              ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
           ker_gemm(*xc,
               &md6(atoutput, _hA, _wA, _O3, 0, 0, 0),
               &md6(atinput, _hA, _wA, _I3, 0, 0, 0),
@@ -55,10 +55,10 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
         }
         if (last_ic4) {
           auto attr = xc->I3 == 1 && xc->I4 == 1
-                          ? set_attr(attr_, r_output_idx)
+                          ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK)
                           : attr_;
          if (xc->Ir != V)
-           attr = set_attr(attr, has_Ir_idx);
+           attr = set_bit(attr, AT_Ir_MASK);
          ker_gemm(*xc,
              &md6(atoutput, _hA, _wA, _O3, 0, 0, 0),
              &md6(atinput, _hA, _wA, xc->I3 - 1, 0, 0, 0),
@@ -75,7 +75,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
       int I3 = last_ic4 ? xc->I3 - 1 : xc->I3;
       iter_each(_I3, I3) {
         int attr =
-            _I3 == 0 && _I4 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+            _I3 == 0 && _I4 == 0 ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
         ker_gemm(*xc,
             &md6(atoutput, _hA, _wA, _O3, 0, 0, 0),
             &md6(atinput, _hA, _wA, _I3, 0, 0, 0),
@@ -84,10 +84,10 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
       }
       if (last_ic4) {
         auto attr = xc->I3 == 1 && xc->I4 == 1
-                        ? set_attr(attr_, r_output_idx)
+                        ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK)
                         : attr_;
         if (xc->Ir != V)
-          attr = set_attr(attr, has_Ir_idx);
+          attr = set_bit(attr, AT_Ir_MASK);
         ker_gemm(*xc,
             &md6(atoutput, _hA, _wA, _O3, 0, 0, 0),
             &md6(atinput, _hA, _wA, xc->I3 - 1, 0, 0, 0),
@@ -121,7 +121,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
         bool last_ic4 = _I4 == xc->I4 - 1;
         int I3 = last_ic4 ? xc->I3 - 1 : xc->I3;
         iter_each(_I3, I3) {
-          int attr = _I3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+          int attr = _I3 == 0 ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
           ker_gemm(*xc,
               &md6(atoutput, _hA, _wA, _O3, 0, 0, 0),
               &md6(atinput, _hA, _wA, _I3, 0, 0, 0),
@@ -129,9 +129,9 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
               nullptr, attr);
         }
         if (last_ic4) {
-          auto attr = xc->I3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
+          auto attr = xc->I3 == 1 ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
           if (xc->Ir != V)
-            attr = set_attr(attr, has_Ir_idx);
+            attr = set_bit(attr, AT_Ir_MASK);
           ker_gemm(*xc,
               &md6(atoutput, _hA, _wA, _O3, 0, 0, 0),
               &md6(atinput, _hA, _wA, xc->I3 - 1, 0, 0, 0),
@@ -147,7 +147,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
       bool last_ic4 = _I4 == xc->I4 - 1;
       int I3 = last_ic4 ? xc->I3 - 1 : xc->I3;
       iter_each(_I3, I3) {
-        int attr = _I3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+        int attr = _I3 == 0 ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
         ker_gemm(*xc,
             &md6(atoutput, _hA, _wA, _O3, 0, 0, 0),
             &md6(atinput, _hA, _wA, _I3, 0, 0, 0),
@@ -155,9 +155,9 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
             nullptr, attr);
       }
       if (last_ic4) {
-        auto attr = xc->I3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
+        auto attr = xc->I3 == 1 ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
         if (xc->Ir != V)
-          attr = set_attr(attr, has_Ir_idx);
+          attr = set_bit(attr, AT_Ir_MASK);
         ker_gemm(*xc,
             &md6(atoutput, _hA, _wA, _O3, 0, 0, 0),
             &md6(atinput, _hA, _wA, xc->I3 - 1, 0, 0, 0),
@@ -189,9 +189,9 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
 
     int attr = attr_;
     if (_I3 == 0 && _I4 == 0)
-      attr = set_attr(attr, r_output_idx);
+      attr = set_bit(attr, AT_CLEAR_OUTPUT_MASK);
     if (xc->Ir != V && _I4 == xc->I4 - 1 && _I3 == xc->I3 - 1)
-      attr = set_attr(attr, has_Ir_idx);
+      attr = set_bit(attr, AT_Ir_MASK);
 
     ker_gemm(*xc, &md6(atoutput6, _hA, _wA, _O3, 0, 0, 0),
              &md6(atinput6, _hA, _wA, _I3, 0, 0, 0),
@@ -217,9 +217,9 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
 
     int attr = attr_;
     if (_I3 == 0)
-      attr = set_attr(attr, r_output_idx);
+      attr = set_bit(attr, AT_CLEAR_OUTPUT_MASK);
     if (xc->Ir != V && _I4 == xc->I4 - 1 && _I3 == xc->I3 - 1)
-      attr = set_attr(attr, has_Ir_idx);
+      attr = set_bit(attr, AT_Ir_MASK);
 
     ker_gemm(*xc, &md6(atoutput6, _hA, _wA, _O3, 0, 0, 0),
              &md6(atinput6, _hA, _wA, _I3, 0, 0, 0),

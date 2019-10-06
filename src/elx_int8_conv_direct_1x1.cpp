@@ -91,14 +91,14 @@ Instance_elx_int8_conv_direct_1x1_t::elx_int8_conv_direct_1x1_t(eld_conv_t &dc)
     el_error("direct_1x1: int8: Or not support");
   }
 
-  attr_ = set_attr(attr_, fma_opt_idx);
+  attr_ = set_bit(attr_, AT_FMAOPT_MASK);
   is_first_run_ = true;
   inference_acc_ = false;
   mthr_ = estl::max_concurrency();
   inference_acc_ = this->prop_kind == forward_inference;
 
-  attr_ = this->with_bias ? set_attr(attr_, bias_idx) : attr_;
-  attr_ = this->with_ip_sum ? set_attr(attr_, ip_sum_idx) : attr_;
+  attr_ = this->with_bias ? set_bit(attr_, AT_BIAS_MASK) : attr_;
+  attr_ = this->with_ip_sum ? set_bit(attr_, AT_INP_SUM_MASK) : attr_;
   toutput_opt_ = false;
   prepare_quant_calibration(dc);
 
@@ -402,12 +402,12 @@ void Instance_elx_int8_conv_direct_1x1_t::gemm_b161(ToutputType *toutput,
 
   iter_each (_I3, this->I3) {
     int attr = _I4 == 0 && _I3 == 0
-        ? set_attr(attr_, r_output_idx)
+        ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK)
         : attr_;
     if (_I4 == this->I4 - 1 && _I3 == this->I3 - 1) {
       if (this->with_relu)
-        attr = set_attr(attr, relu_idx);
-      attr = set_attr(attr, c_output_idx);
+        attr = set_bit(attr, AT_RELU_MASK);
+      attr = set_bit(attr, AT_RESTORE_OUTPUT_MASK);
     }
     auto ain = this->input_fmt == nhwc
         ? &md2(ainput_nhwc, _I3, 0) : &md2(ainput_blocked, _I3, 0);
@@ -461,13 +461,13 @@ void Instance_elx_int8_conv_direct_1x1_t::gemm_c160(ToutputType *toutput,
     MD2(uint8_t, ainput2_blocked, &md3(ainput_blocked, _I4, _I3, 0), this->t2, this->T * V);
     MD3(uint8_t, ainput2_nhwc, &md3(ainput_nhwc, _t2, 0, 0), this->I4, this->I3, this->I2 * V);
     int attr = _I4 == 0 && _I3 == 0
-        ? set_attr(attr_, r_output_idx)
+        ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK)
         : attr_;
 
     if (_I4 == this->I4 - 1 && _I3 == this->I3 - 1) {
       if (this->with_relu)
-        attr = set_attr(attr, relu_idx);
-      attr = set_attr(attr, c_output_idx);
+        attr = set_bit(attr, AT_RELU_MASK);
+      attr = set_bit(attr, AT_RESTORE_OUTPUT_MASK);
     }
 
     auto ain = this->input_fmt == nhwc

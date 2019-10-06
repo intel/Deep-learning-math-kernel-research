@@ -238,7 +238,7 @@ struct u8s8_depthwise_conv_kernel<GarrayTypes, RoutputType, V, Vx,
     fout = fout * scale + factor;
 
     // fuse relu
-    if (get_attr(attr, relu_idx)) {
+    if (test_bit(attr, AT_RELU_MASK)) {
       auto lower = *(__m<V> *)(xc.relu_bound_lower_vec);
       auto upper = *(__m<V> *)(xc.relu_bound_upper_vec);
       fout = _mm<V>::max_ps(fout, lower);
@@ -276,7 +276,7 @@ struct u8s8_depthwise_conv_kernel<GarrayTypes, RoutputType, V, Vx,
     fout = fout * scale + factor;
 
     // fuse relu
-    if (get_attr(attr, relu_idx)) {
+    if (test_bit(attr, AT_RELU_MASK)) {
       auto lower = *(__m<V> *)(xc.relu_bound_lower_vec);
       auto upper = *(__m<V> *)(xc.relu_bound_upper_vec);
       fout = _mm<V>::max_ps(fout, lower);

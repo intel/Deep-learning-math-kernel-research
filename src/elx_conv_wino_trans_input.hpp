@@ -26,7 +26,7 @@ public:
 
     stream_in_ = xc->streaming_input
         ? (xc->streaming_input == STORE_STREAMING)
-        : !(xc->execution_mode & FUS_MSK) ? true : false;
+        : !(xc->execution_mode & FUS_MASK) ? true : false;
 
     hA_end_ = (xc->ih + xc->tp) - (xc->ht - 1) * (A - K + 1) - 1;
     wA_end_ = (xc->iw + xc->lp) - (xc->wt - 1) * (A - K + 1) - 1;

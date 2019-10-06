@@ -102,12 +102,12 @@ Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
     el_error("IC blocking error");
   }
 
-  attr_ = set_attr(attr_, fma_opt_idx);
+  attr_ = set_bit(attr_, AT_FMAOPT_MASK);
   is_first_run_ = true;
   inference_acc_ = this->prop_kind == forward_inference;
   if (xopt_ == 0xa160) {
-    attr_ = this->with_bias ? set_attr(attr_, bias_idx) : attr_;
-    // attr_ = this->with_ip_sum ? set_attr(attr_, ip_sum_idx) : attr_;
+    attr_ = this->with_bias ? set_bit(attr_, AT_BIAS_MASK) : attr_;
+    // attr_ = this->with_ip_sum ? set_bit(attr_, AT_INP_SUM_MASK) : attr_;
   }
 
   prepare_weights_acc();
@@ -534,12 +534,12 @@ void Instance_elx_int8_conv_direct_t::conv_a160(OutputType *output,
   iter_each(_O3, this->O3) {
     iter_each(_I3, this->I3) {
       int attr =
-          (_I4 == 0 && _I3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
+          (_I4 == 0 && _I3 == 0) ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
 
       if (_I4 == this->I4 - 1 && _I3 == this->I3 - 1) {
-        attr = set_attr(attr, c_output_idx);
-        if (this->Ir != this->V1) attr = set_attr(attr, has_Ir_idx);
-        if (this->with_relu) attr = set_attr(attr, relu_idx);
+        attr = set_bit(attr, AT_RESTORE_OUTPUT_MASK);
+        if (this->Ir != this->V1) attr = set_bit(attr, AT_Ir_MASK);
+        if (this->with_relu) attr = set_bit(attr, AT_RELU_MASK);
       }
       auto ainput = this->input_fmt == nhwc
                           ? &md3(ainput1_nhwc, 0, _I3, 0)
@@ -615,7 +615,7 @@ void Instance_elx_int8_conv_direct_t::gemm_d160(OutputType *output,
     }
     int attr = attr_;
     if (_I4 == this->I4 - 1 && _I3 == this->I3 - 1) {
-      if (this->Ir != this->V1) attr = set_attr(attr, has_Ir_idx);
+      if (this->Ir != this->V1) attr = set_bit(attr, AT_Ir_MASK);
     }
 
     for (int _kh = khs; _kh < khe; ++_kh) {

@@ -98,9 +98,9 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t &dc)
   mthr_ = estl::max_concurrency();
   inference_acc_ = this->prop_kind == forward_inference;
 
-  attr_ = this->with_bias ? set_attr(attr_, bias_idx) : attr_;
+  attr_ = this->with_bias ? set_bit(attr_, AT_BIAS_MASK) : attr_;
   if (xopt_ == 0xb061 || xopt_ == 0xc060) {
-    attr_ = this->with_ip_sum ? set_attr(attr_, ip_sum_idx) : attr_;
+    attr_ = this->with_ip_sum ? set_bit(attr_, AT_INP_SUM_MASK) : attr_;
   }
 
   prepare_execute_opt();
@@ -1187,7 +1187,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_a061(ToutputType *output,
     iter_each (_I3, this->I3 - 1) {
       int attr
           = _I4 == 0 && _I3 == 0
-          ? set_attr(attr_, r_output_idx)
+          ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK)
           : attr_;
       iter_each (_O3, this->O3) {
         ker_gemm_I_O_T_(
@@ -1200,11 +1200,11 @@ void Instance_elx_conv_direct_1x1_t::gemm_a061(ToutputType *output,
     }
     int attr
         = _I4 == 0 && this->I3 == 1
-        ? set_attr(attr_, r_output_idx)
+        ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK)
         : attr_;
     if (_I4 == this->I4 - 1) {
-      if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
-      if (this->with_relu) attr = set_attr(attr, relu_idx);
+      if (this->Ir != V) attr = set_bit(attr, AT_Ir_MASK);
+      if (this->with_relu) attr = set_bit(attr, AT_RELU_MASK);
     }
     iter_each (_O3, this->O3) {
       ker_gemm_I_O_T_(
@@ -1220,7 +1220,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_a061(ToutputType *output,
     iter_each (_I3, this->I3 - 1) {
       int attr
           = _I4 == 0 && _I3 == 0
-          ? set_attr(attr_, r_output_idx)
+          ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK)
           : attr_;
       iter_each (_O3, this->O3) {
         ker_gemm_I_O_T_(
@@ -1233,11 +1233,11 @@ void Instance_elx_conv_direct_1x1_t::gemm_a061(ToutputType *output,
     }
     int attr
         = _I4 == 0 && this->I3 == 1
-        ? set_attr(attr_, r_output_idx)
+        ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK)
         : attr_;
     if (_I4 == this->I4 - 1) {
-      if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
-      if (this->with_relu) attr = set_attr(attr, relu_idx);
+      if (this->Ir != V) attr = set_bit(attr, AT_Ir_MASK);
+      if (this->with_relu) attr = set_bit(attr, AT_RELU_MASK);
     }
     iter_each (_O3, this->O3) {
       ker_gemm_I_O_T_(
@@ -1267,11 +1267,11 @@ void Instance_elx_conv_direct_1x1_t::gemm_b061(OutputType *output,
   iter_each (_I3, this->I3) {
     int attr
         = _I4 == 0 && _I3 == 0
-        ? set_attr(attr_, r_output_idx)
+        ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK)
         : attr_;
     attr
         = this->with_relu && _I4 == this->I4 - 1 && _I3 == this->I3 - 1
-        ? set_attr(attr, relu_idx)
+        ? set_bit(attr, AT_RELU_MASK)
         : attr;
     iter_each (_O3, this->O3) {
       ker_gemm_I_O_T_(
@@ -1298,7 +1298,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_f061(ToutputType *output,
     MD2(TinputType, ainput, input, this->I3, this->I2 * V);
     MD2(ToutputType, aoutput, output, this->O3, this->O2 * V);
     iter_each (_I3, this->I3 - 1) {
-      int attr = _I3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+      int attr = _I3 == 0 ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
       iter_each (_O3, this->O3) {
         ker_gemm(
             *this,
@@ -1308,9 +1308,9 @@ void Instance_elx_conv_direct_1x1_t::gemm_f061(ToutputType *output,
             &md2(abias, _O3, 0), attr);
       }
     }
-    int attr = this->I3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
-    if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
-    if (this->with_relu) attr = set_attr(attr, relu_idx);
+    int attr = this->I3 == 1 ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
+    if (this->Ir != V) attr = set_bit(attr, AT_Ir_MASK);
+    if (this->with_relu) attr = set_bit(attr, AT_RELU_MASK);
     iter_each(_O3, this->O3) {
       ker_gemm(
           *this,
@@ -1323,7 +1323,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_f061(ToutputType *output,
     MD2(TinputType, ainput, input, this->I3, this->I2 * Tz * V);
     MD2(ToutputType, aoutput, output, this->O3, this->O2 * Tz * V);
     iter_each (_I3, this->I3 - 1) {
-      int attr = _I3 == 0 ? set_attr(attr_, r_output_idx) : attr_;
+      int attr = _I3 == 0 ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
       iter_each (_O3, this->O3) {
         ker_gemm(
             *this,
@@ -1333,9 +1333,9 @@ void Instance_elx_conv_direct_1x1_t::gemm_f061(ToutputType *output,
             &md2(abias, _O3, 0), attr);
       }
     }
-    int attr = this->I3 == 1 ? set_attr(attr_, r_output_idx) : attr_;
-    if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
-    if (this->with_relu) attr = set_attr(attr, relu_idx);
+    int attr = this->I3 == 1 ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
+    if (this->Ir != V) attr = set_bit(attr, AT_Ir_MASK);
+    if (this->with_relu) attr = set_bit(attr, AT_RELU_MASK);
     iter_each(_O3, this->O3) {
       ker_gemm(
           *this,
@@ -1366,11 +1366,11 @@ void Instance_elx_conv_direct_1x1_t::gemm_c060(OutputType *output,
   iter_each (_I3, this->I3) {
     int attr
         = _I4 == 0 && _I3 == 0
-        ? set_attr(attr_, r_output_idx)
+        ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK)
         : attr_;
     attr
         = this->with_relu && _I4 == this->I4 - 1 && _I3 == this->I3 - 1
-        ? set_attr(attr, relu_idx)
+        ? set_bit(attr, AT_RELU_MASK)
         : attr;
     MD2(InputType, ainput2, &md2(ainput, _I3, 0), this->t2, this->T * V);
     iter_each (_O3, this->O3) {

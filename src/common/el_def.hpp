@@ -36,11 +36,26 @@ enum {
 };
 
 constexpr size_t PAGE_SIZE = 4096;
+
+// int8 quantization
 constexpr float EL_INT8_MAX = 127.0f;
 constexpr float EL_UINT8_MAX = 255.0f;
-constexpr unsigned FUS_MSK = 0xF0;
-constexpr unsigned FUS_I = 0x10;
-constexpr unsigned FUS_O = 0x20;
+
+// wino fusion
+constexpr uint32_t FUS_MASK = 0xF0;
+constexpr uint32_t FUS_I = 0x10;
+constexpr uint32_t FUS_O = 0x20;
+
+// kernel attr
+constexpr uint32_t AT_BIAS_MASK             { 1 << 0 };
+constexpr uint32_t AT_RELU_MASK             { 1 << 1 };
+constexpr uint32_t AT_INP_SUM_MASK          { 1 << 2 }; // inplace sum
+constexpr uint32_t AT_CLEAR_OUTPUT_MASK     { 1 << 3 };
+constexpr uint32_t AT_STREAMING_OUTPUT_MASK { 1 << 4 };
+constexpr uint32_t AT_RESTORE_OUTPUT_MASK   { 1 << 5 };
+constexpr uint32_t AT_Ir_MASK               { 1 << 6 };
+constexpr uint32_t AT_Or_MASK               { 1 << 7 };
+constexpr uint32_t AT_FMAOPT_MASK           { 1 << 8 }; // FMA optimization
 
 typedef short float16;
 

@@ -122,8 +122,8 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
   inference_acc_ = false;
   inference_acc_ = this->prop_kind == forward_inference;
 
-  attr_ = this->with_bias ? set_attr(attr_, bias_idx) : attr_;
-  attr_ = this->with_ip_sum ? set_attr(attr_, ip_sum_idx) : attr_;
+  attr_ = this->with_bias ? set_bit(attr_, AT_BIAS_MASK) : attr_;
+  attr_ = this->with_ip_sum ? set_bit(attr_, AT_INP_SUM_MASK) : attr_;
 
   prepare_execute_opt();
   bind_execute_functions();
@@ -375,13 +375,13 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
 
     iter_each(_O3, this->O3) {
     iter_each(_I3, this->I3) {
-      int attr = (_I4 == 0 && _I3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
+      int attr = (_I4 == 0 && _I3 == 0) ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
       if (_I4 == this->I4 - 1 && _I3 == this->I3 - 1) {
-        if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
-        if (this->with_relu) attr = set_attr(attr, relu_idx);
+        if (this->Ir != V) attr = set_bit(attr, AT_Ir_MASK);
+        if (this->with_relu) attr = set_bit(attr, AT_RELU_MASK);
       }
       if (this->Or != V && _O4 == this->O4 - 1 && _O3 == this->O3 - 1) {
-        attr = set_attr(attr, has_Or_idx);
+        attr = set_bit(attr, AT_Or_MASK);
       }
       ker_conv(*this, &md2(aoutput, _O3, 0),
           &md3(ainput1, 0, _I3, 0), &md3(aweights, _O3, _I3, 0),
@@ -393,10 +393,10 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
 
     iter_each(_O3, this->O3) {
     iter_each(_I3, this->I3) {
-      int attr = (_I4 == 0 && _I3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
+      int attr = (_I4 == 0 && _I3 == 0) ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
       if (_I4 == this->I4 - 1 && _I3 == this->I3 - 1) {
-        if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
-        if (this->with_relu) attr = set_attr(attr, relu_idx);
+        if (this->Ir != V) attr = set_bit(attr, AT_Ir_MASK);
+        if (this->with_relu) attr = set_bit(attr, AT_RELU_MASK);
       }
       ker_conv(*this, &md2(aoutput, _O3, 0),
           &md4(ainput, _I3, 0, _ih, _iw), &md3(aweights, _O3, _I3, 0),
@@ -408,10 +408,10 @@ Instance_elx_conv_direct_t::conv_a060(OutputType *output,
 
     iter_each(_O3, this->O3) {
     iter_each(_I3, this->I3) {
-      int attr = (_I4 == 0 && _I3 == 0) ? set_attr(attr_, r_output_idx) : attr_;
+      int attr = (_I4 == 0 && _I3 == 0) ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
       if (_I4 == this->I4 - 1 && _I3 == this->I3 - 1) {
-        if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
-        if (this->with_relu) attr = set_attr(attr, relu_idx);
+        if (this->Ir != V) attr = set_bit(attr, AT_Ir_MASK);
+        if (this->with_relu) attr = set_bit(attr, AT_RELU_MASK);
       }
       ker_conv(*this, &md2(aoutput, _O3, 0),
           &md5(ainput, _I3, 0, _ih, _iw, 0), &md3(aweights, _O3, _I3, 0),
@@ -460,14 +460,14 @@ Instance_elx_conv_direct_t::conv_b060(OutputType *output,
     int attr = 0;
     if (_I3 == 0) {
       attr = (_I4 == 0) ? attr_ : attr;
-      attr = set_attr(attr, r_output_idx);
+      attr = set_bit(attr, AT_CLEAR_OUTPUT_MASK);
     }
     if (_I4 == this->I4 - 1 && _I3 == this->I3 - 1) {
-      if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+      if (this->Ir != V) attr = set_bit(attr, AT_Ir_MASK);
     }
     if (this->output_fmt == nhwc && this->Or != V && _O4 == this->O4 - 1 &&
         _O3 == this->O3 - 1) {
-      attr = set_attr(attr, has_Or_idx);
+      attr = set_bit(attr, AT_Or_MASK);
     }
     ker_conv(*this, aout, ain, &md3(aweights, _O3, 0, 0),
              &md2(abias, _O3, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
@@ -517,10 +517,10 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
       }
       int attr = attr_;
       if (_I4 == this->I4 - 1 && _I3 == this->I3 - 1) {
-        if (this->Ir != V) attr = set_attr(attr, has_Ir_idx);
+        if (this->Ir != V) attr = set_bit(attr, AT_Ir_MASK);
       }
       if (oc3_has_Or) {
-        attr = set_attr(attr, has_Or_idx);
+        attr = set_bit(attr, AT_Or_MASK);
       }
 
       for (int _kh = khs; _kh < khe; ++_kh) {
