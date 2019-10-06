@@ -29,8 +29,8 @@ void load_conv_data(eld_conv_t &desc, InputType *input, WeightsType *weights,
                     int input_format, int weights_format) {
   InputType *nchw_input;
   WeightsType *oihw_weights;
-  MEMALIGN64(&nchw_input, desc.byte_sizes.input);
-  MEMALIGN64(&oihw_weights, desc.byte_sizes.weights);
+  memalign64(&nchw_input, desc.byte_sizes.input);
+  memalign64(&oihw_weights, desc.byte_sizes.weights);
 
   auto dims = desc.dims;
   auto input_sz = dims.n * dims.ic * dims.ih * dims.iw;
@@ -177,38 +177,38 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
   }
 
   if (data_type_cfg == euler::test::FP32) {
-    MEMALIGN64(input, input_size);
-    MEMALIGN64(output, output_size);
-    MEMALIGN64(weights, desc_ref.byte_sizes.weights);
-    MEMALIGN64(bias, desc_ref.byte_sizes.bias);
+    memalign64(input, input_size);
+    memalign64(output, output_size);
+    memalign64(weights, desc_ref.byte_sizes.weights);
+    memalign64(bias, desc_ref.byte_sizes.bias);
   } else if (data_type_cfg == euler::test::FP16) {
-    MEMALIGN64(input, input_size / 2);
-    MEMALIGN64(output, output_size / 2);
-    MEMALIGN64(weights, desc_ref.byte_sizes.weights / 2);
-    MEMALIGN64(bias, desc_ref.byte_sizes.bias / 2);
+    memalign64(input, input_size / 2);
+    memalign64(output, output_size / 2);
+    memalign64(weights, desc_ref.byte_sizes.weights / 2);
+    memalign64(bias, desc_ref.byte_sizes.bias / 2);
   } else if (data_type_cfg == euler::test::FP16O) {
-    MEMALIGN64(input, input_size);
-    MEMALIGN64(weights, desc_ref.byte_sizes.weights);
-    MEMALIGN64(bias, desc_ref.byte_sizes.bias);
-    MEMALIGN64(output, output_size / 2);
+    memalign64(input, input_size);
+    memalign64(weights, desc_ref.byte_sizes.weights);
+    memalign64(bias, desc_ref.byte_sizes.bias);
+    memalign64(output, output_size / 2);
   } else if (data_type_cfg == euler::test::U8F32U8F32 ||
              data_type_cfg == euler::test::U8F32U8F32z) {
-    MEMALIGN64(input, input_size / 4);
-    MEMALIGN64(weights, desc_ref.byte_sizes.weights);
-    MEMALIGN64(bias, desc_ref.byte_sizes.bias);
-    MEMALIGN64(output, output_size / 4);
+    memalign64(input, input_size / 4);
+    memalign64(weights, desc_ref.byte_sizes.weights);
+    memalign64(bias, desc_ref.byte_sizes.bias);
+    memalign64(output, output_size / 4);
   } else if (data_type_cfg == euler::test::U8F32S8F32 ||
              data_type_cfg == euler::test::U8F32S8F32z) {
-    MEMALIGN64(input, input_size / 4);
-    MEMALIGN64(weights, desc_ref.byte_sizes.weights);
-    MEMALIGN64(bias, desc_ref.byte_sizes.bias);
-    MEMALIGN64(output, output_size / 4);
+    memalign64(input, input_size / 4);
+    memalign64(weights, desc_ref.byte_sizes.weights);
+    memalign64(bias, desc_ref.byte_sizes.bias);
+    memalign64(output, output_size / 4);
   } else if (data_type_cfg == euler::test::U8F32F32F32 ||
              data_type_cfg == euler::test::U8F32F32F32z) {
-    MEMALIGN64(input, input_size / 4);
-    MEMALIGN64(weights, desc_ref.byte_sizes.weights);
-    MEMALIGN64(bias, desc_ref.byte_sizes.bias);
-    MEMALIGN64(output, output_size);
+    memalign64(input, input_size / 4);
+    memalign64(weights, desc_ref.byte_sizes.weights);
+    memalign64(bias, desc_ref.byte_sizes.bias);
+    memalign64(output, output_size);
   }
 
   // scale initialization
@@ -222,7 +222,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
   auto trans_input_scale = [&]() {
     float *_output_ref;
     if (desc_ref.with_ip_sum) {
-      MEMALIGN64(&_output_ref, desc_ref.byte_sizes.output);
+      memalign64(&_output_ref, desc_ref.byte_sizes.output);
       estl::parallel_for<1>([&](size_t i) {
         _output_ref[i] = output_ref[i];
       }, desc_ref.sizes.output);
@@ -290,7 +290,7 @@ void prepare_conv_data(eld_conv_t &desc_ref, eld_conv_t &desc, float *input_ref,
   auto output_scale = [&](float &oscale, float &opscale, float &oz) {
     float *_output_ref;
     if (desc_ref.with_ip_sum) {
-      MEMALIGN64(&_output_ref, desc_ref.byte_sizes.output);
+      memalign64(&_output_ref, desc_ref.byte_sizes.output);
       estl::parallel_for<1>([&](size_t i) {
         _output_ref[i] = output_ref[i];
       }, desc_ref.sizes.output);

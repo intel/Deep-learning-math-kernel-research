@@ -49,15 +49,13 @@
   _(printf("time: %s, th=%d, %.2f ms\n", #n, estl::current_thread_index(),     \
       std::chrono::duration<float, std::milli>(__e##n - __s##n).count()));
 
+// misc.
 #define STRINGIFY(x) #x
 #define XSTRINGIFY(x) STRINGIFY(x)
-
-
-#define MEMALIGN64(ptr, size) posix_memalign((void **)(ptr), 64, size)
-
 // Note: 'align' must be power of 2
 #define ALIGNUP(value, align) (((value) + (align) - 1) & ~((align) - 1))
 
+// For gather/scatter index initialization
 #define SET_VINDEX_16(stride)                                                  \
   15 * (stride), 14 * (stride), 13 * (stride), 12 * (stride),                  \
   11 * (stride), 10 * (stride),  9 * (stride),  8 * (stride),                  \
@@ -70,24 +68,29 @@ static inline size_t alignup(size_t v, size_t a) {
   return (v + a - 1) & ~(a - 1);
 }
 
-inline uint32_t set_bit(const uint32_t v, const uint32_t mask) {
+template <typename T>
+static inline int memalign64(T **ptr, size_t size) {
+  return posix_memalign((void **)ptr, 64, size);
+}
+
+static inline uint32_t set_bit(const uint32_t v, const uint32_t mask) {
   return v | mask;
 }
 
-inline bool test_bit(const uint32_t v, const uint32_t mask) {
+static inline bool test_bit(const uint32_t v, const uint32_t mask) {
   return v & mask;
 }
 
-inline uint32_t clear_bit(const uint32_t v, const uint32_t mask) {
+static inline uint32_t clear_bit(const uint32_t v, const uint32_t mask) {
   return v & ~mask;
 }
 
-inline void el_error(const char *msg) {
+static inline void el_error(const char *msg) {
   printf("Euler:Error: %s\n", msg);
   abort();
 }
 
-inline void el_warn(const char *msg) {
+static inline void el_warn(const char *msg) {
   printf("Euler:Warning: %s\n", msg);
 }
 

@@ -362,7 +362,7 @@ static inline int conv_ref_setup(eld_conv_t &desc) {
     size_t IC = ALIGNUP(desc.dims.ic, 16);
     size_t tinput_byte_size = A * A * IC * t * sizeof(float);
 
-    MEMALIGN64(&desc.scratch_pad, tinput_byte_size);
+    memalign64(&desc.scratch_pad, tinput_byte_size);
     desc.use_scratch_pad = true;
     desc.execution_mode = 0xa033;
     fully_setup = true;
@@ -468,10 +468,10 @@ int main(int argc, char **argv) {
 
   bool reuse_inout = double_buffering || output_as_input;
 
-  MEMALIGN64(&input_ref, conv_ref.byte_sizes.input);
-  MEMALIGN64(&output_ref, conv_ref.byte_sizes.output);
-  MEMALIGN64(&weights_ref, conv_ref.byte_sizes.weights);
-  MEMALIGN64(&bias_ref, conv_ref.byte_sizes.bias);
+  memalign64(&input_ref, conv_ref.byte_sizes.input);
+  memalign64(&output_ref, conv_ref.byte_sizes.output);
+  memalign64(&weights_ref, conv_ref.byte_sizes.weights);
+  memalign64(&bias_ref, conv_ref.byte_sizes.bias);
 
 #define _prepare_conv_data(itype, wtype, otype, btype)                         \
   do {                                                                         \
@@ -533,7 +533,7 @@ int main(int argc, char **argv) {
       printf("Fail: Convolution ref execution error!\n");
     } else {
       float *_output;
-      MEMALIGN64(&_output, conv_ref.byte_sizes.output);
+      memalign64(&_output, conv_ref.byte_sizes.output);
       test::post_process_conv_results(_output, conv_val, output_val,
                                       data_type_cfg);
 

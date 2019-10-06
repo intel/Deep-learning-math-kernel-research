@@ -29,8 +29,6 @@ int test_elt_conv(int tile_size, int execution_mode, int pat_i, int pat_o,
     }                                                                          \
   } while (0)
 
-#define MEMALIGN64(ptr, size) posix_memalign((void **)(ptr), 64, size)
-
 namespace euler {
 namespace test {
 
