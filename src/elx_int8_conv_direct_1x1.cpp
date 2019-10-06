@@ -3,8 +3,6 @@
 
 namespace euler {
 
-static constexpr float INT8GEMM_TWT_QTSCALE = 127.0;
-
 Template_elx_int8_conv_direct_1x1_t
 Instance_elx_int8_conv_direct_1x1_t::elx_int8_conv_direct_1x1_t(eld_conv_t &dc)
     : elx_conv_t(dc)
@@ -241,7 +239,7 @@ void Instance_elx_int8_conv_direct_1x1_t::trans_weights_s8_blocked_oc(
     TscaleType *weights_scale, int8_t *tweights_s8, WeightsType *weights,
     BiasType *bias)
 {
-  __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
+  __m<V> mmscale = _mm<V>::set1_ps(EL_INT8_MAX);
 
   // abs max
   estl::parallel_for<3>(mthr_, [&](int _O4, int _O3, int _O2) {

@@ -8,8 +8,6 @@
 
 namespace euler {
 
-static constexpr float INT8GEMM_TWT_QTSCALE = 127.0;
-
 // depth-wise
 Template_elx_int8_conv_direct_depthwise_t
 Instance_elx_int8_conv_direct_depthwise_t::elx_int8_conv_direct_depthwise_t(eld_conv_t &dc)
@@ -228,7 +226,7 @@ Instance_elx_int8_conv_direct_depthwise_t::trans_weights_3x3(
       // scale
       auto t0 = md4(aweights, _g23, _V, _kh, _kw);
       auto absmax = md2(aweights_scale, _g23, _V);
-      t0 = t0 * INT8GEMM_TWT_QTSCALE / absmax;
+      t0 = t0 * EL_INT8_MAX / absmax;
       // round & store
       md4(atweights_s8, _g23, _kh, _V, _kw) = (int8_t)std::rint(t0);
     } else {
@@ -237,7 +235,7 @@ Instance_elx_int8_conv_direct_depthwise_t::trans_weights_3x3(
   }, this->g23, this->kh, V, this->KW);
 
   // weights-scale
-  __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
+  __m<V> mmscale = _mm<V>::set1_ps(EL_INT8_MAX);
   estl::parallel_for<1>(mthr_, [&](int _g23) {
     MD2(TscaleType, aweights_scale, weights_scale, this->g23, V);
     auto t0 = *(__m<V> *)&md2(aweights_scale, _g23, 0);

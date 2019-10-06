@@ -7,8 +7,6 @@
 
 namespace euler {
 
-static constexpr float INT8GEMM_TWT_QTSCALE = 127.0;
-
 template <typename TweightsType, typename WeightsType, int I, int A, int K, int V>
 void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
 ::__execute_post(TweightsType *__restrict tweights, op_type at[A][A][V][V],
@@ -443,7 +441,7 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
     int8_t *__restrict tweights_s8,
     TweightsType *__restrict tweights, int O4) {
   __m<V> zero = _mm<V>::set1_ps(0.0);
-  __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
+  __m<V> mmscale = _mm<V>::set1_ps(EL_INT8_MAX);
 
   // abs-max
   estl::parallel_for<7>(mthr_, [&](int _O4, int _I4, int _O3, int _hA, int _wA,
@@ -524,7 +522,7 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
 
     float Sw =
         md8(atweights_quant_scale, _O4, _I4, _O3, _hA, _wA, _O1, _O, _oV);
-    Sw /= INT8GEMM_TWT_QTSCALE;
+    Sw /= EL_INT8_MAX;
     float Zw =
         md8(atweights_quant_factor, _O4, _I4, _O3, _hA, _wA, _O1, _O, _oV);
     if (xc->sampling_kind == CALIBRATED) {

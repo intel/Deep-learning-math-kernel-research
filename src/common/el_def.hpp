@@ -29,8 +29,6 @@
 
 namespace euler {
 
-#define PAGE_SIZE 4096
-
 enum {
   ISA_GENERIC = 0,
   ISA_AVX2 = 256,
@@ -39,9 +37,12 @@ enum {
   ISA_COSIM_AVX512,
 };
 
-const unsigned FUS_MSK = 0xF0;
-const unsigned FUS_I   = 0x10;
-const unsigned FUS_O   = 0x20;
+constexpr size_t PAGE_SIZE = 4096;
+constexpr float EL_INT8_MAX = 127.0f;
+constexpr float EL_UINT8_MAX = 255.0f;
+constexpr unsigned FUS_MSK = 0xF0;
+constexpr unsigned FUS_I = 0x10;
+constexpr unsigned FUS_O = 0x20;
 
 template <typename... Types> struct ConvImplTypes {
   static_assert(sizeof...(Types) == 5,

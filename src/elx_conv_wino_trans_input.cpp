@@ -7,9 +7,6 @@
 
 namespace euler {
 
-constexpr float INT8GEMM_TWT_QTSCALE = 127.0;
-constexpr float INT8GEMM_TIN_MIN_MAX_QTSCALE = 255.0;
-
 #define t2spati(                                                             \
     __t2, __T, __n, __ih, __iw, __hA_start, __hA_end, __wA_start, __wA_end)  \
   do {                                                                       \
@@ -479,8 +476,8 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
       }
 
       auto delta = max - min + 0.000001;
-      float S = delta / INT8GEMM_TIN_MIN_MAX_QTSCALE;
-      float repS = INT8GEMM_TIN_MIN_MAX_QTSCALE / delta;
+      float S = delta / EL_UINT8_MAX;
+      float repS = EL_UINT8_MAX / delta;
       float z = std::ceil(- min * repS);
       md6(atinput_quant_scale, _t2, _hA, _wA, _I3, 0, _T) = S;
       md6(atinput_quant_scale, _t2, _hA, _wA, _I3, 1, _T) = z;
@@ -693,8 +690,8 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
     TinputType max = _mm<V>::reduce_max_ps(mmax);
 
     TinputType delta = max - min + 0.000001;
-    TinputType S = delta / INT8GEMM_TIN_MIN_MAX_QTSCALE;
-    TinputType repS = INT8GEMM_TIN_MIN_MAX_QTSCALE / delta;
+    TinputType S = delta / EL_UINT8_MAX;
+    TinputType repS = EL_UINT8_MAX / delta;
     TinputType z = std::ceil(-min * repS);
 
     iter_each(_T, Tz) {
@@ -778,8 +775,8 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
             }
           }
           float delta = mmax[_hA][_wA][0] - mmin[_hA][_wA][0] + 0.000001;
-          float S = delta / INT8GEMM_TIN_MIN_MAX_QTSCALE;
-          float repS = INT8GEMM_TIN_MIN_MAX_QTSCALE / delta;
+          float S = delta / EL_UINT8_MAX;
+          float repS = EL_UINT8_MAX / delta;
           float z = std::ceil(- mmin[_hA][_wA][0] * repS);
           mmax[_hA][_wA][0] = repS;
           mmin[_hA][_wA][0] = z;

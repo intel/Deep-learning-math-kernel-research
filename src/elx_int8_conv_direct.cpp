@@ -6,8 +6,6 @@
 
 namespace euler {
 
-static constexpr float INT8GEMM_TWT_QTSCALE = 127.0;
-
 Template_elx_int8_conv_direct_t
 Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
     : elx_conv_t(dc)
@@ -418,7 +416,7 @@ Instance_elx_int8_conv_direct_t::__trans_weights_acc(TscaleType *weights_scale,
 Template_elx_int8_conv_direct_t void Instance_elx_int8_conv_direct_t::
 trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
                 int8_t *tweights_s8, WeightsType *weights, BiasType *bias) {
-  __m<V> mmscale = _mm<V>::set1_ps(INT8GEMM_TWT_QTSCALE);
+  __m<V> mmscale = _mm<V>::set1_ps(EL_INT8_MAX);
 
   auto Vr = this->ic % V ? this->ic % V : V;
   auto V1 = compact_ir_weights_ ? this->Ir : this->V1;

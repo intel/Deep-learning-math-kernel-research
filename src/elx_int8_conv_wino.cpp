@@ -3,9 +3,6 @@
 
 namespace euler {
 
-const float INT8GEMM_TWT_QTSCALE = 127.0;
-const float INT8GEMM_TIN_MIN_MAX_QTSCALE = 255.0;
-
 Template_elx_int8_conv_wino_t Instance_elx_int8_conv_wino_t::elx_int8_conv_wino_t(
     eld_conv_t &dc)
     : elx_conv_t(dc)
