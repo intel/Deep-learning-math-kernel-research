@@ -48,6 +48,7 @@ if (CMAKE_CXX_COMPILER MATCHES "icpc")
   list(APPEND __opt_flags "-qopt-zmm-usage=high")
   list(APPEND __opt_flags "-no-inline-max-size")
   list(APPEND __opt_flags "-no-inline-max-total-size")
+  list(APPEND __opt_flags "-wd15335") # disable remark #15335: was not vectorized
 elseif(CMAKE_CXX_COMPILER MATCHES "clang")
   list(APPEND __opt_flags "-mavx512f")
   list(APPEND __opt_flags "-mavx512dq")
