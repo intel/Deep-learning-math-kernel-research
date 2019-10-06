@@ -271,17 +271,15 @@ void Instance_elx_conv_wino_t::__execute_a033(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  MD3(TweightsType, atweights, tweights_, this->O4, this->I4,
-      A * A * this->I3 * this->I2 * V * this->O3 * this->O2 * V);
-
-  MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
-
   if (is_first_run_) {
     setup_workspace([&](){
       trans_weights(tweights_, weights, this->O4);
     });
   }
 
+  MD3(TweightsType, atweights, tweights_, this->O4, this->I4,
+      A * A * this->I3 * this->I2 * V * this->O3 * this->O2 * V);
+  MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
   TinputType *_tinput = this->use_scratch_pad
       ? (TinputType *)this->scratch_pad : tinput_;
 
