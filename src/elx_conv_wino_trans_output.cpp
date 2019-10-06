@@ -130,7 +130,7 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
   MD3(BiasType, abias, bias, xc->O3, xc->O2, V);
 
   alignas(64) OutputType aout[A - K + 1][A - K + 1][V];
-  SET_EPI32(xc->oh * xc->ow)
+  const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(xc->oh * xc->ow));
 
   auto writeout = [&](OutputType aout[A - K + 1][A - K + 1][V], int _O3,
                       int _O2, int _T, bool is_Or) {
@@ -492,7 +492,7 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
     ToutputType *__restrict toutput, BiasType *bias, int _O4, int _I4)
 {
   // A, A, O3, O2, T, V -> n, OC, oh, ow
-  SET_EPI32(xc->oh * xc->ow)
+  const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(xc->oh * xc->ow));
 
   auto writeout = [&](OutputType aout[A - K + 1][A - K + 1][V], int _t2,
                       int _O3, int _O2, int _T, bool is_Or) {

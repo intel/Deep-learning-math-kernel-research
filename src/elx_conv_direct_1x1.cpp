@@ -241,7 +241,7 @@ Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::trans_input_2_blocked(
     InputType *binput, InputType *input)
 {
-  SET_EPI32(this->ih * this->iw)
+  const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(this->ih * this->iw));
 
   if (this->Ir == V) {
     estl::parallel_for<3>(mthr_, [&](int _n, int _ic2, int _t) {
@@ -293,7 +293,7 @@ Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::trans_weights_2_blocked(
     WeightsType *bweights, WeightsType *weights)
 {
-  SET_EPI32(this->ic)
+  const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(this->ic));
 
   if (this->Ir == V && this->Or == V) {
     estl::parallel_for<3>(mthr_, [&](int _oc2, int _ic2, int _iV) {
@@ -491,7 +491,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_oihw(
 {
   // O4, (O3, O3r), (O2, O2r), V, I4, I3, I2, V ->
   // I4, O4, I3, (O3, O3r), I2, V, (O2, O2r), V
-  SET_EPI32(this->ic)
+  const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(this->ic));
 
   if (this->Ir == V && this->Or == V) {
     estl::parallel_for<5>(mthr_, [&](int _O4, int _I4, int _O3, int _I3, int _I2) {
@@ -688,7 +688,8 @@ void Instance_elx_conv_direct_1x1_t::__trans_pad_input_plain(
     TinputType *tinput, InputType *input, int _ht, int _wt)
 {
   MD3(TinputType, atinput, tinput, this->I3 * this->I2, this->T, V);
-  SET_EPI32(this->ih * this->iw)
+  const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(this->ih * this->iw));
+
   if (this->Ir == V) {
     MD4(InputType, ainput, input, this->I3 * this->I2, V, this->ih, this->iw);
 
@@ -767,7 +768,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_input_nchw(
 {
   // I3, I2, V, ht, hs, wt, T, ws -> ht, wt | I3, I2, T, V
   MD3(TinputType, atinput, tinput, this->I3 * this->I2, this->T, V);
-  SET_EPI32(this->ih * this->iw)
+  const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(this->ih * this->iw));
   if (this->Ir == V) {
     MD7(InputType, ainput, input, this->I3 * this->I2, V, this->ht,
         this->hs, this->wt, this->T, this->ws);
@@ -874,7 +875,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_nchw(
     OutputType *output, ToutputType *toutput, int _O4, int _ht, int _wt)
 {
   // O3, O2, T, V => n, O4 | O3, O2, V, ht, wt, T
-  SET_EPI32(this->oh * this->ow)
+  const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(this->oh * this->ow));
   if (this->Or == V) {
     MD4(ToutputType, atoutput, toutput, this->O3, this->O2, this->T, V);
     MD7(OutputType, aoutput, output, this->O4, this->O3, this->O2, V,
@@ -963,7 +964,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_input_plain2(
     TinputType *tinput, InputType *input, int _t2, int Tz)
 {
   MD3(TinputType, atinput, tinput, this->I3 * this->I2, Tz, V);
-  SET_EPI32(this->ih * this->iw)
+  const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(this->ih * this->iw));
   if (this->Ir == V) {
     MD3(InputType, ainput, input, this->I3 * this->I2, V, this->ih * this->iw);
     iter_each (_ic2, this->I3 * this->I2) {
@@ -1050,7 +1051,7 @@ Template_elx_conv_direct_1x1_t
 void Instance_elx_conv_direct_1x1_t::__trans_output_plain2(
     OutputType *output, ToutputType *toutput, int _O4, int _t2, int Tz)
 {
-  SET_EPI32(this->oh * this->ow)
+  const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(this->oh * this->ow));
 
   if (this->Or == V) {
     MD4(ToutputType, atoutput, toutput, this->O3, this->O2, Tz, V);

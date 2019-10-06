@@ -49,13 +49,13 @@ struct elk_conv_wino_trans_weights<float, WeightsType, ISA_AVX512,
   {
     ENABLE_AVX512F();
 
-    __m<V> r1_5 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 5.0f));
-    __m<V> r1_10 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 10.0f));
-    __m<V> r2_5 = _mm<V>::set_ps(IMM_BCAST16(2.0f / 5.0f));
-    __m<V> r4_5 = _mm<V>::set_ps(IMM_BCAST16(4.0f / 5.0f));
-    __m<V> r8_5 = _mm<V>::set_ps(IMM_BCAST16(8.0f / 5.0f));
-    __m<V> r4_81 = _mm<V>::set_ps(IMM_BCAST16(4.0f / 81.0f));
-    __m<V> r9_2 = _mm<V>::set_ps(IMM_BCAST16(9.0f / 2.0f));
+    __m<V> r1_5 = _mm<V>::set1_ps(1.0f / 5.0f);
+    __m<V> r1_10 = _mm<V>::set1_ps(1.0f / 10.0f);
+    __m<V> r2_5 = _mm<V>::set1_ps(2.0f / 5.0f);
+    __m<V> r4_5 = _mm<V>::set1_ps(4.0f / 5.0f);
+    __m<V> r8_5 = _mm<V>::set1_ps(8.0f / 5.0f);
+    __m<V> r4_81 = _mm<V>::set1_ps(4.0f / 81.0f);
+    __m<V> r9_2 = _mm<V>::set1_ps(9.0f / 2.0f);
 
     __m<V> f00, f10, f20, f01, f11, f21, f02, f12, f22;
     // Cache
@@ -102,9 +102,9 @@ struct elk_conv_wino_trans_weights<float, WeightsType, ISA_AVX512,
       AVX512_CALCULATE_W_5(1)
 
       // col 3
-      __m<V> r2_405 = _mm<V>::set_ps(IMM_BCAST16(2.0f / 405.0f));
-      __m<V> r4_405 = _mm<V>::set_ps(IMM_BCAST16(4.0f / 405.0f));
-      __m<V> r8_405 = _mm<V>::set_ps(IMM_BCAST16(8.0f / 405.0f));
+      __m<V> r2_405 = _mm<V>::set1_ps(2.0f / 405.0f);
+      __m<V> r4_405 = _mm<V>::set1_ps(4.0f / 405.0f);
+      __m<V> r8_405 = _mm<V>::set1_ps(8.0f / 405.0f);
       AVX512_CALCULATE_W_5_2(0);
       AVX512_CALCULATE_W_5_2(1);
       AVX512_CALCULATE_W_5_2(2);
@@ -117,8 +117,8 @@ struct elk_conv_wino_trans_weights<float, WeightsType, ISA_AVX512,
       AVX512_CALCULATE_W_5(3)
 
       // col 5
-      __m<V> r16_405 = _mm<V>::set_ps(IMM_BCAST16(16.0f / 405.0f));
-      __m<V> r32_405 = _mm<V>::set_ps(IMM_BCAST16(32.0f / 405.0f));
+      __m<V> r16_405 = _mm<V>::set1_ps(16.0f / 405.0f);
+      __m<V> r32_405 = _mm<V>::set1_ps(32.0f / 405.0f);
       AVX512_CALCULATE_W_5_4(0);
       AVX512_CALCULATE_W_5_4(1);
       AVX512_CALCULATE_W_5_4(2);
@@ -131,12 +131,12 @@ struct elk_conv_wino_trans_weights<float, WeightsType, ISA_AVX512,
       AVX512_CALCULATE_W_5(5)
 
       // col 7
-      __m<V> r2_9 = _mm<V>::set_ps(IMM_BCAST16(2.0f / 9.0f));
-      __m<V> r1_45 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 45.0f));
-      __m<V> r2_45 = _mm<V>::set_ps(IMM_BCAST16(2.0f / 45.0f));
-      __m<V> r4_45 = _mm<V>::set_ps(IMM_BCAST16(4.0f / 45.0f));
-      __m<V> r8_45 = _mm<V>::set_ps(IMM_BCAST16(8.0f / 45.0f));
-      __m<V> r16_45 = _mm<V>::set_ps(IMM_BCAST16(16.0f / 45.0f));
+      __m<V> r2_9 = _mm<V>::set1_ps(2.0f / 9.0f);
+      __m<V> r1_45 = _mm<V>::set1_ps(1.0f / 45.0f);
+      __m<V> r2_45 = _mm<V>::set1_ps(2.0f / 45.0f);
+      __m<V> r4_45 = _mm<V>::set1_ps(4.0f / 45.0f);
+      __m<V> r8_45 = _mm<V>::set1_ps(8.0f / 45.0f);
+      __m<V> r16_45 = _mm<V>::set1_ps(16.0f / 45.0f);
 
       c0 = (r2_9 * (f02 + f22));
       c1 = (r1_45 * f02 + r4_45 * f22);

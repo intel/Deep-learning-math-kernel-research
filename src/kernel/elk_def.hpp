@@ -1,10 +1,7 @@
 #ifndef __ELK_DEF_HPP__
 #define __ELK_DEF_HPP__
 
-#define USE_AVX512 512
-#define USE_AVX2   256
-
-#define IMM_BCAST16(x) x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x
+#include "el_utils.hpp"
 
 namespace euler {
 

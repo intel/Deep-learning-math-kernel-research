@@ -24,9 +24,9 @@ struct elk_conv_wino_trans_weights<float, WeightsType, ISA_AVX512,
     ENABLE_AVX512F();
 
     // Constants
-    __m<V> r4 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 4.0f));
-    __m<V> r2 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 2.0f));
-    __m<V> z2 = _mm<V>::set_ps(IMM_BCAST16(2.0f));
+    __m<V> r4 = _mm<V>::set1_ps(1.0f / 4.0f);
+    __m<V> r2 = _mm<V>::set1_ps(1.0f / 2.0f);
+    __m<V> z2 = _mm<V>::set1_ps(2.0f);
 
     // Inputs
     __m<V> f00, f10, f20, f01, f11, f21, f02, f12, f22;

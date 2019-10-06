@@ -120,14 +120,14 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
 
     __m<V> c0, c1, c2, c3, c4, c5, zero;
 
-    __m<V> z2 = _mm<V>::set_ps(IMM_BCAST16(2.0f));
-    __m<V> z4 = _mm<V>::set_ps(IMM_BCAST16(4.0f));
-    __m<V> z8 = _mm<V>::set_ps(IMM_BCAST16(8.0f));
-    __m<V> z16 = _mm<V>::set_ps(IMM_BCAST16(16.0f));
-    __m<V> z1_2 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 2.0f));
-    __m<V> z1_4 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 4.0f));
-    __m<V> z1_8 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 8.0f));
-    __m<V> z1_16 = _mm<V>::set_ps(IMM_BCAST16(1.0f / 16.0f));
+    __m<V> z2 = _mm<V>::set1_ps(2.0f);
+    __m<V> z4 = _mm<V>::set1_ps(4.0f);
+    __m<V> z8 = _mm<V>::set1_ps(8.0f);
+    __m<V> z16 = _mm<V>::set1_ps(16.0f);
+    __m<V> z1_2 = _mm<V>::set1_ps(1.0f / 2.0f);
+    __m<V> z1_4 = _mm<V>::set1_ps(1.0f / 4.0f);
+    __m<V> z1_8 = _mm<V>::set1_ps(1.0f / 8.0f);
+    __m<V> z1_16 = _mm<V>::set1_ps(1.0f / 16.0f);
 
     __m<V> t00 = _mm<V>::load_ps(&md3(atoutput, 0, 0, 0));
     __m<V> t01 = _mm<V>::load_ps(&md3(atoutput, 0, 1, 0));

@@ -10,16 +10,26 @@
 #include "el_def.hpp"
 #include "euler.hpp"
 
-#define _T(x) x
-typedef std::chrono::high_resolution_clock Time;
-typedef std::chrono::duration<float, std::milli> Duration;
+// Compiler
+#define __GCC_COMPILER (__GNUC__ && !__INTEL_COMPILER && !__clang__)
+#define __ICC_COMPILER __INTEL_COMPILER
+#define __CLANG_COMPILER __clang__
 
-#define __tstart(n) _T(Time::time_point __s##n = Time::now());
-#define __tend(n)                                                              \
-  _T(Time::time_point __e##n = Time::now());                                   \
-  _T(printf("time: %s, th=%d, %.2f ms\n", #n, estl::current_thread_index(),    \
-      Duration(__e##n - __s##n).count()));
+// Loop unrolling
+#if __ICC_COMPILER
+#define ENABLE_AVX512F() _allow_cpu_features(_FEATURE_AVX512F)
+#define pragma_opt_core_avx512                                                 \
+  _Pragma("optimization_parameter target_arch=CORE-AVX512")
+#define pragma_unroll _Pragma("unroll")
+#define pragma_inline _Pragma("forceinline recursive")
+#else
+#define ENABLE_AVX512F() // -mavx512f
+#define pragma_opt_core_avx512
+#define pragma_unroll
+#define pragma_inline
+#endif
 
+// Loop
 #define iter_each(indx, lim) for (int indx = 0; indx < (lim); ++indx)
 #define revs_each(indx, lim) for (int indx = lim -1; indx >=0; -- indx)
 #define unroll_auto(indx, lim)                                                 \
@@ -29,16 +39,30 @@ typedef std::chrono::duration<float, std::milli> Duration;
 #define unroll_from_to(indx, from, to)                                         \
   _Pragma(STRINGIFY(unroll((to) - (from)))) for (int indx = (from);            \
                                                  indx < (to); ++indx)
+// Timing
+#define _(x) x
+#define __tstart(n) _(std::chrono::high_resolution_clock::time_point __s##n =  \
+                      std::chrono::high_resolution_clock::now());
+#define __tend(n)                                                              \
+  _(std::chrono::high_resolution_clock::time_point __e##n =                    \
+    std::chrono::high_resolution_clock::now());                                \
+  _(printf("time: %s, th=%d, %.2f ms\n", #n, estl::current_thread_index(),     \
+      std::chrono::duration<float, std::milli>(__e##n - __s##n).count()));
+
+#define STRINGIFY(x) #x
+#define XSTRINGIFY(x) STRINGIFY(x)
+
 
 #define MEMALIGN64(ptr, size) posix_memalign((void **)(ptr), 64, size)
 
 // Note: 'align' must be power of 2
 #define ALIGNUP(value, align) (((value) + (align) - 1) & ~((align) - 1))
 
-#define SET_EPI32(s)                                                           \
-  const __i<V> vindex = _mm<V>::set_epi32(15 * (s), 14 * (s), 13 * (s),        \
-      12 * (s), 11 * (s), 10 * (s), 9 * (s), 8 * (s), 7 * (s), 6 * (s),        \
-      5 * (s), 4 * (s), 3 * (s), 2 * (s), (s), 0);
+#define SET_VINDEX_16(stride)                                                  \
+  15 * (stride), 14 * (stride), 13 * (stride), 12 * (stride),                  \
+  11 * (stride), 10 * (stride),  9 * (stride),  8 * (stride),                  \
+   7 * (stride),  6 * (stride),  5 * (stride),  4 * (stride),                  \
+   3 * (stride),  2 * (stride),  1 * (stride),  0
 
 namespace euler {
 

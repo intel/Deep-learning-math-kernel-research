@@ -205,7 +205,7 @@ template <typename TinputType, typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
 ::__execute_nchw(TinputType *__restrict tinput,
     InputType *__restrict input, int _I4) {
-  SET_EPI32(xc->ih * xc->iw);
+  const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(xc->ih * xc->iw));
 
   auto readin = [&](InputType ain[A][A][V], int _t2, int _I3, int _I2, int _T,
                     bool is_Ir) {
@@ -277,7 +277,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
   // n, IC, ih, iw => t2 | hA, wA, I3, I2, T, V
   alignas(64) op_type aout[A][A][V];
   alignas(64) InputType ain[A][A][V];
-  SET_EPI32(xc->ih * xc->iw);
+  const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(xc->ih * xc->iw));
 
   auto readin = [&](InputType ain[A][A][V], int _I3, int _I2, int _T, bool is_Ir) {
     MD2(InputType, ainput0, input, xc->n, xc->ic * xc->ih * xc->iw);
@@ -502,7 +502,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 ::__execute_nchw(TscaleType *tinput_quant_scale,
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input, int _I4) {
-  SET_EPI32(xc->ih * xc->iw);
+  const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(xc->ih * xc->iw));
 
   auto readin = [&](InputType ain[A][A][V], int _t2, int _I3, int _I2, int _T,
                     bool is_Ir) {
@@ -815,7 +815,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
   // n, IC, ih, iw => t2 | hA, wA, I3, I2, T, V
   alignas(64) op_type aout[A][A][V];
   alignas(64) InputType ain[A][A][V];
-  SET_EPI32(xc->ih * xc->iw);
+  const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(xc->ih * xc->iw));
 
   auto readin = [&](InputType ain[A][A][V], int _I3, int _I2, int _T, bool is_Ir) {
     MD2(InputType, ainput0, input, xc->n, xc->ic * xc->ih * xc->iw);

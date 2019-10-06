@@ -76,7 +76,7 @@ template <typename TweightsType, typename WeightsType, int I, int A, int K, int 
 void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
 ::__execute_oihw(
     TweightsType *__restrict tweights, WeightsType *__restrict weights, int O4) {
-  SET_EPI32(xc->ic * xc->kh * xc->kw)
+  const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(xc->ic * xc->kh * xc->kw));
 
   auto readin_v = [&](WeightsType ain[K][K][V][V], WeightsType *wei) {
     MD5(WeightsType, awei, wei, V, xc->ic2, V, K, K);
@@ -254,7 +254,7 @@ void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
   MD11(WeightsType, aweights_v, weights, xc->O4, xc->O3, xc->O1, xc->O, V,
       xc->I4, xc->I3, xc->I2, V, K, K);
 
-  SET_EPI32(xc->ic * xc->kh * xc->kw)
+  const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(xc->ic * xc->kh * xc->kw));
 
   auto readin_v = [&](WeightsType ain[K][K][V][V], WeightsType *wei) {
     MD5(WeightsType, awei, wei, V, xc->ic2, V, K, K);
