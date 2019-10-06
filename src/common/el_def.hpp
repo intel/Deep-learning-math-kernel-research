@@ -42,6 +42,8 @@ constexpr unsigned FUS_MSK = 0xF0;
 constexpr unsigned FUS_I = 0x10;
 constexpr unsigned FUS_O = 0x20;
 
+typedef short float16;
+
 template <typename... Types> struct ConvImplTypes {
   static_assert(sizeof...(Types) == 5,
       "Inner types input/weights/output/bias scale data type");
