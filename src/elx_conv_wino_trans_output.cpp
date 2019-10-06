@@ -158,7 +158,7 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
             iter_each (_V, V)
               md6(aoutput1, _O4, _O3, _O2, _V, _oh + _hA, _ow + _wA)
                   += aout[_hA][_wA][_V];
-          } else if (I == ISA_SKX_AVX512
+          } else if (I == ISA_AVX512
               && std::is_same<OutputType, float>::value) {
             __m<V> t = _mm<V>::load_ps(aout[_hA][_wA]);
             constexpr int scale = sizeof(OutputType);
@@ -522,7 +522,7 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
             iter_each (_V, V)
               md6(aoutput1, _O4, _O3, _O2, _V, _oh + _hA, _ow + _wA)
                   += aout[_hA][_wA][_V];
-          } else if (I == ISA_SKX_AVX512
+          } else if (I == ISA_AVX512
               && std::is_same<OutputType, float>::value) {
             __m<V> t = _mm<V>::load_ps(aout[_hA][_wA]);
             constexpr auto scale = sizeof(OutputType);

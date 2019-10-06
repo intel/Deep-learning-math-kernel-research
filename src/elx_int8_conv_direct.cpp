@@ -607,7 +607,7 @@ void Instance_elx_int8_conv_direct_t::gemm_d160(OutputType *output,
                    ? &md4(atoutput1_nhwc, 0, _O3, _O2, 0)
                    : &md5(atoutput_blocked, _O3, _O2, _ht, ows0 + _T, 0);
 
-        if (I == ISA_SKX_AVX512 && std::is_same<ToutputType, float>::value)
+        if (I == ISA_AVX512 && std::is_same<ToutputType, float>::value)
           _mm<V>::store_ps(atout, s);
         else
           el_error("direct: d160: unimplemented");
@@ -657,7 +657,7 @@ void Instance_elx_int8_conv_direct_t::gemm_d160(OutputType *output,
             ? &md4(aoutput1_nhwc, 0, _O3, _O2, 0)
             : &md5(aoutput_blocked, _O3, _O2, _ht, ows0 + _T, 0);
 
-        if (I == ISA_SKX_AVX512 && std::is_same<ToutputType, float>::value) {
+        if (I == ISA_AVX512 && std::is_same<ToutputType, float>::value) {
           __m<V> tout = _mm<V>::cvtepi32_ps(*(__i<V> *)atout);
           // restore and requantization
           auto scale = *(__m<V> *)&md3(aweights_scale, _O3, _O2, 0);

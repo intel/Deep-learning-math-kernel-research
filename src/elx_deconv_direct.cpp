@@ -191,7 +191,7 @@ void Instance_elx_deconv_direct_t::__trans_weights_post(WeightsType *aweights,
        this->O3, this->I3, this->kh, this->kw, this->O1, this->I2, Vr,
        this->O, V);
 
-  if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+  if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
     if (std::is_same<TweightsType, float>::value) {
       _mm<V>::store_ps(&md12(atweights, _g, _O4, _I4, _O3, _I3, _kh, _kw,
                              _O1, _I2, _iV, _O, 0), *(__m<V> *)aweights);
@@ -239,7 +239,7 @@ Instance_elx_deconv_direct_t::__trans_weights_Or_post(
        this->O3, this->I3, this->kh, this->kw, this->O1, this->I2, Vr,
        this->O, V);
 
-  if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+  if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
     __mmask16 k = _mm512_int2mask(this->ormask);
     if (std::is_same<TweightsType, float>::value) {
       auto w = _mm<V>::maskz_load_ps(k, aweights);

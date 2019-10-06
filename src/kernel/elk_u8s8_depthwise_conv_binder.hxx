@@ -31,10 +31,10 @@ struct u8s8_depthwise_conv_kernel_binder {
 
 #endif // BUILD_OTJ_TBL
 
-  DECL_U8S8_DEPTHWISE_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_DCD);
-  DECL_U8S8_DEPTHWISE_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_DCD);
-  DECL_U8S8_DEPTHWISE_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_DCD);
-  DECL_U8S8_DEPTHWISE_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_DCD);
+  DECL_U8S8_DEPTHWISE_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 1, GKF_DCD);
+  DECL_U8S8_DEPTHWISE_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 2, GKF_DCD);
+  DECL_U8S8_DEPTHWISE_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 1, GKF_DCD);
+  DECL_U8S8_DEPTHWISE_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 2, GKF_DCD);
 
 #if !defined(BUILD_OTJ_TBL)
 
@@ -46,10 +46,10 @@ struct u8s8_depthwise_conv_kernel_binder {
       case GKF_DCD:                                                         \
         if (S == 1)                                                         \
           *func = LOOKUP_U8S8_DEPTHWISE_KCONV_TBL(                          \
-              INT8_F32, otype, 16, 4, ISA_SKX_AVX512, 1, GKF_DCD, O, T, K); \
+              INT8_F32, otype, 16, 4, ISA_AVX512, 1, GKF_DCD, O, T, K);     \
         else if (S == 2)                                                    \
           *func = LOOKUP_U8S8_DEPTHWISE_KCONV_TBL(                          \
-              INT8_F32, otype, 16, 4, ISA_SKX_AVX512, 2, GKF_DCD, O, T, K); \
+              INT8_F32, otype, 16, 4, ISA_AVX512, 2, GKF_DCD, O, T, K);     \
         break;                                                              \
       default:                                                              \
         el_error("Unimlemented conv kernel format");                        \

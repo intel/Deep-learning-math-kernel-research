@@ -189,7 +189,7 @@ void Instance_elx_conv_direct_vmg_t::trans_weights_to_compact(
         }
       }
 
-      if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+      if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
         if (std::is_same<TweightsType, float>::value) {
           _mm<V>::store_ps(&md5(atweights, _g, _kh, _kw, _iV, 0), *(__m<V> *)w);
         } else {

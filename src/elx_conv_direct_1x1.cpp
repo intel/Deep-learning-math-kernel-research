@@ -247,7 +247,7 @@ void Instance_elx_conv_direct_1x1_t::trans_input_2_blocked(
     estl::parallel_for<3>(mthr_, [&](int _n, int _ic2, int _t) {
       MD4(InputType, abinput4, binput, this->n, this->ic2, this->ih * this->iw, V);
       MD4(InputType, ainput4, input, this->n, this->ic2, V, this->ih * this->iw);
-      if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
+      if (I == ISA_AVX512 && std::is_same<InputType, float>::value) {
          constexpr int scale = sizeof(InputType);
          __m<V> ain = _mm<V>::i32gather_ps(vindex,
              &md4(ainput4, _n, _ic2, 0, _t), scale);
@@ -271,7 +271,7 @@ void Instance_elx_conv_direct_1x1_t::trans_input_2_blocked(
               = md3(ainput3, _n, (this->ic2 - 1) * V + _iv, _t);
         }
       } else {
-        if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
+        if (I == ISA_AVX512 && std::is_same<InputType, float>::value) {
            constexpr int scale = sizeof(InputType);
            __m<V> ain = _mm<V>::i32gather_ps(vindex,
                &md3(ainput3, _n, _ic2 * V , _t), scale);
@@ -299,7 +299,7 @@ void Instance_elx_conv_direct_1x1_t::trans_weights_2_blocked(
     estl::parallel_for<3>(mthr_, [&](int _oc2, int _ic2, int _iV) {
       MD4(WeightsType, abweights4, bweights, this->oc2, this->ic2, V, V);
       MD4(WeightsType, aweights4, weights, this->oc2, V, this->ic2, V);
-      if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+      if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
          constexpr int scale = sizeof(WeightsType);
          __m<V> t = _mm<V>::i32gather_ps(vindex,
              &md4(aweights4, _oc2, 0, _ic2, _iV), scale);
@@ -329,7 +329,7 @@ void Instance_elx_conv_direct_1x1_t::trans_weights_2_blocked(
         }
       } else {
         iter_each(_iV, iV) {
-          if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+          if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
              constexpr int scale = sizeof(WeightsType);
              __m<V> t = _mm<V>::i32gather_ps(vindex,
                  &md2(aweights2, _oc2 * V, _ic2 * V + _iV), scale);
@@ -384,7 +384,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_post(WeightsType *aweights,
   MD8(TweightsType, atweights, tweights, this->O4, this->I4, this->O3, this->I3,
       this->I2, V, this->O2, V);
 
-  if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+  if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
     if (std::is_same<TweightsType, float>::value) {
       _mm<V>::store_ps(&md8(atweights, _O4, _I4, _O3, _I3, _I2, _iV, _O2, 0),
                        *(__m<V> *)aweights);
@@ -430,7 +430,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_Or_post(WeightsType *aweigh
   MD8(TweightsType, atweights, tweights, this->O4, this->I4, this->O3, this->I3,
       this->I2, V, this->O2, V);
 
-  if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+  if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
     __mmask16 k = _mm512_int2mask(this->ormask);
     if (std::is_same<TweightsType, float>::value) {
       auto w = _mm<V>::maskz_load_ps(k, aweights);
@@ -636,7 +636,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_pad_input_blocked(
         md4(atinput, _I3, _I2, _T, _V) = 0.0f;
       }
     } else {
-      if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
+      if (I == ISA_AVX512 && std::is_same<InputType, float>::value) {
         if (stream_in_)
           _mm<V>::stream_ps(&md4(atinput, _I3, _I2, _T,0),
              *((__m<V> *)&md5(ainput, _I3, _I2, _ih, _iw, 0)));
@@ -666,7 +666,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_input_blocked(
   iter_each (_I3, this->I3) {
   iter_each (_I2, this->I2) {
   iter_each (_T, this->T) {
-    if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
+    if (I == ISA_AVX512 && std::is_same<InputType, float>::value) {
       if (stream_in_)
         _mm<V>::stream_ps(&md4(atinput, _I3, _I2, _T, 0),
              *((__m<V> *)&md8(ainput, _I3, _I2, _ht, 0, _wt, _T, 0, 0)));
@@ -702,7 +702,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_pad_input_plain(
           md3(atinput, _ic2, _T, _V) = 0.0f;
         }
       } else {
-        if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
+        if (I == ISA_AVX512 && std::is_same<InputType, float>::value) {
            constexpr int scale = sizeof(InputType);
            __m<V> ain = _mm<V>::i32gather_ps(vindex,
                &md4(ainput, _ic2, 0, _ih, _iw), scale);
@@ -743,7 +743,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_pad_input_plain(
             md3(atinput, _ic2, _T, _V) = 0.0f;
           }
         } else {
-          if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
+          if (I == ISA_AVX512 && std::is_same<InputType, float>::value) {
             constexpr int scale = sizeof(InputType);
             __m<V> ain = _mm<V>::i32gather_ps(vindex,
                 &md3(ainput, _ic2 * V, _ih, _iw), scale);
@@ -773,7 +773,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_input_nchw(
         this->hs, this->wt, this->T, this->ws);
     iter_each (_ic2, this->I3 * this->I2) {
     iter_each (_T, this->T) {
-      if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
+      if (I == ISA_AVX512 && std::is_same<InputType, float>::value) {
          constexpr int scale = sizeof(InputType);
          __m<V> ain = _mm<V>::i32gather_ps(vindex,
              &md7(ainput, _ic2, 0, _ht, 0, _wt, _T, 0), scale);
@@ -799,7 +799,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_input_nchw(
               = md6(ainput6, (this->ic2 - 1) * V + _V, _ht, 0, _wt, _T, 0);
         }
       } else {
-        if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
+        if (I == ISA_AVX512 && std::is_same<InputType, float>::value) {
           constexpr int scale = sizeof(InputType);
           __m<V> ain = _mm<V>::i32gather_ps(vindex,
               &md6(ainput6, _ic2 * V, _ht, 0, _wt, _T, 0), scale);
@@ -852,7 +852,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_blocked(
         md7(aoutput, _O4, _O3, _O2, _ht, _wt, _T, _V)
             += md4(atoutput, _O3, _O2, _T, _V);
       }
-    } else if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value) {
+    } else if (I == ISA_AVX512 && std::is_same<OutputType, float>::value) {
       if (stream_out_)
         _mm<V>::stream_ps(&md7(aoutput, _O4, _O3, _O2, _ht, _wt, _T, 0),
              *((__m<V> *)&md4(atoutput, _O3, _O2, _T, 0)));
@@ -888,7 +888,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_nchw(
           md7(aoutput, _O4, _O3, _O2, _V, _ht, _wt, _T)
               += md4(atoutput, _O3, _O2, _T, _V);
         }
-      } else if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value) {
+      } else if (I == ISA_AVX512 && std::is_same<OutputType, float>::value) {
         __m<V> t = _mm<V>::load_ps(&md4(atoutput, _O3, _O2, _T, 0));
         constexpr int scale = sizeof(OutputType);
         _mm<V>::i32scatter_ps(&md7(aoutput, _O4, _O3, _O2, 0, _ht, _wt, _T),
@@ -931,7 +931,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_nchw(
             md4(aoutput, _oc2 * V + _V, _ht, _wt, _T)
                 += md4(atoutput, _O3, _O2, _T, _V);
           }
-        } else if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value) {
+        } else if (I == ISA_AVX512 && std::is_same<OutputType, float>::value) {
           __m<V> t = _mm<V>::load_ps(&md4(atoutput, _O3, _O2, _T, 0));
           constexpr int scale = sizeof(OutputType);
           _mm<V>::i32scatter_ps(&md4(aoutput, _oc2 * V, _ht, _wt, _T), vindex,
@@ -968,7 +968,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_input_plain2(
     MD3(InputType, ainput, input, this->I3 * this->I2, V, this->ih * this->iw);
     iter_each (_ic2, this->I3 * this->I2) {
     iter_each (_T, Tz) {
-      if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
+      if (I == ISA_AVX512 && std::is_same<InputType, float>::value) {
          constexpr int scale = sizeof(InputType);
          __m<V> ain = _mm<V>::i32gather_ps(vindex,
              &md3(ainput, _ic2, 0, _t2 * this->T + _T), scale);
@@ -993,7 +993,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_input_plain2(
               = md2(ainput2, (this->ic2 - 1) * V + _V, _t2 * this->T + _T);
         }
       } else {
-        if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
+        if (I == ISA_AVX512 && std::is_same<InputType, float>::value) {
           constexpr int scale = sizeof(InputType);
           __m<V> ain = _mm<V>::i32gather_ps(vindex,
               &md2(ainput2, _ic2 * V, _t2 * this->T + _T), scale);
@@ -1019,7 +1019,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_input_blocked2(
   iter_each (_I3, this->I3) {
   iter_each (_I2, this->I2) {
   iter_each (_T, Tz) {
-    if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
+    if (I == ISA_AVX512 && std::is_same<InputType, float>::value) {
       if (stream_in_)
         _mm<V>::stream_ps(&md4(atinput, _I3, _I2, _T, 0),
              *((__m<V> *)&md4(ainput, _I3, _I2, _t2 * this->T + _T, 0)));
@@ -1065,7 +1065,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_plain2(
           md5(aoutput, _O4, _O3, _O2, _V, _t2 * this->T + _T)
               += md4(atoutput, _O3, _O2, _T, _V);
         }
-      } else if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value) {
+      } else if (I == ISA_AVX512 && std::is_same<OutputType, float>::value) {
         __m<V> t = _mm<V>::load_ps(&md4(atoutput, _O3, _O2, _T, 0));
         constexpr int scale = sizeof(OutputType);
         _mm<V>::i32scatter_ps(&md5(aoutput, _O4, _O3, _O2, 0, _t2 * this->T + _T),
@@ -1108,7 +1108,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_plain2(
             md2(aoutput, _oc2 * V + _V, _t2 * this->T + _T)
                 += md4(atoutput, _O3, _O2, _T, _V);
           }
-        } else if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value) {
+        } else if (I == ISA_AVX512 && std::is_same<OutputType, float>::value) {
           __m<V> t = _mm<V>::load_ps(&md4(atoutput, _O3, _O2, _T, 0));
           constexpr int scale = sizeof(OutputType);
           _mm<V>::i32scatter_ps(&md2(aoutput, _oc2 * V, _t2 * this->T + _T),
@@ -1143,7 +1143,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_output_blocked2(
         md5(aoutput, _O4, _O3, _O2, _t2 * this->T + _T, _V)
             += md4(atoutput, _O3, _O2, _T, _V);
       }
-    } else if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value) {
+    } else if (I == ISA_AVX512 && std::is_same<OutputType, float>::value) {
       if (stream_out_)
         _mm<V>::stream_ps(&md5(aoutput, _O4, _O3, _O2, _t2 * this->T + _T, 0),
              *((__m<V> *)&md4(atoutput, _O3, _O2, _T, 0)));

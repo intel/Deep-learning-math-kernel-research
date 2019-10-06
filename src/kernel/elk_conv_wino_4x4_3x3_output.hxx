@@ -12,7 +12,7 @@ template <typename OutputType, typename BiasType,
     int format, bool is_border, bool with_bias, bool with_relu,
     bool with_ip_sum, int V>
 struct elk_conv_wino_trans_output<float,OutputType, BiasType, format,
-    is_border, with_bias, with_relu, with_ip_sum, ISA_SKX_AVX512, 6, 3, V> {
+    is_border, with_bias, with_relu, with_ip_sum, ISA_AVX512, 6, 3, V> {
   constexpr static int A = 6;
   constexpr static int K = 3;
 

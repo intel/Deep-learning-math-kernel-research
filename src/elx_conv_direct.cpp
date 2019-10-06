@@ -200,7 +200,7 @@ void Instance_elx_conv_direct_t::__trans_weights_post(WeightsType *aweights,
   MD12(TweightsType, atweights, tweights, this->g, this->O4, this->I4, this->O3,
        this->I3, this->kh, this->kw, this->O1, this->I2, Vr, this->O, V);
 
-  if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+  if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
     if (std::is_same<TweightsType, float>::value) {
       _mm<V>::store_ps(&md12(atweights, _g, _O4, _I4, _O3, _I3, _kh, _kw,
                              _O1, _I2, _iV, _O, 0), *(__m<V> *)aweights);
@@ -248,7 +248,7 @@ void Instance_elx_conv_direct_t::__trans_weights_Or_post(WeightsType *aweights,
   MD12(TweightsType, atweights, tweights, this->g, this->O4, this->I4, this->O3,
        this->I3, this->kh, this->kw, this->O1, this->I2, Vr, this->O, V);
 
-  if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+  if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
     __mmask16 k = _mm512_int2mask(this->ormask);
     if (std::is_same<TweightsType, float>::value) {
       auto w = _mm<V>::maskz_load_ps(k, aweights);
@@ -505,7 +505,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           bool O2_has_Or = oc3_has_Or && (_O2 == this->O2 - 1);
           __m<V> s = this->with_bias ? *(__m<V> *)&md3(abias, _O3, _O2, 0)
                                      : _mm<V>::setzero_ps();
-          if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value) {
+          if (I == ISA_AVX512 && std::is_same<OutputType, float>::value) {
             __mmask16 k = _mm512_int2mask(O2_has_Or ? this->ormask : 0xFFFF);
             iter_each (_T, Tz) {
               MD4(OutputType, aoutput1, &md4(aoutput0, _ht, ows0 + _T, 0, 0),
@@ -546,7 +546,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           iter_each (_O2, this->O2) {
             bool O2_has_Or = oc3_has_Or && (_O2 == this->O2 - 1);
             __mmask16 k = _mm512_int2mask(O2_has_Or ? this->ormask : 0xFFFF);
-            if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value) {
+            if (I == ISA_AVX512 && std::is_same<OutputType, float>::value) {
               iter_each (_T, Tz) {
                 MD4(OutputType, aoutput1, &md4(aoutput0, _ht, ows0 + _T, 0, 0),
                     this->O4, this->O3, this->O2, V);
@@ -573,7 +573,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
           __m<V> s = this->with_bias ? *(__m<V> *)&md3(abias, _O3, _O2, 0)
                                      : _mm<V>::setzero_ps();
           iter_each (_T, Tz) {
-            if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value)
+            if (I == ISA_AVX512 && std::is_same<OutputType, float>::value)
               _mm<V>::store_ps(&md5(aoutput, _O3, _O2, _ht, ows0 + _T, 0), s);
             else
               el_error("direct: d060: unimplemented");
@@ -598,7 +598,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
         if (this->with_relu) {
           iter_each (_O2, this->O2) {
           iter_each (_T, Tz) {
-            if (I == ISA_SKX_AVX512 && std::is_same<OutputType, float>::value) {
+            if (I == ISA_AVX512 && std::is_same<OutputType, float>::value) {
               auto s = *(__m<V> *)&md5(aoutput, _O3, _O2, _ht, ows0 + _T, 0);
               auto lower = *(__m<V> *)(this->relu_bound_lower_vec);
               auto upper = *(__m<V> *)(this->relu_bound_upper_vec);

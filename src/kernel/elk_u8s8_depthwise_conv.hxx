@@ -143,7 +143,7 @@ struct u8s8_depthwise_conv_kernel {
 
 template <typename GarrayTypes, typename RoutputType, int V, int Vx, int ...Kp>
 struct u8s8_depthwise_conv_kernel<GarrayTypes, RoutputType, V, Vx,
-  ISA_SKX_AVX512, estl::integer_sequence<Kp...>> {
+  ISA_AVX512, estl::integer_sequence<Kp...>> {
   using kparams = estl::integer_sequence<Kp...>;
   static_assert(sizeof...(Kp) == 5,
       "Kernel parameters must be GarrayTypes, V, Vx, I, <S, F, O, T, K>");

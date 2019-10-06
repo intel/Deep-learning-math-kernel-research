@@ -29,22 +29,22 @@ struct conv_kernel_binder {
 
 #endif // BUILD_OTJ_TBL
 
-  DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD); // direct, blocked
-  DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_DCD); // direct, blocked
-  DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_EBD); // direct, nchw input
-  DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_EBD); // direct, nchw input
-  DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF); // direct, nhwc
-  DECL_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_FCF); // direct, nhwc
-  DECL_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD); // direct, blocked, f16c
-  DECL_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 2, GKF_DCD); // direct, blocked, f16c
-  DECL_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_EBD); // direct, nchw input, f16c
-  DECL_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 2, GKF_EBD); // direct, nchw input, f16c
-  DECL_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF); // direct, nhwc input, f16c
-  DECL_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 2, GKF_FCF); // direct, nhwc input, f16c
-  //DECL_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD); // direct, f16c
+  DECL_KCONV_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_DCD); // direct, blocked
+  DECL_KCONV_TBL(FP32, 16, 1, ISA_AVX512, 2, GKF_DCD); // direct, blocked
+  DECL_KCONV_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_EBD); // direct, nchw input
+  DECL_KCONV_TBL(FP32, 16, 1, ISA_AVX512, 2, GKF_EBD); // direct, nchw input
+  DECL_KCONV_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_FCF); // direct, nhwc
+  DECL_KCONV_TBL(FP32, 16, 1, ISA_AVX512, 2, GKF_FCF); // direct, nhwc
+  DECL_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_DCD); // direct, blocked, f16c
+  DECL_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 2, GKF_DCD); // direct, blocked, f16c
+  DECL_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_EBD); // direct, nchw input, f16c
+  DECL_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 2, GKF_EBD); // direct, nchw input, f16c
+  DECL_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_FCF); // direct, nhwc input, f16c
+  DECL_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 2, GKF_FCF); // direct, nhwc input, f16c
+  //DECL_KCONV_TBL(FP32_F16o, 16, 1, ISA_AVX512, 1, GKF_DCD); // direct, f16c
 
 #ifdef ENABLE_USER_FP16
-  DECL_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_EBD); // direct, nchw input, f16c
+  DECL_KCONV_TBL(FP32_F16o, 16, 1, ISA_AVX512, 1, GKF_EBD); // direct, nchw input, f16c
 #endif
 
 #if !defined(BUILD_OTJ_TBL)
@@ -56,11 +56,11 @@ struct conv_kernel_binder {
     switch (F) {
     //case GKF_DCD:
     //  if (S == 1)
-    //    *func = LOOKUP_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, K);
+    //    *func = LOOKUP_KCONV_TBL(FP32_F16o, 16, 1, ISA_AVX512, 1, GKF_DCD, O, T, K);
     //  break;
     case GKF_EBD:
       if (S == 1)
-        *func = LOOKUP_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_EBD, O, T, K);
+        *func = LOOKUP_KCONV_TBL(FP32_F16o, 16, 1, ISA_AVX512, 1, GKF_EBD, O, T, K);
       break;
     default:
       break;
@@ -74,21 +74,21 @@ struct conv_kernel_binder {
     switch (F) {
     case GKF_DCD:
       if (S == 1)
-        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, K);
+        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_DCD, O, T, K);
       else if (S == 2)
-        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_DCD, O, T, K);
+        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_AVX512, 2, GKF_DCD, O, T, K);
       break;
     case GKF_EBD:
       if (S == 1)
-        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_EBD, O, T, K);
+        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_EBD, O, T, K);
       else if (S == 2)
-        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_EBD, O, T, K);
+        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_AVX512, 2, GKF_EBD, O, T, K);
       break;
     case GKF_FCF:
       if (S == 1)
-        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF, O, T, K);
+        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_FCF, O, T, K);
       else if (S == 2)
-        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_FCF, O, T, K);
+        *func = LOOKUP_KCONV_TBL(FP32, 16, 1, ISA_AVX512, 2, GKF_FCF, O, T, K);
       break;
     default:
       break;
@@ -101,21 +101,21 @@ struct conv_kernel_binder {
     switch (F) {
     case GKF_DCD:
       if (S == 1)
-        *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, K);
+        *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_DCD, O, T, K);
       else if (S == 2)
-        *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 2, GKF_DCD, O, T, K);
+        *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 2, GKF_DCD, O, T, K);
       break;
     case GKF_EBD:
       if (S == 1)
-        *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_EBD, O, T, K);
+        *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_EBD, O, T, K);
       else if (S == 2)
-        *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 2, GKF_EBD, O, T, K);
+        *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 2, GKF_EBD, O, T, K);
       break;
     case GKF_FCF:
       if (S == 1)
-        *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF, O, T, K);
+        *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_FCF, O, T, K);
       else if (S == 2)
-        *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 2, GKF_FCF, O, T, K);
+        *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 2, GKF_FCF, O, T, K);
       break;
     default:
       break;

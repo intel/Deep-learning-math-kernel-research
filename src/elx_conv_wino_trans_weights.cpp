@@ -13,7 +13,7 @@ void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
     int _O4, int _I4, int _O3, int _I3, int _O1, int _I2, int _O) {
   MD9(TweightsType, atweights, tweights, xc->O3, xc->I3, A, A,
       xc->O1, xc->I2, V, xc->O, V);
-  if (I == ISA_SKX_AVX512 && std::is_same<op_type, float>::value
+  if (I == ISA_AVX512 && std::is_same<op_type, float>::value
       && std::is_same<TweightsType, float>::value) {
     iter_each (_hA, A) {
     iter_each (_wA, A) {
@@ -21,7 +21,7 @@ void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
       _mm512_store_ps(&md9(atweights, _O3, _I3, _hA, _wA,
           _O1, _I2, _iV, _O, 0), *((__m512 *)&at[_hA][_wA][_iV][0]));
     }}}
-  } else if (I == ISA_SKX_AVX512 && std::is_same<op_type, float>::value
+  } else if (I == ISA_AVX512 && std::is_same<op_type, float>::value
      && std::is_same<TweightsType, float16>::value) {
     if (xc->O == 2) { // fp32 -> bf16  combine two _O
       auto mask = _mm<V>::set1_epi32(0xFFFF0000);
@@ -84,7 +84,7 @@ void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
     iter_each (_hK, K) {
     iter_each (_wK, K) {
     iter_each (_iV, V) {
-      if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+      if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
         constexpr auto scale = sizeof(WeightsType);
         auto t = _mm<V>::i32gather_ps(vindex,
             &md5(awei, 0, 0, _iV, _hK, _wK), scale);
@@ -125,7 +125,7 @@ void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
       iter_each (_hK, K) {
       iter_each (_wK, K) {
       iter_each (_iV, iV) {
-        if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+        if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
           constexpr auto scale = sizeof(WeightsType);
           auto t = _mm<V>::i32gather_ps(vindex,
               &md4(awei, _oc2 * V, _ic2 * V + _iV, _hK, _wK), scale);
@@ -215,7 +215,7 @@ void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
         iter_each (_oV, xc->Or)
           ain[_hK][_wK][_iV][_oV] = md5(aweights2, _O4, _O3, _O1, _O, _oV);
       } else {
-        if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+        if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
           auto t = *(__m<V>*)&md5(aweights2, _O4, _O3, _O1, _O, 0);
           _mm<V>::store_ps(ain[_hK][_wK][_iV], t);
         } else {
@@ -262,7 +262,7 @@ void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
     iter_each (_hK, K) {
     iter_each (_wK, K) {
     iter_each (_iV, V) {
-      if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+      if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
         constexpr auto scale = sizeof(WeightsType);
         auto t = _mm<V>::i32gather_ps(vindex,
             &md5(awei, 0, 0, _iV, _hK, _wK), scale);
@@ -296,7 +296,7 @@ void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
       iter_each (_hK, K) {
       iter_each (_wK, K) {
       iter_each (_iV, iV) {
-        if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+        if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
           constexpr auto scale = sizeof(WeightsType);
           auto t = _mm<V>::i32gather_ps(vindex,
               &md4(awei, _oc2 * V, _ic2 * V + _iV, _hK, _wK), scale);
@@ -358,7 +358,7 @@ void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
         iter_each (_oV, xc->Or)
           ain[_hK][_wK][_iV][_oV] = md5(aweights2, _O4, _O3, _O1, _O, _oV);
       } else {
-        if (I == ISA_SKX_AVX512 && std::is_same<WeightsType, float>::value) {
+        if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
           auto t = *(__m<V>*)&md5(aweights2, _O4, _O3, _O1, _O, 0);
           _mm<V>::store_ps(ain[_hK][_wK][_iV], t);
         } else {

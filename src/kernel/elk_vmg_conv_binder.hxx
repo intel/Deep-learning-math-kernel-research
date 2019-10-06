@@ -30,14 +30,14 @@ struct vmg_conv_kernel_binder {
 
 #endif // BUILD_OTJ_TBL
 
-  DECL_VMG_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD); // direct, blocked
-  DECL_VMG_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF); // direct, nhwc
-  DECL_VMG_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD); // direct, blocked, f16c
-  DECL_VMG_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF); // direct, nhwc input, f16c
-  //DECL_VMG_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD); // direct, f16c
+  DECL_VMG_KCONV_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_DCD); // direct, blocked
+  DECL_VMG_KCONV_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_FCF); // direct, nhwc
+  DECL_VMG_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_DCD); // direct, blocked, f16c
+  DECL_VMG_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_FCF); // direct, nhwc input, f16c
+  //DECL_VMG_KCONV_TBL(FP32_F16o, 16, 1, ISA_AVX512, 1, GKF_DCD); // direct, f16c
 
 #ifdef ENABLE_USER_FP16
-  DECL_VMG_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_EBD); // direct, nchw input, f16c
+  DECL_VMG_KCONV_TBL(FP32_F16o, 16, 1, ISA_AVX512, 1, GKF_EBD); // direct, nchw input, f16c
 #endif
 
 #if !defined(BUILD_OTJ_TBL)
@@ -49,11 +49,11 @@ struct vmg_conv_kernel_binder {
     switch (F) {
     //case GKF_DCD:
     //  if (S == 1)
-    //    *func = LOOKUP_VMG_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, K, G);
+    //    *func = LOOKUP_VMG_KCONV_TBL(FP32_F16o, 16, 1, ISA_AVX512, 1, GKF_DCD, O, T, K, G);
     //  break;
     case GKF_EBD:
       if (S == 1)
-        *func = LOOKUP_VMG_KCONV_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_EBD, O, T, K, G);
+        *func = LOOKUP_VMG_KCONV_TBL(FP32_F16o, 16, 1, ISA_AVX512, 1, GKF_EBD, O, T, K, G);
       break;
     default:
       break;
@@ -67,11 +67,11 @@ struct vmg_conv_kernel_binder {
     switch (F) {
     case GKF_DCD:
       if (S == 1)
-        *func = LOOKUP_VMG_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, K, G);
+        *func = LOOKUP_VMG_KCONV_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_DCD, O, T, K, G);
       break;
     case GKF_FCF:
       if (S == 1)
-        *func = LOOKUP_VMG_KCONV_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF, O, T, K, G);
+        *func = LOOKUP_VMG_KCONV_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_FCF, O, T, K, G);
       break;
     default:
       break;
@@ -84,11 +84,11 @@ struct vmg_conv_kernel_binder {
     switch (F) {
     case GKF_DCD:
       if (S == 1)
-        *func = LOOKUP_VMG_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T, K, G);
+        *func = LOOKUP_VMG_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_DCD, O, T, K, G);
       break;
     case GKF_FCF:
       if (S == 1)
-        *func = LOOKUP_VMG_KCONV_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF, O, T, K, G);
+        *func = LOOKUP_VMG_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_FCF, O, T, K, G);
       break;
     default:
       break;

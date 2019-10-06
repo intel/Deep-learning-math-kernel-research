@@ -8,7 +8,7 @@ namespace euler {
 
 template <typename InputType, int format, bool is_border, int V>
 struct elk_conv_wino_trans_input<float, InputType, format, is_border,
-    ISA_SKX_AVX512, 6, V> {
+    ISA_AVX512, 6, V> {
   constexpr static int A = 6;
 
   static void execute(elx_conv_params_t &xc, float *tinput,

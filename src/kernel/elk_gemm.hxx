@@ -27,7 +27,7 @@ struct gemm_kernel {
 };
 
 template <typename GarrayTypes, int V, int Vx, int ...Kp>
-struct gemm_kernel<GarrayTypes, V, Vx, ISA_SKX_AVX512,
+struct gemm_kernel<GarrayTypes, V, Vx, ISA_AVX512,
     estl::integer_sequence<Kp...>> {
   using kparams = estl::integer_sequence<Kp...>;
   static_assert(sizeof...(Kp) == 5,

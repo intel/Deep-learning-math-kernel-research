@@ -29,29 +29,29 @@ struct gemm_kernel_binder {
 
 #endif // BUILD_OTJ_TBL
 
-  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC); // wino, 1x1
-  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_CCD); // 1x1
-  //DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD); // direct, nchw input
-  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD); // direct, 1x1, blocked
-  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF); // direct, nhwc
-  //DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_CCC); // 1x1
-  //DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_CCD); // 1x1
-  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_DCD); // direct, blocked
-  DECL_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_FCF); // direct, nhwc
+  DECL_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_CCC); // wino, 1x1
+  DECL_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_CCD); // 1x1
+  //DECL_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_ECD); // direct, nchw input
+  DECL_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_DCD); // direct, 1x1, blocked
+  DECL_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_FCF); // direct, nhwc
+  //DECL_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 2, GKF_CCC); // 1x1
+  //DECL_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 2, GKF_CCD); // 1x1
+  DECL_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 2, GKF_DCD); // direct, blocked
+  DECL_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 2, GKF_FCF); // direct, nhwc
 
-  DECL_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC); // 1x1, f16c
-  DECL_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_CCD); // 1x1, f16c
-  DECL_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD); // direct, 1x1, f16c
-  DECL_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF); // direct, 1x1, f16c
-  DECL_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 2, GKF_FCF); // direct, 1x1, f16c
-  DECL_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 2, GKF_DCD); // direct, 1x1, f16c
-  //DECL_KGEMM_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD); // direct, nchw input, f16c
-  DECL_KGEMM_TBL(FP32_F16iwo, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC); // wino, f16c
+  DECL_KGEMM_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_CCC); // 1x1, f16c
+  DECL_KGEMM_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_CCD); // 1x1, f16c
+  DECL_KGEMM_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_DCD); // direct, 1x1, f16c
+  DECL_KGEMM_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_FCF); // direct, 1x1, f16c
+  DECL_KGEMM_TBL(FP32_F16w, 16, 1, ISA_AVX512, 2, GKF_FCF); // direct, 1x1, f16c
+  DECL_KGEMM_TBL(FP32_F16w, 16, 1, ISA_AVX512, 2, GKF_DCD); // direct, 1x1, f16c
+  //DECL_KGEMM_TBL(FP32_F16o, 16, 1, ISA_AVX512, 1, GKF_ECD); // direct, nchw input, f16c
+  DECL_KGEMM_TBL(FP32_F16iwo, 16, 1, ISA_AVX512, 1, GKF_CCC); // wino, f16c
 
 #ifdef ENABLE_USER_FP16
-  DECL_KGEMM_TBL(FP32_F16b, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC); // wino, user f16
-  DECL_KGEMM_TBL(FP32_F16wob, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC); // wino, f16c + user f16
-  DECL_KGEMM_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD); // direct, 1x1, f16c
+  DECL_KGEMM_TBL(FP32_F16b, 16, 1, ISA_AVX512, 1, GKF_CCC); // wino, user f16
+  DECL_KGEMM_TBL(FP32_F16wob, 16, 1, ISA_AVX512, 1, GKF_CCC); // wino, f16c + user f16
+  DECL_KGEMM_TBL(FP32_F16o, 16, 1, ISA_AVX512, 1, GKF_DCD); // direct, 1x1, f16c
 #endif
 
 #if !defined(BUILD_OTJ_TBL)
@@ -62,31 +62,31 @@ struct gemm_kernel_binder {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_CCC, O, T);
       //else if (S == 2)
-      //  *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_CCC, O, T);
+      //  *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 2, GKF_CCC, O, T);
       break;
     case GKF_CCD:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_CCD, O, T);
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_CCD, O, T);
       //else if (S == 2)
-      //  *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_CCD, O, T);
+      //  *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 2, GKF_CCD, O, T);
       break;
     case GKF_DCD:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T);
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_DCD, O, T);
       else if (S == 2)
-        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_DCD, O, T);
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 2, GKF_DCD, O, T);
       break;
     //case GKF_ECD:
     //  if (S == 1)
-    //    *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T);
+    //    *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_ECD, O, T);
     //  break;
     case GKF_FCF:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF, O, T);
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 1, GKF_FCF, O, T);
       else if (S == 2)
-        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_SKX_AVX512, 2, GKF_FCF, O, T);
+        *func = LOOKUP_KGEMM_TBL(FP32, 16, 1, ISA_AVX512, 2, GKF_FCF, O, T);
       break;
     default:
       break;
@@ -100,7 +100,7 @@ struct gemm_kernel_binder {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16iwo, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16iwo, 16, 1, ISA_AVX512, 1, GKF_CCC, O, T);
       break;
     default:
       break;
@@ -114,23 +114,23 @@ struct gemm_kernel_binder {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_CCC, O, T);
       break;
     case GKF_CCD:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_CCD, O, T);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_CCD, O, T);
       break;
     case GKF_DCD:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_DCD, O, T);
       else if (S == 2)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 2, GKF_DCD, O, T);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_AVX512, 2, GKF_DCD, O, T);
       break;
     case GKF_FCF:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 1, GKF_FCF, O, T);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_FCF, O, T);
       else if (S == 2)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_SKX_AVX512, 2, GKF_FCF, O, T);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16w, 16, 1, ISA_AVX512, 2, GKF_FCF, O, T);
       break;
     default:
       break;
@@ -145,7 +145,7 @@ struct gemm_kernel_binder {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16b, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16b, 16, 1, ISA_AVX512, 1, GKF_CCC, O, T);
       break;
     default:
       break;
@@ -159,7 +159,7 @@ struct gemm_kernel_binder {
     switch (F) {
     case GKF_CCC:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16wob, 16, 1, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16wob, 16, 1, ISA_AVX512, 1, GKF_CCC, O, T);
       break;
     default:
       break;
@@ -173,11 +173,11 @@ struct gemm_kernel_binder {
     switch (F) {
     case GKF_DCD:
       if (S == 1)
-        *func = LOOKUP_KGEMM_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_DCD, O, T);
+        *func = LOOKUP_KGEMM_TBL(FP32_F16o, 16, 1, ISA_AVX512, 1, GKF_DCD, O, T);
       break;
     //case GKF_ECD:
     //  if (S == 1)
-    //    *func = LOOKUP_KGEMM_TBL(FP32_F16o, 16, 1, ISA_SKX_AVX512, 1, GKF_ECD, O, T);
+    //    *func = LOOKUP_KGEMM_TBL(FP32_F16o, 16, 1, ISA_AVX512, 1, GKF_ECD, O, T);
     //  break;
     default:
       break;

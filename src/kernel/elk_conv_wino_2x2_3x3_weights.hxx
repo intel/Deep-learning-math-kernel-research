@@ -10,12 +10,12 @@ namespace euler {
 
 
 template <typename WeightsType, int V>
-struct elk_conv_wino_trans_weights<float, WeightsType, ISA_SKX_AVX512,
+struct elk_conv_wino_trans_weights<float, WeightsType, ISA_AVX512,
     4, 3, V> {
 
   constexpr static int A = 4;
   constexpr static int K = 3;
-  constexpr static int I = ISA_SKX_AVX512;
+  constexpr static int I = ISA_AVX512;
 
   static void execute(
       float atweights[A][A][V][V], WeightsType aweights[K][K][V][V])

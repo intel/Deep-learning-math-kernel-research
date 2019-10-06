@@ -93,7 +93,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
   MD6(TinputType, atinput6, tinput, A, A, xc->I3, xc->I2, Tz, V);
 
   MD3(op_type, at, tbuf, A, A, V);
-  if (I == ISA_SKX_AVX512 && std::is_same<op_type, float>::value
+  if (I == ISA_AVX512 && std::is_same<op_type, float>::value
       && std::is_same<TinputType, float>::value) {
     if (stream_in_) {
       iter_each (_hA, A) {
@@ -108,7 +108,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
                       *((__m<V> *)&md3(at, _hA, _wA, 0)));
       }}
     }
-  } else if (I == ISA_SKX_AVX512 && std::is_same<op_type, float>::value
+  } else if (I == ISA_AVX512 && std::is_same<op_type, float>::value
      && std::is_same<TinputType, float16>::value) {
     if (stream_in_) {
       iter_each (_hA, A) {
@@ -237,7 +237,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
 #pragma omp simd
             iter_each(_V, V) ain[_hA][_wA][_V] = 0.0f;
           } else {
-            if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
+            if (I == ISA_AVX512 && std::is_same<InputType, float>::value) {
               constexpr int scale = sizeof(InputType);
               __m<V> t = _mm<V>::i32gather_ps(vindex,
                   &md6(ainput1, _I4, _I3, _I2, 0, _ih + _hA, _iw + _wA), scale);
@@ -308,7 +308,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
 #pragma omp simd
           iter_each (_V, V) ain[_hA][_wA][_V] = 0.0f;
         } else {
-          if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
+          if (I == ISA_AVX512 && std::is_same<InputType, float>::value) {
             constexpr int scale = sizeof(InputType);
             __m<V> t = _mm<V>::i32gather_ps(vindex,
                 &md6(ainput1, _I4, _I3, _I2, 0, _ih + _hA, _iw + _wA),
@@ -461,7 +461,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
       }
 
       TinputType max, min;
-      if (I == ISA_SKX_AVX512 && std::is_same<TinputType, float>::value) {
+      if (I == ISA_AVX512 && std::is_same<TinputType, float>::value) {
         max = _mm<V>::reduce_max_ps(mmax);
         min = _mm<V>::reduce_min_ps(mmin);
       } else {
@@ -534,7 +534,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 #pragma omp simd
             iter_each(_V, V) ain[_hA][_wA][_V] = 0.0f;
           } else {
-            if (I == ISA_SKX_AVX512 && std::is_same<InputType, float>::value) {
+            if (I == ISA_AVX512 && std::is_same<InputType, float>::value) {
               constexpr int scale = sizeof(InputType);
               __m<V> t = _mm<V>::i32gather_ps(vindex,
                   &md6(ainput1, 0, _I3, _I2, 0, _ih + _hA, _iw + _wA), scale);
@@ -761,7 +761,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 
         iter_each (_hA, A) {
         iter_each (_wA, A) {
-          if (I == ISA_SKX_AVX512 && std::is_same<TinputType, float>::value) {
+          if (I == ISA_AVX512 && std::is_same<TinputType, float>::value) {
             mmax[_hA][_wA][0] = _mm<V>::reduce_max_ps(*(__m<V> *)&mmax[_hA][_wA][0]);
             mmin[_hA][_wA][0] = _mm<V>::reduce_min_ps(*(__m<V> *)&mmin[_hA][_wA][0]);
           } else {

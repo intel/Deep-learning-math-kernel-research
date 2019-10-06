@@ -30,56 +30,56 @@ struct u8s8_gemm_kernel_binder {
 #endif // BUILD_OTJ_TBL
 
   // wino
-  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC); // wino, int8-gemm
-  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC);
-  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC);
+  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 1, GKF_CCC); // wino, int8-gemm
+  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 1, GKF_CCC);
+  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 1, GKF_CCC);
 
-  DECL_U8S8_KGEMM_TBL(INT8_F16o, float, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC); // wino, int8-gemm, f16c
-  DECL_U8S8_KGEMM_TBL(INT8_F16o, int8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC);
-  DECL_U8S8_KGEMM_TBL(INT8_F16o, uint8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC);
+  DECL_U8S8_KGEMM_TBL(INT8_F16o, float, 16, 4, ISA_AVX512, 1, GKF_CCC); // wino, int8-gemm, f16c
+  DECL_U8S8_KGEMM_TBL(INT8_F16o, int8_t, 16, 4, ISA_AVX512, 1, GKF_CCC);
+  DECL_U8S8_KGEMM_TBL(INT8_F16o, uint8_t, 16, 4, ISA_AVX512, 1, GKF_CCC);
 
   // direct, blocked
-  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_SKX_AVX512, 1, GKF_DCD); // direct, blocked, int8-gemm
-  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_SKX_AVX512, 2, GKF_DCD); // direct, blocked, int8-gemm
+  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 1, GKF_DCD); // direct, blocked, int8-gemm
+  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 2, GKF_DCD); // direct, blocked, int8-gemm
 
-  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_DCD); // direct, blocked, int8-gemm, int8-output
-  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_DCD); // direct, blocked, int8-gemm, uint8-output
+  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 1, GKF_DCD); // direct, blocked, int8-gemm, int8-output
+  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 2, GKF_DCD); // direct, blocked, int8-gemm, uint8-output
 
-  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_DCD); // direct, blocked, int8-gemm, int8-output
-  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_DCD); // direct, blocked, int8-gemm, uint8-output
+  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 1, GKF_DCD); // direct, blocked, int8-gemm, int8-output
+  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 2, GKF_DCD); // direct, blocked, int8-gemm, uint8-output
 
   // direct, nhwc
-  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_SKX_AVX512, 1, GKF_FCF); // direct, nhwc, int8-gemm
-  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_SKX_AVX512, 2, GKF_FCF); // direct, nhwc, int8-gemm
+  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 1, GKF_FCF); // direct, nhwc, int8-gemm
+  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 2, GKF_FCF); // direct, nhwc, int8-gemm
 
-  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_FCF); // direct, nhwc, int8-gemm, int8-output
-  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_FCF); // direct, nhwc, int8-gemm, int8-output
+  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 1, GKF_FCF); // direct, nhwc, int8-gemm, int8-output
+  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 2, GKF_FCF); // direct, nhwc, int8-gemm, int8-output
 
-  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_FCF); // direct, nhwc, int8-gemm, uint8-output
-  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_FCF); // direct, nhwc, int8-gemm, uint8-output
+  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 1, GKF_FCF); // direct, nhwc, int8-gemm, uint8-output
+  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 2, GKF_FCF); // direct, nhwc, int8-gemm, uint8-output
 
-  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_SKX_AVX512, 1, GKF_FCD); // direct, nhwc, int8-gemm
-  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_SKX_AVX512, 2, GKF_FCD); // direct, nhwc, int8-gemm
+  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 1, GKF_FCD); // direct, nhwc, int8-gemm
+  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 2, GKF_FCD); // direct, nhwc, int8-gemm
 
-  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_FCD); // direct, nhwc->blocked, int8-gemm, int8-output
-  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_FCD); // direct, nhwc->blocked, int8-gemm, int8-output
+  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 1, GKF_FCD); // direct, nhwc->blocked, int8-gemm, int8-output
+  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 2, GKF_FCD); // direct, nhwc->blocked, int8-gemm, int8-output
 
-  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_FCD); // direct, nhwc->blocked, int8-gemm, uint8-output
-  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_FCD); // direct, nhwc->blocked, int8-gemm, uint8-output
+  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 1, GKF_FCD); // direct, nhwc->blocked, int8-gemm, uint8-output
+  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 2, GKF_FCD); // direct, nhwc->blocked, int8-gemm, uint8-output
 
-  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_SKX_AVX512, 1, GKF_DCF); // direct, nhwc, int8-gemm
-  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_SKX_AVX512, 2, GKF_DCF); // direct, nhwc, int8-gemm
+  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 1, GKF_DCF); // direct, nhwc, int8-gemm
+  DECL_U8S8_KGEMM_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 2, GKF_DCF); // direct, nhwc, int8-gemm
 
-  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_DCF); // direct, blocked->nhwc, int8-gemm, int8-output
-  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_DCF); // direct, blocked->nhwc, int8-gemm, int8-output
+  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 1, GKF_DCF); // direct, blocked->nhwc, int8-gemm, int8-output
+  DECL_U8S8_KGEMM_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 2, GKF_DCF); // direct, blocked->nhwc, int8-gemm, int8-output
 
-  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 1, GKF_DCF); // direct, blocked->nhwc, int8-gemm, uint8-output
-  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_SKX_AVX512, 2, GKF_DCF); // direct, blocked->nhwc, int8-gemm, uint8-output
+  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 1, GKF_DCF); // direct, blocked->nhwc, int8-gemm, uint8-output
+  DECL_U8S8_KGEMM_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 2, GKF_DCF); // direct, blocked->nhwc, int8-gemm, uint8-output
 
 
 #ifdef ENABLE_USER_FP16
-  DECL_U8S8_KGEMM_TBL(INT8_F16b, float, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC); // wino, int8-gemm, user f16
-  DECL_U8S8_KGEMM_TBL(INT8_F16ob, float, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC); // wino, int8-gemm, f16c + user f16
+  DECL_U8S8_KGEMM_TBL(INT8_F16b, float, 16, 4, ISA_AVX512, 1, GKF_CCC); // wino, int8-gemm, user f16
+  DECL_U8S8_KGEMM_TBL(INT8_F16ob, float, 16, 4, ISA_AVX512, 1, GKF_CCC); // wino, int8-gemm, f16c + user f16
 #endif
 
 #if !defined(BUILD_OTJ_TBL)
@@ -94,39 +94,39 @@ struct u8s8_gemm_kernel_binder {
     case GKF_CCC:                                                              \
       if (S == 1)                                                              \
         *func = LOOKUP_U8S8_KGEMM_TBL(                                         \
-            INT8_F32, otype, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T);         \
+            INT8_F32, otype, 16, 4, ISA_AVX512, 1, GKF_CCC, O, T);             \
       break;                                                                   \
     case GKF_DCD:                                                              \
       if (S == 1)                                                              \
         *func = LOOKUP_U8S8_KGEMM_TBL(                                         \
-            INT8_F32, otype, 16, 4, ISA_SKX_AVX512, 1, GKF_DCD, O, T);         \
+            INT8_F32, otype, 16, 4, ISA_AVX512, 1, GKF_DCD, O, T);             \
       else if (S == 2)                                                         \
         *func = LOOKUP_U8S8_KGEMM_TBL(                                         \
-            INT8_F32, otype, 16, 4, ISA_SKX_AVX512, 2, GKF_DCD, O, T);         \
+            INT8_F32, otype, 16, 4, ISA_AVX512, 2, GKF_DCD, O, T);             \
       break;                                                                   \
     case GKF_FCF:                                                              \
       if (S == 1)                                                              \
         *func = LOOKUP_U8S8_KGEMM_TBL(                                         \
-            INT8_F32, otype, 16, 4, ISA_SKX_AVX512, 1, GKF_FCF, O, T);         \
+            INT8_F32, otype, 16, 4, ISA_AVX512, 1, GKF_FCF, O, T);             \
       else if (S == 2)                                                         \
         *func = LOOKUP_U8S8_KGEMM_TBL(                                         \
-            INT8_F32, otype, 16, 4, ISA_SKX_AVX512, 2, GKF_FCF, O, T);         \
+            INT8_F32, otype, 16, 4, ISA_AVX512, 2, GKF_FCF, O, T);             \
       break;                                                                   \
     case GKF_DCF:                                                              \
       if (S == 1)                                                              \
         *func = LOOKUP_U8S8_KGEMM_TBL(                                         \
-            INT8_F32, otype, 16, 4, ISA_SKX_AVX512, 1, GKF_DCF, O, T);         \
+            INT8_F32, otype, 16, 4, ISA_AVX512, 1, GKF_DCF, O, T);             \
       else if (S == 2)                                                         \
         *func = LOOKUP_U8S8_KGEMM_TBL(                                         \
-            INT8_F32, otype, 16, 4, ISA_SKX_AVX512, 2, GKF_DCF, O, T);         \
+            INT8_F32, otype, 16, 4, ISA_AVX512, 2, GKF_DCF, O, T);             \
       break;                                                                   \
     case GKF_FCD:                                                              \
       if (S == 1)                                                              \
         *func = LOOKUP_U8S8_KGEMM_TBL(                                         \
-            INT8_F32, otype, 16, 4, ISA_SKX_AVX512, 1, GKF_FCD, O, T);         \
+            INT8_F32, otype, 16, 4, ISA_AVX512, 1, GKF_FCD, O, T);             \
       else if (S == 2)                                                         \
         *func = LOOKUP_U8S8_KGEMM_TBL(                                         \
-            INT8_F32, otype, 16, 4, ISA_SKX_AVX512, 2, GKF_FCD, O, T);         \
+            INT8_F32, otype, 16, 4, ISA_AVX512, 2, GKF_FCD, O, T);             \
       break;                                                                   \
     default:                                                                   \
       break;                                                                   \
@@ -146,7 +146,7 @@ struct u8s8_gemm_kernel_binder {
     case GKF_CCC:
       if (S == 1)
         *func = LOOKUP_U8S8_KGEMM_TBL(
-            INT8_F16o, float, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
+            INT8_F16o, float, 16, 4, ISA_AVX512, 1, GKF_CCC, O, T);
       break;
     default:
       break;
@@ -163,7 +163,7 @@ struct u8s8_gemm_kernel_binder {
     case GKF_CCC:
       if (S == 1)
         *func = LOOKUP_U8S8_KGEMM_TBL(
-            INT8_F16b, float, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
+            INT8_F16b, float, 16, 4, ISA_AVX512, 1, GKF_CCC, O, T);
       break;
     default:
       break;
@@ -179,7 +179,7 @@ struct u8s8_gemm_kernel_binder {
     case GKF_CCC:
       if (S == 1)
         *func = LOOKUP_U8S8_KGEMM_TBL(
-            INT8_F16ob, float, 16, 4, ISA_SKX_AVX512, 1, GKF_CCC, O, T);
+            INT8_F16ob, float, 16, 4, ISA_AVX512, 1, GKF_CCC, O, T);
       break;
     default:
       break;

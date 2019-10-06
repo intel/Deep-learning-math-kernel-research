@@ -74,7 +74,7 @@ Template_elx_deconv_direct_t class elx_deconv_direct_t : public elx_conv_t {
 };
 
 // fp32-f32f32f32
-template class elx_deconv_direct_t<conv::FP32, conv_impl::FP32, 16, ISA_SKX_AVX512>;
+template class elx_deconv_direct_t<conv::FP32, conv_impl::FP32, 16, ISA_AVX512>;
 
 } // namespace euler
 #endif // __ELX_DECONV_DIRECT_HPP__

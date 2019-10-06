@@ -32,9 +32,7 @@ namespace euler {
 enum {
   ISA_GENERIC = 0,
   ISA_AVX2 = 256,
-  ISA_COSIM_AVX2,
-  ISA_SKX_AVX512 = 512,
-  ISA_COSIM_AVX512,
+  ISA_AVX512 = 512
 };
 
 constexpr size_t PAGE_SIZE = 4096;

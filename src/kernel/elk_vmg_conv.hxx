@@ -40,7 +40,7 @@ struct vmg_conv_kernel {
 #define _MIN(a, b) ((a) <= (b) ? (a) : (b))
 
 template <typename GarrayTypes, int V, int Vx, int ...Kp>
-struct vmg_conv_kernel<GarrayTypes, V, Vx, ISA_SKX_AVX512,
+struct vmg_conv_kernel<GarrayTypes, V, Vx, ISA_AVX512,
     estl::integer_sequence<Kp...>> {
   using kparams = estl::integer_sequence<Kp...>;
   static_assert(sizeof...(Kp) == 6,
