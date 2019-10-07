@@ -474,13 +474,13 @@ void Instance_elx_int8_conv_direct_1x1_t::gemm_c160(ToutputType *toutput,
              ? &md3(ainput2_nhwc, _I4, _I3, 0)
              : &md2(ainput2_blocked, _t2, 0);
     iter_each (_O3, this->O3) {
-      int _oc4_tout = toutput_opt_ ? 0 : _O4;
+      int _O4_tout = toutput_opt_ ? 0 : _O4;
       MD2(OutputType, aoutput2_blocked, &md3(aoutput_blocked, _O4, _O3, 0),
           this->t2, this->T * V);
       MD3(OutputType, aoutput2_nhwc, &md3(aoutput_nhwc, _t2, 0, 0),
           this->O4, this->O3, this->O2 * V);
       MD2(ToutputType, atoutput2_blocked,
-          &md3(atoutput_blocked, _oc4_tout, _O3, 0), this->t2, this->T * V);
+          &md3(atoutput_blocked, _O4_tout, _O3, 0), this->t2, this->T * V);
       MD3(ToutputType, atoutput2_nhwc, &md3(atoutput_nhwc, _t2, 0, 0),
           this->O4, this->O3, this->O2 * V);
       auto aout = this->output_fmt == nhwc

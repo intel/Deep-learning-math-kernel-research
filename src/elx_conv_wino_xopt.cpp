@@ -82,9 +82,9 @@ void Instance_elx_conv_wino_t::__execute_a071(
       trans_weights(tweights_, weights, this->O4);
     });
   }
-  int last_ic4 = -1, last_t2 = -1;
+  int last_I4 = -1, last_t2 = -1;
 
-  estl::parallel_for<3, 2>(mthr_, [&, last_ic4, last_t2]
+  estl::parallel_for<3, 2>(mthr_, [&, last_I4, last_t2]
                            (int _t2, int _O4, int _I4) mutable {
     MD2(TinputType, atinput2, tinput_, mthr_,
         A * A * this->T * this->I3 * this->I2 * V);
@@ -100,10 +100,10 @@ void Instance_elx_conv_wino_t::__execute_a071(
     MD2(ToutputType, atoutput3, &md2(atoutput2, _t2, 0),
         this->O4, A * A * Tz * this->O3 * this->O2 * V);
 
-    if (last_ic4 != _I4 || last_t2 != _t2) {
+    if (last_I4 != _I4 || last_t2 != _t2) {
       trans_input(&md2(atinput2, ithr, 0), input, Tz, _t2, _I4);
       last_t2 = _t2;
-      last_ic4 = _I4;
+      last_I4 = _I4;
     }
     gemm.execute(
         &md2(atoutput3, _O4, 0),
@@ -131,9 +131,9 @@ void Instance_elx_conv_wino_t::__execute_a073(
     });
   }
 
-  int last_ic4 = -1, last_t2 = -1;
+  int last_I4 = -1, last_t2 = -1;
 
-  estl::parallel_for<3, 2>(mthr_, [&, last_ic4, last_t2]
+  estl::parallel_for<3, 2>(mthr_, [&, last_I4, last_t2]
                            (int _t2, int _O4, int _I4) mutable {
     MD2(TinputType, atinput2, tinput_, mthr_,
         A * A * this->T * this->I3 * this->I2 * V);
@@ -146,10 +146,10 @@ void Instance_elx_conv_wino_t::__execute_a073(
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
     int ithr = estl::current_thread_index();
 
-    if (last_ic4 != _I4 || last_t2 != _t2) {
+    if (last_I4 != _I4 || last_t2 != _t2) {
       trans_input(&md2(atinput2, ithr, 0), input, Tz, _t2, _I4);
       last_t2 = _t2;
-      last_ic4 = _I4;
+      last_I4 = _I4;
     }
     gemm.execute_na(
         &md2(atoutput2, ithr, 0),
@@ -169,9 +169,9 @@ void Instance_elx_conv_wino_t::__execute_a07b(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  int last_ic4 = -1, last_t2 = -1, last_oc4 = -1;
+  int last_I4 = -1, last_t2 = -1, last_O4 = -1;
 
-  estl::parallel_for<3, 1>(mthr_, [&, last_ic4, last_t2, last_oc4]
+  estl::parallel_for<3, 1>(mthr_, [&, last_I4, last_t2, last_O4]
                            (int _O4, int _I4, int _t2) mutable {
     MD2(TinputType, atinput2, tinput_, mthr_,
         A * A * this->T * this->I3 * this->I2 * V);
@@ -184,10 +184,10 @@ void Instance_elx_conv_wino_t::__execute_a07b(
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
     int ithr = estl::current_thread_index();
 
-    if (last_ic4 != _I4 || last_oc4 != _O4) {
+    if (last_I4 != _I4 || last_O4 != _O4) {
       trans_weights(&md2(atweights2, ithr, 0), weights, _I4, _O4);
     }
-    if (last_ic4 != _I4 || last_t2 != _t2) {
+    if (last_I4 != _I4 || last_t2 != _t2) {
       trans_input(&md2(atinput2, ithr, 0), input, Tz, _t2, _I4);
     }
     gemm.execute_na(
@@ -197,7 +197,7 @@ void Instance_elx_conv_wino_t::__execute_a07b(
         _t2, Tz, _I4);
     trans_output(output, &md2(atoutput2, ithr, 0),
                  &md2(abias, _O4, 0), Tz, _t2, _O4, _I4);
-    last_oc4 = _O4; last_ic4 = _I4; last_t2 = _t2;
+    last_O4 = _O4; last_I4 = _I4; last_t2 = _t2;
   }, this->O4, this->I4, this->t2);
 }
 
@@ -206,9 +206,9 @@ void Instance_elx_conv_wino_t::__execute_a079(
     OutputType * __restrict output, InputType * __restrict input,
     WeightsType * __restrict weights, BiasType * __restrict bias)
 {
-  int last_ic4 = -1, last_t2 = -1, last_oc4 = -1;
+  int last_I4 = -1, last_t2 = -1, last_O4 = -1;
 
-  estl::parallel_for<3, 1>(mthr_, [&, last_ic4, last_t2, last_oc4]
+  estl::parallel_for<3, 1>(mthr_, [&, last_I4, last_t2, last_O4]
                            (int _O4, int _I4, int _t2) mutable {
     MD2(TinputType, atinput2, tinput_, mthr_,
         A * A * this->T * this->I3 * this->I2 * V);
@@ -224,10 +224,10 @@ void Instance_elx_conv_wino_t::__execute_a079(
     MD2(ToutputType, atoutput3, &md2(atoutput2, _t2, 0),
         this->O4, A * A * Tz * this->O3 * this->O2 * V);
 
-    if (last_ic4 != _I4 || last_oc4 != _O4) {
+    if (last_I4 != _I4 || last_O4 != _O4) {
       trans_weights(&md2(atweights2, ithr, 0), weights, _I4, _O4);
     }
-    if (last_ic4 != _I4 || last_t2 != _t2) {
+    if (last_I4 != _I4 || last_t2 != _t2) {
       trans_input(&md2(atinput2, ithr, 0), input, Tz, _t2, _I4);
     }
     gemm.execute(
@@ -239,7 +239,7 @@ void Instance_elx_conv_wino_t::__execute_a079(
       trans_output(output, &md2(atoutput3, _O4, 0),
                    &md2(abias, _O4, 0), Tz, _t2, _O4, _I4);
     }
-    last_oc4 = _O4; last_ic4 = _I4; last_t2 = _t2;
+    last_O4 = _O4; last_I4 = _I4; last_t2 = _t2;
   }, this->O4, this->I4, this->t2);
 }
 
@@ -285,12 +285,12 @@ void Instance_elx_conv_wino_t::__execute_a033(
 
   THREAD_PARALLEL()
   {
-    int last_ic4 = -1;
+    int last_I4 = -1;
     iter_each(_I4, this->I4) {
     iter_each(_O4, this->O4) {
-      if (_I4 != last_ic4) {
+      if (_I4 != last_I4) {
         trans_input(_tinput, input, _I4);
-        last_ic4 = _I4;
+        last_I4 = _I4;
       }
       THREAD_BARRIER()
       gemm.execute_na(toutput_, _tinput, &md3(atweights, _O4, _I4, 0), _I4);

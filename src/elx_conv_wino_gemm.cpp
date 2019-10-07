@@ -42,8 +42,8 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
       int _wA = n % A;
       int _hA = n / A;
       iter_each(_O3, xc->O3) {
-        bool last_ic4 = _I4 == xc->I4 - 1;
-        int I3 = last_ic4 ? xc->I3 - 1 : xc->I3;
+        bool last_I4 = _I4 == xc->I4 - 1;
+        int I3 = last_I4 ? xc->I3 - 1 : xc->I3;
         iter_each(_I3, I3) {
           int attr = _I3 == 0 && _I4 == 0
               ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
@@ -53,7 +53,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
               &md5(atweights, _O3, _I3, _hA, _wA, 0),
               nullptr, attr);
         }
-        if (last_ic4) {
+        if (last_I4) {
           auto attr = xc->I3 == 1 && xc->I4 == 1
                           ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK)
                           : attr_;
@@ -71,8 +71,8 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
     iter_each(_hA, A) {
     iter_each(_wA, A) {
     iter_each(_O3, xc->O3) {
-      bool last_ic4 = _I4 == xc->I4 - 1;
-      int I3 = last_ic4 ? xc->I3 - 1 : xc->I3;
+      bool last_I4 = _I4 == xc->I4 - 1;
+      int I3 = last_I4 ? xc->I3 - 1 : xc->I3;
       iter_each(_I3, I3) {
         int attr =
             _I3 == 0 && _I4 == 0 ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
@@ -82,7 +82,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
             &md5(atweights, _O3, _I3, _hA, _wA, 0),
             nullptr, attr);
       }
-      if (last_ic4) {
+      if (last_I4) {
         auto attr = xc->I3 == 1 && xc->I4 == 1
                         ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK)
                         : attr_;
@@ -118,8 +118,8 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
       int _wA = n % A;
       int _hA = n / A;
       iter_each(_O3, xc->O3) {
-        bool last_ic4 = _I4 == xc->I4 - 1;
-        int I3 = last_ic4 ? xc->I3 - 1 : xc->I3;
+        bool last_I4 = _I4 == xc->I4 - 1;
+        int I3 = last_I4 ? xc->I3 - 1 : xc->I3;
         iter_each(_I3, I3) {
           int attr = _I3 == 0 ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
           ker_gemm(*xc,
@@ -128,7 +128,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
               &md5(atweights, _O3, _I3, _hA, _wA, 0),
               nullptr, attr);
         }
-        if (last_ic4) {
+        if (last_I4) {
           auto attr = xc->I3 == 1 ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
           if (xc->Ir != V)
             attr = set_bit(attr, AT_Ir_MASK);
@@ -144,8 +144,8 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
     iter_each(_hA, A) {
     iter_each(_wA, A) {
     iter_each(_O3, xc->O3) {
-      bool last_ic4 = _I4 == xc->I4 - 1;
-      int I3 = last_ic4 ? xc->I3 - 1 : xc->I3;
+      bool last_I4 = _I4 == xc->I4 - 1;
+      int I3 = last_I4 ? xc->I3 - 1 : xc->I3;
       iter_each(_I3, I3) {
         int attr = _I3 == 0 ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
         ker_gemm(*xc,
@@ -154,7 +154,7 @@ void elx_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
             &md5(atweights, _O3, _I3, _hA, _wA, 0),
             nullptr, attr);
       }
-      if (last_ic4) {
+      if (last_I4) {
         auto attr = xc->I3 == 1 ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
         if (xc->Ir != V)
           attr = set_bit(attr, AT_Ir_MASK);

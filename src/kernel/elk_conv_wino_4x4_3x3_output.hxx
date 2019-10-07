@@ -29,7 +29,7 @@ struct elk_conv_wino_trans_output<float,OutputType, BiasType, format,
     }
 
     bool fuse_ip_sum = with_ip_sum && (wOA_end != -1);
-    // TODO replace bias != nullptr with last_ic4 condition
+    // TODO replace bias != nullptr with last_I4 condition
     bool fuse_bias = with_bias && (bias != nullptr);
     bool fuse_relu = with_relu && (bias != nullptr);
 

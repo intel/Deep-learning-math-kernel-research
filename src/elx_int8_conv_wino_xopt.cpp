@@ -42,13 +42,13 @@ void Instance_elx_int8_conv_wino_t::__execute_a133(
 
   THREAD_PARALLEL()
   {
-    int last_ic4 = -1;
+    int last_I4 = -1;
     iter_each (_I4, this->I4) {
     iter_each (_O4, this->O4) {
-      if (_I4 != last_ic4) {
+      if (_I4 != last_I4) {
         trans_input_u8(
             tinput_quant_scale_, tinput_u8_, tinput_, input, _I4);
-        last_ic4 = _I4;
+        last_I4 = _I4;
       }
       THREAD_BARRIER()
       u8s8_gemm.execute_na(toutput_, tinput_u8_,
@@ -131,9 +131,9 @@ void Instance_elx_int8_conv_wino_t::__execute_a173(
     });
   }
 
-  int last_ic4 = -1, last_t2 = -1;
+  int last_I4 = -1, last_t2 = -1;
   estl::parallel_for<3, 1>(
-      mthr_, [&, last_ic4, last_t2](int _t2, int _I4, int _O4) mutable {
+      mthr_, [&, last_I4, last_t2](int _t2, int _I4, int _O4) mutable {
     int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
     size_t ithr = estl::current_thread_index();
     MD2(TinputType, atinput2, tinput_, mthr_,
@@ -155,12 +155,12 @@ void Instance_elx_int8_conv_wino_t::__execute_a173(
     MD3(TscaleType, aweights_quant_factor, tweights_quant_factor_,
         this->O4, this->I4, this->O3 * this->O2 * V * A * A);
 
-    if (last_ic4 != _I4 || last_t2 != _t2) {
+    if (last_I4 != _I4 || last_t2 != _t2) {
       trans_input_u8(
           &md2(atinput_quant_scale, ithr, 0),
           &md2(atinput2_u8, ithr, 0), &md2(atinput2, ithr, 0),
           &md3(ainput, 0, _I4, 0), _t2, Tz);
-      last_t2 = _t2; last_ic4 = _I4;
+      last_t2 = _t2; last_I4 = _I4;
     }
     u8s8_gemm.execute_na(
         &md2(atoutput2, ithr, 0),

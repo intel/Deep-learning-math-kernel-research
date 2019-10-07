@@ -31,10 +31,10 @@ struct elx_conv_params_t {
   int G, IC, OC, Ir, Or, Tr, O2r, O3r;
   // 2nd/3rd/4-th level cache blocking unit(in pack) to g, ic, oc
   int G2, G3, I2, I3, I4, O, O1, O2, O3, O4;
-  // dimensions in packed unit
-  int g23, ic2, oc2, ih2, iw2, oh2, ow2, t2;
   // dimensions in pack-in-pack unit
-  int ic34, oc34, ih3, iw3, oh3, ow3;
+  int g23, ic234, oc234, ic34, oc34, ih2, iw2, oh2, ow2, t2;
+  // dimension alias
+  int &g2 = g23, &ic2 = ic234, &oc2 = oc234, &ic3 = ic34, &oc3 = oc34;
 
   // padding
   int lp, rp, tp, bp;
