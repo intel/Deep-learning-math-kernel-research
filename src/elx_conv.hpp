@@ -16,34 +16,37 @@ namespace euler {
 
 struct elx_conv_params_t {
   // dimensions
-  int g, ic, oc, ih, iw, oh, ow, n, t, kh, kw;
-  // dimensions in tiles: tiles per (image, line, column)
-  int nt, ht, wt;
-  // pack size
-  // int V;
-  // int8 gemm
-  int V1, Vx;
-  // tile-size
-  // int A;
-  // register working set
-  int T;
-  // padding (IC/OC) & tailing dimensions: Ir, Or, Tr
-  int G, IC, OC, Ir, Or, Tr, O2r, O3r;
-  // 2nd/3rd/4-th level cache blocking unit(in pack) to g, ic, oc
-  int G2, G3, I2, I3, I4, O, O1, O2, O3, O4;
-  // dimensions in pack-in-pack unit
-  int g23, ic234, oc234, ic34, oc34, ih2, iw2, oh2, ow2, t2;
-  // dimension alias
-  int &g2 = g23, &ic2 = ic234, &oc2 = oc234, &ic3 = ic34, &oc3 = oc34;
+  int g, ic, oc, ih, iw, oh, ow, n, kh, kw;
+  // padding, stride, dilation
+  int lp, rp, tp, bp, hs, ws, hd, wd;
 
-  // padding
-  int lp, rp, tp, bp;
-  // stride
-  int hs, ws;
-  // dilation
-  int hd, wd;
+  // V: vector pack size, Vx: dot-product width, V = V1 * Vx
+  int /* V, */ V1, Vx;
+  // padded (align-up to V) g/ic/oc
+  int G, IC, OC;
+  // 2nd/3rd/4-th level blocking unit to g, ic, oc
+  int G2, G3, I2, I3, I4, O2, O3, O4;
+  // O2 kernel blocking: O2 = O * O1, O/O1: kernel inner/outer loop
+  int O, O1;
+  // tailing
+  int Ir, Or, Tr, O2r, O3r;
+  // g23 = G2 * G3, ic234 = I2 * I3 * I4, ic34 = I3 * I4, ...
+  int g23, ic234, oc234, ic34, oc34;
+  // heler alias
+  int &g2 = g23, &ic2 = ic234, &oc2 = oc234, &ic3 = ic34, &oc3 = oc34;
   // saved group number, ic, oc per group, kernel multi-group number
   int grp, icg, ocg, vmg;
+
+  // winograd tile-size
+  /* int A; */
+  // number of tiles per (image, row, column, tensor)
+  int nt, ht, wt, t;
+
+  // spatial blocking unit
+  int T;
+  // 2nd level blocking to spatial (row, column, tensor)
+  int ih2, iw2, oh2, ow2, t2;
+
   // Or masks
   unsigned int ormask;
 
