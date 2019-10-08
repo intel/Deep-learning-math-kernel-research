@@ -30,8 +30,8 @@ struct elx_conv_params_t {
   int O, O1;
   // tailing
   int Ir, Or, Tr, O2r, O3r;
-  // g23 = G2 * G3, ic234 = I2 * I3 * I4, ic34 = I3 * I4, ...
-  int g23, ic234, oc234, ic34, oc34;
+  // g23 = G2 * G3, ic234 = I2 * I3 * I4, ic123 = V * I2 * I3, ...
+  int g23, ic234, oc234, ic34, oc34, ic123, oc123, ic23, oc23;
   // heler alias
   int &g2 = g23, &ic2 = ic234, &oc2 = oc234, &ic3 = ic34, &oc3 = oc34;
   // saved group number, ic, oc per group, kernel multi-group number
