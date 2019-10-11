@@ -60,8 +60,10 @@ Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
       bool shape_ok = estl::any_of(this->kh, 3, 5, 7)
           && estl::any_of(this->kw, 3, 5, 7)
           && (this->ws == 1 || this->ws == 2)
-          && estl::any_of(this->lp, 0, this->kw / 2)
-          && estl::any_of(this->tp, 0, this->kh / 2);
+          && estl::any_of(this->lp, this->kw / 2 - 1, this->kw / 2)
+          && estl::any_of(this->rp, this->kw / 2 - 1, this->kw / 2)
+          && estl::any_of(this->tp, this->kh / 2 - 1, this->kh / 2)
+          && estl::any_of(this->bp, this->kh / 2 - 1, this->kh / 2);
       if (!shape_ok) {
         el_error("direct: a160: shape not supported");
       }
