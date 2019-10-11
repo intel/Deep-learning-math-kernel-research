@@ -51,7 +51,6 @@ Instance_elx_conv_direct_vmg_t::bind_execute_functions() {
   bind_conv_kernel(this->O, this->Tr, &ker_conv_Tr_, this->kw, this->G);
 #define EXECUTE_CASE(n)                                                        \
   case 0x##n:                                                                  \
-    printf("execute_opt=" #n "\n");                                            \
     execute_opt_ = &Instance_elx_conv_direct_vmg_t::__execute_##n;             \
     break
 

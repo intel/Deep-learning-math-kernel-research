@@ -78,6 +78,7 @@ include("cmake/flags.cmake")
 
 # find src files
 file (GLOB __euler_source
+  src/common/el_log.cpp
   src/eld_conv.cpp
   src/elx_conv.cpp
   src/elx_conv_wino_trans_input.cpp

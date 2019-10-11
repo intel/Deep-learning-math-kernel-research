@@ -54,6 +54,14 @@ Template_elx_int8_conv_wino_t Instance_elx_int8_conv_wino_t::elx_int8_conv_wino_
 
   this->t2 = (this->t + this->T - 1) / this->T;
 
+  if (V * this->I2 * this->I3 * this->I4 != this->IC) {
+    el_error("V * I2 * I3 * I4 != this->IC\n)");
+  }
+
+  if (V * this->O2 * this->O3 * this->O4 != this->OC) {
+    el_error("V * O2 * O3 * O4 != this->OC\n)");
+  }
+
   if (this->sampling_kind != CALIBRATED) {
     el_error("Winograd: to enable sampling from elk_u8s8_gemm");
   }
@@ -67,32 +75,11 @@ Template_elx_int8_conv_wino_t Instance_elx_int8_conv_wino_t::elx_int8_conv_wino_
   trans_output.setup(this);
 
   // dbg
-  printf("############################################################\n");
-  printf("T=%d, Tr=%d, t2=%d, t=%d\n", this->T, this->Tr, this->t2, this->t);
-  printf("V=%d, Ir=%d, Vx=%d, I2=%d, I3=%d, I4=%d, IC=%d\n",
-      V, this->Ir, this->Vx, this->I2, this->I3, this->I4, this->IC);
-  printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, OC=%d\n",
-      V, this->Or, this->O2, this->O, this->O1, this->O3, this->O4, this->OC);
-
-#ifdef DEBUG
-  if (V * this->I2 * this->I3 * this->I4 != this->IC) {
-    el_warn("V * I2 * I3 * I4 != this->IC\n Force I4 = IC / (V * I2 * I3)");
-    this->I4 = this->IC / (V * this->I2 * this->I3);
-  }
-
-  if (V * this->O2 * this->O3 * this->O4 != this->OC) {
-    el_warn("V * O2 * O3 * O4 != this->OC\n Force O4 = OC / (V * O2 * O3)");
-    this->O4 = this->OC / (V * this->O2 * this->O3);
-  }
-#else
-  if (V * this->I2 * this->I3 * this->I4 != this->IC) {
-    el_error("V * I2 * I3 * I4 != this->IC\n)");
-  }
-
-  if (V * this->O2 * this->O3 * this->O4 != this->OC) {
-    el_error("V * O2 * O3 * O4 != this->OC\n)");
-  }
-#endif
+  el_log(DEBUG, "T=%d, Tr=%d, t2=%d, t=%d", this->T, this->Tr, this->t2, this->t);
+  el_log(DEBUG, "V=%d, Ir=%d, Vx=%d, I2=%d, I3=%d, I4=%d, IC=%d",
+         V, this->Ir, this->Vx, this->I2, this->I3, this->I4, this->IC);
+  el_log(DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, OC=%d",
+         V, this->Or, this->O2, this->O, this->O1, this->O3, this->O4, this->OC);
 }
 
 Template_elx_int8_conv_wino_t

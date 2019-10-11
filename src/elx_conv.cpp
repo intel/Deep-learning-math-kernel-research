@@ -192,17 +192,17 @@ void elx_conv_t::execute_verbose(void *output, void *input, void *weights,
 
   this->execute(output, input, weights, bias);
 
-  printf("euler_verbose,%s,ih:%d;oh:%d;ic:%d;oc:%d,"\
-         "%s;%x,src:%s;wei:%s;dst:%s,src:%s;wei:%s;dst:%s;b:%s, %lf\n",
-      this->name.c_str(), this->ih, this->oh, this->ic, this->oc,
-      algorithm_to_string(this->algorithm), this->execution_mode,
-      format_to_string(this->input_fmt), format_to_string(this->weights_fmt),
-      format_to_string(this->output_fmt),
-      datatype_to_string(this->input_data_type),
-      datatype_to_string(this->weights_data_type),
-      datatype_to_string(this->output_data_type),
-      datatype_to_string(this->bias_data_type),
-      hrc_duration(hrc::now() - start_ts).count());
+  el_log(PERF_TRACE, "%s,ih:%d;oh:%d;ic:%d;oc:%d,"\
+         "%s;%x,src:%s;wei:%s;dst:%s,src:%s;wei:%s;dst:%s;b:%s, %lf",
+         this->name.c_str(), this->ih, this->oh, this->ic, this->oc,
+         algorithm_to_string(this->algorithm), this->execution_mode,
+         format_to_string(this->input_fmt), format_to_string(this->weights_fmt),
+         format_to_string(this->output_fmt),
+         datatype_to_string(this->input_data_type),
+         datatype_to_string(this->weights_data_type),
+         datatype_to_string(this->output_data_type),
+         datatype_to_string(this->bias_data_type),
+         hrc_duration(hrc::now() - start_ts).count());
 }
 
 int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *bias)

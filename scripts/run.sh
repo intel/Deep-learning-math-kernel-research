@@ -2,9 +2,6 @@
 
 ROOT_DIR="$(dirname $(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd))"
 
-echo Root dir: $ROOT_DIR
-echo
-
 nsockets=$NSOCKETS
 ncores_per_socket=
 nthreads_per_core=1
@@ -31,7 +28,6 @@ else # TBB
   fi
   OMP_ENV="KMP_BLOCKTIME=0"
 fi
-echo OMP Environment: $OMP_ENV
 
 function conv_test() {
   # Default
@@ -200,7 +196,7 @@ function conv_test() {
   if [ "x$input_file" != "x" ]; then input_file_opt="--input-data-file=$input_file"; fi
   if [ "x$weights_file" != "x" ]; then weights_file_opt="--weights-data-file=$weights_file"; fi
   if [ "x$bias_file" != "x" ]; then bias_file_opt="--bias-data-file=$bias_file"; fi
-  set -v
+  #set -v
   eval $OMP_ENV $ROOT_DIR/$build_dir/tests/elt_conv \
     -mb=$n -g=$g -ic=$i -oc=$o -ih=$h -iw=$w -oh=$H -ow=$W -kh=$k -kw=$K -ph=$p -pw=$P -sh=$s -sw=$S \
     -with_bias=$b -with_relu=$r -validate_results=$v -alg=$a -repeated_layer=$l -dbuffering=$B -output_as_input=$A \
@@ -247,7 +243,6 @@ while getopts ":hc" opt; do
       exit 0
       ;;
     c)
-      echo Run convolution test...
       shift
       conv_test $@
       exit 0

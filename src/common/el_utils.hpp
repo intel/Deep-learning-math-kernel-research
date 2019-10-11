@@ -6,8 +6,10 @@
 #include <cxxabi.h>
 #include <chrono>
 #include <algorithm>
+#include <stdarg.h>
 #include "el_mdarray.hpp"
 #include "el_def.hpp"
+#include "el_log.hpp"
 #include "euler.hpp"
 
 // Compiler
@@ -46,8 +48,9 @@
 #define __tend(n)                                                              \
   _(std::chrono::high_resolution_clock::time_point __e##n =                    \
     std::chrono::high_resolution_clock::now());                                \
-  _(printf("time: %s, th=%d, %.2f ms\n", #n, estl::current_thread_index(),     \
-      std::chrono::duration<float, std::milli>(__e##n - __s##n).count()));
+  _(el_log(DEBUG, "time: %s, th=%d, %.2f ms", #n,                              \
+           estl::current_thread_index(),                                       \
+           std::chrono::duration<float, std::milli>(__e##n - __s##n).count()));
 
 // misc.
 #define STRINGIFY(x) #x
@@ -85,13 +88,18 @@ static inline uint32_t clear_bit(const uint32_t v, const uint32_t mask) {
   return v & ~mask;
 }
 
-static inline void el_error(const char *msg) {
-  printf("Euler:Error: %s\n", msg);
-  abort();
-}
-
-static inline void el_warn(const char *msg) {
-  printf("Euler:Warning: %s\n", msg);
+static inline const char *log_severity_to_string(int severity) {
+  switch (severity) {
+  case TRACE: return "trace";
+  case DEBUG: return "debug";
+  case INFO: return "info";
+  case WARN: return "warn";
+  case ERROR: return "error";
+  case FATAL: return "fatal";
+  case PERF_TRACE: return "perf";
+  default: return "log-severity-unknown";
+  }
+  return "unknown";
 }
 
 static inline const char *format_to_string(int fmt) {
@@ -108,7 +116,7 @@ static inline const char *format_to_string(int fmt) {
     case ghwio: return "ghwio";
     case gOIhw16i16o: return "gOIhw16i16o";
     case gOIhw8i8o: return "gOIhw8i8o";
-    default: return "unknown"; break;
+    default: return "format-unknown";
   }
   return "unknown";
 }
@@ -120,7 +128,7 @@ static inline const char *algorithm_to_string(int alg) {
     case CONV_DIRECT_VMG: return "direct_conv_vmg";
     case CONV_WINOGRAD: return "winograd_conv";
     case DECONV_DIRECT: return "deconv";
-    default: return "unknown"; break;
+    default: return "algorithm-unknown";
   }
   return "unknown";
 }
@@ -132,7 +140,7 @@ static inline const char *datatype_to_string(int dt) {
     case u8: return "u8";
     case s8: return "s8";
     case s32: return "s32";
-    default: return "unknown";
+    default: return "datatype-unknown";
   }
   return "unknown";
 }
@@ -141,7 +149,7 @@ static inline const char *mt_runtime_to_string(int t) {
   switch (t) {
     case MT_RUNTIME_TBB: return "TBB";
     case MT_RUNTIME_OMP: return "OMP";
-    default: return "unknown";
+    default: return "mt-runtime-unknown";
   }
   return "unknown";
 }

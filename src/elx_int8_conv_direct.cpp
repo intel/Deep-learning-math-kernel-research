@@ -116,13 +116,13 @@ Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
   bind_execute_functions();
 
   // dbg
-  printf("T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d\n",
-      this->T, this->Tr, this->t2, this->ht, this->wt, this->t);
-  printf("V=%d, Ir=%d, Vx=%d, I2=%d, I3=%d, I4=%d, IC=%d\n",
-      V, this->Ir, this->Vx, this->I2, this->I3, this->I4, this->IC);
-  printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d\n",
-      V, this->Or, this->O2, this->O, this->O1,
-      this->O3, this->O4, this->O2r, this->O3r, this->OC);
+  el_log(DEBUG, "T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d",
+         this->T, this->Tr, this->t2, this->ht, this->wt, this->t);
+  el_log(DEBUG, "V=%d, Ir=%d, Vx=%d, I2=%d, I3=%d, I4=%d, IC=%d",
+         V, this->Ir, this->Vx, this->I2, this->I3, this->I4, this->IC);
+  el_log(DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d",
+         V, this->Or, this->O2, this->O, this->O1,
+         this->O3, this->O4, this->O2r, this->O3r, this->OC);
 }
 
 Template_elx_int8_conv_direct_t
@@ -257,7 +257,7 @@ Instance_elx_int8_conv_direct_t::prepare_weights_acc() {
       wacc_h_ranges_.push_back(*t);
     }
     for (auto i : wacc_h_ranges_) {
-      printf("kh_ranges: %d, %d\n", std::get<0>(i), std::get<1>(i));
+      el_log(DEBUG, "kh_ranges: %d, %d", std::get<0>(i), std::get<1>(i));
     }
 
     // kw-ranges
@@ -276,7 +276,7 @@ Instance_elx_int8_conv_direct_t::prepare_weights_acc() {
       wacc_w_ranges_.push_back(*t);
     }
     for (auto i : wacc_w_ranges_) {
-      printf("kw_ranges: %d, %d\n", std::get<0>(i), std::get<1>(i));
+      el_log(DEBUG, "kw_ranges: %d, %d", std::get<0>(i), std::get<1>(i));
     }
 
     wacc_wt_ = this->wt >= 3 ? 3 : this->wt; // left T, middle T (full), right Tr
@@ -289,12 +289,12 @@ Instance_elx_int8_conv_direct_t::prepare_weights_acc() {
   }
 
   // Debug
-  printf(
-      "wacc_h_:%d, wacc_w_:%d, _wacc_hf_:%d, _wacc_wf_:%d, _wacc_hfr_:%d, "
-      "_wacc_wfr_:%d, wacc_wt_:%d, wacc_wT_:%d, _wacc_ohfs_:%d, "
-      "_wacc_ohfe_:%d, _wacc_owfs_:%d, _wacc_owfe_:%d\n",
-      wacc_h_, wacc_w_, _wacc_hf_, _wacc_wf_, _wacc_hfr_, _wacc_wfr_, wacc_wt_,
-      wacc_wT_, _wacc_ohfs_, _wacc_ohfe_, _wacc_owfs_, _wacc_owfe_);
+  el_log(DEBUG, 
+         "wacc_h_:%d, wacc_w_:%d, _wacc_hf_:%d, _wacc_wf_:%d, _wacc_hfr_:%d, "
+         "_wacc_wfr_:%d, wacc_wt_:%d, wacc_wT_:%d, _wacc_ohfs_:%d, "
+         "_wacc_ohfe_:%d, _wacc_owfs_:%d, _wacc_owfe_:%d",
+         wacc_h_, wacc_w_, _wacc_hf_, _wacc_wf_, _wacc_hfr_, _wacc_wfr_, wacc_wt_,
+         wacc_wT_, _wacc_ohfs_, _wacc_ohfe_, _wacc_owfs_, _wacc_owfe_);
 }
 
 Template_elx_int8_conv_direct_t void

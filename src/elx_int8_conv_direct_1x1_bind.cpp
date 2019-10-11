@@ -62,8 +62,7 @@ Instance_elx_int8_conv_direct_1x1_t::bind_execute_functions() {
 
 #define EXECUTE_CASE(n)                                                        \
   case 0x##n:                                                                  \
-    printf("execute_opt=" #n "\n");                                            \
-    execute_opt_ = &Instance_elx_int8_conv_direct_1x1_t::__execute_##n;          \
+    execute_opt_ = &Instance_elx_int8_conv_direct_1x1_t::__execute_##n;        \
     break
 
   switch (xopt_) {

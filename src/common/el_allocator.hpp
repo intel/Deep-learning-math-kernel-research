@@ -20,9 +20,9 @@ public:
     fd_ = open(key, O_CREAT | O_RDWR, 0644);
     int rc = flock(fd_, LOCK_EX); // blocking
     if (rc) {
-      printf("Euler: process_singleton: flock failed: key=%s\n", key);
+      el_log(INFO, "process_singleton: flock failed: key=%s", key);
     } else {
-      printf("Euler: process_singleton: flock success: key=%s\n", key);
+      el_log(INFO, "process_singleton: flock success: key=%s", key);
     }
   }
 

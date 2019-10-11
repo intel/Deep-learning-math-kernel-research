@@ -114,13 +114,13 @@ Instance_elx_conv_direct_vmg_t::elx_conv_direct_vmg_t(eld_conv_t &dc)
   bind_execute_functions();
 
   // dbg
-  printf("T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d\n",
-      this->T, this->Tr, this->t2, this->ht, this->wt, this->t);
-  printf("V=%d, Ir=%d, I2=%d, I3=%d, I4=%d, IC=%d, g=%d\n",
-      V, this->Ir, this->I2, this->I3, this->I4, this->IC, this->g);
-  printf("V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d, g=%d, G=%d, C=%d\n",
-      V, this->Or, this->O2, this->O, this->O1,
-      this->O3, this->O4, this->O2r, this->O3r, this->OC, this->g, G, C);
+  el_log(DEBUG, "T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d",
+         this->T, this->Tr, this->t2, this->ht, this->wt, this->t);
+  el_log(DEBUG, "V=%d, Ir=%d, I2=%d, I3=%d, I4=%d, IC=%d, g=%d",
+         V, this->Ir, this->I2, this->I3, this->I4, this->IC, this->g);
+  el_log(DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d, g=%d, G=%d, C=%d",
+         V, this->Or, this->O2, this->O, this->O1,
+         this->O3, this->O4, this->O2r, this->O3r, this->OC, this->g, G, C);
 }
 
 Template_elx_conv_direct_vmg_t

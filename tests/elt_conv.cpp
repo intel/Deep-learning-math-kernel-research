@@ -15,6 +15,8 @@
 
 using namespace euler;
 
+bool verbose = false;
+
 // Covolution options
 int mb = 0, g = 1, ic = 0, ih = 0, iw = 0, oc = 0, oh = 0, ow = 0, kh = 3, kw = 3;
 int ph = 1, pw = 1, sh = 1, sw = 1, dh = 1, dw = 1;
@@ -218,7 +220,8 @@ int parse_cmd_options(int argc, char **argv) {
   iw = iw == 0 ? ih : iw;
   ow = ow == 0 ? oh : ow;
 
-  printf("Convolution options:\n"
+  if (verbose) {
+    printf("Convolution options:\n"
          "mb:%d, g:%d, ic:%d, ih:%d, iw:%d, oc:%d, oh:%d, ow:%d, kh:%d, kw:%d, "
          "ph:%d, pw:%d, sh:%d, sw:%d, dh:%d, dw:%d\n"
          "with_bias:%d, with_relu:%d, with_ip_sum:%d, with_argmax:%d, "
@@ -233,56 +236,57 @@ int parse_cmd_options(int argc, char **argv) {
          flt_o, flt_t, blk_i, blk_o, pat_i, pat_o, pat_g, streaming_input,
          streaming_output, nthreads, execution_mode);
 
-  std::unordered_map<int, const char *> prop_kind_str{
-      {forward_training, "forward_training"},
-      {forward_inference, "forward_inference"},
-      {backward_data, "backward_data"},
-      {backward_weights, "backward_weights"}};
-  printf("prop_kind:%s\n", prop_kind_str[prop_kind]);
+    std::unordered_map<int, const char *> prop_kind_str{
+        {forward_training, "forward_training"},
+        {forward_inference, "forward_inference"},
+        {backward_data, "backward_data"},
+        {backward_weights, "backward_weights"}};
+    printf("prop_kind:%s\n", prop_kind_str[prop_kind]);
 
-  std::unordered_map<int, const char *> alg_str{
-      {CONV_AUTO, "CONV_AUTO"},
-      {CONV_WINOGRAD, "CONV_WINOGRAD"},
-      {CONV_DIRECT, "CONV_DIRECT"},
-      {CONV_DIRECT_1X1, "CONV_DIRECT_1X1"}};
-  printf("alg:%s", alg_str[alg]);
-  if (alg == CONV_WINOGRAD)
-    printf(", tile-size=%d", tile_size);
-  printf("\n");
+    std::unordered_map<int, const char *> alg_str{
+        {CONV_AUTO, "CONV_AUTO"},
+        {CONV_WINOGRAD, "CONV_WINOGRAD"},
+        {CONV_DIRECT, "CONV_DIRECT"},
+        {CONV_DIRECT_1X1, "CONV_DIRECT_1X1"}};
+    printf("alg:%s", alg_str[alg]);
+    if (alg == CONV_WINOGRAD)
+      printf(", tile-size=%d", tile_size);
+    printf("\n");
 
-  std::unordered_map<int, const char *> fmt_str{
-      {nchw, "nchw"}, {nhwc, "nhwc"},       {oihw, "oihw"},
-      {hwio, "hwio"}, {nChw16c, "nChw16c"}, {OIhw16i16o, "OIhw16i16o"},
-      {goihw, "goihw"}, {ghwio, "ghwio"},   {gOIhw16i16o, "gOIhw16i16o"}};
-  printf("input-fmt:%s, weights-fmt:%s, output-fmt:%s\n", fmt_str[input_format],
-         fmt_str[weights_format], fmt_str[output_format]);
-  printf("input-as-blocked:%d, weights_as_blocked:%d, output_as_blocked:%d\n",
-         input_as_blocked, weights_as_blocked, output_as_blocked);
-  printf("double_buffering: %d, output_as_input=%d\n", double_buffering,
-         output_as_input);
+    std::unordered_map<int, const char *> fmt_str{
+        {nchw, "nchw"}, {nhwc, "nhwc"},       {oihw, "oihw"},
+        {hwio, "hwio"}, {nChw16c, "nChw16c"}, {OIhw16i16o, "OIhw16i16o"},
+        {goihw, "goihw"}, {ghwio, "ghwio"},   {gOIhw16i16o, "gOIhw16i16o"}};
+    printf("input-fmt:%s, weights-fmt:%s, output-fmt:%s\n", fmt_str[input_format],
+           fmt_str[weights_format], fmt_str[output_format]);
+    printf("input-as-blocked:%d, weights_as_blocked:%d, output_as_blocked:%d\n",
+           input_as_blocked, weights_as_blocked, output_as_blocked);
+    printf("double_buffering: %d, output_as_input=%d\n", double_buffering,
+           output_as_input);
 
-  // TODO: support tinput quantization only so far
-  if (sampling_kind == euler::CALIBRATED && tinput_cali_s == 0.0 &&
-      tinput_cali_z == 0.0) {
-    tinput_cali_s = 1.0;
-    tinput_cali_z = 1.0;
-    printf("sampling-kind<CALIBRATED> tinput calibration scale: %f <dummy> "
-           "zero: %f <dummy>\n",
-           tinput_cali_s, tinput_cali_z);
-  } else if (sampling_kind == euler::CALIBRATED) {
-    printf("sampling-kind<CALIBRATED> tinput calibration scale: %f zero: %f\n",
-           tinput_cali_s, tinput_cali_z);
-  } else if (sampling_kind == euler::COARSE) {
-    printf("sampling-kind<COARSES>\n");
-  } else if (sampling_kind == euler::FINE) {
-    printf("sampling-kind<FINE>\n");
-  }
+    // TODO: support tinput quantization only so far
+    if (sampling_kind == euler::CALIBRATED && tinput_cali_s == 0.0 &&
+        tinput_cali_z == 0.0) {
+      tinput_cali_s = 1.0;
+      tinput_cali_z = 1.0;
+      printf("sampling-kind<CALIBRATED> tinput calibration scale: %f <dummy> "
+             "zero: %f <dummy>\n",
+             tinput_cali_s, tinput_cali_z);
+    } else if (sampling_kind == euler::CALIBRATED) {
+      printf("sampling-kind<CALIBRATED> tinput calibration scale: %f zero: %f\n",
+             tinput_cali_s, tinput_cali_z);
+    } else if (sampling_kind == euler::COARSE) {
+      printf("sampling-kind<COARSES>\n");
+    } else if (sampling_kind == euler::FINE) {
+      printf("sampling-kind<FINE>\n");
+    }
 
-  if (mb <= 0 || g <= 0 || ic <= 0 || ih <= 0 || iw <= 0 || oc <= 0 ||
-      oh <= 0 || ow <= 0 || kh <= 0 || kw <= 0) {
-    printf("Error: convolution options: mb|g|ic|ih|iw|oc|oh|ow|kh|kw should "
-           "greater than 0\n");
-    return -1;
+    if (mb <= 0 || g <= 0 || ic <= 0 || ih <= 0 || iw <= 0 || oc <= 0 ||
+        oh <= 0 || ow <= 0 || kh <= 0 || kw <= 0) {
+      printf("Error: convolution options: mb|g|ic|ih|iw|oc|oh|ow|kh|kw should "
+             "greater than 0\n");
+      return -1;
+    }
   }
 
   return 0;

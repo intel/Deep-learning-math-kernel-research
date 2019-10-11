@@ -289,13 +289,6 @@ struct u8s8_depthwise_conv_kernel<GarrayTypes, RoutputType, V, Vx,
     return u32;
   }
 
-  static void printv(__i<V> vec, const char *tag) {
-    printf("%s: ", tag);
-    for (int i = 0; i < V; ++i)
-      printf("0x%08x ", ((unsigned int*)&vec)[i]);
-    printf("\n");
-  }
-
   static inline void
   op_conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
       uint8_t *input, int8_t *weights, BiasType *bias, ScaleType *src_scale,

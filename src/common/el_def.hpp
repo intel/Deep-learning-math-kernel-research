@@ -14,6 +14,17 @@ enum {
   ISA_AVX512 = 512
 };
 
+enum {
+  ALL = 0,
+  TRACE = 1,
+  DEBUG = 2,
+  INFO = 3,
+  WARN = 4,
+  ERROR = 5,
+  FATAL = 6,
+  PERF_TRACE = 999, // ensure EULER_VERBOSE always work once set
+};
+
 constexpr size_t PAGE_SIZE = 4096;
 
 // int8 quantization

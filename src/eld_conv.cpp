@@ -26,6 +26,7 @@ eld_conv_t::eld_conv_t()
   dilations = { 1, 1 };
   sizes = { 0, 0, 0, 0 };
   algorithm = CONV_DIRECT;
+  name = "unknown";
   tile_size = 0;
   with_relu = false;
   with_bias = false;

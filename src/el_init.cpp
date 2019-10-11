@@ -15,13 +15,19 @@ __attribute__((constructor)) void el_init() {
   _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
 #endif
 
-  auto env_verbose = getenv("EULER_VERBOSE");
+  // PERF_TRACE
+  auto env_verbose = ::getenv("EULER_VERBOSE");
   if (env_verbose != nullptr && env_verbose[0] == '1') {
     ego.verbose = 1;
   }
 
+  auto env_log_level = ::getenv("EULER_LOG_LEVEL");
+  if (env_log_level != nullptr) {
+    ego.log_level = atoi(env_log_level);
+  }
+
   if (ego.verbose > 0)
-    printf("\nEuler version: %s, MT_RUNTIME: %s\n",
+    el_log(INFO, "Version: %s, MT_RUNTIME: %s",
            XSTRINGIFY(EULER_VERSION), mt_runtime_to_string(MT_RUNTIME));
 
   ego.initialized = true;

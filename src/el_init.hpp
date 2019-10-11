@@ -1,5 +1,7 @@
 #pragma once
 
+#include "el_utils.hpp"
+
 #if __ICC_COMPILER
 #include "xmmintrin.h"
 #include "pmmintrin.h"
@@ -8,7 +10,8 @@
 namespace euler {
 
 struct el_global_option {
-  int verbose = 0; // TODO: log level
+  int log_level = INFO;
+  bool verbose = false; // for EULER_VERBOSE
   bool initialized = false;
 };
 
