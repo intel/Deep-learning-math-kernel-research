@@ -54,14 +54,6 @@ Template_elx_int8_conv_wino_t Instance_elx_int8_conv_wino_t::elx_int8_conv_wino_
 
   this->t2 = (this->t + this->T - 1) / this->T;
 
-  if (V * this->I2 * this->I3 * this->I4 != this->IC) {
-    el_error("V * I2 * I3 * I4 != this->IC\n)");
-  }
-
-  if (V * this->O2 * this->O3 * this->O4 != this->OC) {
-    el_error("V * O2 * O3 * O4 != this->OC\n)");
-  }
-
   if (this->sampling_kind != CALIBRATED) {
     el_error("Winograd: to enable sampling from elk_u8s8_gemm");
   }
@@ -73,6 +65,14 @@ Template_elx_int8_conv_wino_t Instance_elx_int8_conv_wino_t::elx_int8_conv_wino_
   trans_weights_s8.setup(this);
   u8s8_gemm.setup(this);
   trans_output.setup(this);
+
+  if (V * this->I2 * this->I3 * this->I4 != this->IC) {
+    el_error("V * I2 * I3 * I4 != this->IC\n)");
+  }
+
+  if (V * this->O2 * this->O3 * this->O4 != this->OC) {
+    el_error("V * O2 * O3 * O4 != this->OC\n)");
+  }
 
   // dbg
   el_log(DEBUG, "T=%d, Tr=%d, t2=%d, t=%d", this->T, this->Tr, this->t2, this->t);

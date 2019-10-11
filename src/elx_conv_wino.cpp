@@ -58,6 +58,13 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
     el_error("Unimplemented: fuse sum (plain format) and relu together");
   }
 
+  prepare_execute_opt();
+  bind_execute_functions();
+  trans_input.setup(this);
+  trans_weights.setup(this);
+  gemm.setup(this);
+  trans_output.setup(this);
+
   if (V * this->I2 * this->I3 * this->I4 != this->IC) {
     el_error("V * I2 * I3 * I4 != this->IC\n)");
   }
@@ -66,20 +73,13 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
     el_error("V * O2 * O3 * O4 != this->OC\n)");
   }
 
-  prepare_execute_opt();
-  bind_execute_functions();
-  trans_input.setup(this);
-  trans_weights.setup(this);
-  gemm.setup(this);
-  trans_output.setup(this);
-
   // dbg
   el_log(DEBUG, "T=%d, Tr=%d, t2=%d, t=%d", this->T, this->Tr, this->t2, this->t);
   el_log(DEBUG, "V=%d, Ir=%d, Vx=%d, I2=%d, I3=%d, I4=%d, IC=%d",
          V, this->Ir, this->Vx, this->I2, this->I3, this->I4, this->IC);
   el_log(DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, OC=%d",
          V, this->Or, this->O2, this->O, this->O1, this->O3, this->O4, this->OC);
-    }
+}
 
 Template_elx_conv_wino_t
 int Instance_elx_conv_wino_t::prepare_execute_opt()
