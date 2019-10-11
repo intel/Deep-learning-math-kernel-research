@@ -69,7 +69,11 @@ Instance_elx_int8_conv_direct_t::bind_execute_functions()
         if (this->ws == 1) {
           BIND_CONV_KERNEL(1, GKF_FBF, K);
         } else if (this->ws == 2) {
-          BIND_CONV_KERNEL(2, GKF_FBF, K);
+          if (this->lp > this->rp) {
+            BIND_CONV_KERNEL(S2_LLP, GKF_FBF, K);
+          } else {
+            BIND_CONV_KERNEL(2, GKF_FBF, K);
+          }
         } else {
           el_error("Stride > 2 not yet bounded");
         }
@@ -77,7 +81,11 @@ Instance_elx_int8_conv_direct_t::bind_execute_functions()
         if (this->ws == 1) {
           BIND_CONV_KERNEL(1, GKF_FCF, K);
         } else if (this->ws == 2) {
-          BIND_CONV_KERNEL(2, GKF_FCF, K);
+          if (this->lp > this->rp) {
+            BIND_CONV_KERNEL(S2_LLP, GKF_FCF, K);
+          } else {
+            BIND_CONV_KERNEL(2, GKF_FCF, K);
+          }
         } else {
           el_error("Stride > 2 not yet bounded");
         }
@@ -86,7 +94,11 @@ Instance_elx_int8_conv_direct_t::bind_execute_functions()
         if (this->ws == 1) {
           BIND_CONV_KERNEL(1, GKF_FBD, K);
         } else if (this->ws == 2) {
-          BIND_CONV_KERNEL(2, GKF_FBD, K);
+          if (this->lp > this->rp) {
+            BIND_CONV_KERNEL(S2_LLP, GKF_FBD, K);
+          } else {
+            BIND_CONV_KERNEL(2, GKF_FBD, K);
+          }
         } else {
           el_error("Stride > 2 not yet bounded");
         }
@@ -95,7 +107,11 @@ Instance_elx_int8_conv_direct_t::bind_execute_functions()
         if (this->ws == 1) {
           BIND_CONV_KERNEL(1, GKF_DCD, K);
         } else if (this->ws == 2) {
-          BIND_CONV_KERNEL(2, GKF_DCD, K);
+          if (this->lp > this->rp) {
+            BIND_CONV_KERNEL(S2_LLP, GKF_DCD, K);
+          } else {
+            BIND_CONV_KERNEL(2, GKF_DCD, K);
+          }
         } else {
           el_error("Stride > 2 not yet bounded");
         }
@@ -103,7 +119,11 @@ Instance_elx_int8_conv_direct_t::bind_execute_functions()
         if (this->ws == 1) {
           BIND_CONV_KERNEL(1, GKF_FCD, K);
         } else if (this->ws == 2) {
-          BIND_CONV_KERNEL(2, GKF_FCD, K);
+          if (this->lp > this->rp) {
+            BIND_CONV_KERNEL(S2_LLP, GKF_FCD, K);
+          } else {
+            BIND_CONV_KERNEL(2, GKF_FCD, K);
+          }
         } else {
           el_error("Stride > 2 not yet bounded");
         }
@@ -111,7 +131,11 @@ Instance_elx_int8_conv_direct_t::bind_execute_functions()
         if (this->ws == 1) {
           BIND_CONV_KERNEL(1, GKF_DCF, K);
         } else if (this->ws == 2) {
-          BIND_CONV_KERNEL(2, GKF_DCF, K);
+          if (this->lp > this->rp) {
+            BIND_CONV_KERNEL(S2_LLP, GKF_DCF, K);
+          } else {
+            BIND_CONV_KERNEL(2, GKF_DCF, K);
+          }
         } else {
           el_error("Stride > 2 not yet bounded");
         }

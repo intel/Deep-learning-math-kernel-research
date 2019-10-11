@@ -46,11 +46,14 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
   using BiasType = typename GarrayTypes::BiasType;
   using ScaleType = typename GarrayTypes::ScaleType;
 
-  constexpr static auto S = estl::get<0, int, kparams>();
+  constexpr static auto Sp = estl::get<0, int, kparams>();
   constexpr static auto F = estl::get<1, int, kparams>();
   constexpr static auto O = estl::get<2, int, kparams>();
   constexpr static auto T = estl::get<3, int, kparams>();
   constexpr static auto K = estl::get<4, int, kparams>();
+
+  constexpr static auto S = Sp & GKP_S_MASK;
+  constexpr static bool is_LLP = Sp & GKP_LLP_MASK; // is lean-left-padding
 
   // Loop splitting
   constexpr static int J   = J_traits<O, T, K_CONV, WeightsType>::J;
@@ -297,10 +300,11 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     };
     auto gemm_OVxT = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
+      constexpr int thresh = (S == 1 || is_LLP) ? (AKW + S - 1)/S : AKW/S;
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
-        unroll_from_to(_T, (AKW + S - 1)/S, T) {
+        unroll_from_to(_T, thresh, T) {
           auto mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           unroll_for(_O, JO)
@@ -310,10 +314,11 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     };
     auto gemm_OVxxT = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
+      constexpr int thresh = (S == 1 || is_LLP) ? (AKW + S - 2)/S : AKW/S;
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
-        unroll_from_to(_T, (AKW - 1 + S - 1)/S, T) {
+        unroll_from_to(_T, thresh, T) {
           auto mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           unroll_for(_O, JO)
@@ -323,10 +328,11 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     };
     auto gemm_OVxxxT = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
+      constexpr int thresh = (S == 1 || is_LLP) ? (AKW + S - 3)/S : AKW/S;
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
-        unroll_from_to(_T, (AKW - 2 + S - 1)/S, T) {
+        unroll_from_to(_T, thresh, T) {
           auto mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
                                          _I2, _V1, 0, _T);
           unroll_for(_O, JO)
@@ -336,10 +342,11 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     };
     auto gemm_OVTx = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
+      constexpr int thresh = (S == 1 || !is_LLP) ? (AKW + S - 1)/S : AKW/S;
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
-        unroll_for(_T, T - AKW/S) {
+        unroll_for(_T, T - thresh) {
           auto mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           unroll_for(_O, JO)
@@ -349,10 +356,11 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     };
     auto gemm_OVTxx = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
+      constexpr int thresh = (S == 1 || !is_LLP) ? (AKW + S - 2)/S : AKW/S;
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
-        unroll_for(_T, T - (AKW - 1)/S) {
+        unroll_for(_T, T - thresh) {
           auto mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           unroll_for(_O, JO)
@@ -362,10 +370,11 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     };
     auto gemm_OVTxxx = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
+      constexpr int thresh = (S == 1 || !is_LLP) ? (AKW + S - 3)/S : AKW/S;
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
-        unroll_for(_T, T - (AKW - 2)/S) {
+        unroll_for(_T, T - thresh) {
           auto mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           unroll_for(_O, JO)
@@ -396,13 +405,14 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     };
     auto gemm_OVxT_opt = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
+      constexpr int thresh = (S == 1 || is_LLP) ? (AKW + S - 1)/S : AKW/S;
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
           mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V1 + 1, 0, _O);
         }
-        unroll_from_to(_T, (AKW + S - 1)/S, T) {
+        unroll_from_to(_T, thresh, T) {
           auto mmbcst0 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           auto mmbcst1 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
@@ -415,13 +425,14 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     };
     auto gemm_OVxxT_opt = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
+      constexpr int thresh = (S == 1 || is_LLP) ? (AKW + S - 2)/S : AKW/S;
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
           mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V1 + 1, 0, _O);
         }
-        unroll_from_to(_T, (AKW - 1 + S - 1)/S, T) {
+        unroll_from_to(_T, thresh, T) {
           auto mmbcst0 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           auto mmbcst1 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
@@ -434,13 +445,14 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     };
     auto gemm_OVxxxT_opt = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
+      constexpr int thresh = (S == 1 || is_LLP) ? (AKW + S - 3)/S : AKW/S;
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
           mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V1 + 1, 0, _O);
         }
-        unroll_from_to(_T, (AKW - 2 + S - 1)/S, T) {
+        unroll_from_to(_T, thresh, T) {
           auto mmbcst0 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           auto mmbcst1 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
@@ -453,13 +465,14 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     };
     auto gemm_OVTx_opt = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
+      constexpr int thresh = (S == 1 || !is_LLP) ? (AKW + S - 1)/S : AKW/S;
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
           mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V1 + 1, 0, _O);
         }
-        unroll_for(_T, T - AKW/S) {
+        unroll_for(_T, T - thresh) {
           auto mmbcst0 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           auto mmbcst1 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
@@ -472,13 +485,14 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     };
     auto gemm_OVTxx_opt = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
+      constexpr int thresh = (S == 1 || !is_LLP) ? (AKW + S - 2)/S : AKW/S;
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
           mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V1 + 1, 0, _O);
         }
-        unroll_for(_T, T - (AKW - 1)/S) {
+        unroll_for(_T, T - thresh) {
           auto mmbcst0 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           auto mmbcst1 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
@@ -491,13 +505,14 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     };
     auto gemm_OVTxxx_opt = [&](InputType *input_, WeightsType *weights_,
                          int V1_, int _kh, int _kw, int _I2) {
+      constexpr int thresh = (S == 1 || !is_LLP) ? (AKW + S - 3)/S : AKW/S;
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
           mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
           mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V1 + 1, 0, _O);
         }
-        unroll_for(_T, T - (AKW - 2)/S) {
+        unroll_for(_T, T - thresh) {
           auto mmbcst0 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           auto mmbcst1 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,

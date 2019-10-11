@@ -32,45 +32,63 @@ struct u8s8_conv_kernel_binder {
 
   DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 1, GKF_DCD); // direct, blocked, int8-conv
   DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 2, GKF_DCD);
+  DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, S2_LLP, GKF_DCD);
   DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 1, GKF_DCD);
   DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 2, GKF_DCD);
+  DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, S2_LLP, GKF_DCD);
   DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 1, GKF_DCD);
   DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 2, GKF_DCD);
+  DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, S2_LLP, GKF_DCD);
 
   DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 1, GKF_FCF); // direct, nhwc, int8-conv
   DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 2, GKF_FCF);
+  DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, S2_LLP, GKF_FCF);
   DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 1, GKF_FCF);
   DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 2, GKF_FCF);
+  DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, S2_LLP, GKF_FCF);
   DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 1, GKF_FCF);
   DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 2, GKF_FCF);
+  DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, S2_LLP, GKF_FCF);
 
   DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 1, GKF_FCD); // direct, nhwc->blocked, int8-conv
   DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 2, GKF_FCD);
+  DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, S2_LLP, GKF_FCD);
   DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 1, GKF_FCD);
   DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 2, GKF_FCD);
+  DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, S2_LLP, GKF_FCD);
   DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 1, GKF_FCD);
   DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 2, GKF_FCD);
+  DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, S2_LLP, GKF_FCD);
 
   DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 1, GKF_DCF); // direct, blocked->nhwc, int8-conv
   DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 2, GKF_DCF);
+  DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, S2_LLP, GKF_DCF);
   DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 1, GKF_DCF);
   DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 2, GKF_DCF);
+  DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, S2_LLP, GKF_DCF);
   DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 1, GKF_DCF);
   DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 2, GKF_DCF);
+  DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, S2_LLP, GKF_DCF);
 
   DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 1, GKF_FBD); // direct, nhwc->blocked, int8-conv
   DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 2, GKF_FBD);
+  DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, S2_LLP, GKF_FBD);
   DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 1, GKF_FBD);
   DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 2, GKF_FBD);
+  DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, S2_LLP, GKF_FBD);
   DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 1, GKF_FBD);
   DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 2, GKF_FBD);
+  DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, S2_LLP, GKF_FBD);
 
   DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 1, GKF_FBF); // direct, nhwc->nhwc, int8-conv
   DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, 2, GKF_FBF);
+  DECL_U8S8_KCONV_TBL(INT8_F32, float, 16, 4, ISA_AVX512, S2_LLP, GKF_FBF);
   DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 1, GKF_FBF);
   DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, 2, GKF_FBF);
+  DECL_U8S8_KCONV_TBL(INT8_F32, int8_t, 16, 4, ISA_AVX512, S2_LLP, GKF_FBF);
   DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 1, GKF_FBF);
   DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, 2, GKF_FBF);
+  DECL_U8S8_KCONV_TBL(INT8_F32, uint8_t, 16, 4, ISA_AVX512, S2_LLP, GKF_FBF);
 
 
 
@@ -89,6 +107,9 @@ struct u8s8_conv_kernel_binder {
       else if (S == 2)                                                         \
         *func = LOOKUP_U8S8_KCONV_TBL(INT8_F32, otype, 16, 4, ISA_AVX512,      \
             2, GKF_DCD, O, T, K);                                              \
+      else if (S == S2_LLP)                                                    \
+        *func = LOOKUP_U8S8_KCONV_TBL(INT8_F32, otype, 16, 4, ISA_AVX512,      \
+            S2_LLP, GKF_DCD, O, T, K);                                         \
       break;                                                                   \
     case GKF_FBF:                                                              \
       if (S == 1)                                                              \
@@ -97,6 +118,9 @@ struct u8s8_conv_kernel_binder {
       else if (S == 2)                                                         \
         *func = LOOKUP_U8S8_KCONV_TBL(INT8_F32, otype, 16, 4, ISA_AVX512,      \
             2, GKF_FBF, O, T, K);                                              \
+      else if (S == S2_LLP)                                                    \
+        *func = LOOKUP_U8S8_KCONV_TBL(INT8_F32, otype, 16, 4, ISA_AVX512,      \
+            S2_LLP, GKF_FBF, O, T, K);                                         \
       break;                                                                   \
     case GKF_FCF:                                                              \
       if (S == 1)                                                              \
@@ -105,6 +129,9 @@ struct u8s8_conv_kernel_binder {
       else if (S == 2)                                                         \
         *func = LOOKUP_U8S8_KCONV_TBL(INT8_F32, otype, 16, 4, ISA_AVX512,      \
             2, GKF_FCF, O, T, K);                                              \
+      else if (S == S2_LLP)                                                    \
+        *func = LOOKUP_U8S8_KCONV_TBL(INT8_F32, otype, 16, 4, ISA_AVX512,      \
+            S2_LLP, GKF_FCF, O, T, K);                                         \
       break;                                                                   \
     case GKF_DCF:                                                              \
       if (S == 1)                                                              \
@@ -113,6 +140,9 @@ struct u8s8_conv_kernel_binder {
       else if (S == 2)                                                         \
         *func = LOOKUP_U8S8_KCONV_TBL(INT8_F32, otype, 16, 4, ISA_AVX512,      \
             2, GKF_DCF, O, T, K);                                              \
+      else if (S == S2_LLP)                                                    \
+        *func = LOOKUP_U8S8_KCONV_TBL(INT8_F32, otype, 16, 4, ISA_AVX512,      \
+            S2_LLP, GKF_DCF, O, T, K);                                         \
       break;                                                                   \
     case GKF_FCD:                                                              \
       if (S == 1)                                                              \
@@ -121,6 +151,9 @@ struct u8s8_conv_kernel_binder {
       else if (S == 2)                                                         \
         *func = LOOKUP_U8S8_KCONV_TBL(INT8_F32, otype, 16, 4, ISA_AVX512,      \
             2, GKF_FCD, O, T, K);                                              \
+      else if (S == S2_LLP)                                                    \
+        *func = LOOKUP_U8S8_KCONV_TBL(INT8_F32, otype, 16, 4, ISA_AVX512,      \
+            S2_LLP, GKF_FCD, O, T, K);                                         \
       break;                                                                   \
     case GKF_FBD:                                                              \
       if (S == 1)                                                              \
@@ -129,6 +162,9 @@ struct u8s8_conv_kernel_binder {
       else if (S == 2)                                                         \
         *func = LOOKUP_U8S8_KCONV_TBL(INT8_F32, otype, 16, 4, ISA_AVX512,      \
             2, GKF_FBD, O, T, K);                                              \
+       else if (S == S2_LLP)                                                   \
+        *func = LOOKUP_U8S8_KCONV_TBL(INT8_F32, otype, 16, 4, ISA_AVX512,      \
+            S2_LLP, GKF_FBD, O, T, K);                                         \
       break;                                                                   \
     default:                                                                   \
       el_error("Unimlemented conv kernel format");                             \

@@ -55,6 +55,15 @@ const int GKF_FBF = 0xfbf;
 const int GKF_DCF = 0xdcf;
 const int GKF_FCD = 0xfcd;
 
+// Conv padding:
+//   symmetric-padding: pl = pr
+//   lean-right-padding: pl = 2, pl = 3
+//   lean-left-padding: pl = 3, pl = 2
+const int GKP_LLP_MASK = (0x1 << 7);
+const int GKP_S_MASK = ((0x1 << 7) - 1);
+
+const int S2_LLP = 2 | GKP_LLP_MASK;
+
 }  // namespace euler
 
 #endif // __ELK_DEF_HPP__
