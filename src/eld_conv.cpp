@@ -134,8 +134,7 @@ int eld_conv_t::setup(bool fully_setup)
     ow = (dims.iw + pads.l + pads.r - dims.kw) / strides.w + 1;
   }
   if (oh != dims.oh || ow != dims.ow) {
-    el_error("Padding parameter error");
-    return ELX_GENERAL_ERROR;
+    el_warn("Padding parameter error. pads.r/pads.b will be auto adjusted");
   }
 
   xc = nullptr;
