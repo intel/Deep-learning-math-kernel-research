@@ -50,7 +50,6 @@ struct vmg_conv_kernel<GarrayTypes, V, Vx, ISA_AVX512,
   using WeightsType = typename GarrayTypes::WeightsType;
   using OutputType = typename GarrayTypes::OutputType;
   using BiasType = typename GarrayTypes::BiasType;
-  using ScaleType = typename GarrayTypes::ScaleType;
 
   constexpr static auto S = estl::get<0, int, kparams>();
   constexpr static auto F = estl::get<1, int, kparams>();

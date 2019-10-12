@@ -10,7 +10,6 @@ public:
   using TinputType   = typename GarrayTypes::InputType;
   using TweightsType = typename GarrayTypes::WeightsType;
   using ToutputType  = typename GarrayTypes::OutputType;
-  using TscaleType   = typename GarrayTypes::ScaleType;
 
   elx_int8_conv_wino_gemm_t() {};
   virtual ~elx_int8_conv_wino_gemm_t() {};
@@ -18,16 +17,16 @@ public:
 
   // INT8 GEMM
   void execute(ToutputType *toutput, uint8_t *tinput, int8_t *tweights,
-      TscaleType *src_scale, TscaleType *weights_scale, TscaleType *weights_factor,
+      float *src_scale, float *weights_scale, float *weights_shift,
       int _t2, int Tz, int _I4 = 0);
 
   void execute_na(ToutputType *toutput, uint8_t *tinput, int8_t *tweights,
-      TscaleType *src_scale, TscaleType *weights_scale, TscaleType *weights_factor,
+      float *src_scale, float *weights_scale, float *weights_shift,
       int _t2, int Tz, int _I4 = 0);
 
   void execute_na(ToutputType *toutput, uint8_t *tinput, int8_t *tweights,
-      TscaleType *src_scale, TscaleType *src_factor, TscaleType *weights_scale,
-      TscaleType *weights_factor, int _I4 = 0);
+      float *src_scale, float *src_shift, float *weights_scale,
+      float *weights_shift, int _I4 = 0);
 
 private:
   void bind_kernel_functions();

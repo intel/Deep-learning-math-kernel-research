@@ -71,10 +71,10 @@ void Instance_elx_int8_conv_direct_1x1_t::__execute_c160(
         mthr_, ep.O3 * ep.O2 * V * ep.oh * ep.ow);
     MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
 
-    MD2(TscaleType, ainput_scale, input_scale_, 2, ep.T);
+    MD2(float, ainput_scale, input_scale_, 2, ep.T);
     MD3(int8_t, atweights_s8, tweights_s8_, ep.O4, ep.I4,
         ep.O3 * ep.I3 * ep.O2 * ep.I2 * V * V);
-    MD2(TscaleType, aweights_scale, weights_scale_,
+    MD2(float, aweights_scale, weights_scale_,
         ep.O4, ep.O3 * 2 * ep.O2 * V);
 
     auto ain = ep.input_fmt == nhwc
@@ -162,10 +162,10 @@ void Instance_elx_int8_conv_direct_1x1_t::__execute_b161(
         ep.O4, ep.O3 * ep.O2 * V);
 
     MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
-    MD2(TscaleType, ainput_scale, input_scale_, 2, ep.T);
+    MD2(float, ainput_scale, input_scale_, 2, ep.T);
     MD3(int8_t, atweights_s8, tweights_s8_, ep.O4, ep.I4,
         ep.O3 * ep.I3 * ep.O2 * ep.I2 * V * V);
-    MD2(TscaleType, aweights_scale, weights_scale_,
+    MD2(float, aweights_scale, weights_scale_,
         ep.O4, ep.O3 * 2 * ep.O2 * V);
 
     auto ain = ep.input_fmt == nhwc

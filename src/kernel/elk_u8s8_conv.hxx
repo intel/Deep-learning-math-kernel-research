@@ -26,10 +26,7 @@ struct u8s8_conv_kernel {
       typename GarrayTypes::InputType *,
       typename GarrayTypes::WeightsType *,
       typename GarrayTypes::BiasType *,
-      typename GarrayTypes::ScaleType *,
-      typename GarrayTypes::ScaleType *,
-      typename GarrayTypes::ScaleType *,
-      typename GarrayTypes::ScaleType *,
+      float *, float *, float *, float *,
       int, int, int, int, int, int, int) {}
 };
 
@@ -44,7 +41,6 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
   using WeightsType = typename GarrayTypes::WeightsType;
   using OutputType = typename GarrayTypes::OutputType;
   using BiasType = typename GarrayTypes::BiasType;
-  using ScaleType = typename GarrayTypes::ScaleType;
 
   constexpr static auto Sp = estl::get<0, int, kparams>();
   constexpr static auto F = estl::get<1, int, kparams>();
@@ -193,8 +189,8 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
 
   template <int JO>
   static inline void op_restore_output(elx_param_t &ep, OutputType *output,
-      RoutputType *routput, BiasType *bias, __i<V> res, ScaleType *src_scale,
-      ScaleType *src_factor, ScaleType *weights_scale, ScaleType *weights_factor,
+      RoutputType *routput, BiasType *bias, __i<V> res, float *src_scale,
+      float *src_shift, float *weights_scale, float *weights_shift,
       const int _O1, const int _O0, const int _O, const int _T, const int attr)
   {
     MD2(OutputType, aoutput_blocked0, output, JO, ep.oh * ep.ow * V);
@@ -211,8 +207,8 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
 
     MD3(float, aweights_scale3, weights_scale, ep.O1, O, V);
     MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
-    MD3(float, aweights_factor3, weights_factor, ep.O1, O, T * V);
-    MD3(float, aweights_factor, &md3(aweights_factor3, _O1, _O0, 0), JO, T, V);
+    MD3(float, aweights_shift3, weights_shift, ep.O1, O, T * V);
+    MD3(float, aweights_shift, &md3(aweights_shift3, _O1, _O0, 0), JO, T, V);
 
     auto aout = F_traits<F>::is_blocked_output ? &md2(aoutput_blocked1, _T, 0)
                                                : &md3(aoutput_nhwc1, 0, _O, 0);
@@ -223,8 +219,8 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
 
     // restore and requantization
     auto scale = *(__m<V> *)&md2(aweights_scale, _O, 0);
-    auto factor = *(__m<V> *)&md3(aweights_factor, _O, _T, 0);
-    fout = fout * scale + factor;
+    auto shift = *(__m<V> *)&md3(aweights_shift, _O, _T, 0);
+    fout = fout * scale + shift;
 
     // fuse relu
     if (test_bit(attr, AT_RELU_MASK)) {
@@ -258,8 +254,8 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
   template <int JO, int P, bool has_Or>
   static inline typename std::enable_if<P == 1, void>::type
   op_conv(elx_param_t &ep, OutputType *output, RoutputType *routput,
-      uint8_t *input, int8_t *weights, BiasType *bias, ScaleType *src_scale,
-      ScaleType *src_factor, ScaleType *weights_scale, ScaleType *weights_factor,
+      uint8_t *input, int8_t *weights, BiasType *bias, float *src_scale,
+      float *src_shift, float *weights_scale, float *weights_shift,
       int khs, int khe, int kws, int kwe, int pad_l, int pad_r, int attr, int _O1, int _O0)
   {
     const int AKH = ep.kh / 2;
@@ -669,7 +665,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
       unroll_for (_O, JO) {
       unroll_for (_T, T) {
         op_restore_output<JO>(ep, output, routput, bias, mmout[_O][_T],
-            src_scale, src_factor, weights_scale, weights_factor,
+            src_scale, src_shift, weights_scale, weights_shift,
             _O1, _O0, _O, _T, attr);
       }}
     } else {
@@ -683,8 +679,8 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
   template <int JO, int P, bool has_Or>
   static inline typename std::enable_if<(P == 2 || P == 4), void>::type
   op_conv(elx_param_t &ep, OutputType *output, RoutputType *routput,
-      uint8_t *input, int8_t *weights, BiasType *bias, ScaleType *src_scale,
-      ScaleType *src_factor, ScaleType *weights_scale, ScaleType *weights_factor,
+      uint8_t *input, int8_t *weights, BiasType *bias, float *src_scale,
+      float *src_shift, float *weights_scale, float *weights_shift,
       int khs, int khe, int kws, int kwe, int pad_l, int pad_r, int attr, int _O1, int _O0)
   {
     // 3x3 conv
@@ -893,7 +889,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
       unroll_for (_O, JO) {
       unroll_for (_T, T) {
         op_restore_output<JO>(ep, output, routput, bias, mmout[_O][_T],
-            src_scale, src_factor, weights_scale, weights_factor,
+            src_scale, src_shift, weights_scale, weights_shift,
             _O1, _O0, _O, _T, attr);
       }}
     } else {
@@ -909,8 +905,8 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
       (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
       conv(elx_param_t &ep, OutputType *output, RoutputType *routput,
           InputType *input, WeightsType *weights, BiasType *bias,
-          ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
-          ScaleType *weights_factor, int khs, int khe, int kws, int kwe,
+          float *src_scale, float *src_shift, float *weights_scale,
+          float *weights_shift, int khs, int khe, int kws, int kwe,
           int pad_l, int pad_r, int attr)
   {
     int V1r = F_traits<F>::is_compact_ir_weights ? ep.Ir : V1;
@@ -928,7 +924,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
                                               : &md2(aroutput_blocked, _O1, 0);
       op_conv<JO0, JP0, true>(ep, aout, rout, input,
           &md5(aweights, 0, _O1, 0, 0, 0), &md2(abias, _O1, 0),
-          src_scale, src_factor, weights_scale, weights_factor,
+          src_scale, src_shift, weights_scale, weights_shift,
           khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, 0);
     }
   }
@@ -938,8 +934,8 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
       (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
       conv(elx_param_t &ep, OutputType *output, RoutputType *routput,
           InputType *input, WeightsType *weights, BiasType *bias,
-          ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
-          ScaleType *weights_factor, int khs, int khe, int kws, int kwe,
+          float *src_scale, float *src_shift, float *weights_scale,
+          float *weights_shift, int khs, int khe, int kws, int kwe,
           int pad_l, int pad_r, int attr)
   {
     int V1r = F_traits<F>::is_compact_ir_weights ? ep.Ir : V1;
@@ -957,7 +953,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
                                               : &md3(aroutput_blocked, _O1, 0, 0);
       op_conv<JO0, JP0, false>(ep, aout, rout, input,
           &md5(aweights, 0, _O1, 0, 0, 0), &md3(abias, _O1, 0, 0),
-          src_scale, src_factor, weights_scale, weights_factor,
+          src_scale, src_shift, weights_scale, weights_shift,
           khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, 0);
 
       aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, JO0, 0)
@@ -966,7 +962,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
                                          : &md3(aroutput_blocked, _O1, JO0, 0);
       op_conv<JO1, JP1, false>(ep, aout, rout, input,
           &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
-          src_scale, src_factor, weights_scale, weights_factor,
+          src_scale, src_shift, weights_scale, weights_shift,
           khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, JO0);
     }
   }
@@ -976,8 +972,8 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
       (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
       conv(elx_param_t &ep, OutputType *output, RoutputType *routput,
           InputType *input, WeightsType *weights, BiasType *bias,
-          ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
-          ScaleType *weights_factor, int khs, int khe, int kws, int kwe,
+          float *src_scale, float *src_shift, float *weights_scale,
+          float *weights_shift, int khs, int khe, int kws, int kwe,
           int pad_l, int pad_r, int attr)
   {
     int V1r = F_traits<F>::is_compact_ir_weights ? ep.Ir : V1;
@@ -995,7 +991,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
                                               : &md3(aroutput_blocked, _O1, 0, 0);
       op_conv<JO0, JP0, false>(ep, aout, rout, input,
           &md5(aweights, 0, _O1, 0, 0, 0), &md3(abias, _O1, 0, 0),
-          src_scale, src_factor, weights_scale, weights_factor,
+          src_scale, src_shift, weights_scale, weights_shift,
           khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, 0);
 
       aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, JO0, 0)
@@ -1004,7 +1000,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
                                          : &md3(aroutput_blocked, _O1, JO0, 0);
       op_conv<JO1, JP1, false>(ep, aout, rout, input,
           &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
-          src_scale, src_factor, weights_scale, weights_factor,
+          src_scale, src_shift, weights_scale, weights_shift,
           khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, JO0);
 
       aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, JO0 + JO1, 0)
@@ -1013,7 +1009,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
                                          : &md3(aroutput_blocked, _O1, JO0 + JO1, 0);
       op_conv<JO2, JP2, false>(ep, aout, rout, input,
           &md5(aweights, 0, _O1, 0, JO0 + JO1, 0), &md3(abias, _O1, JO0 + JO1, 0),
-          src_scale, src_factor, weights_scale, weights_factor,
+          src_scale, src_shift, weights_scale, weights_shift,
           khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, JO0 + JO1);
     }
   }

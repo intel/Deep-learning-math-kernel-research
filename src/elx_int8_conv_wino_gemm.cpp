@@ -28,7 +28,7 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::bind_kernel_functions()
 template <typename GarrayTypes, const int A, const int V, const int I>
 void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
     ToutputType *toutput, uint8_t *tinput, int8_t *tweights,
-    TscaleType *src_scale, TscaleType *weights_scale, TscaleType *weights_factor,
+    float *src_scale, float *weights_scale, float *weights_shift,
     int _t2, int Tz, int _I4)
 {
   auto ker_gemm = (_t2 == ep->t2 - 1) ? ker_u8s8_gemm0_ : ker_u8s8_gemm_;
@@ -37,9 +37,9 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
   MD6(ToutputType, atoutput, toutput, A, A, ep->O3, ep->O2, Tz, V);
   MD5(int8_t, atweights, tweights, ep->O3, ep->I3, A, A,
       ep->O2 * ep->I2 * V * V);
-  MD5(TscaleType, aweights_scale, weights_scale, ep->O3, A, A, ep->O2, V);
-  MD5(TscaleType, aweights_factor, weights_factor, ep->O3, A, A, ep->O2, V);
-  MD5(TscaleType, asrc_scale, src_scale, ep->I3,  A, A, 2, ep->T);
+  MD5(float, aweights_scale, weights_scale, ep->O3, A, A, ep->O2, V);
+  MD5(float, aweights_shift, weights_shift, ep->O3, A, A, ep->O2, V);
+  MD5(float, asrc_scale, src_scale, ep->I3,  A, A, 2, ep->T);
 
   iter_each (_hA, A) {
   iter_each (_wA, A) {
@@ -52,7 +52,7 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
         attr = set_bit(attr, AT_Ir_MASK);
     }
 
-    TscaleType *asrc_s = nullptr, *asrc_z = nullptr;
+    float *asrc_s = nullptr, *asrc_z = nullptr;
     if (ep->sampling_kind == COARSE) {
       asrc_s = &md5(asrc_scale, 0, 0, 0, 0, 0);
       asrc_z = &md5(asrc_scale, 0, 0, 0, 1, 0);
@@ -61,7 +61,7 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
       asrc_z = &md5(asrc_scale, _I3, _hA, _wA, 1, 0);
     } else { // CALIBRATED
       // nothing to do.
-      // asrc_s/asrc_z are folded into weights_scale/factor
+      // asrc_s/asrc_z are folded into weights_scale/shift
     }
 
     ker_gemm(*(elx_param_t *)ep,
@@ -71,14 +71,14 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute(
         &md5(atweights, _O3, _I3, _hA, _wA, 0),
         nullptr, attr, asrc_s, asrc_z,
         &md5(aweights_scale, _O3, _hA, _wA, 0, 0),
-        &md5(aweights_factor, _O3, _hA, _wA, 0, 0));
+        &md5(aweights_shift, _O3, _hA, _wA, 0, 0));
   }}}}
 }
 
 template <typename GarrayTypes, const int A, const int V, const int I>
 void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
     ToutputType *toutput, uint8_t *tinput, int8_t *tweights,
-    TscaleType *src_scale, TscaleType *weights_scale, TscaleType *weights_factor,
+    float *src_scale, float *weights_scale, float *weights_shift,
     int _t2, int Tz, int _I4)
 {
   auto ker_gemm = (_t2 == ep->t2 - 1) ? ker_u8s8_gemm0_ : ker_u8s8_gemm_;
@@ -87,9 +87,9 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
   MD6(ToutputType, atoutput, toutput, A, A, ep->O3, ep->O2, Tz, V);
   MD5(int8_t, atweights, tweights, ep->O3, ep->I3, A, A,
       ep->O2 * ep->I2 * V * V);
-  MD5(TscaleType, aweights_scale, weights_scale, ep->O3, A, A, ep->O2, V);
-  MD5(TscaleType, aweights_factor, weights_factor, ep->O3, A, A, ep->O2, V);
-  MD5(TscaleType, asrc_scale, src_scale, ep->I3, A, A, 2, Tz);
+  MD5(float, aweights_scale, weights_scale, ep->O3, A, A, ep->O2, V);
+  MD5(float, aweights_shift, weights_shift, ep->O3, A, A, ep->O2, V);
+  MD5(float, asrc_scale, src_scale, ep->I3, A, A, 2, Tz);
 
   bool scramble = (ep->T == ep->Tr) || (ep->t2 >= 2 * mthr_);
   if (scramble) {
@@ -107,7 +107,7 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
             attr = set_bit(attr, AT_Ir_MASK);
         }
 
-        TscaleType *asrc_s = nullptr, *asrc_z = nullptr;
+        float *asrc_s = nullptr, *asrc_z = nullptr;
         if (ep->sampling_kind == COARSE) {
           asrc_s = &md5(asrc_scale, 0, 0, 0, 0, 0);
           asrc_z = &md5(asrc_scale, 0, 0, 0, 1, 0);
@@ -116,7 +116,7 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
           asrc_z = &md5(asrc_scale, _I3, _hA, _wA, 1, 0);
         } else { // CALIBRATED
           // nothing to do.
-          // asrc_s/asrc_z are folded into weights_scale/factor
+          // asrc_s/asrc_z are folded into weights_scale/shift
         }
 
         ker_gemm(*(elx_param_t *)ep,
@@ -126,7 +126,7 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
             &md5(atweights, _O3, _I3, _hA, _wA, 0),
             nullptr, attr, asrc_s, asrc_z,
             &md5(aweights_scale, _O3, _hA, _wA, 0, 0),
-            &md5(aweights_factor, _O3, _hA, _wA, 0, 0));
+            &md5(aweights_shift, _O3, _hA, _wA, 0, 0));
       }}
     }
   } else {
@@ -150,7 +150,7 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
           &md5(asrc_scale, _I3, _hA, _wA, 0, 0),
           &md5(asrc_scale, _I3, _hA, _wA, 1, 0),
           &md5(aweights_scale, _O3, _hA, _wA, 0, 0),
-          &md5(aweights_factor, _O3, _hA, _wA, 0, 0));
+          &md5(aweights_shift, _O3, _hA, _wA, 0, 0));
     }}}}
   }
 }
@@ -158,8 +158,8 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
 template <typename GarrayTypes, const int A, const int V, const int I>
 void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
     ToutputType *toutput, uint8_t *tinput, int8_t *tweights,
-    TscaleType *src_scale, TscaleType *src_factor,
-    TscaleType *weights_scale, TscaleType *weights_factor, int _I4)
+    float *src_scale, float *src_shift,
+    float *weights_scale, float *weights_shift, int _I4)
 {
   int ithr = estl::current_thread_index();
   THREAD_FOR2(5, 2, mthr_, ithr,
@@ -167,9 +167,9 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
     MD2(uint8_t, atinput2, tinput, ep->t2, A * A * ep->I3 * ep->I2 * ep->T * V);
     MD2(ToutputType, atoutput2, toutput, ep->t2, A * A * ep->O3 * ep->O2 * ep->T * V);
     MD5(int8_t, atweights, tweights, ep->O3, ep->I3, A, A, ep->O2 * ep->I2 * V * V);
-    MD5(TscaleType, aweights_scale, weights_scale, ep->O3, A, A, ep->O2, V);
-    MD5(TscaleType, aweights_factor, weights_factor, ep->O3, A, A, ep->O2, V);
-    MD6(TscaleType, asrc_scale, src_scale, ep->t2, A, A, ep->I3, 2, ep->T);
+    MD5(float, aweights_scale, weights_scale, ep->O3, A, A, ep->O2, V);
+    MD5(float, aweights_shift, weights_shift, ep->O3, A, A, ep->O2, V);
+    MD6(float, asrc_scale, src_scale, ep->t2, A, A, ep->I3, 2, ep->T);
     int Tz = _t2 == (ep->t2 - 1) ? ep->Tr : ep->T;
     MD6(uint8_t, atinput6, &md2(atinput2, _t2, 0), A, A, ep->I3, ep->I2, Tz, V);
     MD6(ToutputType, atoutput6, &md2(atoutput2, _t2, 0), A, A, ep->O3, ep->O2, Tz, V);
@@ -182,7 +182,7 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
         attr = set_bit(attr, AT_Ir_MASK);
     }
 
-    TscaleType *asrc_s = nullptr, *asrc_z = nullptr;
+    float *asrc_s = nullptr, *asrc_z = nullptr;
     if (ep->sampling_kind == COARSE) {
       asrc_s = &md6(asrc_scale, 0, 0, 0, 0, 0, 0);
       asrc_z = &md6(asrc_scale, 0, 0, 0, 0, 1, 0);
@@ -191,7 +191,7 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
       asrc_z = &md6(asrc_scale, _t2, _hA, _wA, _I3, 1, 0);
     } else { // CALIBRATED
       // nothing to do.
-      // asrc_s/asrc_z are folded into weights_scale/factor
+      // asrc_s/asrc_z are folded into weights_scale/shift
     }
 
     ker_gemm(*ep, &md6(atoutput6, _hA, _wA, _O3, 0, 0, 0),
@@ -200,7 +200,7 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
         &md5(atweights, _O3, _I3, _hA, _wA, 0),
         nullptr, attr, asrc_s, asrc_z,
         &md5(aweights_scale, _O3, _hA, _wA, 0, 0),
-        &md5(aweights_factor, _O3, _hA, _wA, 0, 0));
+        &md5(aweights_shift, _O3, _hA, _wA, 0, 0));
   }, A, A, ep->I3, ep->O3, ep->t2);
 }
 

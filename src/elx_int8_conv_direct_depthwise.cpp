@@ -153,9 +153,9 @@ int Instance_elx_int8_conv_direct_depthwise_t::prepare_execute_opt()
   switch (xopt_) {
   case 0xa160:
     tweights_size_ = ep.G * ep.kh * KW * sizeof(TweightsType);
-    input_scale_size_ = 2 * ep.T * sizeof(TscaleType);
-    weights_scale_size_ = ep.G * sizeof(TscaleType);
-    weights_factor_size_ = ep.G * sizeof(TscaleType);
+    input_scale_size_ = 2 * ep.T * sizeof(float);
+    weights_scale_size_ = ep.G * sizeof(float);
+    weights_shift_size_ = ep.G * sizeof(float);
     break;
   default:
     el_error("Unknown xopt!");
@@ -168,7 +168,7 @@ int Instance_elx_int8_conv_direct_depthwise_t::prepare_execute_opt()
     tweights_size_ += WEIGHTS_MAX_PRELOAD * V;
 
   workspace_size_ = tweights_size_ + input_scale_size_ +
-    weights_scale_size_ + weights_factor_size_;
+    weights_scale_size_ + weights_shift_size_;
   scratch_size_ = 0;
 
   return 0;
@@ -178,9 +178,9 @@ Template_elx_int8_conv_direct_depthwise_t
 void Instance_elx_int8_conv_direct_depthwise_t::set_workspace_buffers(void *base)
 {
   if (base != nullptr) {
-    weights_scale_ = (TscaleType *)base;
-    weights_factor_ = (TscaleType *)((char *)weights_scale_ + weights_scale_size_);
-    input_scale_ = (TscaleType *)((char *)weights_factor_ + weights_factor_size_);
+    weights_scale_ = (float *)base;
+    weights_shift_ = (float *)((char *)weights_scale_ + weights_scale_size_);
+    input_scale_ = (float *)((char *)weights_shift_ + weights_shift_size_);
     tweights_s8_ = (int8_t *)((char *)input_scale_ + input_scale_size_);
   }
 }
@@ -199,13 +199,13 @@ Instance_elx_int8_conv_direct_depthwise_t::~elx_int8_conv_direct_depthwise_t()
 // tweights: g23, kh, V, KW // kw-padded goih16g4w
 Template_elx_int8_conv_direct_depthwise_t void
 Instance_elx_int8_conv_direct_depthwise_t::trans_weights_3x3(
-    TscaleType *weights_scale, TscaleType *weights_factor, int8_t *tweights_s8,
+    float *weights_scale, float *weights_shift, int8_t *tweights_s8,
     WeightsType *weights, BiasType *bias)
 {
   // absmax
   estl::parallel_for<2>([&](int _g23, int _V) {
     MD4(WeightsType, aweights, weights, ep.g23, V, ep.kh, ep.kw);
-    MD2(TscaleType, aweights_scale, weights_scale, ep.g23, V);
+    MD2(float, aweights_scale, weights_scale, ep.g23, V);
     float absmax = 0.0;
     iter_each (_kh, ep.kh) {
       iter_each (_kw, ep.kw) {
@@ -221,7 +221,7 @@ Instance_elx_int8_conv_direct_depthwise_t::trans_weights_3x3(
   estl::parallel_for<4>([&](int _g23, int _kh, int _V, int _kw) {
     MD4(int8_t, atweights_s8, tweights_s8, ep.g23, ep.kh, V, KW);
     MD4(WeightsType, aweights, weights, ep.g23, V, ep.kh, ep.kw);
-    MD2(TscaleType, aweights_scale, weights_scale, ep.g23, V);
+    MD2(float, aweights_scale, weights_scale, ep.g23, V);
     if (_kw < ep.kw) {
       // scale
       auto t0 = md4(aweights, _g23, _V, _kh, _kw);
@@ -237,7 +237,7 @@ Instance_elx_int8_conv_direct_depthwise_t::trans_weights_3x3(
   // weights-scale
   __m<V> mmscale = _mm<V>::set1_ps(EL_INT8_MAX);
   estl::parallel_for<1>([&](int _g23) {
-    MD2(TscaleType, aweights_scale, weights_scale, ep.g23, V);
+    MD2(float, aweights_scale, weights_scale, ep.g23, V);
     auto t0 = *(__m<V> *)&md2(aweights_scale, _g23, 0);
     *(__m<V> *)&md2(aweights_scale, _g23, 0) = t0 / mmscale;
   }, ep.g23);
@@ -245,14 +245,14 @@ Instance_elx_int8_conv_direct_depthwise_t::trans_weights_3x3(
   // weights-acc
   estl::parallel_for<2>([&](int _g23, int _V) {
     MD4(int8_t, atweights_s8, tweights_s8, ep.g23, ep.kh, V, KW);
-    MD2(TscaleType, aweights_factor, weights_factor, ep.g23, V);
+    MD2(float, aweights_shift, weights_shift, ep.g23, V);
     int acc = 0;
     iter_each(_kh, ep.kh) {
       iter_each(_kw, ep.kw) {
         acc += md4(atweights_s8, _g23, _kh, _V, _kw);
       }
     }
-    md2(aweights_factor, _g23, _V) = acc;
+    md2(aweights_shift, _g23, _V) = acc;
   }, ep.g23, V);
 
   // combine with output restore
@@ -262,7 +262,7 @@ Instance_elx_int8_conv_direct_depthwise_t::trans_weights_3x3(
   auto input_z = _mm<V>::set1_ps(ep.input_quant_z);
 
   estl::parallel_for<1>([&](int _g23) {
-    MD2(TscaleType, aweights_scale, weights_scale, ep.g23, V);
+    MD2(float, aweights_scale, weights_scale, ep.g23, V);
     __m<V> &qs = *(__m<V> *)&md2(aweights_scale, _g23, 0);
     if (std::is_same<OutputType, float>::value) {
       qs = input_S * qs;
@@ -273,12 +273,12 @@ Instance_elx_int8_conv_direct_depthwise_t::trans_weights_3x3(
 
   estl::parallel_for<1>([&](int _g23) {
     MD2(BiasType, abias, bias, ep.g23, V);
-    MD2(TscaleType, aweights_scale, weights_scale, ep.g23, V);
-    MD2(TscaleType, aweights_factor, weights_factor, ep.g23, V);
+    MD2(float, aweights_scale, weights_scale, ep.g23, V);
+    MD2(float, aweights_shift, weights_shift, ep.g23, V);
 
     __m<V> qs = *(__m<V> *)&md2(aweights_scale, _g23, 0);
     __m<V> b = ep.with_bias ? *(__m<V> *)&md2(abias, _g23, 0) : _mm<V>::setzero_ps();
-    __m<V> &qf = *(__m<V> *)&md2(aweights_factor, _g23, 0);
+    __m<V> &qf = *(__m<V> *)&md2(aweights_shift, _g23, 0);
 
     if (std::is_same<OutputType, float>::value) {
       qf = b - input_z * qf * qs;
@@ -292,8 +292,8 @@ Instance_elx_int8_conv_direct_depthwise_t::trans_weights_3x3(
 Template_elx_int8_conv_direct_depthwise_t
 void Instance_elx_int8_conv_direct_depthwise_t::conv_a160(OutputType *output,
     ToutputType *toutput, InputType *input_u8, int8_t *weights_s8,
-    BiasType *bias, TscaleType *src_scale, TscaleType *weights_scale,
-    TscaleType *weights_factor, int _ht, int _wt)
+    BiasType *bias, float *src_scale, float *weights_scale,
+    float *weights_shift, int _ht, int _wt)
 {
   auto ker_conv = _wt == ep.wt - 1 ? ker_conv_Tr_ : ker_conv_;
 
@@ -307,13 +307,13 @@ void Instance_elx_int8_conv_direct_depthwise_t::conv_a160(OutputType *output,
   int pad_l = (_wt == 0) && (ep.lp > 0);
   int pad_r = (_wt == ep.wt - 1) && (ep.rp > 0);
 
-  MD2(TscaleType, asrc_scale, src_scale, 2, ep.T);
+  MD2(float, asrc_scale, src_scale, 2, ep.T);
   MD3(InputType, ainput_blocked, input_u8, ep.ih, ep.iw, V);
 
   auto ainput = &md3(ainput_blocked, _ih, _iw, 0);
   ker_conv(ep, toutput, output, ainput, weights_s8, bias,
            &md2(asrc_scale, 0, 0), &md2(asrc_scale, 1, 0), weights_scale,
-           weights_factor, khs, khe, kws, kwe, pad_l, pad_r, attr_);
+           weights_shift, khs, khe, kws, kwe, pad_l, pad_r, attr_);
 }
 
 } // namespace euler

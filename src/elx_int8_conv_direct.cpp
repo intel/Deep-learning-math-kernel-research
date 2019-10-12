@@ -135,18 +135,18 @@ int Instance_elx_int8_conv_direct_t::prepare_execute_opt()
   }
   size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
   size_t tweights_s8_size = 0, input_scale_size = 0, weights_scale_size = 0,
-      weights_factor_size;
+      weights_shift_size;
 
   toutput_size_ = 0;
   tweights_s8_size_ = 0;
   input_scale_size_ = 0;
   weights_scale_size_ = 0;
-  weights_factor_size_ = 0;
+  weights_shift_size_ = 0;
   toutput_ = nullptr;
   tweights_s8_ = nullptr;
   input_scale_ = nullptr;
   weights_scale_ = nullptr;
-  weights_factor_ = nullptr;
+  weights_shift_ = nullptr;
 
   switch (xopt_) {
   /*case 0xb160:*/
@@ -154,9 +154,9 @@ int Instance_elx_int8_conv_direct_t::prepare_execute_opt()
   case 0xd160:
     toutput_size = ep.n * ep.OC * ep.oh * ep.ow * sizeof(ToutputType);
     tweights_s8_size = ep.kh * ep.kw * ep.IC * ep.OC * sizeof(int8_t);
-    input_scale_size = 2 * ep.T * sizeof(TscaleType);
-    weights_scale_size = ep.OC * sizeof(TscaleType);
-    weights_factor_size = wacc_h_ * wacc_wt_ * wacc_wT_ * ep.OC * sizeof(TscaleType);
+    input_scale_size = 2 * ep.T * sizeof(float);
+    weights_scale_size = ep.OC * sizeof(float);
+    weights_shift_size = wacc_h_ * wacc_wt_ * wacc_wT_ * ep.OC * sizeof(float);
     break;
   default:
     el_error("Unknown xopt!");
@@ -169,10 +169,10 @@ int Instance_elx_int8_conv_direct_t::prepare_execute_opt()
   tweights_s8_size_ = tweights_s8_size > 0 ? alignup(tweights_s8_size, align) : 0;
   input_scale_size_ = input_scale_size > 0 ? alignup(input_scale_size, align) : 0;
   weights_scale_size_ = weights_scale_size > 0 ? alignup(weights_scale_size, align) : 0;
-  weights_factor_size_ = weights_factor_size > 0 ? alignup(weights_factor_size, align) : 0;
+  weights_shift_size_ = weights_shift_size > 0 ? alignup(weights_shift_size, align) : 0;
 
   workspace_size_ = tweights_s8_size_ + weights_scale_size_
-      + weights_factor_size_ + input_scale_size_;
+      + weights_shift_size_ + input_scale_size_;
   scratch_size_ = toutput_size_;
 
   return 0;
@@ -182,9 +182,9 @@ Template_elx_int8_conv_direct_t
 void Instance_elx_int8_conv_direct_t::set_workspace_buffers(void *base)
 {
   if (base != nullptr) {
-    weights_scale_ = (TscaleType *)base;
-    weights_factor_ = (TscaleType *)((char *)weights_scale_ + weights_scale_size_);
-    input_scale_ = (TscaleType *)((char *)weights_factor_ + weights_factor_size_);
+    weights_scale_ = (float *)base;
+    weights_shift_ = (float *)((char *)weights_scale_ + weights_scale_size_);
+    input_scale_ = (float *)((char *)weights_shift_ + weights_shift_size_);
     tweights_s8_ = (int8_t *)((char *)input_scale_ + input_scale_size_);
   }
 }
@@ -300,20 +300,20 @@ Instance_elx_int8_conv_direct_t::prepare_weights_acc() {
 }
 
 Template_elx_int8_conv_direct_t void
-Instance_elx_int8_conv_direct_t::__trans_weights_acc(TscaleType *weights_scale,
-                                                   TscaleType *weights_factor,
+Instance_elx_int8_conv_direct_t::__trans_weights_acc(float *weights_scale,
+                                                   float *weights_shift,
                                                    int8_t *tweights_s8,
                                                    BiasType *bias) {
   auto V1 = compact_ir_weights_ ? ep.Ir : ep.V1;
-  TscaleType *weights_factor_buf =
-      (TscaleType *)malloc(wacc_h_ * wacc_w_ * ep.OC * sizeof(TscaleType));
+  float *weights_shift_buf =
+      (float *)malloc(wacc_h_ * wacc_w_ * ep.OC * sizeof(float));
 
   // weights-acc
   estl::parallel_for<7>([&](int _wacc_h, int _wacc_w, int _O4, int _O3, int _O1, int _O, int _oV) {
     MD12(int8_t, atweights_s8, tweights_s8, ep.O4, ep.I4, ep.O3,
          ep.I3, ep.kh, ep.kw, ep.O1, ep.I2, V1, ep.O,
          V, ep.Vx);
-    MD7(TscaleType, atweights_factor_buf, weights_factor_buf, wacc_h_, wacc_w_, ep.O4,
+    MD7(float, atweights_shift_buf, weights_shift_buf, wacc_h_, wacc_w_, ep.O4,
         ep.O3, ep.O1, ep.O, V);
 
     auto khs = std::get<0>(wacc_h_ranges_[_wacc_h]);
@@ -342,7 +342,7 @@ Instance_elx_int8_conv_direct_t::__trans_weights_acc(TscaleType *weights_scale,
         }
       }
     }
-    md7(atweights_factor_buf, _wacc_h, _wacc_w, _O4, _O3, _O1, _O, _oV) = acc;
+    md7(atweights_shift_buf, _wacc_h, _wacc_w, _O4, _O3, _O1, _O, _oV) = acc;
   }, wacc_h_, wacc_w_, ep.O4, ep.O3, ep.O1, ep.O, V);
 
   auto out_repS = _mm<V>::set1_ps(ep.output_quant_repS);
@@ -350,9 +350,9 @@ Instance_elx_int8_conv_direct_t::__trans_weights_acc(TscaleType *weights_scale,
   auto input_S = _mm<V>::set1_ps(ep.input_quant_S);
   auto input_z = _mm<V>::set1_ps(ep.input_quant_z);
 
-  // Combine output restore and requantization scale and factor
+  // Combine output restore and requantization scale and shift
   estl::parallel_for<1>([&](int _oc2) {
-    MD2(TscaleType, atweights_scale, weights_scale, ep.oc2, V);
+    MD2(float, atweights_scale, weights_scale, ep.oc2, V);
     MD2(BiasType, abias, bias, ep.oc2, V);
     __m<V> &qs = *(__m<V> *)&md2(atweights_scale, _oc2, 0);
 
@@ -365,9 +365,9 @@ Instance_elx_int8_conv_direct_t::__trans_weights_acc(TscaleType *weights_scale,
 
   estl::parallel_for<1>([&](int _oc2) {
     MD2(BiasType, abias, bias, ep.oc2, V);
-    MD2(TscaleType, atweights_scale, weights_scale, ep.oc2, V);
-    MD5(TscaleType, atweights_factor, weights_factor, wacc_h_, wacc_wt_, ep.oc2, wacc_wT_, V);
-    MD4(TscaleType, atweights_factor_buf, weights_factor_buf, wacc_h_, wacc_w_, ep.oc2, V);
+    MD2(float, atweights_scale, weights_scale, ep.oc2, V);
+    MD5(float, atweights_shift, weights_shift, wacc_h_, wacc_wt_, ep.oc2, wacc_wT_, V);
+    MD4(float, atweights_shift_buf, weights_shift_buf, wacc_h_, wacc_w_, ep.oc2, V);
 
     __m<V> qs = *(__m<V> *)&md2(atweights_scale, _oc2, 0);
     __m<V> b = ep.with_bias ? *(__m<V> *)&md2(abias, _oc2, 0) : _mm<V>::setzero_ps();
@@ -376,7 +376,7 @@ Instance_elx_int8_conv_direct_t::__trans_weights_acc(TscaleType *weights_scale,
       iter_each(_wt, wacc_wt_) {
         iter_each(_T, wacc_wT_) {
           __m<V> &qf =
-              *(__m<V> *)&md5(atweights_factor, _wacc_h, _wt, _oc2, _T, 0);
+              *(__m<V> *)&md5(atweights_shift, _wacc_h, _wt, _oc2, _T, 0);
           int _wacc_w = _wacc_wf_;
           if (wacc_wt_ == 1) {
             if (ep.input_quant_z == 0) {
@@ -398,7 +398,7 @@ Instance_elx_int8_conv_direct_t::__trans_weights_acc(TscaleType *weights_scale,
             }
           }
           __m<V> qf_tmp =
-              *(__m<V> *)&md4(atweights_factor_buf, _wacc_h, _wacc_w, _oc2, 0);
+              *(__m<V> *)&md4(atweights_shift_buf, _wacc_h, _wacc_w, _oc2, 0);
           if (std::is_same<OutputType, float>::value) {
             qf = b - input_z * qf_tmp * qs;
           } else {
@@ -409,14 +409,14 @@ Instance_elx_int8_conv_direct_t::__trans_weights_acc(TscaleType *weights_scale,
     }
   }, ep.oc2);
 
-  if (weights_factor_buf)
-    free(weights_factor_buf);
+  if (weights_shift_buf)
+    free(weights_shift_buf);
 }
 
 // weights (blocked): oc2, ic2, kh, kw, V, V
 // tweights: O4, I4, O3, _I3, kh, kw, O1, I2, V1, O, V, Vx
 Template_elx_int8_conv_direct_t void Instance_elx_int8_conv_direct_t::
-trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
+trans_weights(float *weights_scale, float *weights_shift,
                 int8_t *tweights_s8, WeightsType *weights, BiasType *bias) {
   __m<V> mmscale = _mm<V>::set1_ps(EL_INT8_MAX);
 
@@ -426,7 +426,7 @@ trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
   // abs-max
   estl::parallel_for<1>([&](int _oc2) {
     MD6(WeightsType, aweights, weights, ep.oc2, ep.ic2, ep.kh, ep.kw, V, V);
-    MD2(TscaleType, atweights_scale, weights_scale, ep.oc2, V);
+    MD2(float, atweights_scale, weights_scale, ep.oc2, V);
 
     __m<V> abs_max = _mm<V>::set1_ps(0.0);
     iter_each (_ic2, ep.ic2) {
@@ -448,7 +448,7 @@ trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
          ep.I3, ep.kh, ep.kw, ep.O1, ep.I2, V1, ep.O, V, ep.Vx);
     MD12(WeightsType, aweights, weights, ep.O4, ep.O3, ep.O1, ep.O,
          ep.I4, ep.I3, ep.I2, ep.kh, ep.kw, ep.V1, ep.Vx, V);
-    MD5(TscaleType, atweights_scale, weights_scale, ep.O4, ep.O3,
+    MD5(float, atweights_scale, weights_scale, ep.O4, ep.O3,
         ep.O1, ep.O, V);
     bool last_IV = _I4 == ep.I4 - 1 && _I3 == ep.I3 - 1 && _I2 == ep.I2 - 1;
 
@@ -481,20 +481,20 @@ trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
 
   // weights-scale
   estl::parallel_for<1>([&](int _oc2) {
-    MD2(TscaleType, atweights_scale, weights_scale, ep.oc2, V);
+    MD2(float, atweights_scale, weights_scale, ep.oc2, V);
     auto t0 = _mm<V>::div_ps(
         *(__m<V> *)&md2(atweights_scale, _oc2, 0), mmscale);
     _mm<V>::store_ps(&md2(atweights_scale, _oc2, 0), t0);
   }, ep.oc2);
 
-  __trans_weights_acc(weights_scale, weights_factor, tweights_s8, bias);
+  __trans_weights_acc(weights_scale, weights_shift, tweights_s8, bias);
 }
 
 Template_elx_int8_conv_direct_t
 void Instance_elx_int8_conv_direct_t::conv_a160(OutputType *output,
     ToutputType *toutput, InputType *input_u8, int8_t *weights_s8,
-    BiasType *bias, TscaleType *src_scale, TscaleType *weights_scale,
-    TscaleType *weights_factor, int _I4, int _O4, int _ht, int _wt)
+    BiasType *bias, float *src_scale, float *weights_scale,
+    float *weights_shift, int _I4, int _O4, int _ht, int _wt)
 {
   auto V1 = compact_ir_weights_ ? ep.Ir : ep.V1;
 
@@ -520,9 +520,9 @@ void Instance_elx_int8_conv_direct_t::conv_a160(OutputType *output,
   MD3(int8_t, aweights, weights_s8, ep.O3, ep.I3, ep.kh * ep.kw *
       ep.O2 * ep.I2 * V1 * V * ep.Vx);
   MD2(BiasType, abias, bias, ep.O3, ep.O2 * V);
-  MD2(TscaleType, aweights_scale, weights_scale, ep.O3, ep.O2 * V);
-  MD5(TscaleType, aweights_factor, weights_factor, wacc_h_, wacc_wt_, ep.O4, ep.O3, ep.O2 * ep.T * V);
-  MD2(TscaleType, asrc_scale, src_scale, 2, ep.T);
+  MD2(float, aweights_scale, weights_scale, ep.O3, ep.O2 * V);
+  MD5(float, aweights_shift, weights_shift, wacc_h_, wacc_wt_, ep.O4, ep.O3, ep.O2 * ep.T * V);
+  MD2(float, asrc_scale, src_scale, 2, ep.T);
   // nhwc
   MD3(InputType, ainput0_nhwc, input_u8, ep.ih, ep.iw, ep.ic);
   MD3(InputType, ainput1_nhwc, &md3(ainput0_nhwc, _ih, _iw, 0), ep.I4, ep.I3, ep.I2 * V);
@@ -555,7 +555,7 @@ void Instance_elx_int8_conv_direct_t::conv_a160(OutputType *output,
       ker_conv(ep, atoutput, aoutput, ainput, &md3(aweights, _O3, _I3, 0),
                &md2(abias, _O3, 0), &md2(asrc_scale, 0, 0),
                &md2(asrc_scale, 1, 0), &md2(aweights_scale, _O3, 0),
-               &md5(aweights_factor, _wacc_h, _wacc_wt, 0, _O3, 0),
+               &md5(aweights_shift, _wacc_h, _wacc_wt, 0, _O3, 0),
                khs, khe, kws, kwe, pad_l, pad_r, attr);
     }
   }
@@ -565,17 +565,17 @@ void Instance_elx_int8_conv_direct_t::conv_a160(OutputType *output,
 Template_elx_int8_conv_direct_t
 void Instance_elx_int8_conv_direct_t::gemm_d160(OutputType *output,
     ToutputType *toutput, InputType *input_u8, int8_t *weights_s8,
-    BiasType *bias, TscaleType *src_scale, TscaleType *weights_scale,
-    TscaleType *weights_factor, int _I4, int _O4, int _ht, int _wt)
+    BiasType *bias, float *src_scale, float *weights_scale,
+    float *weights_shift, int _I4, int _O4, int _ht, int _wt)
 {
   // input:   I3*, I2, ht*, hs*, wt*, T, ws, V1, Vx
   // output:  O3*, O2, ht*, wt*, T, V
   MD5(int8_t, aweights, weights_s8, ep.O3, ep.I3, ep.kh, ep.kw,
       ep.O2 * ep.I2 * ep.V1 * V * ep.Vx);
   MD3(BiasType, abias, bias, ep.O3, ep.O2, V);
-  MD3(TscaleType, aweights_scale, weights_scale, ep.O3, ep.O2, V);
-  MD3(TscaleType, aweights_factor, weights_factor, ep.O3, ep.O2, V);
-  MD2(TscaleType, asrc_scale, src_scale, 2, ep.T);
+  MD3(float, aweights_scale, weights_scale, ep.O3, ep.O2, V);
+  MD3(float, aweights_shift, weights_shift, ep.O3, ep.O2, V);
+  MD2(float, asrc_scale, src_scale, 2, ep.T);
 
   int Tz = _wt == ep.wt - 1 ? ep.Tr : ep.T;
   int ows0 = _wt * ep.T;
@@ -663,8 +663,8 @@ void Instance_elx_int8_conv_direct_t::gemm_d160(OutputType *output,
           __m<V> tout = _mm<V>::cvtepi32_ps(*(__i<V> *)atout);
           // restore and requantization
           auto scale = *(__m<V> *)&md3(aweights_scale, _O3, _O2, 0);
-          auto factor = *(__m<V> *)&md3(aweights_factor, _O3, _O2, 0);
-          tout = tout * scale + factor;
+          auto shift = *(__m<V> *)&md3(aweights_shift, _O3, _O2, 0);
+          tout = tout * scale + shift;
           // fuse relu
           if (ep.with_relu) {
             auto lower = *(__m<V> *)(ep.relu_bound_lower_vec);

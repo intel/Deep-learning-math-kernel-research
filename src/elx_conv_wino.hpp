@@ -49,7 +49,6 @@ public:
   using TinputType = typename TarrayTypes::InputType;
   using TweightsType = typename TarrayTypes::WeightsType;
   using ToutputType = typename TarrayTypes::OutputType;
-  using TscaleType = typename TarrayTypes::ScaleType;
 
   constexpr static bool is_border = true;
   constexpr static bool has_bias = true;

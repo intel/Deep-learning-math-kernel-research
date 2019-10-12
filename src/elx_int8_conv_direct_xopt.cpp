@@ -24,7 +24,7 @@ void Instance_elx_int8_conv_direct_t::__execute_a160(
   // output (blocked):  n*, O4*, O3, O2, ht*wt*, T(Tr), V
   if (is_first_run_) {
     setup_workspace([&]() {
-      trans_weights(weights_scale_, weights_factor_, tweights_s8_,
+      trans_weights(weights_scale_, weights_shift_, tweights_s8_,
                     weights, bias);
     });
   }
@@ -45,9 +45,9 @@ void Instance_elx_int8_conv_direct_t::__execute_a160(
     MD3(int8_t, atweights_s8, tweights_s8_, ep.O4, ep.I4, ep.V1 * ep.Vx * V
         * ep.kh * ep.kw * ep.I3 * ep.O3 * ep.I2 * ep.O2);
     MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
-    MD2(TscaleType, atweights_scale, weights_scale_, ep.O4,
+    MD2(float, atweights_scale, weights_scale_, ep.O4,
         ep.O3 * ep.O2 * V);
-    MD2(TscaleType, aweights_factor, weights_factor_, ep.O4,
+    MD2(float, aweights_shift, weights_shift_, ep.O4,
         ep.O3 * ep.O2 * ep.T * V);
     // nhwc input
     MD4(InputType, ainput0_nhwc, input, ep.n, ep.ih, ep.iw,
@@ -92,7 +92,7 @@ void Instance_elx_int8_conv_direct_t::__execute_a160(
     conv_a160(aoutput, atoutput, ainput,
               &md3(atweights_s8, _O4, _I4, 0),
               &md2(abias, _O4, 0), input_scale_, &md2(atweights_scale, _O4, 0),
-              &md2(aweights_factor, _O4, 0), _I4, _O4, _ht, _wt);
+              &md2(aweights_shift, _O4, 0), _I4, _O4, _ht, _wt);
   };
 
   if (ep.oh <= 7 && ep.ow <= 7) {
@@ -116,7 +116,7 @@ void Instance_elx_int8_conv_direct_t::__execute_d160(
   // output (blocked):  n*, O4*, O3, O2, ht*wt*, T(Tr), V
   if (is_first_run_) {
     setup_workspace([&]() {
-      trans_weights(weights_scale_, weights_factor_, tweights_s8_,
+      trans_weights(weights_scale_, weights_shift_, tweights_s8_,
                     weights, bias);
     });
   }
@@ -126,8 +126,8 @@ void Instance_elx_int8_conv_direct_t::__execute_d160(
         ep.O4, ep.I4, V * V * ep.kh * ep.kw
         * ep.I3 * ep.O3 * ep.I2 * ep.O2);
     MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
-    MD2(TscaleType, atweights_scale, weights_scale_, ep.O4, ep.O3 * ep.O2 * V);
-    MD2(TscaleType, aweights_factor, weights_factor_,
+    MD2(float, atweights_scale, weights_scale_, ep.O4, ep.O3 * ep.O2 * V);
+    MD2(float, aweights_shift, weights_shift_,
         ep.O4, ep.O3 * ep.O2 * V);
 
     // input
@@ -162,7 +162,7 @@ void Instance_elx_int8_conv_direct_t::__execute_d160(
       gemm_d160(aout, atout, ain,
                 &md3(atweights_s8, _O4, _I4, 0), &md2(abias, _O4, 0),
                 input_scale_, &md2(atweights_scale, _O4, 0),
-                &md2(aweights_factor, _O4, 0), _I4, _O4, _ht, _wt);
+                &md2(aweights_shift, _O4, 0), _I4, _O4, _ht, _wt);
   }, ep.n, ep.I4, ep.O4, ep.ht, ep.wt);
 
   int oc2 = ep.Or ? ep.oc2 - 1 : ep.oc2;

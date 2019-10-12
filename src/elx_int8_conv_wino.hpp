@@ -49,7 +49,6 @@ public:
   using TinputType = float;
   using TweightsType = float;
   using ToutputType = typename TarrayTypes::OutputType;
-  using TscaleType = typename TarrayTypes::ScaleType;
 
   constexpr static bool is_border = true;
   constexpr static bool has_bias = true;
@@ -110,10 +109,10 @@ private:
   size_t bweights_size_;
   size_t boutput_size_;
   size_t tinput_u8_size_;
-  size_t tinput_quant_scale_size_;
+  size_t tinput_scale_size_;
   size_t tweights_s8_size_;
-  size_t tweights_quant_scale_size_;
-  size_t tweights_quant_factor_size_;
+  size_t tweights_scale_size_;
+  size_t tweights_shift_size_;
 
   TweightsType *tweights_;
   TinputType *tinput_;
@@ -122,10 +121,10 @@ private:
   WeightsType *bweights_;
   OutputType *boutput_;
   uint8_t *tinput_u8_;
-  TscaleType *tinput_quant_scale_;
+  float *tinput_scale_;
   int8_t *tweights_s8_;
-  TscaleType *tweights_quant_scale_;
-  TscaleType *tweights_quant_factor_;
+  float *tweights_scale_;
+  float *tweights_shift_;
 };
 
 // fp32-u8s8f32

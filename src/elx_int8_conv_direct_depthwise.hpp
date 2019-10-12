@@ -26,7 +26,6 @@ Template_elx_int8_conv_direct_depthwise_t class elx_int8_conv_direct_depthwise_t
   using TinputType = typename TarrayTypes::InputType;
   using TweightsType = typename TarrayTypes::WeightsType;
   using ToutputType = typename TarrayTypes::OutputType;
-  using TscaleType = typename TarrayTypes::ScaleType;
   static constexpr int KW = 4;
 
   public:
@@ -39,12 +38,12 @@ Template_elx_int8_conv_direct_depthwise_t class elx_int8_conv_direct_depthwise_t
   void __execute_a160(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
 
-  void trans_weights_3x3(TscaleType *weights_scale, TscaleType * weights_factor,
+  void trans_weights_3x3(float *weights_scale, float * weights_shift,
       int8_t *weights_s8, WeightsType *weights, BiasType *bias);
 
   void conv_a160(OutputType *output, ToutputType *toutput, InputType *input,
-      int8_t *tweights, BiasType *bias, TscaleType *src_scale,
-      TscaleType *weights_scale, TscaleType *weights_factor, int _ht, int _wt);
+      int8_t *tweights, BiasType *bias, float *src_scale,
+      float *weights_scale, float *weights_shift, int _ht, int _wt);
 
   void set_scratch_buffers(void *base);
   void set_workspace_buffers(void *base);
@@ -68,11 +67,11 @@ Template_elx_int8_conv_direct_depthwise_t class elx_int8_conv_direct_depthwise_t
   size_t toutput_size_;
   size_t input_scale_size_;
   size_t weights_scale_size_;
-  size_t weights_factor_size_;
+  size_t weights_shift_size_;
   ToutputType *toutput_;
-  TscaleType *input_scale_;
-  TscaleType *weights_scale_;
-  TscaleType *weights_factor_;
+  float *input_scale_;
+  float *weights_scale_;
+  float *weights_shift_;
   int8_t *tweights_s8_;
   unsigned int xopt_;
   int attr_;

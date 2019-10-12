@@ -20,9 +20,9 @@ void Instance_elx_int8_conv_direct_depthwise_t::__execute_a160(
   if (is_first_run_) {
     setup_workspace([&]() {
       trans_weights_3x3(
-          weights_scale_, weights_factor_, tweights_s8_, weights, bias);
+          weights_scale_, weights_shift_, tweights_s8_, weights, bias);
       if (ep.sampling_kind == CALIBRATED) {
-        MD2(TscaleType, atinput_scale, input_scale_, 2, ep.T);
+        MD2(float, atinput_scale, input_scale_, 2, ep.T);
         iter_each(_T, ep.T) {
           md2(atinput_scale, 0, _T) = ep.input_quant_S;
           md2(atinput_scale, 1, _T) = ep.input_quant_z;
@@ -34,8 +34,8 @@ void Instance_elx_int8_conv_direct_depthwise_t::__execute_a160(
   estl::parallel_for<4>([&](int _n, int _G3, int _ht, int _wt) {
     MD3(int8_t, atweights_s8, tweights_s8_, ep.G3, ep.G2, ep.kh * KW * V);
     MD3(BiasType, abias, bias, ep.G3, ep.G2, V);
-    MD3(TscaleType, atweights_scale, weights_scale_, ep.G3, ep.G2, V);
-    MD3(TscaleType, aweights_factor, weights_factor_, ep.G3, ep.G2, V);
+    MD3(float, atweights_scale, weights_scale_, ep.G3, ep.G2, V);
+    MD3(float, aweights_shift, weights_shift_, ep.G3, ep.G2, V);
     // blocked input
     MD4(InputType, ainput_blocked, input, ep.n, ep.G3, ep.G2, ep.ih * ep.iw * V);
     // blocked output
@@ -56,7 +56,7 @@ void Instance_elx_int8_conv_direct_depthwise_t::__execute_a160(
               &md3(atweights_s8, _G3, 0, 0),
               &md3(abias, _G3, 0, 0), input_scale_,
               &md3(atweights_scale, _G3, 0, 0),
-              &md3(aweights_factor, _G3, 0, 0), _ht, _wt);
+              &md3(aweights_shift, _G3, 0, 0), _ht, _wt);
   }, ep.n, ep.G3, ep.ht, ep.wt);
 
   if (inference_acc_)

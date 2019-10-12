@@ -103,7 +103,6 @@ class elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
  : public elx_conv_wino_trans_weights_base<float, WeightsType, I, A, K, V> {
 public:
   using TweightsType = float;
-  using TscaleType = float;
   using super = elx_conv_wino_trans_weights_base<float, WeightsType, I, A, K, V>;
   using op_type = typename super::op_type;
 
@@ -111,23 +110,23 @@ public:
   elx_conv_wino_trans_weights_t() {}
   virtual ~elx_conv_wino_trans_weights_t() {}
 
-  void execute(TscaleType *__restrict tweights_quant_scale,
-      TscaleType *__restrict tweights_factor,
+  void execute(float *__restrict tweights_scale,
+      float *__restrict tweights_shift,
       int8_t *__restrict t_input_s8,
       TweightsType *__restrict t_input,
       WeightsType *__restrict input, int O4);
 
-  void operator () (TscaleType *__restrict tweights_quant_scale,
-      TscaleType *__restrict tweights_factor,
+  void operator () (float *__restrict tweights_scale,
+      float *__restrict tweights_shift,
       int8_t *__restrict t_input_s8,
       TweightsType *__restrict t_input,
       WeightsType *__restrict input, int O4) {
-    execute(tweights_quant_scale, tweights_factor,
+    execute(tweights_scale, tweights_shift,
         t_input_s8, t_input, input, O4);
   }
 
-  inline void quantization(TscaleType *__restrict tweights_quant_scale,
-    TscaleType *__restrict tweights_quant_factor,
+  inline void quantization(float *__restrict tweights_scale,
+    float *__restrict tweights_shift,
     int8_t *__restrict tweights_s8,
     TweightsType *__restrict tweights, int O4);
 

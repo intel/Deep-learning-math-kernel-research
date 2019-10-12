@@ -87,9 +87,9 @@ int Instance_elx_int8_conv_wino_t::prepare_execute_opt()
 {
   size_t tweights_size = 0, tinput_size = 0, toutput_size = 0;
   size_t binput_size = 0, bweights_size = 0, boutput_size = 0;
-  size_t tinput_u8_size = 0, tinput_quant_scale_size = 0,
+  size_t tinput_u8_size = 0, tinput_scale_size = 0,
       tweights_s8_size = 0,
-      tweights_quant_scale_size = 0, tweights_quant_factor_size = 0;
+      tweights_scale_size = 0, tweights_shift_size = 0;
 
   if (xopt_ & FUS_O) {
     ep.O3 /= ep.O4;
@@ -136,10 +136,10 @@ int Instance_elx_int8_conv_wino_t::prepare_execute_opt()
   bweights_ = nullptr;
   boutput_ = nullptr;
   tinput_u8_ = nullptr;
-  tinput_quant_scale_ = nullptr;
+  tinput_scale_ = nullptr;
   tweights_s8_ = nullptr;
-  tweights_quant_scale_ = nullptr;
-  tweights_quant_factor_ = nullptr;
+  tweights_scale_ = nullptr;
+  tweights_shift_ = nullptr;
 
   switch (xopt_) {
   case 0xa133:
@@ -147,10 +147,10 @@ int Instance_elx_int8_conv_wino_t::prepare_execute_opt()
     tinput_size = A * A * (ep.IC / ep.I4) * ep.t * sizeof(TinputType);
     toutput_size = A * A * (ep.OC / ep.O4) * ep.t * sizeof(ToutputType);
     tinput_u8_size = A * A * (ep.IC / ep.I4) * ep.t * sizeof(uint8_t);
-    tinput_quant_scale_size = ep.t * ep.I3 * 2 * A * A * sizeof(TscaleType);
+    tinput_scale_size = ep.t * ep.I3 * 2 * A * A * sizeof(float);
     tweights_s8_size = tweights_size / sizeof(TweightsType);
-    tweights_quant_scale_size = ep.I4 * ep.OC * A * A * sizeof(TscaleType);
-    tweights_quant_factor_size = ep.I4 * ep.OC * A * A * sizeof(TscaleType);
+    tweights_scale_size = ep.I4 * ep.OC * A * A * sizeof(float);
+    tweights_shift_size = ep.I4 * ep.OC * A * A * sizeof(float);
     break;
   case 0xa161:
     tweights_size = A * A * ep.IC * ep.OC * sizeof(TweightsType);
@@ -160,7 +160,7 @@ int Instance_elx_int8_conv_wino_t::prepare_execute_opt()
       tinput_size = A * A * ep.I2 * V * mthr_ * sizeof(TinputType);
     toutput_size = A * A * (ep.OC / ep.O4) * ep.T * mthr_ * sizeof(ToutputType);
     tinput_u8_size = A * A * ep.IC * mthr_ * ep.T * sizeof(uint8_t);
-    tinput_quant_scale_size = mthr_ * 2 * ep.I3 * ep.T * A * A * sizeof(TscaleType);
+    tinput_scale_size = mthr_ * 2 * ep.I3 * ep.T * A * A * sizeof(float);
     tweights_s8_size = tweights_size / sizeof(TweightsType);
 
     // FIXME: To implement OC sampling for weights transformation.
@@ -168,18 +168,18 @@ int Instance_elx_int8_conv_wino_t::prepare_execute_opt()
     // As to a161, sampling scope should be only in OC. However, I4 must be 1
     // in current execution mode. So far, we temporarily borrow OC and I4
     // sampling for weights transformation, where I4 is 1.
-    tweights_quant_scale_size = ep.OC * A * A * sizeof(TscaleType);
-    tweights_quant_factor_size = ep.OC * A * A * sizeof(TscaleType); // * ep.I4
+    tweights_scale_size = ep.OC * A * A * sizeof(float);
+    tweights_shift_size = ep.OC * A * A * sizeof(float); // * ep.I4
     break;
   case 0xa173:
     tweights_size = A * A * ep.IC * ep.OC * sizeof(TweightsType);
     tinput_size = A * A * (ep.IC / ep.I4) * mthr_ * sizeof(TinputType);
     toutput_size = A * A * (ep.OC / ep.O4) * ep.T * mthr_ * sizeof(ToutputType);
     tinput_u8_size = A * A * (ep.IC / ep.I4) * mthr_ * ep.T * sizeof(uint8_t);
-    tinput_quant_scale_size = mthr_ * 2 * ep.I3 * ep.T * A * A * sizeof(TscaleType);
+    tinput_scale_size = mthr_ * 2 * ep.I3 * ep.T * A * A * sizeof(float);
     tweights_s8_size = tweights_size / sizeof(TweightsType);
-    tweights_quant_scale_size = ep.I4 * ep.OC * A * A * sizeof(TscaleType);
-    tweights_quant_factor_size = ep.I4 * ep.OC * A * A * sizeof(TscaleType);
+    tweights_scale_size = ep.I4 * ep.OC * A * A * sizeof(float);
+    tweights_shift_size = ep.I4 * ep.OC * A * A * sizeof(float);
     break;
   default:
       el_error("Config error!");
@@ -200,20 +200,20 @@ int Instance_elx_int8_conv_wino_t::prepare_execute_opt()
   bweights_size_ = bweights_size > 0 ? alignup(bweights_size, align) : 0;
   boutput_size_ = boutput_size > 0 ? alignup(boutput_size, align) : 0;
   tinput_u8_size_ = tinput_u8_size > 0 ? alignup(tinput_u8_size, align) : 0;
-  tinput_quant_scale_size_ = tinput_quant_scale_size > 0 ? alignup(tinput_quant_scale_size, align) : 0;
+  tinput_scale_size_ = tinput_scale_size > 0 ? alignup(tinput_scale_size, align) : 0;
   tweights_s8_size_ = tweights_s8_size > 0 ? alignup(tweights_s8_size, align) : 0;
-  tweights_quant_scale_size_ = tweights_quant_scale_size > 0 ? alignup(tweights_quant_scale_size, align) : 0;
-  tweights_quant_factor_size_ = tweights_quant_factor_size > 0 ? alignup(tweights_quant_factor_size, align) : 0;
+  tweights_scale_size_ = tweights_scale_size > 0 ? alignup(tweights_scale_size, align) : 0;
+  tweights_shift_size_ = tweights_shift_size > 0 ? alignup(tweights_shift_size, align) : 0;
 
   workspace_size_ = tweights_size_ + tweights_s8_size_
-      + tweights_quant_scale_size_ + tweights_quant_factor_size_;
+      + tweights_scale_size_ + tweights_shift_size_;
   scratch_size_ = estl::max(tinput_size_, toutput_size_)
       + binput_size_ + bweights_size_ + boutput_size_ + tinput_u8_size_;
 
   if (ep.sampling_kind == CALIBRATED)
-    workspace_size_ += tinput_quant_scale_size_;
+    workspace_size_ += tinput_scale_size_;
   else
-    scratch_size_ += tinput_quant_scale_size_;
+    scratch_size_ += tinput_scale_size_;
 
   return 0;
 }
@@ -224,13 +224,13 @@ void Instance_elx_int8_conv_wino_t::set_workspace_buffers(void *base)
   if (base != nullptr) {
     tweights_ = (TweightsType *)base;
     // int8gemm supported in weights reuse case only.
-    tweights_quant_scale_ = (TscaleType *)((char *)tweights_ + tweights_size_);
-    tweights_quant_factor_ = (TscaleType *)((char *)tweights_quant_scale_ + tweights_quant_scale_size_);
+    tweights_scale_ = (float *)((char *)tweights_ + tweights_size_);
+    tweights_shift_ = (float *)((char *)tweights_scale_ + tweights_scale_size_);
     if (ep.sampling_kind == CALIBRATED) {
-      tinput_quant_scale_ = (TscaleType *)((char *)tweights_quant_factor_ + tweights_quant_factor_size_);
-      tweights_s8_ = (int8_t *)((char *)tinput_quant_scale_ + tinput_quant_scale_size_);
+      tinput_scale_ = (float *)((char *)tweights_shift_ + tweights_shift_size_);
+      tweights_s8_ = (int8_t *)((char *)tinput_scale_ + tinput_scale_size_);
     } else {
-      tweights_s8_ = (int8_t *)((char *)tweights_quant_factor_ + tweights_quant_factor_size_);
+      tweights_s8_ = (int8_t *)((char *)tweights_shift_ + tweights_shift_size_);
     }
   }
 }
@@ -247,8 +247,8 @@ void Instance_elx_int8_conv_wino_t::set_scratch_buffers(void *base)
     if (ep.sampling_kind == CALIBRATED) {
       tinput_u8_ = (uint8_t *)((char *)boutput_ + boutput_size_);
     } else {
-      tinput_quant_scale_ = (TscaleType *)((char *)boutput_ + boutput_size_);
-      tinput_u8_ = (uint8_t *)((char *)tinput_quant_scale_ + tinput_quant_scale_size_);
+      tinput_scale_ = (float *)((char *)boutput_ + boutput_size_);
+      tinput_u8_ = (uint8_t *)((char *)tinput_scale_ + tinput_scale_size_);
     }
   }
 }

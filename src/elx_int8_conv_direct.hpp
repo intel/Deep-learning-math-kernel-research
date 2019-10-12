@@ -28,7 +28,6 @@ Template_elx_int8_conv_direct_t class elx_int8_conv_direct_t : public elx_conv_t
   // t-buffer type
   using TweightsType = float;
   using ToutputType = typename TarrayTypes::OutputType;
-  using TscaleType = typename TarrayTypes::ScaleType;
 
   public:
   elx_int8_conv_direct_t(eld_conv_t &dc);
@@ -42,18 +41,18 @@ Template_elx_int8_conv_direct_t class elx_int8_conv_direct_t : public elx_conv_t
   void __execute_d160(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
 
-  void __trans_weights_acc(TscaleType *weights_scale, TscaleType * weights_factor,
+  void __trans_weights_acc(float *weights_scale, float * weights_shift,
       int8_t *weights_s8, BiasType *bias);
-  void trans_weights(TscaleType *weights_scale, TscaleType * weights_factor,
+  void trans_weights(float *weights_scale, float * weights_shift,
       int8_t *weights_s8, WeightsType *weights, BiasType *bias);
 
   void conv_a160(OutputType *output, ToutputType *toutput, InputType *input,
-      int8_t *tweights, BiasType *bias, TscaleType *src_scale,
-      TscaleType *weights_scale, TscaleType *weights_factor,
+      int8_t *tweights, BiasType *bias, float *src_scale,
+      float *weights_scale, float *weights_shift,
       int _I4, int _O4, int _ht, int _wt);
   void gemm_d160(OutputType *output, ToutputType *toutput, InputType *input,
-      int8_t *tweights, BiasType *bias, TscaleType *src_scale,
-      TscaleType *weights_scale, TscaleType *weights_factor,
+      int8_t *tweights, BiasType *bias, float *src_scale,
+      float *weights_scale, float *weights_shift,
       int _I4, int _O4, int _ht, int _wt);
 
   int prepare_execute_opt();
@@ -89,12 +88,12 @@ Template_elx_int8_conv_direct_t class elx_int8_conv_direct_t : public elx_conv_t
   size_t toutput_size_;
   size_t input_scale_size_;
   size_t weights_scale_size_;
-  size_t weights_factor_size_;
+  size_t weights_shift_size_;
   
   ToutputType *toutput_;
-  TscaleType *input_scale_;
-  TscaleType *weights_scale_;
-  TscaleType *weights_factor_;
+  float *input_scale_;
+  float *weights_scale_;
+  float *weights_shift_;
   int8_t *tweights_s8_;
   unsigned int xopt_;
   int attr_;

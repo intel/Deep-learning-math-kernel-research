@@ -25,10 +25,7 @@ struct u8s8_gemm_kernel {
       typename GarrayTypes::InputType *,
       typename GarrayTypes::WeightsType *,
       typename GarrayTypes::BiasType *, int,
-      typename GarrayTypes::ScaleType *,
-      typename GarrayTypes::ScaleType *,
-      typename GarrayTypes::ScaleType *,
-      typename GarrayTypes::ScaleType *) {}
+      float *, float *, float *, float *) {}
 };
 
 template <typename GarrayTypes, typename OoutputType, int V, int Vx, int ...Kp>
@@ -42,7 +39,6 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
   using WeightsType = typename GarrayTypes::WeightsType;
   using OutputType = typename GarrayTypes::OutputType;
   using BiasType = typename GarrayTypes::BiasType;
-  using ScaleType = typename GarrayTypes::ScaleType;
 
   constexpr static auto S = estl::get<0, int, kparams>();
   constexpr static auto F = estl::get<1, int, kparams>();
@@ -172,8 +168,8 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
   template <const int JO, bool ip_sum>
   static inline void op_int8_restore_output(elx_param_t &ep,
       OutputType *output, OoutputType *ooutput, BiasType *bias, __i<V> res,
-      ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
-      ScaleType *weights_factor, const int _O1, const int _O0, const int _O,
+      float *src_scale, float *src_shift, float *weights_scale,
+      float *weights_shift, const int _O1, const int _O0, const int _O,
       const int _T, const int attr)
   {
     MD3(OutputType, aoutput_compact0, output, JO, T, V);
@@ -198,8 +194,8 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
 
     MD3(float, aweights_scale3, weights_scale, ep.O1, O, V);
     MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
-    MD3(float, aweights_factor3, weights_factor, ep.O1, O, V);
-    MD2(float, aweights_factor, &md3(aweights_factor3, _O1, _O0, 0), JO, V);
+    MD3(float, aweights_shift3, weights_shift, ep.O1, O, V);
+    MD2(float, aweights_shift, &md3(aweights_shift3, _O1, _O0, 0), JO, V);
 
     __m<V> fout = _mm<V>::cvtepi32_ps(res);
 
@@ -208,13 +204,13 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
     // XXX: fixme
     if (ep.sampling_kind == CALIBRATED, 1) {
       __m<V> s = *(__m<V> *)&md2(aweights_scale, _O, 0);
-      __m<V> z = *(__m<V> *)&md2(aweights_factor, _O, 0);
+      __m<V> z = *(__m<V> *)&md2(aweights_shift, _O, 0);
       fout = fout * s + z;
     } else {
       // XXX: TODO: enable  fine/coarse sampling without perf lose
       // Winograd with FINE/COARSE sampling
-      auto z = _mm<V>::set1_ps(src_factor[_T]);
-      auto acc = *(__m<V> *)&md2(aweights_factor, _O, 0);
+      auto z = _mm<V>::set1_ps(src_shift[_T]);
+      auto acc = *(__m<V> *)&md2(aweights_shift, _O, 0);
       fout -= (z * acc);
       auto Sa = _mm<V>::set1_ps(src_scale[_T]);
       auto Sw = *(__m<V> *)&md2(aweights_scale, _O, 0);
@@ -275,8 +271,8 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
   op_gemm(elx_param_t &ep,
       OutputType *output, OoutputType *ooutput,
       uint8_t *input, int8_t *weights, BiasType *bias, int attr,
-      ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor, int _O1, int _O0)
+      float *src_scale, float *src_shift,
+      float *weights_scale, float *weights_shift, int _O1, int _O0)
   {
     __i<V> mmout[JO][T];
 #if defined(WITH_VNNI)
@@ -390,15 +386,15 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
         unroll_for (_O, JO) {
         unroll_for (_T, T) {
             op_int8_restore_output<JO, true>(ep, output, ooutput, bias,
-                mmout[_O][_T], src_scale, src_factor, weights_scale,
-                weights_factor, _O1, _O0, _O, _T, attr);
+                mmout[_O][_T], src_scale, src_shift, weights_scale,
+                weights_shift, _O1, _O0, _O, _T, attr);
         }}
       } else {
         unroll_for (_O, JO) {
         unroll_for (_T, T) {
           op_int8_restore_output<JO, false>(ep, output, ooutput, bias,
-              mmout[_O][_T], src_scale, src_factor, weights_scale,
-              weights_factor, _O1, _O0, _O, _T, attr);
+              mmout[_O][_T], src_scale, src_shift, weights_scale,
+              weights_shift, _O1, _O0, _O, _T, attr);
         }}
       }
     } else { // Store accumulated s32 output: direct/1x1/wino
@@ -413,8 +409,8 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
   static inline typename std::enable_if<J_traits<O, T, K_GEMM, WeightsType>::J == 1>::type
   gemm(elx_param_t &ep, OutputType *output, OoutputType *ooutput,
       InputType *input, WeightsType *weights, BiasType *bias, int attr,
-      ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor)
+      float *src_scale, float *src_shift,
+      float *weights_scale, float *weights_shift)
   {
     const int W_stride = F_traits<F>::is_compact_weights
                          ? ep.I2 * V1 * O * V * Vx : O * ep.IC * V;
@@ -442,12 +438,12 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
       if (F_traits<F>::is_nhwc_output && test_bit(attr, AT_Or_MASK)
           && _O1 == ep.O1 - 1) {
         op_gemm<JO0, JP0, MP0, true>(ep, aout, aoout, input, &md2(aweights, _O1, 0),
-            &md2(abias, _O1, 0), attr, src_scale, src_factor, weights_scale,
-            weights_factor, _O1, 0);
+            &md2(abias, _O1, 0), attr, src_scale, src_shift, weights_scale,
+            weights_shift, _O1, 0);
       } else {
         op_gemm<JO0, JP0, MP0, false>(ep, aout, aoout, input, &md2(aweights, _O1, 0),
-            &md2(abias, _O1, 0), attr, src_scale, src_factor, weights_scale,
-            weights_factor, _O1, 0);
+            &md2(abias, _O1, 0), attr, src_scale, src_shift, weights_scale,
+            weights_shift, _O1, 0);
       }
     }
   }
@@ -456,8 +452,8 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
   static inline typename std::enable_if<J_traits<O, T, K_GEMM, WeightsType>::J == 2>::type
   gemm(elx_param_t &ep, OutputType *output, OoutputType *ooutput,
       InputType *input, WeightsType *weights, BiasType *bias, int attr,
-      ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor)
+      float *src_scale, float *src_shift,
+      float *weights_scale, float *weights_shift)
   {
     const int W_stride0
         = F_traits<F>::is_compact_weights ? ep.I2 * V1 : 1;
@@ -485,8 +481,8 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
           : F_traits<F>::is_compact_output ? &md3(aooutput_compact, _O1, 0, 0)
                                            : &md3(aooutput_blocked, _O1, 0, 0);
       op_gemm<JO0, JP0, MP0, false>(ep, aout, aoout, input, &md4(aweights, _O1, 0, 0, 0),
-          &md3(abias, _O1, 0, 0), attr, src_scale, src_factor, weights_scale,
-          weights_factor, _O1, 0);
+          &md3(abias, _O1, 0, 0), attr, src_scale, src_shift, weights_scale,
+          weights_shift, _O1, 0);
       aout = F_traits<F>::is_nhwc_output
           ? &md5(aoutput_nhwc, 0, 0, _O1, JO0, 0)
           : F_traits<F>::is_compact_output ? &md3(aoutput_compact, _O1, JO0, 0)
@@ -498,12 +494,12 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
       if (F_traits<F>::is_nhwc_output && test_bit(attr, AT_Or_MASK)
           && _O1 == ep.O1 - 1) {
         op_gemm<JO1, JP1, MP1, true>(ep, aout, aoout, input, &md4(aweights, _O1, 0, JO0, 0),
-            &md3(abias, _O1, JO0, 0), attr, src_scale, src_factor,
-            weights_scale, weights_factor, _O1, JO0);
+            &md3(abias, _O1, JO0, 0), attr, src_scale, src_shift,
+            weights_scale, weights_shift, _O1, JO0);
       } else {
         op_gemm<JO1, JP1, MP1, false>(ep, aout, aoout, input, &md4(aweights, _O1, 0, JO0, 0),
-            &md3(abias, _O1, JO0, 0), attr, src_scale, src_factor,
-            weights_scale, weights_factor, _O1, JO0);
+            &md3(abias, _O1, JO0, 0), attr, src_scale, src_shift,
+            weights_scale, weights_shift, _O1, JO0);
       }
     }
   }
@@ -512,8 +508,8 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
   static inline typename std::enable_if<J_traits<O, T, K_GEMM, WeightsType>::J == 3>::type
   gemm(elx_param_t &ep, OutputType *output, OoutputType *ooutput,
       InputType *input, WeightsType *weights, BiasType *bias, int attr,
-      ScaleType *src_scale, ScaleType *src_factor,
-      ScaleType *weights_scale, ScaleType *weights_factor)
+      float *src_scale, float *src_shift,
+      float *weights_scale, float *weights_shift)
   {
     const int W_stride0
         = F_traits<F>::is_compact_weights ? ep.I2 * V1 : 1;
@@ -541,8 +537,8 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
           : F_traits<F>::is_compact_output ? &md3(aooutput_compact, _O1, 0, 0)
                                            : &md3(aooutput_blocked, _O1, 0, 0);
       op_gemm<JO0, JP0, MP0, false>(ep, aout, aoout, input, &md4(aweights, _O1, 0, 0, 0),
-          &md3(abias, _O1, 0, 0), attr, src_scale, src_factor, weights_scale,
-          weights_factor, _O1, 0);
+          &md3(abias, _O1, 0, 0), attr, src_scale, src_shift, weights_scale,
+          weights_shift, _O1, 0);
       aout = F_traits<F>::is_nhwc_output
           ? &md5(aoutput_nhwc, 0, 0, _O1, JO0, 0)
           : F_traits<F>::is_compact_output ? &md3(aoutput_compact, _O1, JO0, 0)
@@ -552,8 +548,8 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
           : F_traits<F>::is_compact_output ? &md3(aooutput_compact, _O1, JO0, 0)
                                            : &md3(aooutput_blocked, _O1, JO0, 0);
       op_gemm<JO1, JP1, MP1, false>(ep, aout, aoout, input, &md4(aweights, _O1, 0, JO0, 0),
-          &md3(abias, _O1, JO0, 0), attr, src_scale, src_factor, weights_scale,
-          weights_factor, _O1, JO0);
+          &md3(abias, _O1, JO0, 0), attr, src_scale, src_shift, weights_scale,
+          weights_shift, _O1, JO0);
       aout = F_traits<F>::is_nhwc_output
           ? &md5(aoutput_nhwc, 0, 0, _O1, JO0 + JO1, 0)
           : F_traits<F>::is_compact_output
@@ -568,13 +564,13 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
           && _O1 == ep.O1 - 1) {
         op_gemm<JO2, JP2, MP2, true>(ep, aout, aoout, input,
             &md4(aweights, _O1, 0, JO0 + JO1, 0),
-            &md3(abias, _O1, JO0 + JO1, 0), attr, src_scale, src_factor,
-            weights_scale, weights_factor, _O1, JO0 + JO1);
+            &md3(abias, _O1, JO0 + JO1, 0), attr, src_scale, src_shift,
+            weights_scale, weights_shift, _O1, JO0 + JO1);
       } else {
         op_gemm<JO2, JP2, MP2, false>(ep, aout, aoout, input,
             &md4(aweights, _O1, 0, JO0 + JO1, 0),
-            &md3(abias, _O1, JO0 + JO1, 0), attr, src_scale, src_factor,
-            weights_scale, weights_factor, _O1, JO0 + JO1);
+            &md3(abias, _O1, JO0 + JO1, 0), attr, src_scale, src_shift,
+            weights_scale, weights_shift, _O1, JO0 + JO1);
       }
     }
   }

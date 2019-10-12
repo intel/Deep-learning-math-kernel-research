@@ -31,13 +31,13 @@ const int TKF_NHWC = 0xF;
 //    Input: I2, T, S, V, Vx
 //    Weights: O1, I2, V, O, V, Vx
 //    Output: O1, O, T, V
-//    factor: O1, O, V
+//    shift: O1, O, V
 //    weights_scale: O1, O, V
 // D: blocked
 //    Input: I2, ih, iw, V, Vx
 //    Weights: O1, O, ic2, V, V, Vx
 //    Output: O1, O, oh, ow, V
-//    factor: O1, O, V
+//    shift: O1, O, V
 //    weights_scale: O1, O, V
 // E: nchw
 //    Input: I2, V, ih, iw

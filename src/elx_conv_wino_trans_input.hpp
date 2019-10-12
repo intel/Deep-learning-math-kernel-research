@@ -135,7 +135,6 @@ class elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
  : public elx_conv_wino_trans_input_base<float, InputType, I, A, K, V> {
 public:
   using TinputType = float;
-  using TscaleType = float;
   using super = elx_conv_wino_trans_input_base<float, InputType, I, A, K, V>;
 
 protected:
@@ -151,50 +150,50 @@ public:
   elx_conv_wino_trans_input_t() {}
   virtual ~elx_conv_wino_trans_input_t() {}
 
-  void execute(TscaleType *__restrict tinput_quant_scale,
+  void execute(float *__restrict tinput_scale,
       uint8_t *__restrict t_input_u8,
       TinputType *__restrict t_input,
       InputType *__restrict input, int _I4);
 
-  void execute(TscaleType *__restrict tinput_quant_scale,
+  void execute(float *__restrict tinput_scale,
       uint8_t *__restrict t_input_u8,
       TinputType *__restrict t_input,
       InputType *__restrict input,
       int _t2, int Tz);
 
-  void operator() (TscaleType *__restrict tinput_quant_scale,
+  void operator() (float *__restrict tinput_scale,
       uint8_t *__restrict t_input_u8,
       TinputType *__restrict t_input,
       InputType *__restrict input, int _I4) {
-    execute(tinput_quant_scale, t_input_u8, t_input, input, _I4);
+    execute(tinput_scale, t_input_u8, t_input, input, _I4);
   }
 
-  void operator() (TscaleType *__restrict tinput_quant_scale,
+  void operator() (float *__restrict tinput_scale,
       uint8_t *__restrict t_input_u8,
       TinputType *__restrict t_input,
       InputType *__restrict input,
       int _t2, int Tz) {
-    execute(tinput_quant_scale, t_input_u8, t_input, input, _t2, Tz);
+    execute(tinput_scale, t_input_u8, t_input, input, _t2, Tz);
   }
 
 protected:
-  inline void __execute_blocked_nhwc(TscaleType *__restrict tinput_quant_scale,
+  inline void __execute_blocked_nhwc(float *__restrict tinput_scale,
       uint8_t *__restrict t_input_u8,
       TinputType *__restrict t_input,
       InputType *__restrict input, int _I4);
 
-  inline void __execute_nchw(TscaleType *__restrict tinput_quant_scale,
+  inline void __execute_nchw(float *__restrict tinput_scale,
       uint8_t *__restrict t_input_u8,
       TinputType *__restrict t_input,
       InputType *__restrict input, int _I4);
 
-  inline void __execute_blocked_nhwc(TscaleType *__restrict tinput_quant_scale,
+  inline void __execute_blocked_nhwc(float *__restrict tinput_scale,
       uint8_t *__restrict t_input_u8,
       TinputType *__restrict t_input,
       InputType *__restrict input,
       int _t2, int Tz);
 
-  inline void __execute_nchw(TscaleType *__restrict tinput_quant_scale,
+  inline void __execute_nchw(float *__restrict tinput_scale,
       uint8_t *__restrict t_input_u8,
       TinputType *__restrict t_input,
       InputType *__restrict input,

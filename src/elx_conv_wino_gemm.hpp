@@ -10,7 +10,6 @@ public:
   using TinputType   = typename GarrayTypes::InputType;
   using TweightsType = typename GarrayTypes::WeightsType;
   using ToutputType  = typename GarrayTypes::OutputType;
-  using TscaleType   = typename GarrayTypes::ScaleType;
 
   elx_conv_wino_gemm_t() {};
   virtual ~elx_conv_wino_gemm_t() {};

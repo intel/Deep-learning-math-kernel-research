@@ -50,28 +50,27 @@ constexpr uint32_t AT_FMAOPT_MASK           { 1 << 8 }; // FMA optimization
 typedef short float16;
 
 template <typename... Types> struct ConvImplTypes {
-  static_assert(sizeof...(Types) == 5,
+  static_assert(sizeof...(Types) == 4,
       "Inner types input/weights/output/bias scale data type");
   using InputType = typename std::tuple_element<0, std::tuple<Types...>>::type;
   using WeightsType = typename std::tuple_element<1, std::tuple<Types...>>::type;
   using OutputType = typename std::tuple_element<2, std::tuple<Types...>>::type;
   using BiasType = typename std::tuple_element<3, std::tuple<Types...>>::type;
-  using ScaleType = typename std::tuple_element<4, std::tuple<Types...>>::type;
 };
 
 namespace conv_impl {
-  using FP32 = ConvImplTypes<float, float, float, float, float>;
-  using FP32_F16b = ConvImplTypes<float, float, float, short, float>;
-  using FP32_F16w = ConvImplTypes<float, short, float, float, float>;
-  using FP32_F16o = ConvImplTypes<float, float, short, float, float>;
-  using FP32_F16iwo = ConvImplTypes<short, short, short, float, float>;
-  using FP32_F16wob = ConvImplTypes<float, short, short, short, float>;
-  using INT8_F32 = ConvImplTypes<uint8_t, int8_t, float, float, float>;
-  using INT8_F16b = ConvImplTypes<uint8_t, int8_t, float, short, float>;
-  using INT8_F16o = ConvImplTypes<uint8_t, int8_t, short, float, float>;
-  using INT8_F16ob = ConvImplTypes<uint8_t, int8_t, short, short, float>;
-  using INT8_INT8o = ConvImplTypes<uint8_t, int8_t, int8_t, float, float>;
-  using INT8_UINT8o = ConvImplTypes<uint8_t, int8_t, uint8_t, float, float>;
+  using FP32 = ConvImplTypes<float, float, float, float>;
+  using FP32_F16b = ConvImplTypes<float, float, float, short>;
+  using FP32_F16w = ConvImplTypes<float, short, float, float>;
+  using FP32_F16o = ConvImplTypes<float, float, short, float>;
+  using FP32_F16iwo = ConvImplTypes<short, short, short, float>;
+  using FP32_F16wob = ConvImplTypes<float, short, short, short>;
+  using INT8_F32 = ConvImplTypes<uint8_t, int8_t, float, float>;
+  using INT8_F16b = ConvImplTypes<uint8_t, int8_t, float, short>;
+  using INT8_F16o = ConvImplTypes<uint8_t, int8_t, short, float>;
+  using INT8_F16ob = ConvImplTypes<uint8_t, int8_t, short, short>;
+  using INT8_INT8o = ConvImplTypes<uint8_t, int8_t, int8_t, float>;
+  using INT8_UINT8o = ConvImplTypes<uint8_t, int8_t, uint8_t, float>;
 };
 
 } // namespace euler

@@ -360,7 +360,7 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
 
 template <typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
-::__execute_blocked_nhwc(TscaleType *tinput_quant_scale,
+::__execute_blocked_nhwc(float *tinput_scale,
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input, int _I4)
 {
@@ -435,7 +435,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
   THREAD_FOR(4, mthr_, ithr, [&](int _t2, int _hA, int _wA, int _I3) {
     MD2(uint8_t, atinput2_u8, tinput_u8,
         ep->t2, A * A * ep->T * ep->I3 * ep->I2 * V);
-    MD6(TscaleType, atinput_quant_scale, tinput_quant_scale,
+    MD6(float, atinput_scale, tinput_scale,
         ep->t2, A, A, ep->I3, 2, ep->T);
     MD2(TinputType, atinput2, tinput,
         ep->t2, A * A * ep->I3 * ep->I2 * ep->T * V);
@@ -478,8 +478,8 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
       float S = delta / EL_UINT8_MAX;
       float repS = EL_UINT8_MAX / delta;
       float z = std::ceil(- min * repS);
-      md6(atinput_quant_scale, _t2, _hA, _wA, _I3, 0, _T) = S;
-      md6(atinput_quant_scale, _t2, _hA, _wA, _I3, 1, _T) = z;
+      md6(atinput_scale, _t2, _hA, _wA, _I3, 0, _T) = S;
+      md6(atinput_scale, _t2, _hA, _wA, _I3, 1, _T) = z;
 
       __m<V> mrepS = _mm<V>::set1_ps(repS);
       __m<V> mz = _mm<V>::set1_ps(z);
@@ -498,7 +498,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 
 template <typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
-::__execute_nchw(TscaleType *tinput_quant_scale,
+::__execute_nchw(float *tinput_scale,
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input, int _I4) {
   const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(ep->ih * ep->iw));
@@ -586,18 +586,18 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 
 template <typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
-::execute(TscaleType *__restrict tinput_quant_scale,
+::execute(float *__restrict tinput_scale,
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input, int _I4) {
   if (input_is_bfmt_ || input_as_bfmt_ || ep->input_fmt == nhwc)
-    __execute_blocked_nhwc(tinput_quant_scale, tinput_u8, tinput, input, _I4);
+    __execute_blocked_nhwc(tinput_scale, tinput_u8, tinput, input, _I4);
   else
-    __execute_nchw(tinput_quant_scale, tinput_u8, tinput, input, _I4);
+    __execute_nchw(tinput_scale, tinput_u8, tinput, input, _I4);
 }
 
 template <typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
-::__execute_blocked_nhwc(TscaleType *tinput_quant_scale,
+::__execute_blocked_nhwc(float *tinput_scale,
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input, int _t2, int Tz)
 {
@@ -607,7 +607,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
       ep->n, ep->ih, ep->iw, ep->I4, ep->I3, ep->I2, V);
 
   MD6(uint8_t, atinput_u8, tinput_u8, A, A, ep->I3, ep->I2, Tz, V);
-  MD5(TscaleType, atinput_quant_scale, tinput_quant_scale, ep->I3, A, A, 2, ep->T);
+  MD5(float, atinput_scale, tinput_scale, ep->I3, A, A, 2, ep->T);
 
   auto res = std::div(_t2 * ep->T, ep->nt);
   auto _n = res.quot;
@@ -694,8 +694,8 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
     TinputType z = std::ceil(-min * repS);
 
     iter_each(_T, Tz) {
-      md5(atinput_quant_scale, 0, 0, 0, 0, _T) = S;
-      md5(atinput_quant_scale, 0, 0, 0, 1, _T) = z;
+      md5(atinput_scale, 0, 0, 0, 0, _T) = S;
+      md5(atinput_scale, 0, 0, 0, 1, _T) = z;
     }
 
     iter_each (_I3, ep->I3) {
@@ -780,8 +780,8 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
           mmax[_hA][_wA][0] = repS;
           mmin[_hA][_wA][0] = z;
 
-          md5(atinput_quant_scale, _I3, _hA, _wA, 0, _T) = S;
-          md5(atinput_quant_scale, _I3, _hA, _wA, 1, _T) = z;
+          md5(atinput_scale, _I3, _hA, _wA, 0, _T) = S;
+          md5(atinput_scale, _I3, _hA, _wA, 1, _T) = z;
         }}
 
         // quantization
@@ -808,7 +808,7 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 
 template <typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
-::__execute_nchw(TscaleType *__restrict tinput_quant_scale,
+::__execute_nchw(float *__restrict tinput_scale,
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input, int _t2, int Tz) {
   // n, IC, ih, iw => t2 | hA, wA, I3, I2, T, V
@@ -887,13 +887,13 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
 
 template <typename InputType, int I, int A, int K, int V>
 void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
-::execute(TscaleType *__restrict tinput_quant_scale,
+::execute(float *__restrict tinput_scale,
     uint8_t *__restrict tinput_u8, TinputType *__restrict tinput,
     InputType *__restrict input, int _t2, int Tz) {
   if (input_is_bfmt_ || input_as_bfmt_ || ep->input_fmt == nhwc)
-    __execute_blocked_nhwc(tinput_quant_scale, tinput_u8, tinput, input, _t2, Tz);
+    __execute_blocked_nhwc(tinput_scale, tinput_u8, tinput, input, _t2, Tz);
   else
-    __execute_nchw(tinput_quant_scale, tinput_u8, tinput, input, _t2, Tz);
+    __execute_nchw(tinput_scale, tinput_u8, tinput, input, _t2, Tz);
 }
 
 } // namespace euler

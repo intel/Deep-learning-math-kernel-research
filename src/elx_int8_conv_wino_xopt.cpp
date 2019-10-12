@@ -23,7 +23,7 @@ void Instance_elx_int8_conv_wino_t::__execute_a133(
 {
   if (is_first_run_) {
     setup_workspace([&]() {
-      trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
+      trans_weights_s8(tweights_scale_, tweights_shift_,
                        tweights_s8_, tweights_, weights, ep.O4);
     });
   }
@@ -35,9 +35,9 @@ void Instance_elx_int8_conv_wino_t::__execute_a133(
   MD3(int8_t, atweights_s8, tweights_s8_, ep.O4, ep.I4,
       A * A * ep.I3 * ep.I2 * V * ep.O3 * ep.O2 * V);
 
-  MD3(TscaleType, atweights_quant_scale, tweights_quant_scale_,
+  MD3(float, atweights_scale, tweights_scale_,
       ep.O4, ep.I4, ep.O3 * ep.O2 * V * A * A);
-  MD3(TscaleType, aweights_quant_factor, tweights_quant_factor_,
+  MD3(float, aweights_shift, tweights_shift_,
       ep.O4, ep.I4, ep.O3 * ep.O2 * V * A * A);
 
   THREAD_PARALLEL()
@@ -47,15 +47,15 @@ void Instance_elx_int8_conv_wino_t::__execute_a133(
     iter_each (_O4, ep.O4) {
       if (_I4 != last_I4) {
         trans_input_u8(
-            tinput_quant_scale_, tinput_u8_, tinput_, input, _I4);
+            tinput_scale_, tinput_u8_, tinput_, input, _I4);
         last_I4 = _I4;
       }
       THREAD_BARRIER()
       u8s8_gemm.execute_na(toutput_, tinput_u8_,
           &md3(atweights_s8, _O4, _I4, 0),
-          tinput_quant_scale_, nullptr,
-          &md3(atweights_quant_scale, _O4, _I4, 0),
-          &md3(aweights_quant_factor, _O4, _I4, 0),
+          tinput_scale_, nullptr,
+          &md3(atweights_scale, _O4, _I4, 0),
+          &md3(aweights_shift, _O4, _I4, 0),
           _I4);
       THREAD_BARRIER()
       trans_output(output, toutput_, &md2(abias, _O4, 0), _O4, _I4);
@@ -73,7 +73,7 @@ void Instance_elx_int8_conv_wino_t::__execute_a161(
 {
   if (is_first_run_) {
     setup_workspace([&]() {
-      trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
+      trans_weights_s8(tweights_scale_, tweights_shift_,
                        tweights_s8_, tweights_, weights, ep.O4);
     });
   }
@@ -86,31 +86,31 @@ void Instance_elx_int8_conv_wino_t::__execute_a161(
     MD2(ToutputType, atoutput2, toutput_, mthr_,
         A * A * ep.T * ep.O3 * ep.O2 * V);
     MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
-    MD2(TscaleType, atinput_quant_scale, tinput_quant_scale_, mthr_,
+    MD2(float, atinput_scale, tinput_scale_, mthr_,
         ep.sampling_kind == CALIBRATED ? 2 * ep.T
                                           : ep.I3 * A * A * 2 * ep.T);
     MD2(uint8_t, atinput2_u8, tinput_u8_, mthr_,
         A * A * ep.T * ep.IC);
     MD2(int8_t, atweights_s8, tweights_s8_, ep.O4,
         A * A * ep.IC * ep.O3 * ep.O2 * V);
-    MD2(TscaleType, atweights_quant_scale, tweights_quant_scale_,
+    MD2(float, atweights_scale, tweights_scale_,
         ep.O4, ep.O3 * ep.O2 * V * A * A);
-    MD2(TscaleType, aweights_quant_factor, tweights_quant_factor_,
+    MD2(float, aweights_shift, tweights_shift_,
         ep.O4, ep.O3 * ep.O2 * V * A * A);
 
     int Tz = _t2 == (ep.t2 - 1) ? ep.Tr : ep.T;
 
     if (t2_history != _t2) {
-      trans_input_u8(&md2(atinput_quant_scale, ithr, 0),
+      trans_input_u8(&md2(atinput_scale, ithr, 0),
           &md2(atinput2_u8, ithr, 0), &md2(atinput2, ithr, 0), input, _t2, Tz);
       t2_history = _t2;
     }
     u8s8_gemm.execute(&md2(atoutput2, ithr, 0),
         &md2(atinput2_u8, ithr, 0),
         &md2(atweights_s8, _O4, 0),
-        &md2(atinput_quant_scale, ithr, 0),
-        &md2(atweights_quant_scale, _O4, 0),
-        &md2(aweights_quant_factor, _O4, 0), _t2, Tz);
+        &md2(atinput_scale, ithr, 0),
+        &md2(atweights_scale, _O4, 0),
+        &md2(aweights_shift, _O4, 0), _t2, Tz);
     trans_output(output, &md2(atoutput2, ithr, 0),
                  &md2(abias, _O4, 0), Tz, _t2, _O4, 0);
   }, ep.t2, ep.O4);
@@ -126,7 +126,7 @@ void Instance_elx_int8_conv_wino_t::__execute_a173(
 {
   if (is_first_run_) {
     setup_workspace([&]() {
-      trans_weights_s8(tweights_quant_scale_, tweights_quant_factor_,
+      trans_weights_s8(tweights_scale_, tweights_shift_,
                        tweights_s8_, tweights_, weights, ep.O4);
     });
   }
@@ -147,17 +147,17 @@ void Instance_elx_int8_conv_wino_t::__execute_a173(
         A * A * ep.T * ep.I3 * ep.I2 * V);
     MD3(int8_t, atweights_s8, tweights_s8_, ep.O4, ep.I4,
         A * A * ep.I3 * ep.I2 * V * ep.O3 * ep.O2 * V);
-    MD2(TscaleType, atinput_quant_scale, tinput_quant_scale_, mthr_,
+    MD2(float, atinput_scale, tinput_scale_, mthr_,
         ep.sampling_kind == CALIBRATED ? 2 * ep.T
                                           : ep.I3 * A * A * 2 * ep.T);
-    MD3(TscaleType, atweights_quant_scale, tweights_quant_scale_,
+    MD3(float, atweights_scale, tweights_scale_,
         ep.O4, ep.I4, ep.O3 * ep.O2 * V * A * A);
-    MD3(TscaleType, aweights_quant_factor, tweights_quant_factor_,
+    MD3(float, aweights_shift, tweights_shift_,
         ep.O4, ep.I4, ep.O3 * ep.O2 * V * A * A);
 
     if (last_I4 != _I4 || last_t2 != _t2) {
       trans_input_u8(
-          &md2(atinput_quant_scale, ithr, 0),
+          &md2(atinput_scale, ithr, 0),
           &md2(atinput2_u8, ithr, 0), &md2(atinput2, ithr, 0),
           &md3(ainput, 0, _I4, 0), _t2, Tz);
       last_t2 = _t2; last_I4 = _I4;
@@ -166,9 +166,9 @@ void Instance_elx_int8_conv_wino_t::__execute_a173(
         &md2(atoutput2, ithr, 0),
         &md2(atinput2_u8, ithr, 0),
         &md3(atweights_s8, _O4, _I4, 0),
-        &md2(atinput_quant_scale, ithr, 0),
-        &md3(atweights_quant_scale, _O4, _I4, 0),
-        &md3(aweights_quant_factor, _O4, _I4, 0), _t2, Tz, _I4);
+        &md2(atinput_scale, ithr, 0),
+        &md3(atweights_scale, _O4, _I4, 0),
+        &md3(aweights_shift, _O4, _I4, 0), _t2, Tz, _I4);
     trans_output(output, &md2(atoutput2, ithr, 0),
         &md2(abias, _O4, 0), Tz, _t2, _O4, _I4);
   }, ep.t2, ep.I4, ep.O4);

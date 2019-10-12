@@ -29,7 +29,6 @@ public:
   using TinputType = typename TarrayTypes::InputType;
   using TweightsType = typename TarrayTypes::WeightsType;
   using ToutputType = typename TarrayTypes::OutputType;
-  using TscaleType = typename TarrayTypes::ScaleType;
 
   public:
   elx_int8_conv_direct_1x1_t(eld_conv_t &dc);
@@ -41,15 +40,15 @@ public:
   void __execute_b161(OutputType *, InputType *, WeightsType *, BiasType *);
   void __execute_c160(OutputType *, InputType *, WeightsType *, BiasType *);
 
-  inline void trans_weights_s8_blocked_oc(TscaleType *, int8_t *, WeightsType *, BiasType *);
+  inline void trans_weights_s8_blocked_oc(float *, int8_t *, WeightsType *, BiasType *);
 
   void requant_output(OutputType *, ToutputType *);
 
 
   void gemm_b161(ToutputType *, OutputType *, uint8_t *, int8_t *,
-      TscaleType *, TscaleType *, BiasType *, int);
+      float *, float *, BiasType *, int);
   void gemm_c160(ToutputType *, OutputType *, uint8_t *, int8_t *,
-      TscaleType *, TscaleType *, BiasType *, int, int, int);
+      float *, float *, BiasType *, int, int, int);
 
   void prepare_quant_calibration(eld_conv_t &);
   void set_scratch_buffers(void *base);
@@ -85,9 +84,9 @@ public:
   InputType *binput_; // blocked input
   WeightsType *bweights_;
   OutputType *boutput_;
-  TscaleType *input_scale_;
+  float *input_scale_;
   int8_t *tweights_s8_;
-  TscaleType *weights_scale_;
+  float *weights_scale_;
 
   unsigned int xopt_;
   int attr_;

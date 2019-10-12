@@ -134,10 +134,7 @@ struct u8s8_depthwise_conv_kernel {
       typename GarrayTypes::InputType *,
       typename GarrayTypes::WeightsType *,
       typename GarrayTypes::BiasType *,
-      typename GarrayTypes::ScaleType *,
-      typename GarrayTypes::ScaleType *,
-      typename GarrayTypes::ScaleType *,
-      typename GarrayTypes::ScaleType *,
+      float *, float *, float *, float *,
       int, int, int, int, int, int, int) {}
 };
 
@@ -152,7 +149,6 @@ struct u8s8_depthwise_conv_kernel<GarrayTypes, RoutputType, V, Vx,
   using WeightsType = typename GarrayTypes::WeightsType;
   using OutputType = typename GarrayTypes::OutputType;
   using BiasType = typename GarrayTypes::BiasType;
-  using ScaleType = typename GarrayTypes::ScaleType;
 
   constexpr static auto S = estl::get<0, int, kparams>();
   constexpr static auto F = estl::get<1, int, kparams>();
@@ -221,21 +217,21 @@ struct u8s8_depthwise_conv_kernel<GarrayTypes, RoutputType, V, Vx,
   }
 
   static inline void op_restore_output(elx_param_t &ep, OutputType *output,
-      RoutputType *routput, BiasType *bias, __i<V> res, ScaleType *src_scale,
-      ScaleType *src_factor, ScaleType *weights_scale, ScaleType *weights_factor,
+      RoutputType *routput, BiasType *bias, __i<V> res, float *src_scale,
+      float *src_shift, float *weights_scale, float *weights_shift,
       const int _T, const int attr)
   {
     MD2(RoutputType, aroutput_blocked, routput, T, V);
     MD1(float, aweights_scale, weights_scale, V);
-    MD1(float, aweights_factor, weights_factor, V);
+    MD1(float, aweights_shift, weights_shift, V);
 
     auto rout = &md2(aroutput_blocked, _T, 0);
     __m<V> fout = _mm<V>::cvtepi32_ps(res);
 
     // restore and requantization
     auto scale = *(__m<V> *)&md1(aweights_scale, 0);
-    auto factor = *(__m<V> *)&md1(aweights_factor, 0);
-    fout = fout * scale + factor;
+    auto shift = *(__m<V> *)&md1(aweights_shift, 0);
+    fout = fout * scale + shift;
 
     // fuse relu
     if (test_bit(attr, AT_RELU_MASK)) {
@@ -259,21 +255,21 @@ struct u8s8_depthwise_conv_kernel<GarrayTypes, RoutputType, V, Vx,
   }
 
   static inline __i<V> op_restore_output_u32(elx_param_t &ep, OutputType *output,
-      RoutputType *routput, BiasType *bias, __i<V> res, ScaleType *src_scale,
-      ScaleType *src_factor, ScaleType *weights_scale, ScaleType *weights_factor,
+      RoutputType *routput, BiasType *bias, __i<V> res, float *src_scale,
+      float *src_shift, float *weights_scale, float *weights_shift,
       const int _T, const int attr)
   {
     //static_assert(std::is_same<RoutputType, uint8_t>::value, "Expect U8 output only");
 
     MD1(float, aweights_scale, weights_scale, V);
-    MD1(float, aweights_factor, weights_factor, V);
+    MD1(float, aweights_shift, weights_shift, V);
 
     auto scale = *(__m<V> *)weights_scale;
-    auto factor = *(__m<V> *)weights_factor;
+    auto shift = *(__m<V> *)weights_shift;
 
     // restore and requantization
     __m<V> fout = _mm<V>::cvtepi32_ps(res);
-    fout = fout * scale + factor;
+    fout = fout * scale + shift;
 
     // fuse relu
     if (test_bit(attr, AT_RELU_MASK)) {
@@ -291,8 +287,8 @@ struct u8s8_depthwise_conv_kernel<GarrayTypes, RoutputType, V, Vx,
 
   static inline void
   op_conv(elx_param_t &ep, OutputType *output, RoutputType *routput,
-      uint8_t *input, int8_t *weights, BiasType *bias, ScaleType *src_scale,
-      ScaleType *src_factor, ScaleType *weights_scale, ScaleType *weights_factor,
+      uint8_t *input, int8_t *weights, BiasType *bias, float *src_scale,
+      float *src_shift, float *weights_scale, float *weights_shift,
       int khs, int khe, int kws, int kwe, int pad_l, int pad_r, int attr)
   {
     const int AKH = ep.kh / 2;
@@ -307,8 +303,8 @@ struct u8s8_depthwise_conv_kernel<GarrayTypes, RoutputType, V, Vx,
     __i<V> mmout[T], mminp;
 
     MD2(BiasType, abias, bias, ep.ic2, V);
-    MD2(ScaleType, aweights_scale, weights_scale, ep.ic2, V);
-    MD2(ScaleType, aweights_factor, weights_factor, ep.ic2, V);
+    MD2(float, aweights_scale, weights_scale, ep.ic2, V);
+    MD2(float, aweights_shift, weights_shift, ep.ic2, V);
     MD2(RoutputType, aroutput, routput, ep.ic2, ep.oh * ep.ow * V);
 
     for (int _G2 = 0; _G2 < ep.G2; ++_G2) {
@@ -414,31 +410,31 @@ struct u8s8_depthwise_conv_kernel<GarrayTypes, RoutputType, V, Vx,
           out_u32 = op_restore_output_u32(ep, output,
                             &md2(aroutput, _G2, 0),
                             &md2(abias, _G2, 0), mmout[4 * _T],
-                            src_scale, src_factor,
+                            src_scale, src_shift,
                             &md2(aweights_scale, _G2, 0),
-                            &md2(aweights_factor, _G2, 0), _T, attr);
+                            &md2(aweights_shift, _G2, 0), _T, attr);
           out_u32_tmp = op_restore_output_u32(ep, output,
                             &md2(aroutput, _G2, 0),
                             &md2(abias, _G2, 0), mmout[4 * _T + 1],
-                            src_scale, src_factor,
+                            src_scale, src_shift,
                             &md2(aweights_scale, _G2, 0),
-                            &md2(aweights_factor, _G2, 0), _T, attr);
+                            &md2(aweights_shift, _G2, 0), _T, attr);
           out_u32_tmp = _mm512_slli_epi32(out_u32_tmp, 8);
           out_u32 += out_u32_tmp;
           out_u32_tmp = op_restore_output_u32(ep, output,
                             &md2(aroutput, _G2, 0),
                             &md2(abias, _G2, 0), mmout[4 * _T + 2],
-                            src_scale, src_factor,
+                            src_scale, src_shift,
                             &md2(aweights_scale, _G2, 0),
-                            &md2(aweights_factor, _G2, 0), _T, attr);
+                            &md2(aweights_shift, _G2, 0), _T, attr);
           out_u32_tmp = _mm512_slli_epi32(out_u32_tmp, 16);
           out_u32 += out_u32_tmp;
           out_u32_tmp = op_restore_output_u32(ep, output,
                             &md2(aroutput, _G2, 0),
                             &md2(abias, _G2, 0), mmout[4 * _T + 3],
-                            src_scale, src_factor,
+                            src_scale, src_shift,
                             &md2(aweights_scale, _G2, 0),
-                            &md2(aweights_factor, _G2, 0), _T, attr);
+                            &md2(aweights_shift, _G2, 0), _T, attr);
           out_u32_tmp = _mm512_slli_epi32(out_u32_tmp, 24);
           out_u32 += out_u32_tmp;
 
@@ -460,18 +456,18 @@ struct u8s8_depthwise_conv_kernel<GarrayTypes, RoutputType, V, Vx,
           op_restore_output(ep, output,
                             &md2(aroutput, _G2, 0),
                             &md2(abias, _G2, 0), mmout[4 * (T / 4) + _T],
-                            src_scale, src_factor,
+                            src_scale, src_shift,
                             &md2(aweights_scale, _G2, 0),
-                            &md2(aweights_factor, _G2, 0), 4 * (T / 4) + _T, attr);
+                            &md2(aweights_shift, _G2, 0), 4 * (T / 4) + _T, attr);
         }
       } else {
         unroll_for (_T, T) {
           op_restore_output(ep, output,
                             &md2(aroutput, _G2, 0),
                             &md2(abias, _G2, 0), mmout[_T],
-                            src_scale, src_factor,
+                            src_scale, src_shift,
                             &md2(aweights_scale, _G2, 0),
-                            &md2(aweights_factor, _G2, 0), _T, attr);
+                            &md2(aweights_shift, _G2, 0), _T, attr);
         }
       }
     }
@@ -480,13 +476,13 @@ struct u8s8_depthwise_conv_kernel<GarrayTypes, RoutputType, V, Vx,
   template <int O = O, int T = T> static inline void
       conv(elx_param_t &ep, OutputType *output, RoutputType *routput,
           InputType *input, WeightsType *weights, BiasType *bias,
-          ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
-          ScaleType *weights_factor, int khs, int khe, int kws, int kwe,
+          float *src_scale, float *src_shift, float *weights_scale,
+          float *weights_shift, int khs, int khe, int kws, int kwe,
           int pad_l, int pad_r, int attr)
   {
       op_conv(ep, output, routput, input,
           weights, bias,
-          src_scale, src_factor, weights_scale, weights_factor,
+          src_scale, src_shift, weights_scale, weights_shift,
           khs, khe, kws, kwe, pad_l, pad_r, attr);
   }
 

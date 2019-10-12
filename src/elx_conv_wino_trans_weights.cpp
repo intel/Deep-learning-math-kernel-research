@@ -436,8 +436,8 @@ void elx_conv_wino_trans_weights_t<TweightsType, WeightsType, I, A, K, V>
 
 template <typename WeightsType, int I, int A, int K, int V>
 void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
-::quantization(TscaleType *__restrict tweights_quant_scale,
-    TscaleType *__restrict tweights_quant_factor,
+::quantization(float *__restrict tweights_scale,
+    float *__restrict tweights_shift,
     int8_t *__restrict tweights_s8,
     TweightsType *__restrict tweights, int O4) {
   __m<V> zero = _mm<V>::set1_ps(0.0);
@@ -448,7 +448,7 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
                             int _O1, int _O) {
     MD11(TweightsType, atweights, tweights,
         O4, ep->I4, ep->O3, ep->I3, A, A, ep->O1, ep->I2, V, ep->O, V);
-    MD8(TscaleType, atweights_quant_scale, tweights_quant_scale,
+    MD8(float, atweights_scale, tweights_scale,
         O4, ep->I4, ep->O3, A, A, ep->O1, ep->O, V);
     __m<V> mmabs_max = _mm<V>::set1_ps(0.0);
 
@@ -459,7 +459,7 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
           _mm<V>::max_ps(mmabs_max, _mm512_abs_ps(*(__m<V> *)&md11(atweights,
           _O4, _I4, _O3, _I3, _hA, _wA, _O1, _I2, _iV, _O, 0)));
     }}}
-    _mm512_store_ps(&md8(atweights_quant_scale,
+    _mm512_store_ps(&md8(atweights_scale,
         _O4, _I4, _O3, _hA, _wA, _O1, _O, 0), mmabs_max);
   }, O4, ep->I4, ep->O3, A, A, ep->O1, ep->O);
 
@@ -468,7 +468,7 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
       int _I3, int _hA, int _wA, int _O1, int _I2, int _V1, int _O, int _iVx) {
     MD12(int8_t, atweights_s8, tweights_s8, O4, ep->I4, ep->O3, ep->I3,
         A, A, ep->O1, ep->I2, ep->V1, ep->O, V, ep->Vx);
-    MD8(TscaleType, atweights_quant_scale, tweights_quant_scale,
+    MD8(float, atweights_scale, tweights_scale,
         O4, ep->I4, ep->O3, A, A, ep->O1, ep->O, V);
 
     // I2 V => I2 V1 Vx
@@ -478,7 +478,7 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
     // multi scal
     t0 = _mm<V>::mul_ps(*(__m<V> *)&md12(_atweights,
         _O4, _I4, _O3, _I3, _hA, _wA, _O1, _I2, _V1, _iVx, _O, 0), mmscale);
-    t0 = _mm<V>::div_ps(t0, *(__m<V> *)&md8(atweights_quant_scale,
+    t0 = _mm<V>::div_ps(t0, *(__m<V> *)&md8(atweights_scale,
         _O4, _I4, _O3, _hA, _wA, _O1, _O, 0));
     // rounding
     t0 = _mm<V>::roundscale_ps(
@@ -498,7 +498,7 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
       [&](int _O4, int _I4, int _O3, int _hA, int _wA, int _O1, int _O, int _oV) {
     MD12(int8_t, atweights_s8, tweights_s8, O4, ep->I4, ep->O3, ep->I3,
         A, A, ep->O1, ep->I2, ep->V1, ep->O, V, ep->Vx);
-    MD8(TscaleType, atweights_quant_factor, tweights_quant_factor,
+    MD8(float, atweights_shift, tweights_shift,
         O4, ep->I4, ep->O3, A, A, ep->O1, ep->O, V);
 
     float acc = 0;
@@ -509,36 +509,35 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
       acc += (float)md12(atweights_s8,
           _O4, _I4, _O3, _I3, _hA, _wA, _O1, _I2, _V1, _O, _oV, _iVx);
     }}}}
-    md8(atweights_quant_factor, _O4, _I4, _O3, _hA, _wA, _O1, _O, _oV) = acc;
+    md8(atweights_shift, _O4, _I4, _O3, _hA, _wA, _O1, _O, _oV) = acc;
   }, O4, ep->I4, ep->O3, A, A, ep->O1, ep->O, V);
 
   // weights-scale, combine with restore
   estl::parallel_for<8>([&](int _O4, int _I4, int _O3,
                             int _hA, int _wA, int _O1, int _O, int _oV) {
-    MD8(TscaleType, atweights_quant_scale, tweights_quant_scale,
+    MD8(float, atweights_scale, tweights_scale,
         O4, ep->I4, ep->O3, A, A, ep->O1, ep->O, V);
-    MD8(TscaleType, atweights_quant_factor, tweights_quant_factor,
+    MD8(float, atweights_shift, tweights_shift,
         O4, ep->I4, ep->O3, A, A, ep->O1, ep->O, V);
 
     float Sw =
-        md8(atweights_quant_scale, _O4, _I4, _O3, _hA, _wA, _O1, _O, _oV);
+        md8(atweights_scale, _O4, _I4, _O3, _hA, _wA, _O1, _O, _oV);
     Sw /= EL_INT8_MAX;
     float Zw =
-        md8(atweights_quant_factor, _O4, _I4, _O3, _hA, _wA, _O1, _O, _oV);
+        md8(atweights_shift, _O4, _I4, _O3, _hA, _wA, _O1, _O, _oV);
     if (ep->sampling_kind == CALIBRATED) {
       Sw = Sw * ep->tinput_quant_S;
       Zw = -Zw * Sw * ep->tinput_quant_z;
-      md8(atweights_quant_factor, _O4, _I4, _O3, _hA, _wA, _O1, _O, _oV) =
-          Zw;
+      md8(atweights_shift, _O4, _I4, _O3, _hA, _wA, _O1, _O, _oV) = Zw;
     }
-    md8(atweights_quant_scale, _O4, _I4, _O3, _hA, _wA, _O1, _O, _oV) = Sw;
+    md8(atweights_scale, _O4, _I4, _O3, _hA, _wA, _O1, _O, _oV) = Sw;
   }, O4, ep->I4, ep->O3, A, A, ep->O1, ep->O, V);
 }
 
 template <typename WeightsType, int I, int A, int K, int V>
 void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
-::execute(TscaleType *__restrict tweights_quant_scale,
-    TscaleType *__restrict tweights_quant_factor,
+::execute(float *__restrict tweights_scale,
+    float *__restrict tweights_shift,
     int8_t *__restrict tweights_s8,
     TweightsType *__restrict tweights,
     WeightsType *__restrict weights, int O4) {
@@ -548,7 +547,7 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
     else
       __execute_oihw(tweights, weights, O4);
 
-    quantization(tweights_quant_scale, tweights_quant_factor,
+    quantization(tweights_scale, tweights_shift,
                  tweights_s8, tweights, O4);
   }
 }
