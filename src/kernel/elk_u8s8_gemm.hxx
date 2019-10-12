@@ -207,9 +207,9 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
     // global sampling for input/output
     // XXX: fixme
     if (ep.sampling_kind == CALIBRATED, 1) {
-      __m<V> S = *(__m<V> *)&md2(aweights_scale, _O, 0);
+      __m<V> s = *(__m<V> *)&md2(aweights_scale, _O, 0);
       __m<V> z = *(__m<V> *)&md2(aweights_factor, _O, 0);
-      fout = fout * S + z;
+      fout = fout * s + z;
     } else {
       // XXX: TODO: enable  fine/coarse sampling without perf lose
       // Winograd with FINE/COARSE sampling

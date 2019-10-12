@@ -215,15 +215,13 @@ void Instance_elx_int8_conv_direct_t::__execute_d160(
 
       int tail_start = oc2 * V;
       for (int _V = 0; _V < ep.Or; ++_V) {
-        MD5(float, atoutput_blocked, toutput_,
-            ep.n, ep.oc2, ep.oh, ep.ow, V);
-        MD5(float, atoutput_nhwc, toutput_,
-            ep.n, ep.oh, ep.ow, ep.oc2, V);
-        float aout = (ep.input_fmt == nhwc)
-          ? md5(atoutput_nhwc, _n, _oh, _ow, ep.oc2 - 1, _V)
-          : md5(atoutput_blocked, _n, ep.oc2 - 1, _oh, _ow, _V);
-        if (aout > gmax) {
-          gmax = aout;
+        MD5(float, atout_blocked, toutput_, ep.n, ep.oc2, ep.oh, ep.ow, V);
+        MD5(float, atout_nhwc, toutput_, ep.n, ep.oh, ep.ow, ep.oc2, V);
+        float atout = (ep.input_fmt == nhwc)
+          ? md5(atout_nhwc, _n, _oh, _ow, ep.oc2 - 1, _V)
+          : md5(atout_blocked, _n, ep.oc2 - 1, _oh, _ow, _V);
+        if (atout > gmax) {
+          gmax = atout;
           md3(aoutput, _n, _oh, _ow) = tail_start + _V;
         }
       }

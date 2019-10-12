@@ -171,8 +171,7 @@ reorder<Type, oihw, hwio>::reorder(
   estl::parallel_for<4>([&](int _o, int _i, int _h, int _w) {
     MD4(Type, asrc, src, h, w, i, o);
     MD4(Type, adst, dst, o, i, h, w);
-    iter_each(_w, w)
-      md4(adst, _o, _i, _h, _w) = md4(asrc, _h, _w, _i, _o);
+    md4(adst, _o, _i, _h, _w) = md4(asrc, _h, _w, _i, _o);
   }, o, i, h, w);
 }
 
@@ -183,8 +182,7 @@ reorder<Type, goihw, ghwio>::reorder(
   estl::parallel_for<5>([&](int _g, int _o, int _i, int _h, int _w) {
     MD5(Type, asrc, src, g, h, w, i, o);
     MD5(Type, adst, dst, g, o, i, h, w);
-    iter_each(_w, w)
-      md5(adst, _g, _o, _i, _h, _w) = md5(asrc, _g, _h, _w, _i, _o);
+    md5(adst, _g, _o, _i, _h, _w) = md5(asrc, _g, _h, _w, _i, _o);
   }, g, o, i, h, w);
 }
 

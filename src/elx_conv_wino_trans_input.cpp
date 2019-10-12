@@ -183,12 +183,11 @@ void elx_conv_wino_trans_input_t<TinputType, InputType, I, A, K, V>
   input_tile_iter<A, K> t2spati_o(_n, _t_off, ep->ht, ep->wt,
       ep->ih, ep->iw, ep->tp, ep->lp);
   iter_each (_T, Tz) {
-    auto _n = t2spati_o.n_;
     auto _ih = t2spati_o.anchor_t_;
     auto _iw = t2spati_o.anchor_l_;
 
-    MD4(InputType, ainput1, &md4(ainput0, _n, _ih, _iw, 0), ep->I4, ep->I3,
-        ep->I2, V);
+    MD4(InputType, ainput1, &md4(ainput0, t2spati_o.n_, _ih, _iw, 0),
+        ep->I4, ep->I3, ep->I2, V);
     InputType *in = &md4(ainput1, _I4, _I3, _I2, 0);
     if (!t2spati_o.is_border())
       ker_trans_input_(*ep, (float *)&aout, in, 0, A - 1, 0, A - 1);

@@ -2,7 +2,7 @@ if (__flags_included)
   return ()
 endif()
 
-set(__basic_flags "-Wall -Werror -Wextra")
+set(__basic_flags "-Wall -Werror -Wextra -Wshadow")
 list(APPEND __basic_flags "-fopenmp")
 list(APPEND __basic_flags "-Wno-sign-compare")
 list(APPEND __basic_flags "-Wno-uninitialized")
