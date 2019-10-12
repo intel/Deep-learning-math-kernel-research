@@ -20,7 +20,7 @@ namespace euler {
 template <typename GarrayTypes, typename RoutputType, int V, int Vx, int I, typename KP>
 struct u8s8_conv_kernel {
   static inline void conv(
-      elx_conv_params_t &,
+      elx_param_t &,
       typename GarrayTypes::OutputType *,
       RoutputType *,
       typename GarrayTypes::InputType *,
@@ -112,14 +112,14 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
   }
 
   template <int JO>
-  static inline __i<V> op_load_output(elx_conv_params_t &xc, OutputType *output,
+  static inline __i<V> op_load_output(elx_param_t &ep, OutputType *output,
                                       const int _O, const int _T)
   {
-    MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
+    MD2(OutputType, aoutput_blocked0, output, JO, ep.oh * ep.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.OC);
+    MD2(OutputType, aoutput_nhwc0, output, T, ep.OC);
     MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0),
-        xc.O4 * xc.O3 * xc.O1, xc.O, V);
+        ep.O4 * ep.O3 * ep.O1, ep.O, V);
 
     auto aout = F_traits<F>::is_blocked_output ? &md2(aoutput_blocked1, _T, 0)
                                                : &md3(aoutput_nhwc1, 0, _O, 0);
@@ -133,37 +133,37 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
   }
 
   template <int P>
-  static inline __i<V> op_load_input(elx_conv_params_t &xc, InputType *input,
+  static inline __i<V> op_load_input(elx_param_t &ep, InputType *input,
       const int _ih, const int _iw, const int _I2, const int _V1,
       const int _P, const int _T)
   {
     if (F_traits<F>::is_nhwc_input && F_traits<F>::is_compact_ir_weights) {
-      MD3(InputType, ainput0, input, xc.ih, xc.iw, 3);
+      MD3(InputType, ainput0, input, ep.ih, ep.iw, 3);
       MD3(InputType, ainput1, &md3(ainput0, _ih, _iw, 0), T, S, 3);
       return _mm<V>::set1_epi32(*(int32_t*)&md3(ainput1, _T, 0, 0));
     } else if (F_traits<F>::is_nhwc_input) {
-      MD3(InputType, ainput0, input, xc.ih, xc.iw, xc.ic);
-      MD4(InputType, ainput1, &md3(ainput0, _ih, _iw, 0), xc.wt, T, S, xc.ic);
-      MD6(InputType, ainput2, &md4(ainput1, 0, _T, 0, 0), xc.I4, xc.I3,
-          xc.I2, V1 / P, P, Vx);
+      MD3(InputType, ainput0, input, ep.ih, ep.iw, ep.ic);
+      MD4(InputType, ainput1, &md3(ainput0, _ih, _iw, 0), ep.wt, T, S, ep.ic);
+      MD6(InputType, ainput2, &md4(ainput1, 0, _T, 0, 0), ep.I4, ep.I3,
+          ep.I2, V1 / P, P, Vx);
       return _mm<V>::set1_epi32(*(int32_t*)&md6(ainput2, 0, 0, _I2, _V1, _P, 0));
     } else { // blocked
-      MD4(InputType, ainput0, input, xc.I2, xc.ih, xc.iw, V);
+      MD4(InputType, ainput0, input, ep.I2, ep.ih, ep.iw, V);
       MD5(InputType, ainput1, &md4(ainput0, _I2, _ih, _iw, 0), T, S, V1 / P, P, Vx);
       return _mm<V>::set1_epi32(*(int32_t*)&md5(ainput1, _T, 0, _V1, _P, 0));
     }
   }
 
   template <int JO, int P>
-  static inline __i<V> op_load_weights(elx_conv_params_t &xc,
+  static inline __i<V> op_load_weights(elx_param_t &ep,
       WeightsType *weights, const int _I2, const int _V1, const int _P, const int _O)
   {
     __i<V> res;
     if (F_traits<F>::is_compact_ir_weights) {
-      MD4(int8_t, aweights5, weights, xc.I2, xc.Ir, O, V * Vx);
+      MD4(int8_t, aweights5, weights, ep.I2, ep.Ir, O, V * Vx);
       res = _mm<V>::load_epi32(&md4(aweights5, _I2, _V1, _O, 0));
     } else if (F_traits<F>::is_compact_weights) {
-      MD5(int8_t, aweights5, weights, xc.I2, V1 / P, P, O, V * Vx);
+      MD5(int8_t, aweights5, weights, ep.I2, V1 / P, P, O, V * Vx);
       res = _mm<V>::load_epi32(&md5(aweights5, _I2, _V1, _P, _O, 0));
     } else {
       el_error("load weights in conv kernel: not supported weights format");
@@ -172,14 +172,14 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
   }
 
   template <int JO>
-  static inline void op_store_output(elx_conv_params_t &xc,
+  static inline void op_store_output(elx_param_t &ep,
       OutputType *output, __i<V> res, const int _O, const int _T)
   {
-    MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
+    MD2(OutputType, aoutput_blocked0, output, JO, ep.oh * ep.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.OC);
+    MD2(OutputType, aoutput_nhwc0, output, T, ep.OC);
     MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0),
-        xc.O4 * xc.O3 * xc.O1, xc.O, V);
+        ep.O4 * ep.O3 * ep.O1, ep.O, V);
 
     auto aout = F_traits<F>::is_blocked_output ? &md2(aoutput_blocked1, _T, 0)
                                                : &md3(aoutput_nhwc1, 0, _O, 0);
@@ -192,26 +192,26 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
   }
 
   template <int JO>
-  static inline void op_restore_output(elx_conv_params_t &xc, OutputType *output,
+  static inline void op_restore_output(elx_param_t &ep, OutputType *output,
       RoutputType *routput, BiasType *bias, __i<V> res, ScaleType *src_scale,
       ScaleType *src_factor, ScaleType *weights_scale, ScaleType *weights_factor,
       const int _O1, const int _O0, const int _O, const int _T, const int attr)
   {
-    MD2(OutputType, aoutput_blocked0, output, JO, xc.oh * xc.ow * V);
+    MD2(OutputType, aoutput_blocked0, output, JO, ep.oh * ep.ow * V);
     MD2(OutputType, aoutput_blocked1, &md2(aoutput_blocked0, _O, 0), T, V);
-    MD2(RoutputType, aroutput_blocked0, routput, JO, xc.oh * xc.ow * V);
+    MD2(RoutputType, aroutput_blocked0, routput, JO, ep.oh * ep.ow * V);
     MD2(RoutputType, aroutput_blocked1, &md2(aroutput_blocked0, _O, 0), T, V);
 
-    MD2(OutputType, aoutput_nhwc0, output, T, xc.OC);
+    MD2(OutputType, aoutput_nhwc0, output, T, ep.OC);
     MD3(OutputType, aoutput_nhwc1, &md2(aoutput_nhwc0, _T, 0),
-        xc.O4 * xc.O3 * xc.O1, xc.O, V);
-    MD2(RoutputType, aroutput_nhwc0, routput, T, xc.oc);
+        ep.O4 * ep.O3 * ep.O1, ep.O, V);
+    MD2(RoutputType, aroutput_nhwc0, routput, T, ep.oc);
     MD3(RoutputType, aroutput_nhwc1, &md2(aroutput_nhwc0, _T, 0),
-        xc.O4 * xc.O3 * xc.O1, xc.O, V);
+        ep.O4 * ep.O3 * ep.O1, ep.O, V);
 
-    MD3(float, aweights_scale3, weights_scale, xc.O1, O, V);
+    MD3(float, aweights_scale3, weights_scale, ep.O1, O, V);
     MD2(float, aweights_scale, &md3(aweights_scale3, _O1, _O0, 0), JO, V);
-    MD3(float, aweights_factor3, weights_factor, xc.O1, O, T * V);
+    MD3(float, aweights_factor3, weights_factor, ep.O1, O, T * V);
     MD3(float, aweights_factor, &md3(aweights_factor3, _O1, _O0, 0), JO, T, V);
 
     auto aout = F_traits<F>::is_blocked_output ? &md2(aoutput_blocked1, _T, 0)
@@ -228,8 +228,8 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
 
     // fuse relu
     if (test_bit(attr, AT_RELU_MASK)) {
-      auto lower = *(__m<V> *)(xc.relu_bound_lower_vec);
-      auto upper = *(__m<V> *)(xc.relu_bound_upper_vec);
+      auto lower = *(__m<V> *)(ep.relu_bound_lower_vec);
+      auto upper = *(__m<V> *)(ep.relu_bound_upper_vec);
       fout = _mm<V>::max_ps(fout, lower);
       fout = _mm<V>::min_ps(fout, upper);
     }
@@ -257,12 +257,12 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
 
   template <int JO, int P, bool has_Or>
   static inline typename std::enable_if<P == 1, void>::type
-  op_conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
+  op_conv(elx_param_t &ep, OutputType *output, RoutputType *routput,
       uint8_t *input, int8_t *weights, BiasType *bias, ScaleType *src_scale,
       ScaleType *src_factor, ScaleType *weights_scale, ScaleType *weights_factor,
       int khs, int khe, int kws, int kwe, int pad_l, int pad_r, int attr, int _O1, int _O0)
   {
-    const int AKH = xc.kh / 2;
+    const int AKH = ep.kh / 2;
     constexpr int AKW = K / 2;
 
 #if defined(WITH_VNNI)
@@ -281,7 +281,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
       // load accumulated s32 output
       unroll_for (_O, JO) {
         unroll_for (_T, T)
-          mmout[_O][_T] = op_load_output<JO>(xc, output, _O, _T);
+          mmout[_O][_T] = op_load_output<JO>(ep, output, _O, _T);
       }
     }
 
@@ -289,9 +289,9 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
                         int V1_, int _kh, int _kw, int _I2) {
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
+          mmwei[_O][0] = op_load_weights<JO, P>(ep, weights_, _I2, _V1, 0, _O);
         unroll_for(_T, T) {
-          auto mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           unroll_for(_O, JO)
             mmout[_O][_T] = op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][0]);
@@ -303,9 +303,9 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
       constexpr int thresh = (S == 1 || is_LLP) ? (AKW + S - 1)/S : AKW/S;
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
+          mmwei[_O][0] = op_load_weights<JO, P>(ep, weights_, _I2, _V1, 0, _O);
         unroll_from_to(_T, thresh, T) {
-          auto mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           unroll_for(_O, JO)
             mmout[_O][_T] = op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][0]);
@@ -317,9 +317,9 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
       constexpr int thresh = (S == 1 || is_LLP) ? (AKW + S - 2)/S : AKW/S;
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
+          mmwei[_O][0] = op_load_weights<JO, P>(ep, weights_, _I2, _V1, 0, _O);
         unroll_from_to(_T, thresh, T) {
-          auto mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           unroll_for(_O, JO)
             mmout[_O][_T] = op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][0]);
@@ -331,9 +331,9 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
       constexpr int thresh = (S == 1 || is_LLP) ? (AKW + S - 3)/S : AKW/S;
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
+          mmwei[_O][0] = op_load_weights<JO, P>(ep, weights_, _I2, _V1, 0, _O);
         unroll_from_to(_T, thresh, T) {
-          auto mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                          _I2, _V1, 0, _T);
           unroll_for(_O, JO)
             mmout[_O][_T] = op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][0]);
@@ -345,9 +345,9 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
       constexpr int thresh = (S == 1 || !is_LLP) ? (AKW + S - 1)/S : AKW/S;
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
+          mmwei[_O][0] = op_load_weights<JO, P>(ep, weights_, _I2, _V1, 0, _O);
         unroll_for(_T, T - thresh) {
-          auto mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           unroll_for(_O, JO)
             mmout[_O][_T] = op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][0]);
@@ -359,9 +359,9 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
       constexpr int thresh = (S == 1 || !is_LLP) ? (AKW + S - 2)/S : AKW/S;
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
+          mmwei[_O][0] = op_load_weights<JO, P>(ep, weights_, _I2, _V1, 0, _O);
         unroll_for(_T, T - thresh) {
-          auto mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           unroll_for(_O, JO)
             mmout[_O][_T] = op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][0]);
@@ -373,9 +373,9 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
       constexpr int thresh = (S == 1 || !is_LLP) ? (AKW + S - 3)/S : AKW/S;
       for (int _V1 = 0; _V1 < V1_; ++_V1) {
         unroll_auto(_O, JO)
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
+          mmwei[_O][0] = op_load_weights<JO, P>(ep, weights_, _I2, _V1, 0, _O);
         unroll_for(_T, T - thresh) {
-          auto mmbcst = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
           unroll_for(_O, JO)
             mmout[_O][_T] = op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][0]);
@@ -389,13 +389,13 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
-          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V1 + 1, 0, _O);
+          mmwei[_O][0] = op_load_weights<JO, P>(ep, weights_, _I2, _V1, 0, _O);
+          mmwei[_O][1] = op_load_weights<JO, P>(ep, weights_, _I2, _V1 + 1, 0, _O);
         }
         unroll_for(_T, T) {
-          auto mmbcst0 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst0 = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
-          auto mmbcst1 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst1 = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1 + 1, 0, _T);
           unroll_for(_O, JO)
             mmout[_O][_T] = op_int8_fma_opt(mmout[_O][_T], mmbcst0, mmbcst1,
@@ -409,13 +409,13 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
-          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V1 + 1, 0, _O);
+          mmwei[_O][0] = op_load_weights<JO, P>(ep, weights_, _I2, _V1, 0, _O);
+          mmwei[_O][1] = op_load_weights<JO, P>(ep, weights_, _I2, _V1 + 1, 0, _O);
         }
         unroll_from_to(_T, thresh, T) {
-          auto mmbcst0 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst0 = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
-          auto mmbcst1 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst1 = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1 + 1, 0, _T);
           unroll_for(_O, JO)
             mmout[_O][_T] = op_int8_fma_opt(mmout[_O][_T], mmbcst0, mmbcst1,
@@ -429,13 +429,13 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
-          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V1 + 1, 0, _O);
+          mmwei[_O][0] = op_load_weights<JO, P>(ep, weights_, _I2, _V1, 0, _O);
+          mmwei[_O][1] = op_load_weights<JO, P>(ep, weights_, _I2, _V1 + 1, 0, _O);
         }
         unroll_from_to(_T, thresh, T) {
-          auto mmbcst0 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst0 = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
-          auto mmbcst1 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst1 = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1 + 1, 0, _T);
           unroll_for(_O, JO)
             mmout[_O][_T] = op_int8_fma_opt(mmout[_O][_T], mmbcst0, mmbcst1,
@@ -449,13 +449,13 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
-          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V1 + 1, 0, _O);
+          mmwei[_O][0] = op_load_weights<JO, P>(ep, weights_, _I2, _V1, 0, _O);
+          mmwei[_O][1] = op_load_weights<JO, P>(ep, weights_, _I2, _V1 + 1, 0, _O);
         }
         unroll_from_to(_T, thresh, T) {
-          auto mmbcst0 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst0 = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
-          auto mmbcst1 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst1 = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1 + 1, 0, _T);
           unroll_for(_O, JO)
             mmout[_O][_T] = op_int8_fma_opt(mmout[_O][_T], mmbcst0, mmbcst1,
@@ -469,13 +469,13 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
-          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V1 + 1, 0, _O);
+          mmwei[_O][0] = op_load_weights<JO, P>(ep, weights_, _I2, _V1, 0, _O);
+          mmwei[_O][1] = op_load_weights<JO, P>(ep, weights_, _I2, _V1 + 1, 0, _O);
         }
         unroll_for(_T, T - thresh) {
-          auto mmbcst0 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst0 = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
-          auto mmbcst1 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst1 = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1 + 1, 0, _T);
           unroll_for(_O, JO)
             mmout[_O][_T] = op_int8_fma_opt(mmout[_O][_T], mmbcst0, mmbcst1,
@@ -489,13 +489,13 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
-          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V1 + 1, 0, _O);
+          mmwei[_O][0] = op_load_weights<JO, P>(ep, weights_, _I2, _V1, 0, _O);
+          mmwei[_O][1] = op_load_weights<JO, P>(ep, weights_, _I2, _V1 + 1, 0, _O);
         }
         unroll_for(_T, T - thresh) {
-          auto mmbcst0 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst0 = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
-          auto mmbcst1 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst1 = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1 + 1, 0, _T);
           unroll_for(_O, JO)
             mmout[_O][_T] = op_int8_fma_opt(mmout[_O][_T], mmbcst0, mmbcst1,
@@ -509,13 +509,13 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
 #pragma nounroll
       for (int _V1 = 0; _V1 < V1_; _V1 += 2) {
         unroll_auto(_O, JO) {
-          mmwei[_O][0] = op_load_weights<JO, P>(xc, weights_, _I2, _V1, 0, _O);
-          mmwei[_O][1] = op_load_weights<JO, P>(xc, weights_, _I2, _V1 + 1, 0, _O);
+          mmwei[_O][0] = op_load_weights<JO, P>(ep, weights_, _I2, _V1, 0, _O);
+          mmwei[_O][1] = op_load_weights<JO, P>(ep, weights_, _I2, _V1 + 1, 0, _O);
         }
         unroll_for(_T, T - thresh) {
-          auto mmbcst0 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst0 = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1, 0, _T);
-          auto mmbcst1 = op_load_input<P>(xc, input_, _kh - AKH, _kw - AKW,
+          auto mmbcst1 = op_load_input<P>(ep, input_, _kh - AKH, _kw - AKW,
                                           _I2, _V1 + 1, 0, _T);
           unroll_for(_O, JO)
             mmout[_O][_T] = op_int8_fma_opt(mmout[_O][_T], mmbcst0, mmbcst1,
@@ -526,7 +526,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
 #endif
 
     if (F_traits<F>::is_compact_ir_weights) {
-      MD3(int8_t, aweights, weights, xc.kh, xc.kw, xc.O1 * O * V * Vx); // compact
+      MD3(int8_t, aweights, weights, ep.kh, ep.kw, ep.O1 * O * V * Vx); // compact
       for (int _kh = khs; _kh < khe; ++_kh) {
         // mid
         for (int _kw = kws; _kw < kwe; ++_kw) {
@@ -560,12 +560,12 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
         }
       }
     } else {
-      int I2 = xc.I2, Ir = 0;
+      int I2 = ep.I2, Ir = 0;
       if (test_bit(attr, AT_Ir_MASK)) {
-        I2 = xc.I2 - 1;
-        Ir = xc.Ir;
+        I2 = ep.I2 - 1;
+        Ir = ep.Ir;
       }
-      MD3(int8_t, aweights, weights, xc.kh, xc.kw, xc.O1 * xc.I2 * V1 * O * V * Vx); // compact
+      MD3(int8_t, aweights, weights, ep.kh, ep.kw, ep.O1 * ep.I2 * V1 * O * V * Vx); // compact
 
       for (int _kh = khs; _kh < khe; ++_kh) {
         for (int _I2 = 0; _I2 < I2; ++_I2) {
@@ -629,7 +629,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
           }
         }
         if (Ir > 0) {
-          int _I2 = xc.I2 - 1;
+          int _I2 = ep.I2 - 1;
           // mid
           for (int _kw = kws; _kw < kwe; ++_kw) {
             gemm_OVT(input, &md3(aweights, _kh, _kw, 0), Ir, _kh, _kw, _I2);
@@ -668,21 +668,21 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     if (test_bit(attr, AT_RESTORE_OUTPUT_MASK)) {
       unroll_for (_O, JO) {
       unroll_for (_T, T) {
-        op_restore_output<JO>(xc, output, routput, bias, mmout[_O][_T],
+        op_restore_output<JO>(ep, output, routput, bias, mmout[_O][_T],
             src_scale, src_factor, weights_scale, weights_factor,
             _O1, _O0, _O, _T, attr);
       }}
     } else {
       unroll_for (_O, JO) {
       unroll_for (_T, T) {
-        op_store_output<JO>(xc, output, mmout[_O][_T], _O, _T);
+        op_store_output<JO>(ep, output, mmout[_O][_T], _O, _T);
       }}
     }
   }
 
   template <int JO, int P, bool has_Or>
   static inline typename std::enable_if<(P == 2 || P == 4), void>::type
-  op_conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
+  op_conv(elx_param_t &ep, OutputType *output, RoutputType *routput,
       uint8_t *input, int8_t *weights, BiasType *bias, ScaleType *src_scale,
       ScaleType *src_factor, ScaleType *weights_scale, ScaleType *weights_factor,
       int khs, int khe, int kws, int kwe, int pad_l, int pad_r, int attr, int _O1, int _O0)
@@ -691,13 +691,13 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     constexpr int AKH = 3 / 2;
     constexpr int AKW = 3 / 2;
 
-    int I2 = xc.I2, Ir = 0;
+    int I2 = ep.I2, Ir = 0;
     if (test_bit(attr, AT_Ir_MASK)) {
-      I2 = xc.I2 - 1;
-      Ir = xc.Ir;
+      I2 = ep.I2 - 1;
+      Ir = ep.Ir;
     }
 
-    MD3(int8_t, aweights, weights, xc.kh, xc.kw, xc.O1 * xc.I2 * V1 * O * V * Vx); // compact
+    MD3(int8_t, aweights, weights, ep.kh, ep.kw, ep.O1 * ep.I2 * V1 * O * V * Vx); // compact
 
     __i<V> mmout[JO][T], mmwei[JO][P];
 
@@ -711,7 +711,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
       // load accumulated s32 output
       unroll_for (_O, JO) {
         unroll_for (_T, T)
-          mmout[_O][_T] = op_load_output<JO>(xc, output, _O, _T);
+          mmout[_O][_T] = op_load_output<JO>(ep, output, _O, _T);
       }
     }
 
@@ -725,11 +725,11 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
             unroll_for(_P, P) {
               unroll_auto(_O, JO)
                 mmwei[_O][_P] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P, _O);
+                  ep, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P, _O);
 
               unroll_for(_T, T) {
                 auto mmbcst = op_load_input<P>(
-                    xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P, _T);
+                    ep, input, _kh - AKH, _kw - AKW, _I2, _V1, _P, _T);
                 unroll_for(_O, JO)
                   mmout[_O][_T] = op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][_P]);
               }
@@ -738,16 +738,16 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
             unroll_for(_P, P / 2) {
               unroll_auto(_O, JO) {
                 mmwei[_O][_P * 2] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2, _O);
+                  ep, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2, _O);
                 mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2 + 1, _O);
+                  ep, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2 + 1, _O);
               }
 
               unroll_for(_T, T) {
                 auto mmbcst1 = op_load_input<P>(
-                    xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2, _T);
+                    ep, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2, _T);
                 auto mmbcst2 = op_load_input<P>(
-                    xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2 + 1, _T);
+                    ep, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2 + 1, _T);
                 unroll_for(_O, JO)
                   mmout[_O][_T] = op_int8_fma_opt(mmout[_O][_T], mmbcst1, mmbcst2,
                                     mmwei[_O][_P * 2], mmwei[_O][_P * 2 + 1]);
@@ -757,14 +757,14 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
           } // _V1
         }   // I2
         // Ir
-        int _I2 = xc.I2 - 1;
+        int _I2 = ep.I2 - 1;
 #pragma nounroll
         for (int _V1 = 0; _V1 < Ir; ++_V1) {
           unroll_auto(_O, JO) mmwei[_O][0] = op_load_weights<JO, 1>(
-              xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, 0, _O);
+              ep, &md3(aweights, _kh, _kw, 0), _I2, _V1, 0, _O);
 
           unroll_for(_T, T) {
-            auto mmbcst = op_load_input<1>(xc, input, _kh - AKH, _kw - AKW, _I2,
+            auto mmbcst = op_load_input<1>(ep, input, _kh - AKH, _kw - AKW, _I2,
                                            _V1, 0, _T);
             unroll_for(_O, JO)
               mmout[_O][_T] = op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][0]);
@@ -783,11 +783,11 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
             unroll_for(_P, P) {
               unroll_auto(_O, JO)
                 mmwei[_O][_P] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P, _O);
+                  ep, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P, _O);
 
               unroll_from_to(_T, 1, T) {
                 auto mmbcst = op_load_input<P>(
-                    xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P, _T);
+                    ep, input, _kh - AKH, _kw - AKW, _I2, _V1, _P, _T);
                 unroll_for(_O, JO)
                   mmout[_O][_T] = op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][_P]);
               }
@@ -796,16 +796,16 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
             unroll_for(_P, P / 2) {
               unroll_auto(_O, JO) {
                 mmwei[_O][_P * 2] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2, _O);
+                  ep, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2, _O);
                 mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2 + 1, _O);
+                  ep, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2 + 1, _O);
               }
 
               unroll_from_to(_T, 1, T) {
                 auto mmbcst1 = op_load_input<P>(
-                    xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2, _T);
+                    ep, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2, _T);
                 auto mmbcst2 = op_load_input<P>(
-                    xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2 + 1, _T);
+                    ep, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2 + 1, _T);
                 unroll_for(_O, JO)
                   mmout[_O][_T] = op_int8_fma_opt(mmout[_O][_T], mmbcst1, mmbcst2,
                                     mmwei[_O][_P * 2], mmwei[_O][_P * 2 + 1]);
@@ -815,13 +815,13 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
           } // _V1
         }   // I2
         // Ir
-        int _I2 = xc.I2 - 1;
+        int _I2 = ep.I2 - 1;
 #pragma nounroll
         for (int _V1 = 0; _V1 < Ir; ++_V1) {
           unroll_auto(_O, JO) mmwei[_O][0] = op_load_weights<JO, 1>(
-              xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, 0, _O);
+              ep, &md3(aweights, _kh, _kw, 0), _I2, _V1, 0, _O);
           unroll_from_to(_T, 1, T) {
-            auto mmbcst = op_load_input<P>(xc, input, _kh - AKH, _kw - AKW, _I2,
+            auto mmbcst = op_load_input<P>(ep, input, _kh - AKH, _kw - AKW, _I2,
                                            _V1, 0, _T);
             unroll_for(_O, JO)
               mmout[_O][_T] = op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][0]);
@@ -840,11 +840,11 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
             unroll_for(_P, P) {
               unroll_auto(_O, JO)
                 mmwei[_O][_P] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P, _O);
+                  ep, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P, _O);
 
               unroll_for(_T, T - 1 + S - 1) {
                 auto mmbcst = op_load_input<P>(
-                    xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P, _T);
+                    ep, input, _kh - AKH, _kw - AKW, _I2, _V1, _P, _T);
                 unroll_for(_O, JO)
                   mmout[_O][_T] = op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][_P]);
               }
@@ -853,16 +853,16 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
             unroll_for(_P, P / 2) {
               unroll_auto(_O, JO) {
                 mmwei[_O][_P * 2] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2, _O);
+                  ep, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2, _O);
                 mmwei[_O][_P * 2 + 1] = op_load_weights<JO, P>(
-                  xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2 + 1, _O);
+                  ep, &md3(aweights, _kh, _kw, 0), _I2, _V1, _P * 2 + 1, _O);
               }
 
               unroll_for(_T, T - 1 + S - 1) {
                 auto mmbcst1 = op_load_input<P>(
-                    xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2, _T);
+                    ep, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2, _T);
                 auto mmbcst2 = op_load_input<P>(
-                    xc, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2 + 1, _T);
+                    ep, input, _kh - AKH, _kw - AKW, _I2, _V1, _P * 2 + 1, _T);
                 unroll_for(_O, JO)
                   mmout[_O][_T] = op_int8_fma_opt(mmout[_O][_T], mmbcst1, mmbcst2,
                                     mmwei[_O][_P * 2], mmwei[_O][_P * 2 + 1]);
@@ -872,14 +872,14 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
           } // _V1
         }
         // Ir
-        int _I2 = xc.I2 - 1;
+        int _I2 = ep.I2 - 1;
 #pragma nounroll
         for (int _V1 = 0; _V1 < Ir; ++_V1) {
           unroll_auto(_O, JO) mmwei[_O][0] = op_load_weights<JO, 1>(
-              xc, &md3(aweights, _kh, _kw, 0), _I2, _V1, 0, _O);
+              ep, &md3(aweights, _kh, _kw, 0), _I2, _V1, 0, _O);
 
           unroll_for(_T, T - 1 + S - 1) {
-            auto mmbcst = op_load_input<P>(xc, input, _kh - AKH, _kw - AKW, _I2,
+            auto mmbcst = op_load_input<P>(ep, input, _kh - AKH, _kw - AKW, _I2,
                                            _V1, 0, _T);
             unroll_for(_O, JO)
               mmout[_O][_T] = op_int8_fma(mmout[_O][_T], mmbcst, mmwei[_O][0]);
@@ -892,14 +892,14 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
     if (test_bit(attr, AT_RESTORE_OUTPUT_MASK)) {
       unroll_for (_O, JO) {
       unroll_for (_T, T) {
-        op_restore_output<JO>(xc, output, routput, bias, mmout[_O][_T],
+        op_restore_output<JO>(ep, output, routput, bias, mmout[_O][_T],
             src_scale, src_factor, weights_scale, weights_factor,
             _O1, _O0, _O, _T, attr);
       }}
     } else {
       unroll_for (_O, JO) {
       unroll_for (_T, T) {
-        op_store_output<JO>(xc, output, mmout[_O][_T], _O, _T);
+        op_store_output<JO>(ep, output, mmout[_O][_T], _O, _T);
       }}
     }
   }
@@ -907,26 +907,26 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
   template <int O = O, int T = T> static inline
       typename std::enable_if<(J_traits<O, T, K_CONV, WeightsType>::J == 1) &&
       (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
-      conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
+      conv(elx_param_t &ep, OutputType *output, RoutputType *routput,
           InputType *input, WeightsType *weights, BiasType *bias,
           ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
           ScaleType *weights_factor, int khs, int khe, int kws, int kwe,
           int pad_l, int pad_r, int attr)
   {
-    int V1r = F_traits<F>::is_compact_ir_weights ? xc.Ir : V1;
-    MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1, xc.I2 * V1r, O, V * Vx); // compact
-    MD2(OutputType, aoutput_blocked, output, xc.O1, O * xc.oh * xc.ow * V);
-    MD4(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.O4 * xc.O3, xc.O1, O *V);
-    MD2(RoutputType, aroutput_blocked, routput, xc.O1, O * xc.oh * xc.ow * V);
-    MD4(RoutputType, aroutput_nhwc, routput, xc.oh * xc.ow, xc.O4 * xc.O3, xc.O1, O *V);
-    MD2(BiasType, abias, bias, xc.O1, O * V);
+    int V1r = F_traits<F>::is_compact_ir_weights ? ep.Ir : V1;
+    MD5(WeightsType, aweights, weights, ep.kh * ep.kw, ep.O1, ep.I2 * V1r, O, V * Vx); // compact
+    MD2(OutputType, aoutput_blocked, output, ep.O1, O * ep.oh * ep.ow * V);
+    MD4(OutputType, aoutput_nhwc, output, ep.oh * ep.ow, ep.O4 * ep.O3, ep.O1, O *V);
+    MD2(RoutputType, aroutput_blocked, routput, ep.O1, O * ep.oh * ep.ow * V);
+    MD4(RoutputType, aroutput_nhwc, routput, ep.oh * ep.ow, ep.O4 * ep.O3, ep.O1, O *V);
+    MD2(BiasType, abias, bias, ep.O1, O * V);
 
-    for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
+    for (int _O1 = 0; _O1 < ep.O1; ++_O1) {
       auto aout = F_traits<F>::is_nhwc_output ? &md4(aoutput_nhwc, 0, 0, _O1, 0)
                                               : &md2(aoutput_blocked, _O1, 0);
       auto rout = F_traits<F>::is_nhwc_output ? &md4(aroutput_nhwc, 0, 0, _O1, 0)
                                               : &md2(aroutput_blocked, _O1, 0);
-      op_conv<JO0, JP0, true>(xc, aout, rout, input,
+      op_conv<JO0, JP0, true>(ep, aout, rout, input,
           &md5(aweights, 0, _O1, 0, 0, 0), &md2(abias, _O1, 0),
           src_scale, src_factor, weights_scale, weights_factor,
           khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, 0);
@@ -936,26 +936,26 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
   template <int O = O, int T = T> static inline
       typename std::enable_if<(J_traits<O, T, K_CONV, WeightsType>::J == 2) &&
       (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
-      conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
+      conv(elx_param_t &ep, OutputType *output, RoutputType *routput,
           InputType *input, WeightsType *weights, BiasType *bias,
           ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
           ScaleType *weights_factor, int khs, int khe, int kws, int kwe,
           int pad_l, int pad_r, int attr)
   {
-    int V1r = F_traits<F>::is_compact_ir_weights ? xc.Ir : V1;
-    MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1, xc.I2 * V1r, O, V * Vx); // compact
-    MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
-    MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.O4 * xc.O3, xc.O1, O, V);
-    MD3(RoutputType, aroutput_blocked, routput, xc.O1, O, xc.oh * xc.ow * V);
-    MD5(RoutputType, aroutput_nhwc, routput, xc.oh * xc.ow, xc.O4 * xc.O3, xc.O1, O, V);
-    MD3(BiasType, abias, bias, xc.O1, O, V);
+    int V1r = F_traits<F>::is_compact_ir_weights ? ep.Ir : V1;
+    MD5(WeightsType, aweights, weights, ep.kh * ep.kw, ep.O1, ep.I2 * V1r, O, V * Vx); // compact
+    MD3(OutputType, aoutput_blocked, output, ep.O1, O, ep.oh * ep.ow * V);
+    MD5(OutputType, aoutput_nhwc, output, ep.oh * ep.ow, ep.O4 * ep.O3, ep.O1, O, V);
+    MD3(RoutputType, aroutput_blocked, routput, ep.O1, O, ep.oh * ep.ow * V);
+    MD5(RoutputType, aroutput_nhwc, routput, ep.oh * ep.ow, ep.O4 * ep.O3, ep.O1, O, V);
+    MD3(BiasType, abias, bias, ep.O1, O, V);
 
-    for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
+    for (int _O1 = 0; _O1 < ep.O1; ++_O1) {
       auto aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, 0, 0)
                                               : &md3(aoutput_blocked, _O1, 0, 0);
       auto rout = F_traits<F>::is_nhwc_output ? &md5(aroutput_nhwc, 0, 0, _O1, 0, 0)
                                               : &md3(aroutput_blocked, _O1, 0, 0);
-      op_conv<JO0, JP0, false>(xc, aout, rout, input,
+      op_conv<JO0, JP0, false>(ep, aout, rout, input,
           &md5(aweights, 0, _O1, 0, 0, 0), &md3(abias, _O1, 0, 0),
           src_scale, src_factor, weights_scale, weights_factor,
           khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, 0);
@@ -964,7 +964,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
                                          : &md3(aoutput_blocked, _O1, JO0, 0);
       rout = F_traits<F>::is_nhwc_output ? &md5(aroutput_nhwc, 0, 0, _O1, JO0, 0)
                                          : &md3(aroutput_blocked, _O1, JO0, 0);
-      op_conv<JO1, JP1, false>(xc, aout, rout, input,
+      op_conv<JO1, JP1, false>(ep, aout, rout, input,
           &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
           src_scale, src_factor, weights_scale, weights_factor,
           khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, JO0);
@@ -974,26 +974,26 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
   template <int O = O, int T = T> static inline
       typename std::enable_if<(J_traits<O, T, K_CONV, WeightsType>::J == 3) &&
       (F_traits<F>::is_compact_weights || F_traits<F>::is_compact_ir_weights)>::type
-      conv(elx_conv_params_t &xc, OutputType *output, RoutputType *routput,
+      conv(elx_param_t &ep, OutputType *output, RoutputType *routput,
           InputType *input, WeightsType *weights, BiasType *bias,
           ScaleType *src_scale, ScaleType *src_factor, ScaleType *weights_scale,
           ScaleType *weights_factor, int khs, int khe, int kws, int kwe,
           int pad_l, int pad_r, int attr)
   {
-    int V1r = F_traits<F>::is_compact_ir_weights ? xc.Ir : V1;
-    MD5(WeightsType, aweights, weights, xc.kh * xc.kw, xc.O1, xc.I2 * V1r, O, V * Vx); // compact
-    MD3(OutputType, aoutput_blocked, output, xc.O1, O, xc.oh * xc.ow * V);
-    MD5(OutputType, aoutput_nhwc, output, xc.oh * xc.ow, xc.O4 * xc.O3, xc.O1, O, V);
-    MD3(RoutputType, aroutput_blocked, routput, xc.O1, O, xc.oh * xc.ow * V);
-    MD5(RoutputType, aroutput_nhwc, routput, xc.oh * xc.ow, xc.O4 * xc.O3, xc.O1, O, V);
-    MD3(BiasType, abias, bias, xc.O1, O, V);
+    int V1r = F_traits<F>::is_compact_ir_weights ? ep.Ir : V1;
+    MD5(WeightsType, aweights, weights, ep.kh * ep.kw, ep.O1, ep.I2 * V1r, O, V * Vx); // compact
+    MD3(OutputType, aoutput_blocked, output, ep.O1, O, ep.oh * ep.ow * V);
+    MD5(OutputType, aoutput_nhwc, output, ep.oh * ep.ow, ep.O4 * ep.O3, ep.O1, O, V);
+    MD3(RoutputType, aroutput_blocked, routput, ep.O1, O, ep.oh * ep.ow * V);
+    MD5(RoutputType, aroutput_nhwc, routput, ep.oh * ep.ow, ep.O4 * ep.O3, ep.O1, O, V);
+    MD3(BiasType, abias, bias, ep.O1, O, V);
 
-    for (int _O1 = 0; _O1 < xc.O1; ++_O1) {
+    for (int _O1 = 0; _O1 < ep.O1; ++_O1) {
       auto aout = F_traits<F>::is_nhwc_output ? &md5(aoutput_nhwc, 0, 0, _O1, 0, 0)
                                               : &md3(aoutput_blocked, _O1, 0, 0);
       auto rout = F_traits<F>::is_nhwc_output ? &md5(aroutput_nhwc, 0, 0, _O1, 0, 0)
                                               : &md3(aroutput_blocked, _O1, 0, 0);
-      op_conv<JO0, JP0, false>(xc, aout, rout, input,
+      op_conv<JO0, JP0, false>(ep, aout, rout, input,
           &md5(aweights, 0, _O1, 0, 0, 0), &md3(abias, _O1, 0, 0),
           src_scale, src_factor, weights_scale, weights_factor,
           khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, 0);
@@ -1002,7 +1002,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
                                          : &md3(aoutput_blocked, _O1, JO0, 0);
       rout = F_traits<F>::is_nhwc_output ? &md5(aroutput_nhwc, 0, 0, _O1, JO0, 0)
                                          : &md3(aroutput_blocked, _O1, JO0, 0);
-      op_conv<JO1, JP1, false>(xc, aout, rout, input,
+      op_conv<JO1, JP1, false>(ep, aout, rout, input,
           &md5(aweights, 0, _O1, 0, JO0, 0), &md3(abias, _O1, JO0, 0),
           src_scale, src_factor, weights_scale, weights_factor,
           khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, JO0);
@@ -1011,7 +1011,7 @@ struct u8s8_conv_kernel<GarrayTypes, RoutputType, V, Vx, ISA_AVX512,
                                          : &md3(aoutput_blocked, _O1, JO0 + JO1, 0);
       rout = F_traits<F>::is_nhwc_output ? &md5(aroutput_nhwc, 0, 0, _O1, JO0 + JO1, 0)
                                          : &md3(aroutput_blocked, _O1, JO0 + JO1, 0);
-      op_conv<JO2, JP2, false>(xc, aout, rout, input,
+      op_conv<JO2, JP2, false>(ep, aout, rout, input,
           &md5(aweights, 0, _O1, 0, JO0 + JO1, 0), &md3(abias, _O1, JO0 + JO1, 0),
           src_scale, src_factor, weights_scale, weights_factor,
           khs, khe, kws, kwe, pad_l, pad_r, attr, _O1, JO0 + JO1);

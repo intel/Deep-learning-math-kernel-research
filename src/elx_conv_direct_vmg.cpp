@@ -11,24 +11,24 @@ Instance_elx_conv_direct_vmg_t::elx_conv_direct_vmg_t(eld_conv_t &dc)
     : elx_conv_t(dc)
 {
   // user input
-  xopt_ = this->execution_mode;
+  xopt_ = ep.execution_mode;
   mthr_ = estl::max_concurrency();
 
-  this->G = 1;
-  this->vmg = 1;
-  this->grp = this->g;
-  this->Vx = 1;
-  this->V1 = V / this->Vx;
-  this->ocg = this->oc / this->g;
-  this->icg = this->ic / this->g;
+  ep.G = 1;
+  ep.vmg = 1;
+  ep.grp = ep.g;
+  ep.Vx = 1;
+  ep.V1 = V / ep.Vx;
+  ep.ocg = ep.oc / ep.g;
+  ep.icg = ep.ic / ep.g;
 
   // oc = ic = 16x && ocg = icg = 1|2|4|8|16 (V=16)
-  bool shape_ok = this->ic % this->g == 0 && this->oc % this->g == 0 &&
-                  (this->ocg <= V) && (V % this->ocg == 0) &&
-                  (this->oc % V == 0) && (this->ic == this->oc) &&
-                  estl::any_of(this->kh, 3, 5, 7) &&
-                  estl::any_of(this->kw, 3, 5, 7) && (this->ws == 1) &&
-                  this->lp == (this->kw / 2) && (this->tp == this->kh / 2);
+  bool shape_ok = ep.ic % ep.g == 0 && ep.oc % ep.g == 0 &&
+                  (ep.ocg <= V) && (V % ep.ocg == 0) &&
+                  (ep.oc % V == 0) && (ep.ic == ep.oc) &&
+                  estl::any_of(ep.kh, 3, 5, 7) &&
+                  estl::any_of(ep.kw, 3, 5, 7) && (ep.ws == 1) &&
+                  ep.lp == (ep.kw / 2) && (ep.tp == ep.kh / 2);
   if (!shape_ok) {
     el_error("direct_vmg: shape not supported");
   }
@@ -37,96 +37,96 @@ Instance_elx_conv_direct_vmg_t::elx_conv_direct_vmg_t(eld_conv_t &dc)
   // vector multi-group number
   // C = ocg|icg; G = vmg, V = C * G
   // grp = g * G
-  this->vmg = V / this->ocg;
-  this->g /= this->vmg;
-  if (this->O != 1) {
-    this->O = 1;
+  ep.vmg = V / ep.ocg;
+  ep.g /= ep.vmg;
+  if (ep.O != 1) {
+    ep.O = 1;
     el_warn("conv: group: O!=1 found for vector multi-group");
   }
-  this->ic /= this->g;
-  this->oc /= this->g;
+  ep.ic /= ep.g;
+  ep.oc /= ep.g;
 
-  this->G = this->vmg;
-  this->C = this->ocg;
+  ep.G = ep.vmg;
+  C = ep.ocg;
 
-  this->IC = ALIGNUP(this->ic, V);
-  this->OC = ALIGNUP(this->oc, V);
+  ep.IC = ALIGNUP(ep.ic, V);
+  ep.OC = ALIGNUP(ep.oc, V);
 
-  if (this->T == 0) this->T = 1;
-  this->I2 = 1;
+  if (ep.T == 0) ep.T = 1;
+  ep.I2 = 1;
 
-  this->O4 = 1;
-  this->O3 = 1;
-  this->O = 1;
-  this->O1 = 1;
-  this->O2 = this->O * this->O1;
+  ep.O4 = 1;
+  ep.O3 = 1;
+  ep.O = 1;
+  ep.O1 = 1;
+  ep.O2 = ep.O * ep.O1;
   
-  this->I4 = 1;
-  this->I3 = 1;
-  this->I2 = 1;
+  ep.I4 = 1;
+  ep.I3 = 1;
+  ep.I2 = 1;
 
-  this->ic2 = this->IC / V;
-  this->oc2 = this->OC / V;
+  ep.ic2 = ep.IC / V;
+  ep.oc2 = ep.OC / V;
 
   xopt_ = 0xa060;
 
   // n, t2, (T, Tr)
-  this->ht = this->oh;
-  this->wt = (this->ow + this->T - 1) / this->T;
-  this->Tr = this->ow % this->T ? this->ow % this->T : this->T;
-  this->nt = this->oh * this->ow;
-  this->t2 = this->nt / this->T;
-  this->t  = this->nt * this->n;
+  ep.ht = ep.oh;
+  ep.wt = (ep.ow + ep.T - 1) / ep.T;
+  ep.Tr = ep.ow % ep.T ? ep.ow % ep.T : ep.T;
+  ep.nt = ep.oh * ep.ow;
+  ep.t2 = ep.nt / ep.T;
+  ep.t  = ep.nt * ep.n;
 
-  if (this->T <= this->lp || this->Tr <= this->rp) {
+  if (ep.T <= ep.lp || ep.Tr <= ep.rp) {
     el_error("Unimplemented T: (T,Tr) must greater than (lp,rp)");
   }
-  bool format_ok = estl::any_of(this->weights_fmt, ghwio) &&
-                   estl::any_of(this->input_fmt, nchw, nChw16c) &&
-                   estl::any_of(this->output_fmt, nchw, nChw16c);
+  bool format_ok = estl::any_of(ep.weights_fmt, ghwio) &&
+                   estl::any_of(ep.input_fmt, nchw, nChw16c) &&
+                   estl::any_of(ep.output_fmt, nchw, nChw16c);
   if (!format_ok) {
     el_error("direct: format not supported");
   }
 
   // TODO: Ir/Or support?
-  this->Ir = this->ic % C ? this->ic % C : C;
-  this->Or = this->oc % V ? this->oc % V : V;
-  this->ormask = (1 << this->Or) - 1;
+  ep.Ir = ep.ic % C ? ep.ic % C : C;
+  ep.Or = ep.oc % V ? ep.oc % V : V;
+  ep.ormask = (1 << ep.Or) - 1;
 
   // IC = V = G * C; ic_orig = g * G * C
-  if (this->I4 * this->I3 * this->I2 * V != this->IC) {
+  if (ep.I4 * ep.I3 * ep.I2 * V != ep.IC) {
     el_error("IC blocking error");
   }
   // OC = V = G * C; oc_orig = g * G * C
-  if (this->O4 * this->O3 * this->O2 * V != this->OC) {
+  if (ep.O4 * ep.O3 * ep.O2 * V != ep.OC) {
     el_error("OC blocking error");
   }
 
   attr_ = 0x0;
   is_first_run_ = true;
   inference_acc_ = false;
-  inference_acc_ = this->prop_kind == forward_inference;
+  inference_acc_ = ep.prop_kind == forward_inference;
 
-  attr_ = this->with_bias ? set_bit(attr_, AT_BIAS_MASK) : attr_;
-  attr_ = this->with_ip_sum ? set_bit(attr_, AT_INP_SUM_MASK) : attr_;
+  attr_ = ep.with_bias ? set_bit(attr_, AT_BIAS_MASK) : attr_;
+  attr_ = ep.with_ip_sum ? set_bit(attr_, AT_INP_SUM_MASK) : attr_;
 
   prepare_execute_opt();
   bind_execute_functions();
 
   // dbg
   el_log(DEBUG, "T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d",
-         this->T, this->Tr, this->t2, this->ht, this->wt, this->t);
+         ep.T, ep.Tr, ep.t2, ep.ht, ep.wt, ep.t);
   el_log(DEBUG, "V=%d, Ir=%d, I2=%d, I3=%d, I4=%d, IC=%d, g=%d",
-         V, this->Ir, this->I2, this->I3, this->I4, this->IC, this->g);
+         V, ep.Ir, ep.I2, ep.I3, ep.I4, ep.IC, ep.g);
   el_log(DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d, g=%d, G=%d, C=%d",
-         V, this->Or, this->O2, this->O, this->O1,
-         this->O3, this->O4, this->O2r, this->O3r, this->OC, this->g, G, C);
+         V, ep.Or, ep.O2, ep.O, ep.O1,
+         ep.O3, ep.O4, ep.O2r, ep.O3r, ep.OC, ep.g, ep.G, C);
 }
 
 Template_elx_conv_direct_vmg_t
 int Instance_elx_conv_direct_vmg_t::prepare_execute_opt()
 {
-  if (this->with_ip_sum && this->with_relu && this->output_fmt != nChw16c) {
+  if (ep.with_ip_sum && ep.with_relu && ep.output_fmt != nChw16c) {
     el_error("Unimplemented: fuse sum (plain format) and relu together");
   }
 
@@ -137,7 +137,7 @@ int Instance_elx_conv_direct_vmg_t::prepare_execute_opt()
 
   switch (xopt_) {
   case 0xa060:
-    tweights_size_ = this->g * G * this->kh * this->kw * C * C * sizeof(TweightsType);
+    tweights_size_ = ep.g * ep.G * ep.kh * ep.kw * C * C * sizeof(TweightsType);
     break;
   default:
     el_error("Unknown xopt!");
@@ -178,12 +178,12 @@ Template_elx_conv_direct_vmg_t
 void Instance_elx_conv_direct_vmg_t::trans_weights_to_compact(
     TweightsType *tweights, WeightsType *weights)
 {
-  if (this->weights_fmt == hwio || this->weights_fmt == ghwio) {
+  if (ep.weights_fmt == hwio || ep.weights_fmt == ghwio) {
     estl::parallel_for<4>(mthr_, [&](int _g, int _kh, int _kw, int _iV) {
-      MD6(WeightsType, aweights, weights, this->g, G, this->kh, this->kw, C, C);
-      MD5(TweightsType, atweights, tweights, this->g, this->kh, this->kw, C, V);
+      MD6(WeightsType, aweights, weights, ep.g, ep.G, ep.kh, ep.kw, C, C);
+      MD5(TweightsType, atweights, tweights, ep.g, ep.kh, ep.kw, C, V);
       WeightsType w[V] = { 0 };
-      iter_each (_G, G) {
+      iter_each (_G, ep.G) {
         iter_each (_oV, C) {
           w[_G * C + _oV] = md6(aweights, _g, _G, _kh, _kw, _iV, _oV);
         }
@@ -199,7 +199,7 @@ void Instance_elx_conv_direct_vmg_t::trans_weights_to_compact(
               (__m256i *)&md5(atweights, _g, _kh, _kw, _iV, 0), fp16v);
         }
       }
-    }, this->g, this->kh, this->kw, C);
+    }, ep.g, ep.kh, ep.kw, C);
   } else {
     el_error("Unimplemented weights format\n");
   }
@@ -214,49 +214,49 @@ Instance_elx_conv_direct_vmg_t::conv_a060(OutputType *output,
 {
   // input:   I3*, I2, V, ht*, hs*, wt*, T, ws
   // output:  O3*, O2, ht*, wt*, T, V
-  MD3(TweightsType, aweights, weights, this->O3, this->I3,
-      this->kh * this->kw * this->O2 * this->I2 * V * C);
-  MD2(BiasType, abias, bias, this->O3, this->O2 * V);
+  MD3(TweightsType, aweights, weights, ep.O3, ep.I3,
+      ep.kh * ep.kw * ep.O2 * ep.I2 * V * C);
+  MD2(BiasType, abias, bias, ep.O3, ep.O2 * V);
 
-  auto ker_conv = _wt == this->wt - 1 ? ker_conv_Tr_ : ker_conv_;
+  auto ker_conv = _wt == ep.wt - 1 ? ker_conv_Tr_ : ker_conv_;
 
-  int khs = estl::max(0, this->tp - this->hs * _ht);
-  int khe = estl::min(this->kh, this->ih + this->tp - this->hs * _ht);
-  int kws = _wt == 0 ? this->lp : 0;
-  int kwe = _wt == this->wt - 1 ? this->kw - this->lp : this->kw;
-  assert(this->T > this->lp && this->Tr > this->rp);
+  int khs = estl::max(0, ep.tp - ep.hs * _ht);
+  int khe = estl::min(ep.kh, ep.ih + ep.tp - ep.hs * _ht);
+  int kws = _wt == 0 ? ep.lp : 0;
+  int kwe = _wt == ep.wt - 1 ? ep.kw - ep.lp : ep.kw;
+  assert(ep.T > ep.lp && ep.Tr > ep.rp);
 
-  if (this->input_fmt == nhwc) {
-    MD2(InputType, ainput, input, this->I3, this->I2 * V);
-    MD2(OutputType, aoutput, output, this->O3, this->O2 * V);
+  if (ep.input_fmt == nhwc) {
+    MD2(InputType, ainput, input, ep.I3, ep.I2 * V);
+    MD2(OutputType, aoutput, output, ep.O3, ep.O2 * V);
 
-    iter_each(_O3, this->O3) {
-    iter_each(_I3, this->I3) {
+    iter_each(_O3, ep.O3) {
+    iter_each(_I3, ep.I3) {
       int attr = (_I4 == 0 && _I3 == 0) ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
-      if (_I4 == this->I4 - 1 && _I3 == this->I3 - 1) {
-        if (this->Ir != C) attr = set_bit(attr, AT_Ir_MASK);
-        if (this->with_relu) attr = set_bit(attr, AT_RELU_MASK);
+      if (_I4 == ep.I4 - 1 && _I3 == ep.I3 - 1) {
+        if (ep.Ir != C) attr = set_bit(attr, AT_Ir_MASK);
+        if (ep.with_relu) attr = set_bit(attr, AT_RELU_MASK);
       }
-      if (this->Or != V && _O4 == this->O4 - 1 && _O3 == this->O3 - 1) {
+      if (ep.Or != V && _O4 == ep.O4 - 1 && _O3 == ep.O3 - 1) {
         attr = set_bit(attr, AT_Or_MASK);
       }
-      ker_conv(*this, &md2(aoutput, _O3, 0),
+      ker_conv(ep, &md2(aoutput, _O3, 0),
           &md2(ainput, _I3, 0), &md3(aweights, _O3, _I3, 0),
           &md2(abias, _O3, 0), _wt, khs, khe, kws, kwe, attr);
     }}
   } else {
     // blocked or nchw
-    MD2(InputType, ainput, input, this->I3, this->I2 * V * this->ih * this->iw);
-    MD2(OutputType, aoutput, output, this->O3, this->O2 * this->ht * this->ow * V);
+    MD2(InputType, ainput, input, ep.I3, ep.I2 * V * ep.ih * ep.iw);
+    MD2(OutputType, aoutput, output, ep.O3, ep.O2 * ep.ht * ep.ow * V);
 
-    iter_each(_O3, this->O3) {
-    iter_each(_I3, this->I3) {
+    iter_each(_O3, ep.O3) {
+    iter_each(_I3, ep.I3) {
       int attr = (_I4 == 0 && _I3 == 0) ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
-      if (_I4 == this->I4 - 1 && _I3 == this->I3 - 1) {
-        if (this->Ir != C) attr = set_bit(attr, AT_Ir_MASK);
-        if (this->with_relu) attr = set_bit(attr, AT_RELU_MASK);
+      if (_I4 == ep.I4 - 1 && _I3 == ep.I3 - 1) {
+        if (ep.Ir != C) attr = set_bit(attr, AT_Ir_MASK);
+        if (ep.with_relu) attr = set_bit(attr, AT_RELU_MASK);
       }
-      ker_conv(*this, &md2(aoutput, _O3, 0),
+      ker_conv(ep, &md2(aoutput, _O3, 0),
           &md2(ainput, _I3, 0), &md3(aweights, _O3, _I3, 0),
           &md2(abias, _O3, 0), _wt, khs, khe, kws, kwe, attr);
     }}

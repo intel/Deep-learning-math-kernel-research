@@ -33,61 +33,61 @@ void Instance_elx_conv_direct_t::__execute_a060(
     });
   }
 
-  if (this->input_fmt == nchw) { // nchw => blocked
+  if (ep.input_fmt == nchw) { // nchw => blocked
     estl::parallel_for<5, 1>(mthr_, [&](int _n, int _I4, int _O4, int _ht, int _wt) {
-      int Vr = this->ic < V ? this->Ir : V;
-      MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
-      MD3(TweightsType, atweights, tweights_, this->O4, this->I4,
-          V * Vr * this->kh * this->kw * this->I3 * this->O3 * this->I2
-              * this->O2);
-      MD2(InputType, ainput0, input, this->n, this->ic * this->ih * this->iw);
-      MD3(InputType, ainput1, &md2(ainput0, _n, 0), this->I4,
-          this->I3 * this->I2 * V, this->ih * this->iw);
-      MD5(OutputType, aoutput0, output, this->n, this->O4,
-          this->O3 * this->O2, this->ht, this->ow * V);
-      MD3(OutputType, aoutput1, &md5(aoutput0, _n, _O4, 0, _ht, 0), this->wt,
-          this->T, V);
+      int Vr = ep.ic < V ? ep.Ir : V;
+      MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
+      MD3(TweightsType, atweights, tweights_, ep.O4, ep.I4,
+          V * Vr * ep.kh * ep.kw * ep.I3 * ep.O3 * ep.I2
+              * ep.O2);
+      MD2(InputType, ainput0, input, ep.n, ep.ic * ep.ih * ep.iw);
+      MD3(InputType, ainput1, &md2(ainput0, _n, 0), ep.I4,
+          ep.I3 * ep.I2 * V, ep.ih * ep.iw);
+      MD5(OutputType, aoutput0, output, ep.n, ep.O4,
+          ep.O3 * ep.O2, ep.ht, ep.ow * V);
+      MD3(OutputType, aoutput1, &md5(aoutput0, _n, _O4, 0, _ht, 0), ep.wt,
+          ep.T, V);
       conv_a060(&md3(aoutput1, _wt, 0, 0), &md3(ainput1, _I4, 0, 0),
           &md3(atweights, _O4, _I4, 0), &md2(abias, _O4, 0), _I4, _O4, _ht,
           _wt);
-    }, this->n, this->I4, this->O4, this->ht, this->wt);
-  } else if (this->input_fmt == nhwc) { // nhwc => nhwc
+    }, ep.n, ep.I4, ep.O4, ep.ht, ep.wt);
+  } else if (ep.input_fmt == nhwc) { // nhwc => nhwc
     estl::parallel_for<6, 2>(mthr_, [&](int _n, int _g, int _I4, int _O4, int _ht, int _wt) {
-      MD2(BiasType, abias0, bias, this->g, this->oc);
-      MD2(BiasType, abias1, &md2(abias0, _g, 0), this->O4, this->O3 * this->O2 * V);
-      MD4(TweightsType, atweights, tweights_, this->g, this->O4, this->I4,
-          V * V * this->kh * this->kw * this->I3 * this->O3 * this->I2
-              * this->O2);
-      MD5(InputType, ainput0, input, this->n, this->ih, this->iw, this->g,
-          this->ic);
-      MD2(InputType, ainput1, &md5(ainput0, _n, 0, 0, _g, 0), this->I4,
-          this->I3 * this->I2 * V);
-      MD4(OutputType, aoutput0, output, this->n, this->ht, this->ow, this->g * this->oc);
-      MD4(OutputType, aoutput1, &md4(aoutput0, _n, _ht, 0, 0), this->wt,
-          this->T, this->g, this->oc);
-      MD2(OutputType, aoutput2, &md4(aoutput1, _wt, 0, _g, 0), this->O4,
-          this->O3 * this->O2 * V);
+      MD2(BiasType, abias0, bias, ep.g, ep.oc);
+      MD2(BiasType, abias1, &md2(abias0, _g, 0), ep.O4, ep.O3 * ep.O2 * V);
+      MD4(TweightsType, atweights, tweights_, ep.g, ep.O4, ep.I4,
+          V * V * ep.kh * ep.kw * ep.I3 * ep.O3 * ep.I2
+              * ep.O2);
+      MD5(InputType, ainput0, input, ep.n, ep.ih, ep.iw, ep.g,
+          ep.ic);
+      MD2(InputType, ainput1, &md5(ainput0, _n, 0, 0, _g, 0), ep.I4,
+          ep.I3 * ep.I2 * V);
+      MD4(OutputType, aoutput0, output, ep.n, ep.ht, ep.ow, ep.g * ep.oc);
+      MD4(OutputType, aoutput1, &md4(aoutput0, _n, _ht, 0, 0), ep.wt,
+          ep.T, ep.g, ep.oc);
+      MD2(OutputType, aoutput2, &md4(aoutput1, _wt, 0, _g, 0), ep.O4,
+          ep.O3 * ep.O2 * V);
       conv_a060(&md2(aoutput2, _O4, 0), &md2(ainput1, _I4, 0),
           &md4(atweights, _g, _O4, _I4, 0), &md2(abias1, _O4, 0),
           _I4, _O4, _ht, _wt);
-    },  this->n, this->g, this->I4, this->O4, this->ht, this->wt);
+    },  ep.n, ep.g, ep.I4, ep.O4, ep.ht, ep.wt);
   } else { // blocked => blocked
     estl::parallel_for<6, 2>(mthr_, [&](int _n, int _g, int _I4, int _O4, int _ht, int _wt) {
-      MD2(BiasType, abias0, bias, this->g, this->oc);
-      MD2(BiasType, abias1, &md2(abias0, _g, 0), this->O4, this->O3 * this->O2 * V);
-      MD4(TweightsType, atweights, tweights_, this->g, this->O4, this->I4,
-          V * V * this->kh * this->kw * this->I3 * this->O3 * this->I2
-              * this->O2);
-      MD5(InputType, ainput, input, this->n, this->g, this->I4,
-          this->I3 * this->I2, this->ih * this->iw * V);
-      MD6(OutputType, aoutput0, output, this->n, this->g, this->O4,
-          this->O3 * this->O2, this->ht, this->ow * V);
+      MD2(BiasType, abias0, bias, ep.g, ep.oc);
+      MD2(BiasType, abias1, &md2(abias0, _g, 0), ep.O4, ep.O3 * ep.O2 * V);
+      MD4(TweightsType, atweights, tweights_, ep.g, ep.O4, ep.I4,
+          V * V * ep.kh * ep.kw * ep.I3 * ep.O3 * ep.I2
+              * ep.O2);
+      MD5(InputType, ainput, input, ep.n, ep.g, ep.I4,
+          ep.I3 * ep.I2, ep.ih * ep.iw * V);
+      MD6(OutputType, aoutput0, output, ep.n, ep.g, ep.O4,
+          ep.O3 * ep.O2, ep.ht, ep.ow * V);
       MD3(OutputType, aoutput1, &md6(aoutput0, _n, _g, _O4, 0, _ht, 0),
-          this->wt, this->T, V);
+          ep.wt, ep.T, V);
       conv_a060(&md3(aoutput1, _wt, 0, 0), &md5(ainput, _n, _g, _I4, 0, 0),
           &md4(atweights, _g, _O4, _I4, 0), &md2(abias1, _O4, 0),
           _I4, _O4, _ht, _wt);
-    }, this->n, this->g, this->I4, this->O4, this->ht, this->wt);
+    }, ep.n, ep.g, ep.I4, ep.O4, ep.ht, ep.wt);
   }
 
   if (inference_acc_)
@@ -112,48 +112,48 @@ void Instance_elx_conv_direct_t::__execute_b060(
   THREAD_PARALLEL()
   {
     int ithr = estl::current_thread_index();
-    if (this->input_fmt == nhwc) { // nhwc => nhwc
+    if (ep.input_fmt == nhwc) { // nhwc => nhwc
       THREAD_FOR2(6, 2, mthr_, ithr, [&](int _I4, int _n, int _I3,
                                          int _O4, int _ht, int _wt) {
-        MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
-        MD5(TweightsType, atweights, tweights_, this->O4, this->I4, this->O3,
-            this->I3, V * V * this->kh * this->kw * this->I2 * this->O2);
-        MD4(InputType, ainput0, input, this->n, this->ih, this->iw, this->ic);
-        MD3(InputType, ainput1, &md4(ainput0, _n, 0, 0, 0), this->I4,
-            this->I3, this->I2 * V);
-        MD5(OutputType, atoutput0, toutput_, this->I4, this->n, this->ht,
-            this->ow, this->oc);
+        MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
+        MD5(TweightsType, atweights, tweights_, ep.O4, ep.I4, ep.O3,
+            ep.I3, V * V * ep.kh * ep.kw * ep.I2 * ep.O2);
+        MD4(InputType, ainput0, input, ep.n, ep.ih, ep.iw, ep.ic);
+        MD3(InputType, ainput1, &md4(ainput0, _n, 0, 0, 0), ep.I4,
+            ep.I3, ep.I2 * V);
+        MD5(OutputType, atoutput0, toutput_, ep.I4, ep.n, ep.ht,
+            ep.ow, ep.oc);
         MD3(OutputType, atoutput1, &md5(atoutput0, _I4, _n, _ht, 0, 0),
-            this->wt, this->T, this->oc);
-        MD2(OutputType, atoutput2, &md3(atoutput1, _wt, 0, 0), this->O4,
-            this->O3 * this->O2 * V);
+            ep.wt, ep.T, ep.oc);
+        MD2(OutputType, atoutput2, &md3(atoutput1, _wt, 0, 0), ep.O4,
+            ep.O3 * ep.O2 * V);
         conv_b060(&md2(atoutput2, _O4, 0), &md3(ainput1, _I4, _I3, 0),
             &md5(atweights, _O4, _I4, 0, _I3, 0), &md2(abias, _O4, 0),
             _I4, _I3, _O4, _ht, _wt);
-      }, this->I4, this->n, this->I3, this->O4, this->ht, this->wt);
+      }, ep.I4, ep.n, ep.I3, ep.O4, ep.ht, ep.wt);
 
       THREAD_BARRIER()
       THREAD_FOR(4, mthr_, ithr, [&](int _n, int _oh, int _ow, int _oc2) {
-        MD5(ToutputType, atoutput0, toutput_, this->I4, this->n, this->oh,
-            this->ow, this->oc);
-        MD4(OutputType, aoutput0, output, this->n, this->oh, this->ow, this->oc);
-        MD2(OutputType, aoutput1, &md4(aoutput0, _n, _oh, _ow, 0), this->oc2, V);
+        MD5(ToutputType, atoutput0, toutput_, ep.I4, ep.n, ep.oh,
+            ep.ow, ep.oc);
+        MD4(OutputType, aoutput0, output, ep.n, ep.oh, ep.ow, ep.oc);
+        MD2(OutputType, aoutput1, &md4(aoutput0, _n, _oh, _ow, 0), ep.oc2, V);
         if (std::is_same<OutputType, float>::value) {
           __m<V> zero = _mm<V>::setzero_ps();
           __m<V> out = zero;
-          for (int _I4 = 0; _I4 < this->I4; ++_I4) {
+          for (int _I4 = 0; _I4 < ep.I4; ++_I4) {
             MD2(ToutputType, atoutput1, &md5(atoutput0, _I4, _n, _oh, _ow, 0),
-                this->oc2, V);
+                ep.oc2, V);
             out += *(__m<V> *)&md2(atoutput1, _oc2, 0);
           }
-          if (this->with_relu) {
-            auto lower = *(__m<V> *)(this->relu_bound_lower_vec);
-            auto upper = *(__m<V> *)(this->relu_bound_upper_vec);
+          if (ep.with_relu) {
+            auto lower = *(__m<V> *)(ep.relu_bound_lower_vec);
+            auto upper = *(__m<V> *)(ep.relu_bound_upper_vec);
             out = _mm<V>::max_ps(out, lower);
             out = _mm<V>::min_ps(out, upper);
           }
-          if (this->Or != V && _oc2 == this->oc2 - 1) {
-            iter_each (_V, this->Or) {
+          if (ep.Or != V && _oc2 == ep.oc2 - 1) {
+            iter_each (_V, ep.Or) {
               md2(aoutput1, _oc2, _V) = out[_V];
             }
           } else {
@@ -162,38 +162,38 @@ void Instance_elx_conv_direct_t::__execute_b060(
         } else {
           el_error("Unsupported data type");
         }
-      }, this->n, this->oh, this->ow, this->oc2);
+      }, ep.n, ep.oh, ep.ow, ep.oc2);
     } else { // blocked => blocked
       THREAD_FOR2(6, 2, mthr_, ithr, [&](int _I4, int _n, int _I3,
                                          int _O4, int _ht, int _wt) {
-        MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
-        MD5(TweightsType, atweights, tweights_, this->O4, this->I4, this->O3,
-            this->I3, V * V * this->kh * this->kw * this->I2 * this->O2);
-        MD5(InputType, ainput, input, this->n, this->I4, this->I3, this->I2,
-            this->ih * this->iw * V);
-        MD6(OutputType, atoutput0, toutput_, this->I4, this->n, this->O4,
-            this->O3 * this->O2, this->ht, this->ow * V);
+        MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
+        MD5(TweightsType, atweights, tweights_, ep.O4, ep.I4, ep.O3,
+            ep.I3, V * V * ep.kh * ep.kw * ep.I2 * ep.O2);
+        MD5(InputType, ainput, input, ep.n, ep.I4, ep.I3, ep.I2,
+            ep.ih * ep.iw * V);
+        MD6(OutputType, atoutput0, toutput_, ep.I4, ep.n, ep.O4,
+            ep.O3 * ep.O2, ep.ht, ep.ow * V);
         MD3(OutputType, atoutput1, &md6(atoutput0, _I4, _n, _O4, 0, _ht, 0),
-            this->wt, this->T, V);
+            ep.wt, ep.T, V);
         conv_b060(&md3(atoutput1, _wt, 0, 0), &md5(ainput, _n, _I4, _I3, 0, 0),
             &md5(atweights, _O4, _I4, 0, _I3, 0), &md2(abias, _O4, 0), _I4,
             _I3, _O4, _ht, _wt);
-      }, this->I4, this->n, this->I3, this->O4, this->ht, this->wt);
+      }, ep.I4, ep.n, ep.I3, ep.O4, ep.ht, ep.wt);
       THREAD_BARRIER()
       THREAD_FOR(1, mthr_, ithr, [&](int o) {
-        MD3(ToutputType, atoutput, toutput_, this->I4,
-            this->n * this->oc2 * this->oh * this->ow, V);
+        MD3(ToutputType, atoutput, toutput_, ep.I4,
+            ep.n * ep.oc2 * ep.oh * ep.ow, V);
         MD2(OutputType, aoutput, output,
-            this->n * this->oc2 * this->oh * this->ow, V);
+            ep.n * ep.oc2 * ep.oh * ep.ow, V);
         if (std::is_same<OutputType, float>::value) {
           __m<V> zero = _mm<V>::setzero_ps();
           __m<V> out = zero;
-          for (int _I4 = 0; _I4 < this->I4; ++_I4) {
+          for (int _I4 = 0; _I4 < ep.I4; ++_I4) {
             out += *(__m<V> *)&md3(atoutput, _I4, o, 0);
           }
-          if (this->with_relu) {
-            auto lower = *(__m<V> *)(this->relu_bound_lower_vec);
-            auto upper = *(__m<V> *)(this->relu_bound_upper_vec);
+          if (ep.with_relu) {
+            auto lower = *(__m<V> *)(ep.relu_bound_lower_vec);
+            auto upper = *(__m<V> *)(ep.relu_bound_upper_vec);
             out = _mm<V>::max_ps(out, lower);
             out = _mm<V>::min_ps(out, upper);
           }
@@ -201,7 +201,7 @@ void Instance_elx_conv_direct_t::__execute_b060(
         } else {
           el_error("Unsupported data type");
         }
-      }, this->n * this->oc2 * this->oh * this->ow);
+      }, ep.n * ep.oc2 * ep.oh * ep.ow);
     }
   }
 
@@ -222,40 +222,40 @@ void Instance_elx_conv_direct_t::__execute_d060(
     });
   }
 
-  if (this->input_fmt == nhwc) { // nhwc -> nhwc
+  if (ep.input_fmt == nhwc) { // nhwc -> nhwc
     estl::parallel_for<6, 2>(mthr_, [&](int _n, int _g, int _I4, int _O4, int _ht, int _wt) {
-      MD2(BiasType, abias0, bias, this->g, this->oc);
-      MD2(BiasType, abias1, &md2(abias0, _g, 0), this->O4, this->O3 * this->O2 * V);
-      MD4(TweightsType, atweights, tweights_, this->g, this->O4, this->I4,
-          V * V * this->kh * this->kw * this->I3 * this->O3 * this->I2
-              * this->O2);
-      MD4(InputType, ainput0, input, this->n, this->ih * this->iw, this->g, this->ic);
-      MD2(InputType, ainput1, &md4(ainput0, _n, 0, _g, 0), this->I4,
-          this->I3 * this->I2 * V);
-      MD4(OutputType, aoutput0, output, this->n, this->ht * this->ow, this->g,
-          this->oc);
-      MD2(OutputType, aoutput1, &md4(aoutput0, _n, 0, _g, 0), this->O4,
-          this->O3 * this->O2 * V);
+      MD2(BiasType, abias0, bias, ep.g, ep.oc);
+      MD2(BiasType, abias1, &md2(abias0, _g, 0), ep.O4, ep.O3 * ep.O2 * V);
+      MD4(TweightsType, atweights, tweights_, ep.g, ep.O4, ep.I4,
+          V * V * ep.kh * ep.kw * ep.I3 * ep.O3 * ep.I2
+              * ep.O2);
+      MD4(InputType, ainput0, input, ep.n, ep.ih * ep.iw, ep.g, ep.ic);
+      MD2(InputType, ainput1, &md4(ainput0, _n, 0, _g, 0), ep.I4,
+          ep.I3 * ep.I2 * V);
+      MD4(OutputType, aoutput0, output, ep.n, ep.ht * ep.ow, ep.g,
+          ep.oc);
+      MD2(OutputType, aoutput1, &md4(aoutput0, _n, 0, _g, 0), ep.O4,
+          ep.O3 * ep.O2 * V);
       gemm_d060(&md2(aoutput1, _O4, 0), &md2(ainput1, _I4, 0),
           &md4(atweights, _g, _O4, _I4, 0), &md2(abias1, _O4, 0),
           _I4, _O4, _ht, _wt);
-    }, this->n, this->g, this->I4, this->O4, this->ht, this->wt);
+    }, ep.n, ep.g, ep.I4, ep.O4, ep.ht, ep.wt);
   } else { // blocked -> blocked
     estl::parallel_for<6, 2>(mthr_, [&](int _n, int _g, int _I4, int _O4, int _ht, int _wt) {
-      MD2(BiasType, abias0, bias, this->g, this->oc);
-      MD2(BiasType, abias1, &md2(abias0, _g, 0), this->O4, this->O3 * this->O2 * V);
-      MD4(TweightsType, atweights, tweights_, this->g, this->O4, this->I4,
-          V * V * this->kh * this->kw * this->I3 * this->O3 * this->I2
-              * this->O2);
-      MD5(InputType, ainput, input, this->n, this->g, this->I4,
-          this->I3 * this->I2, this->ih * this->iw * V);
-      MD5(OutputType, aoutput, output, this->n, this->g, this->O4,
-          this->O3 * this->O2, this->ht * this->ow * V);
+      MD2(BiasType, abias0, bias, ep.g, ep.oc);
+      MD2(BiasType, abias1, &md2(abias0, _g, 0), ep.O4, ep.O3 * ep.O2 * V);
+      MD4(TweightsType, atweights, tweights_, ep.g, ep.O4, ep.I4,
+          V * V * ep.kh * ep.kw * ep.I3 * ep.O3 * ep.I2
+              * ep.O2);
+      MD5(InputType, ainput, input, ep.n, ep.g, ep.I4,
+          ep.I3 * ep.I2, ep.ih * ep.iw * V);
+      MD5(OutputType, aoutput, output, ep.n, ep.g, ep.O4,
+          ep.O3 * ep.O2, ep.ht * ep.ow * V);
       gemm_d060(&md5(aoutput, _n, _g, _O4, 0, 0),
                 &md5(ainput, _n, _g, _I4, 0, 0),
                 &md4(atweights, _g, _O4, _I4, 0),
                 &md2(abias1, _O4, 0), _I4, _O4, _ht, _wt);
-    }, this->n, this->g, this->I4, this->O4, this->ht, this->wt);
+    }, ep.n, ep.g, ep.I4, ep.O4, ep.ht, ep.wt);
   }
 
   if (inference_acc_)

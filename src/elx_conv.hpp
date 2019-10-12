@@ -14,7 +14,7 @@ namespace euler {
 // wino-gemm toutput : t2, A*A, oc3, O2, T, V
 // wino-gemm tweights: oc3, I3, A*A, O2, I2, V, V
 
-struct elx_conv_params_t {
+struct elx_param_t {
   // dimensions
   int g, ic, oc, ih, iw, oh, ow, n, kh, kw;
   // padding, stride, dilation
@@ -102,8 +102,6 @@ struct elx_conv_params_t {
   bool shared_workspace_enabled;
 
   void *scratch_pad;
-  void *output_ptr, *input_ptr, *weights_ptr, *bias_ptr;
-  std::mutex mu;
 
   // Redundant data for performance
   alignas(64) float relu_bound_lower_vec[16];
@@ -111,7 +109,7 @@ struct elx_conv_params_t {
   alignas(64) float sum_quant_S_vec[16];
 };
 
-struct elx_conv_t : elx_conv_params_t {
+struct elx_conv_t {
 public:
   elx_conv_t(eld_conv_t &dc);
 
@@ -125,9 +123,8 @@ public:
   void teardown();
   bool on_destroy() { return on_destroy_; }
   template <typename F> void setup_workspace(F func) {
-    if (this->prop_kind == forward_inference
-        && this->shared_workspace_enabled) {
-      const char *key = this->shared_workspace_key.c_str();
+    if (ep.prop_kind == forward_inference && ep.shared_workspace_enabled) {
+      const char *key = ep.shared_workspace_key.c_str();
       process_singleton_t process_singleton(key);
       {
         set_workspace_buffers();
@@ -142,16 +139,16 @@ public:
     }
   }
 
-  size_t scratch_size_;
-  size_t workspace_size_;
+  elx_param_t ep;
+
+  void *workspace_, *output_, *input_, *weights_, *bias_;
+  size_t scratch_size_, workspace_size_;
+  bool has_scratch_, on_destroy_;
+  std::mutex mu_;
 
 private:
   virtual void set_workspace_buffers(void *base) = 0;
   virtual void set_scratch_buffers(void *base) = 0;
-
-  void *workspace_;
-  bool has_scratch_;
-  bool on_destroy_;
 };
 
 }  // namespace euler

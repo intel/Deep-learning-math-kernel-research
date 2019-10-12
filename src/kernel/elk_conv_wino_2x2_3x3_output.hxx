@@ -15,7 +15,7 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
   constexpr static int A = 4;
   constexpr static int K = 3;
 
-  static void execute(elx_conv_params_t &xc, OutputType *output,
+  static void execute(elx_param_t &ep, OutputType *output,
       float *toutput, BiasType *bias, int hOA_end, int wOA_end)
   {
     ENABLE_AVX512F();
@@ -26,8 +26,8 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
     MD3(float, atoutput, toutput, A, A, V);
     if (std::is_same<OutputType, uint8_t>::value
         || std::is_same<OutputType, int8_t>::value) {
-      mrepS = _mm<V>::set1_ps(xc.output_quant_repS);
-      mzp = _mm<V>::set1_ps(xc.output_quant_z);
+      mrepS = _mm<V>::set1_ps(ep.output_quant_repS);
+      mzp = _mm<V>::set1_ps(ep.output_quant_z);
     }
 
     bool fuse_ip_sum = with_ip_sum && (wOA_end != -1);
@@ -40,13 +40,13 @@ struct elk_conv_wino_trans_output<float, OutputType, BiasType, format,
         MD3(OutputType, aoutput, output, A - K + 1, A - K + 1, V);
         return &md3(aoutput, _h, _w, 0);
       } else if (format == TKF_BLOCKED) {
-        MD3(OutputType, aoutput, output, xc.oh, xc.ow, V);
+        MD3(OutputType, aoutput, output, ep.oh, ep.ow, V);
         if (is_border && (_h > hOA_end || _w > wOA_end))
           return dummy;
         else
           return &md3(aoutput, _h, _w, 0);
       } else {
-        MD3(OutputType, aoutput, output, xc.oh, xc.ow, xc.oc);
+        MD3(OutputType, aoutput, output, ep.oh, ep.ow, ep.oc);
         if (is_border && (_h > hOA_end || _w > wOA_end))
           return dummy;
         else

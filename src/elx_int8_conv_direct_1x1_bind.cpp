@@ -11,41 +11,41 @@ Instance_elx_int8_conv_direct_1x1_t::bind_execute_functions() {
                          OutputType> **func) {
     switch (xopt_) {
       case (0xc160):
-        if (this->input_fmt == nChw16c && this->output_fmt == nChw16c)
+        if (ep.input_fmt == nChw16c && ep.output_fmt == nChw16c)
           BIND_KERNEL(1, GKF_DCD)
-        else if (this->input_fmt == nhwc && this->output_fmt == nChw16c)
+        else if (ep.input_fmt == nhwc && ep.output_fmt == nChw16c)
           BIND_KERNEL(1, GKF_FCD)
-        else if (this->input_fmt == nChw16c && this->output_fmt == nhwc)
+        else if (ep.input_fmt == nChw16c && ep.output_fmt == nhwc)
           BIND_KERNEL(1, GKF_DCF)
         else
           BIND_KERNEL(1, GKF_FCF)
         break;
       case (0xb161):
-        if (this->input_fmt == nChw16c && this->output_fmt == nChw16c) {
-          if (this->ws == 1)
+        if (ep.input_fmt == nChw16c && ep.output_fmt == nChw16c) {
+          if (ep.ws == 1)
             BIND_KERNEL(1, GKF_DCD)
-          else if (this->ws == 2)
+          else if (ep.ws == 2)
             BIND_KERNEL(2, GKF_DCD)
           else
             el_error("");
-        } else if (this->input_fmt == nhwc && this->output_fmt == nChw16c) {
-          if (this->ws == 1)
+        } else if (ep.input_fmt == nhwc && ep.output_fmt == nChw16c) {
+          if (ep.ws == 1)
             BIND_KERNEL(1, GKF_FCD)
-          else if (this->ws == 2)
+          else if (ep.ws == 2)
             BIND_KERNEL(2, GKF_FCD)
           else
             el_error("");
-        } else if (this->input_fmt == nChw16c && this->output_fmt == nhwc) {
-          if (this->ws == 1)
+        } else if (ep.input_fmt == nChw16c && ep.output_fmt == nhwc) {
+          if (ep.ws == 1)
             BIND_KERNEL(1, GKF_DCF)
-          else if (this->ws == 2)
+          else if (ep.ws == 2)
             BIND_KERNEL(2, GKF_DCF)
           else
             el_error("");
         } else { // nhwc -> nhwc
-          if (this->ws == 1)
+          if (ep.ws == 1)
             BIND_KERNEL(1, GKF_FCF)
-          else if (this->ws == 2)
+          else if (ep.ws == 2)
             BIND_KERNEL(2, GKF_FCF)
           else
             el_error("");
@@ -57,8 +57,8 @@ Instance_elx_int8_conv_direct_1x1_t::bind_execute_functions() {
     }
   };
 
-  bind_kernel(this->O, this->T, &ker_u8s8_gemm_I_O_T_);
-  bind_kernel(this->O, this->Tr, &ker_u8s8_gemm_I_O_Tr_);
+  bind_kernel(ep.O, ep.T, &ker_u8s8_gemm_I_O_T_);
+  bind_kernel(ep.O, ep.Tr, &ker_u8s8_gemm_I_O_Tr_);
 
 #define EXECUTE_CASE(n)                                                        \
   case 0x##n:                                                                  \

@@ -7,78 +7,78 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
     eld_conv_t &dc)
     : elx_conv_t(dc) {
   // TODO: error when V!=16 && fmt=OIhw16i16o
-  xopt_ = this->execution_mode;
+  xopt_ = ep.execution_mode;
 
-  this->Vx = 1;
-  this->V1 = V / this->Vx;
-  this->IC = ALIGNUP(this->ic, V);
-  this->OC = ALIGNUP(this->oc, V);
+  ep.Vx = 1;
+  ep.V1 = V / ep.Vx;
+  ep.IC = ALIGNUP(ep.ic, V);
+  ep.OC = ALIGNUP(ep.oc, V);
 
-  this->ic2 = this->IC / V;
-  this->oc2 = this->OC / V;
+  ep.ic2 = ep.IC / V;
+  ep.oc2 = ep.OC / V;
 
-  this->ht = (this->oh + A - K) / (A - K + 1);
-  this->wt = (this->ow + A - K) / (A - K + 1);
-  this->nt = this->ht * this->wt;
-  this->t = this->nt * this->n;
+  ep.ht = (ep.oh + A - K) / (A - K + 1);
+  ep.wt = (ep.ow + A - K) / (A - K + 1);
+  ep.nt = ep.ht * ep.wt;
+  ep.t = ep.nt * ep.n;
 
   // TODO: santize user settings
-  if (this->O == 0) this->O = 1; // TODO: O selection
-  if (this->O1 == 0) this->O1 = 1; // TODO: O1 selection
-  if (this->I2 == 0) this->I2 = 1; // TODO: I2 selection
-  if (this->T == 0)  this->T = 1; // TODO: T selection
-  this->O2 = this->O * this->O1;
+  if (ep.O == 0) ep.O = 1; // TODO: O selection
+  if (ep.O1 == 0) ep.O1 = 1; // TODO: O1 selection
+  if (ep.I2 == 0) ep.I2 = 1; // TODO: I2 selection
+  if (ep.T == 0)  ep.T = 1; // TODO: T selection
+  ep.O2 = ep.O * ep.O1;
 
   // Tailing
-  this->Tr = this->t % this->T ? this->t % this->T : this->T;
-  this->Ir = this->ic % V ? this->ic % V : V;
-  this->Or = this->oc % V ? this->oc % V : V;
+  ep.Tr = ep.t % ep.T ? ep.t % ep.T : ep.T;
+  ep.Ir = ep.ic % V ? ep.ic % V : V;
+  ep.Or = ep.oc % V ? ep.oc % V : V;
 
   is_first_run_ = true;
   inference_acc_ = false;
   mthr_ = estl::max_concurrency();
-  if (this->nthreads == 0 || this->nthreads > mthr_) {
-    this->nthreads = mthr_;
+  if (ep.nthreads == 0 || ep.nthreads > mthr_) {
+    ep.nthreads = mthr_;
   } else {
-    mthr_ = this->nthreads;
+    mthr_ = ep.nthreads;
   }
-  inference_acc_ = this->prop_kind == forward_inference;
+  inference_acc_ = ep.prop_kind == forward_inference;
 
-  this->O4 = this->O4 == 0 ? 1 : this->O4;
-  this->I4 = this->I4 == 0 ? 1 : this->I4;
+  ep.O4 = ep.O4 == 0 ? 1 : ep.O4;
+  ep.I4 = ep.I4 == 0 ? 1 : ep.I4;
 
   // further divide packed oc/ic
-  this->O3 = this->oc2 / this->O2;
-  this->I3 = this->ic2 / this->I2;
+  ep.O3 = ep.oc2 / ep.O2;
+  ep.I3 = ep.ic2 / ep.I2;
 
-  this->t2 = (this->t + this->T - 1) / this->T;
+  ep.t2 = (ep.t + ep.T - 1) / ep.T;
 
-  if ((xopt_ == 0xa073 || xopt_ == 0xa07b || this->with_ip_sum)
-      && this->with_relu && !output_is_bfmt_) {
+  if ((xopt_ == 0xa073 || xopt_ == 0xa07b || ep.with_ip_sum)
+      && ep.with_relu && !output_is_bfmt_) {
     el_error("Unimplemented: fuse sum (plain format) and relu together");
   }
 
   prepare_execute_opt();
   bind_execute_functions();
-  trans_input.setup(this);
-  trans_weights.setup(this);
-  gemm.setup(this);
-  trans_output.setup(this);
+  trans_input.setup(&ep);
+  trans_weights.setup(&ep);
+  gemm.setup(&ep);
+  trans_output.setup(&ep);
 
-  if (V * this->I2 * this->I3 * this->I4 != this->IC) {
-    el_error("V * I2 * I3 * I4 != this->IC\n)");
+  if (V * ep.I2 * ep.I3 * ep.I4 != ep.IC) {
+    el_error("V * I2 * I3 * I4 != ep.IC\n)");
   }
 
-  if (V * this->O2 * this->O3 * this->O4 != this->OC) {
-    el_error("V * O2 * O3 * O4 != this->OC\n)");
+  if (V * ep.O2 * ep.O3 * ep.O4 != ep.OC) {
+    el_error("V * O2 * O3 * O4 != ep.OC\n)");
   }
 
   // dbg
-  el_log(DEBUG, "T=%d, Tr=%d, t2=%d, t=%d", this->T, this->Tr, this->t2, this->t);
+  el_log(DEBUG, "T=%d, Tr=%d, t2=%d, t=%d", ep.T, ep.Tr, ep.t2, ep.t);
   el_log(DEBUG, "V=%d, Ir=%d, Vx=%d, I2=%d, I3=%d, I4=%d, IC=%d",
-         V, this->Ir, this->Vx, this->I2, this->I3, this->I4, this->IC);
+         V, ep.Ir, ep.Vx, ep.I2, ep.I3, ep.I4, ep.IC);
   el_log(DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, OC=%d",
-         V, this->Or, this->O2, this->O, this->O1, this->O3, this->O4, this->OC);
+         V, ep.Or, ep.O2, ep.O, ep.O1, ep.O3, ep.O4, ep.OC);
 }
 
 Template_elx_conv_wino_t
@@ -88,38 +88,38 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   size_t binput_size = 0, bweights_size = 0, boutput_size = 0;
 
   if (xopt_ & FUS_O) {
-    this->O3 /= this->O4;
-    if (V * this->O2 * this->O3 * this->O4 != this->OC) {
+    ep.O3 /= ep.O4;
+    if (V * ep.O2 * ep.O3 * ep.O4 != ep.OC) {
       el_error("Config error!");
       return -1;
     }
   }
   if (xopt_ & FUS_I) {
-    this->I3 /= this->I4;
-    if (V * this->I2 * this->I3 * this->I4 != this->IC) {
+    ep.I3 /= ep.I4;
+    if (V * ep.I2 * ep.I3 * ep.I4 != ep.IC) {
       el_error("Config error!");
       return -1;
     }
   }
 
-  input_is_bfmt_ = this->input_fmt == nChw16c; // nChw8c
-  weights_is_bfmt_ = this->weights_fmt == OIhw16i16o;
-  output_is_bfmt_ = this->output_fmt == nChw16c;
-  input_as_bfmt_ = this->input_fmt == nchw && this->input_as_blocked;
-  weights_as_bfmt_ = this->input_fmt == oihw && this->weights_as_blocked;
-  output_as_bfmt_ = this->output_fmt == nchw && this->output_as_blocked;
+  input_is_bfmt_ = ep.input_fmt == nChw16c; // nChw8c
+  weights_is_bfmt_ = ep.weights_fmt == OIhw16i16o;
+  output_is_bfmt_ = ep.output_fmt == nChw16c;
+  input_as_bfmt_ = ep.input_fmt == nchw && ep.input_as_blocked;
+  weights_as_bfmt_ = ep.input_fmt == oihw && ep.weights_as_blocked;
+  output_as_bfmt_ = ep.output_fmt == nchw && ep.output_as_blocked;
   is_bfmt_ = input_is_bfmt_ && weights_is_bfmt_ && output_is_bfmt_;
 
-  if (this->Or != V && this->output_fmt == nhwc) {
+  if (ep.Or != V && ep.output_fmt == nhwc) {
     el_error("Unimplemented: nhwc output with Or");
   }
 
   if (input_as_bfmt_)
-    binput_size = this->n * this->IC * this->ih * this->iw * sizeof(InputType);
+    binput_size = ep.n * ep.IC * ep.ih * ep.iw * sizeof(InputType);
   if (weights_as_bfmt_)
-    bweights_size = this->OC * this->IC * this->kh * this->kw * sizeof(WeightsType);
+    bweights_size = ep.OC * ep.IC * ep.kh * ep.kw * sizeof(WeightsType);
   if (output_as_bfmt_)
-    boutput_size = this->n * this->OC * this->oh * this->ow * sizeof(OutputType);
+    boutput_size = ep.n * ep.OC * ep.oh * ep.ow * sizeof(OutputType);
 
   tweights_ = nullptr;
   tinput_ = nullptr;
@@ -130,39 +130,39 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
 
   switch (xopt_) {
   case 0xa000:
-    tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
-    tinput_size = A * A * this->IC * this->t * sizeof(TinputType);
-    toutput_size = A * A * this->OC * this->t * sizeof(ToutputType);
+    tweights_size = A * A * ep.IC * ep.OC * sizeof(TweightsType);
+    tinput_size = A * A * ep.IC * ep.t * sizeof(TinputType);
+    toutput_size = A * A * ep.OC * ep.t * sizeof(ToutputType);
     break;
   case 0xa033:
-    tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
-    tinput_size = A * A * this->I3 * this->I2 * V * this->t * sizeof(TinputType);
-    toutput_size = A * A * (this->OC / this->O4) * this->t * sizeof(ToutputType);
+    tweights_size = A * A * ep.IC * ep.OC * sizeof(TweightsType);
+    tinput_size = A * A * ep.I3 * ep.I2 * V * ep.t * sizeof(TinputType);
+    toutput_size = A * A * (ep.OC / ep.O4) * ep.t * sizeof(ToutputType);
     break;
   case 0xa061:
-    tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
-    tinput_size = A * A * this->IC * this->T * mthr_ * sizeof(TinputType);
-    toutput_size = A * A * (this->OC / this->O4) * this->T * mthr_ * sizeof(ToutputType);
+    tweights_size = A * A * ep.IC * ep.OC * sizeof(TweightsType);
+    tinput_size = A * A * ep.IC * ep.T * mthr_ * sizeof(TinputType);
+    toutput_size = A * A * (ep.OC / ep.O4) * ep.T * mthr_ * sizeof(ToutputType);
     break;
   case 0xa071:
-    tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
-    tinput_size = A * A * (this->IC / this->I4) * this->T * mthr_ * sizeof(TinputType);
-    toutput_size = A * A * this->OC * this->t * sizeof(ToutputType);
+    tweights_size = A * A * ep.IC * ep.OC * sizeof(TweightsType);
+    tinput_size = A * A * (ep.IC / ep.I4) * ep.T * mthr_ * sizeof(TinputType);
+    toutput_size = A * A * ep.OC * ep.t * sizeof(ToutputType);
     break;
   case 0xa073:
-    tweights_size = A * A * this->IC * this->OC * sizeof(TweightsType);
-    tinput_size = A * A * (this->IC / this->I4) * this->T * mthr_ * sizeof(TinputType);
-    toutput_size = A * A * (this->OC / this->O4) * this->T * mthr_ * sizeof(ToutputType);
+    tweights_size = A * A * ep.IC * ep.OC * sizeof(TweightsType);
+    tinput_size = A * A * (ep.IC / ep.I4) * ep.T * mthr_ * sizeof(TinputType);
+    toutput_size = A * A * (ep.OC / ep.O4) * ep.T * mthr_ * sizeof(ToutputType);
     break;
   case 0xa079:
-    tweights_size = A * A * (this->IC / this->I4) * (this->OC / this->O4) * mthr_ * sizeof(TweightsType);
-    tinput_size = A * A * (this->IC / this->I4) * this->T * mthr_ * sizeof(TinputType);
-    toutput_size = A * A * this->OC * this->t * sizeof(ToutputType);
+    tweights_size = A * A * (ep.IC / ep.I4) * (ep.OC / ep.O4) * mthr_ * sizeof(TweightsType);
+    tinput_size = A * A * (ep.IC / ep.I4) * ep.T * mthr_ * sizeof(TinputType);
+    toutput_size = A * A * ep.OC * ep.t * sizeof(ToutputType);
     break;
   case 0xa07b:
-    tweights_size = A * A * (this->IC / this->I4) * (this->OC / this->O4) * mthr_ * sizeof(TweightsType);
-    tinput_size = A * A * (this->IC / this->I4) * this->T * mthr_ * sizeof(TinputType);
-    toutput_size = A * A * (this->OC / this->O4) * this->T * mthr_ * sizeof(ToutputType);
+    tweights_size = A * A * (ep.IC / ep.I4) * (ep.OC / ep.O4) * mthr_ * sizeof(TweightsType);
+    tinput_size = A * A * (ep.IC / ep.I4) * ep.T * mthr_ * sizeof(TinputType);
+    toutput_size = A * A * (ep.OC / ep.O4) * ep.T * mthr_ * sizeof(ToutputType);
     break;
   default:
       el_error("Config error!");

@@ -18,26 +18,26 @@ Instance_elx_deconv_direct_t::bind_execute_functions()
       conv_kernel_binder::kconv<TarrayTypes> **func, int K) {
     switch (xopt_) {
     case (0xa060):
-      if (this->input_fmt == nchw) {
-        if (this->ws == 1) {
+      if (ep.input_fmt == nchw) {
+        if (ep.ws == 1) {
           BIND_CONV_KERNEL(1, GKF_EBD, K);
-        } else if (this->ws == 2) {
+        } else if (ep.ws == 2) {
           BIND_CONV_KERNEL(2, GKF_EBD, K);
         } else {
           el_error("Stride > 2 not yet bounded");
         }
-      } else if (this->input_fmt == nhwc) {
-        if (this->ws == 1) {
+      } else if (ep.input_fmt == nhwc) {
+        if (ep.ws == 1) {
           BIND_CONV_KERNEL(1, GKF_FCF, K);
-        } else if (this->ws == 2) {
+        } else if (ep.ws == 2) {
           BIND_CONV_KERNEL(2, GKF_FCF, K);
         } else {
           el_error("Stride > 2 not yet bounded");
         }
       } else {
-        if (this->ws == 1) {
+        if (ep.ws == 1) {
           BIND_CONV_KERNEL(1, GKF_DCD, K);
-        } else if (this->ws == 2) {
+        } else if (ep.ws == 2) {
           BIND_CONV_KERNEL(2, GKF_DCD, K);
         } else {
           el_error("Stride > 2 not yet bounded");
@@ -50,8 +50,8 @@ Instance_elx_deconv_direct_t::bind_execute_functions()
     }
   };
 
-  bind_conv_kernel(this->O, this->T, &ker_conv_, this->kw);
-  bind_conv_kernel(this->O, this->Tr, &ker_conv_Tr_, this->kw);
+  bind_conv_kernel(ep.O, ep.T, &ker_conv_, ep.kw);
+  bind_conv_kernel(ep.O, ep.Tr, &ker_conv_Tr_, ep.kw);
 
 #define EXECUTE_CASE(n)                                                        \
   case 0x##n:                                                                  \

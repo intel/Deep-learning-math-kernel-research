@@ -21,14 +21,14 @@ Instance_elx_conv_direct_t::bind_execute_functions()
       gemm_kernel_binder::kgemm<TarrayTypes> **func) {
     switch (xopt_) {
     case (0xd060):
-      if (this->ws == 1) {
-        if (this->input_fmt == nhwc) {
+      if (ep.ws == 1) {
+        if (ep.input_fmt == nhwc) {
           BIND_GEMM_KERNEL(1, GKF_FCF)
         } else { // blocked
           BIND_GEMM_KERNEL(1, GKF_DCD)
         }
-      } else if (this->ws == 2) {
-        if (this->input_fmt == nhwc) {
+      } else if (ep.ws == 2) {
+        if (ep.input_fmt == nhwc) {
           BIND_GEMM_KERNEL(2, GKF_FCF)
         } else { // blocked
           BIND_GEMM_KERNEL(2, GKF_DCD)
@@ -48,11 +48,11 @@ Instance_elx_conv_direct_t::bind_execute_functions()
     switch (xopt_) {
     case (0xa060):
     case (0xb060):
-      if (this->input_fmt == nchw) {
-        if (this->ws == 1) {
+      if (ep.input_fmt == nchw) {
+        if (ep.ws == 1) {
           BIND_CONV_KERNEL(1, GKF_EBD, K);
-        } else if (this->ws == 2) {
-          if (this->lp > this->rp) {
+        } else if (ep.ws == 2) {
+          if (ep.lp > ep.rp) {
             BIND_CONV_KERNEL(S2_LLP, GKF_EBD, K);
           } else {
             BIND_CONV_KERNEL(2, GKF_EBD, K);
@@ -60,11 +60,11 @@ Instance_elx_conv_direct_t::bind_execute_functions()
         } else {
           el_error("Stride > 2 not yet bounded");
         }
-      } else if (this->input_fmt == nhwc) {
-        if (this->ws == 1) {
+      } else if (ep.input_fmt == nhwc) {
+        if (ep.ws == 1) {
           BIND_CONV_KERNEL(1, GKF_FCF, K);
-        } else if (this->ws == 2) {
-          if (this->lp > this->rp) {
+        } else if (ep.ws == 2) {
+          if (ep.lp > ep.rp) {
             BIND_CONV_KERNEL(S2_LLP, GKF_FCF, K);
           } else {
             BIND_CONV_KERNEL(2, GKF_FCF, K);
@@ -73,10 +73,10 @@ Instance_elx_conv_direct_t::bind_execute_functions()
           el_error("Stride > 2 not yet bounded");
         }
       } else {
-        if (this->ws == 1) {
+        if (ep.ws == 1) {
           BIND_CONV_KERNEL(1, GKF_DCD, K);
-        } else if (this->ws == 2) {
-          if (this->lp > this->rp) {
+        } else if (ep.ws == 2) {
+          if (ep.lp > ep.rp) {
             BIND_CONV_KERNEL(S2_LLP, GKF_DCD, K);
           } else {
             BIND_CONV_KERNEL(2, GKF_DCD, K);
@@ -93,28 +93,28 @@ Instance_elx_conv_direct_t::bind_execute_functions()
   };
 
   if (xopt_ == 0xa060 || xopt_ == 0xb060) {
-    bind_conv_kernel(this->O, this->T, &ker_conv_, this->kw);
-    bind_conv_kernel(this->O, this->Tr, &ker_conv_Tr_, this->kw);
+    bind_conv_kernel(ep.O, ep.T, &ker_conv_, ep.kw);
+    bind_conv_kernel(ep.O, ep.Tr, &ker_conv_Tr_, ep.kw);
   } else if (xopt_ == 0xd060) {
-    if (this->wt > 128) {
+    if (ep.wt > 128) {
       el_error("direct: d160: wt > max-kernel-slot:128");
     }
-    iter_each (_wt, this->wt) {
-      int Tz = _wt == this->wt - 1 ? this->Tr : this->T;
-      for (int _kw = 0; _kw < this->kw; ++_kw) {
+    iter_each (_wt, ep.wt) {
+      int Tz = _wt == ep.wt - 1 ? ep.Tr : ep.T;
+      for (int _kw = 0; _kw < ep.kw; ++_kw) {
         // _iws, _iwe
         // _iw = ws * _ow + _kw - lp
-        auto ows0 = _wt * this->T;
-        auto owe0 = _wt * this->T + Tz - 1;
-        auto _iws = this->ws * ows0 + _kw - this->lp;
+        auto ows0 = _wt * ep.T;
+        auto owe0 = _wt * ep.T + Tz - 1;
+        auto _iws = ep.ws * ows0 + _kw - ep.lp;
         while (_iws < 0)
-          _iws += this->ws;
-        auto _iwe = this->ws * owe0 + _kw - this->lp;
-        while (_iwe > this->iw - 1)
-          _iwe -= this->ws;
-        auto _ows = (_iws + this->lp - _kw) / this->ws;
-        auto _owe = (_iwe + this->lp - _kw) / this->ws;
-        bind_gemm_kernel(this->O, _owe - _ows + 1, &ker_gemm_[_wt][_kw]);
+          _iws += ep.ws;
+        auto _iwe = ep.ws * owe0 + _kw - ep.lp;
+        while (_iwe > ep.iw - 1)
+          _iwe -= ep.ws;
+        auto _ows = (_iws + ep.lp - _kw) / ep.ws;
+        auto _owe = (_iwe + ep.lp - _kw) / ep.ws;
+        bind_gemm_kernel(ep.O, _owe - _ows + 1, &ker_gemm_[_wt][_kw]);
       }
     }
   }

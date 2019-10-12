@@ -13,121 +13,120 @@ namespace euler {
 
 elx_conv_t::elx_conv_t(eld_conv_t &dc)
 {
-  this->n = dc.dims.n;
-  this->g = dc.dims.g;
-  this->ic = dc.dims.ic;
-  this->oc = dc.dims.oc;
-  this->ih = dc.dims.ih;
-  this->iw = dc.dims.iw;
-  this->oh = dc.dims.oh;
-  this->ow = dc.dims.ow;
-  this->kh = dc.dims.kh;
-  this->kw = dc.dims.kw;
-  this->lp = dc.pads.l;
-  this->tp = dc.pads.t;
-  this->hs = dc.strides.h;
-  this->ws = dc.strides.w;
-  this->hd = dc.dilations.h;
-  this->wd = dc.dilations.w;
+  ep.n = dc.dims.n;
+  ep.g = dc.dims.g;
+  ep.ic = dc.dims.ic;
+  ep.oc = dc.dims.oc;
+  ep.ih = dc.dims.ih;
+  ep.iw = dc.dims.iw;
+  ep.oh = dc.dims.oh;
+  ep.ow = dc.dims.ow;
+  ep.kh = dc.dims.kh;
+  ep.kw = dc.dims.kw;
+  ep.lp = dc.pads.l;
+  ep.tp = dc.pads.t;
+  ep.hs = dc.strides.h;
+  ep.ws = dc.strides.w;
+  ep.hd = dc.dilations.h;
+  ep.wd = dc.dilations.w;
   // Fix user padding
-  // this->rp = dc.pads.r;
-  // this->bp = dc.pads.b;
-  this->rp =
-      estl::max(0, this->ws * (this->ow - 1) + this->kw - this->iw - this->lp);
-  this->bp =
-      estl::max(0, this->hs * (this->oh - 1) + this->kh - this->ih - this->tp);
+  // rp = dc.pads.r;
+  // bp = dc.pads.b;
+  ep.rp = estl::max(0, ep.ws * (ep.ow - 1) + ep.kw - ep.iw - ep.lp);
+  ep.bp = estl::max(0, ep.hs * (ep.oh - 1) + ep.kh - ep.ih - ep.tp);
 
-  this->input_fmt = dc.formats.input;
-  this->weights_fmt = dc.formats.weights;
-  this->output_fmt = dc.formats.output;
-  this->with_relu = dc.with_relu;
-  this->with_bias = dc.with_bias;
-  this->with_ip_sum = dc.with_ip_sum;
-  this->with_op_sum = dc.with_op_sum;
-  this->with_argmax = dc.with_argmax;
-  this->f16c_opt = dc.f16c_opt;
-  this->use_scratch_pad = dc.use_scratch_pad;
-  this->relu_bound_lower = dc.relu_bound.lower;
-  this->relu_bound_upper = dc.relu_bound.upper;
+  ep.input_fmt = dc.formats.input;
+  ep.weights_fmt = dc.formats.weights;
+  ep.output_fmt = dc.formats.output;
+  ep.with_relu = dc.with_relu;
+  ep.with_bias = dc.with_bias;
+  ep.with_ip_sum = dc.with_ip_sum;
+  ep.with_op_sum = dc.with_op_sum;
+  ep.with_argmax = dc.with_argmax;
+  ep.f16c_opt = dc.f16c_opt;
+  ep.use_scratch_pad = dc.use_scratch_pad;
+  ep.relu_bound_lower = dc.relu_bound.lower;
+  ep.relu_bound_upper = dc.relu_bound.upper;
 
   // redundant
-  for (auto i = 0; i < estl::size(this->relu_bound_lower_vec); ++i)
-    this->relu_bound_lower_vec[i] = this->relu_bound_lower;
-  for (auto i = 0; i < estl::size(this->relu_bound_upper_vec); ++i)
-    this->relu_bound_upper_vec[i] = this->relu_bound_upper;
+  for (auto i = 0; i < estl::size(ep.relu_bound_lower_vec); ++i)
+    ep.relu_bound_lower_vec[i] = ep.relu_bound_lower;
+  for (auto i = 0; i < estl::size(ep.relu_bound_upper_vec); ++i)
+    ep.relu_bound_upper_vec[i] = ep.relu_bound_upper;
 
-  this->scratch_pad = dc.scratch_pad;
+  ep.scratch_pad = dc.scratch_pad;
 
-  this->prop_kind = dc.prop_kind;
+  ep.prop_kind = dc.prop_kind;
 
-  this->nthreads = dc.nthreads;
-  this->algorithm = dc.algorithm;
-  this->input_data_type = dc.data_type.input;
-  this->weights_data_type = dc.data_type.weights;
-  this->output_data_type = dc.data_type.output;
-  this->bias_data_type = dc.data_type.bias;
-  this->execution_mode = dc.execution_mode;
+  ep.nthreads = dc.nthreads;
+  ep.algorithm = dc.algorithm;
+  ep.input_data_type = dc.data_type.input;
+  ep.weights_data_type = dc.data_type.weights;
+  ep.output_data_type = dc.data_type.output;
+  ep.bias_data_type = dc.data_type.bias;
+  ep.execution_mode = dc.execution_mode;
 
   /* Automatical parameters */
-  this->O = dc.flatting.o;
-  this->T = dc.flatting.t;
+  ep.O = dc.flatting.o;
+  ep.T = dc.flatting.t;
 
-  this->I2 = dc.blocking.i;
-  this->O1 = dc.blocking.o;
+  ep.I2 = dc.blocking.i;
+  ep.O1 = dc.blocking.o;
 
-  this->I4 = dc.partition.i;
-  this->O4 = dc.partition.o;
-  this->G3 = dc.partition.g;
+  ep.I4 = dc.partition.i;
+  ep.O4 = dc.partition.o;
+  ep.G3 = dc.partition.g;
 
-  this->streaming_input = dc.streaming_hint.input;
-  this->streaming_output = dc.streaming_hint.output;
+  ep.streaming_input = dc.streaming_hint.input;
+  ep.streaming_output = dc.streaming_hint.output;
 
-  this->input_as_blocked = dc.format_as_blocked.input;
-  this->weights_as_blocked = dc.format_as_blocked.weights;
-  this->output_as_blocked = dc.format_as_blocked.output;
+  ep.input_as_blocked = dc.format_as_blocked.input;
+  ep.weights_as_blocked = dc.format_as_blocked.weights;
+  ep.output_as_blocked = dc.format_as_blocked.output;
 
-  this->input_quant_S = dc.input_quant.scale;
-  this->input_quant_z = dc.input_quant.z;
-  this->output_quant_S = dc.output_quant.scale;
-  this->output_quant_z = dc.output_quant.z;
-  this->sum_quant_S = dc.sum_quant.scale;
-  for (auto i = 0; i < estl::size(this->sum_quant_S_vec); ++i)
-    this->sum_quant_S_vec[i] = this->sum_quant_S;
-  this->sum_quant_z = dc.sum_quant.z;
-  this->sampling_kind = dc.sampling_kind;
+  ep.input_quant_S = dc.input_quant.scale;
+  ep.input_quant_z = dc.input_quant.z;
+  ep.output_quant_S = dc.output_quant.scale;
+  ep.output_quant_z = dc.output_quant.z;
+  ep.sum_quant_S = dc.sum_quant.scale;
+  for (auto i = 0; i < estl::size(ep.sum_quant_S_vec); ++i)
+    ep.sum_quant_S_vec[i] = ep.sum_quant_S;
+  ep.sum_quant_z = dc.sum_quant.z;
+  ep.sampling_kind = dc.sampling_kind;
 
-  this->ormask = (unsigned int)-1;
-  this->output_ptr = nullptr;
-  this->input_ptr = nullptr;
-  this->weights_ptr = nullptr;
-  this->bias_ptr = nullptr;
-  this->eager_mode = dc.eager_mode;
-  this->stream_sync = dc.stream_sync;
-  this->name = dc.name;
+  ep.ormask = (unsigned int)-1;
+  ep.eager_mode = dc.eager_mode;
+  ep.stream_sync = dc.stream_sync;
+  ep.name = dc.name;
  
   auto env_numa_node = getenv("EULER_NUMA_NODE");
   auto env_shared_workspace = getenv("EULER_SHARED_WORKSPACE");
-  this->shared_workspace_enabled = false;
-  this->shared_workspace_key = "na";
+  ep.shared_workspace_enabled = false;
+  ep.shared_workspace_key = "na";
   if (env_shared_workspace != nullptr
       && (env_shared_workspace[0] == '1' || env_shared_workspace[0] == '2')) {
     if (env_numa_node != nullptr) {
-      this->shared_workspace_enabled = true;
-      this->shared_workspace_key = std::string(".euler_key_") + env_numa_node;
+      ep.shared_workspace_enabled = true;
+      ep.shared_workspace_key = std::string(".euler_key_") + env_numa_node;
     }
   }
 
+  output_ = nullptr;
+  input_ = nullptr;
+  weights_ = nullptr;
+  bias_ = nullptr;
+  workspace_ = nullptr;
+
   scratch_size_ = 0;
   workspace_size_ = 0;
-  workspace_ = nullptr;
   has_scratch_ = false;
   on_destroy_ = false;
 }
 
 void elx_conv_t::set_workspace_buffers() {
   if (workspace_size_ != 0 && workspace_ == nullptr) {
-    if (this->shared_workspace_enabled) {
-      const char *key = this->shared_workspace_key.c_str();
+    if (ep.shared_workspace_enabled) {
+      const char *key = ep.shared_workspace_key.c_str();
       workspace_ = shwalloc::acquire(workspace_size_, key);
     } else {
       workspace_ = walloc::acquire(workspace_size_);
@@ -148,11 +147,11 @@ void elx_conv_t::set_scratch_buffers() {
 }
 
 void elx_conv_t::teardown() {
-  if (workspace_ != nullptr && !this->shared_workspace_enabled) {
+  if (workspace_ != nullptr && !ep.shared_workspace_enabled) {
     walloc::release(workspace_);
     workspace_ = nullptr;
   } else {
-    const char *key = this->shared_workspace_key.c_str();
+    const char *key = ep.shared_workspace_key.c_str();
     shwalloc::release(workspace_, key);
     workspace_ = nullptr;
   }
@@ -162,11 +161,11 @@ void elx_conv_t::teardown() {
 }
 
 elx_conv_t::~elx_conv_t() {
-  if (eager_mode) {
+  if (ep.eager_mode) {
     teardown();
   } else {
     // submit an end-of-life request
-    this->stream_sync = true;
+    ep.stream_sync = true;
     on_destroy_ = true;
     global_stream.submit(this);
     global_stream.wait(this);
@@ -176,10 +175,10 @@ elx_conv_t::~elx_conv_t() {
 void elx_conv_t::set_user_buffers(
     void *output, void *input, void *weights, void *bias)
 {
-  output_ptr = output;
-  input_ptr = input;
-  weights_ptr = weights;
-  bias_ptr = bias;
+  output_ = output;
+  input_ = input;
+  weights_ = weights;
+  bias_ = bias;
 }
 
 void elx_conv_t::execute_verbose(void *output, void *input, void *weights,
@@ -190,18 +189,18 @@ void elx_conv_t::execute_verbose(void *output, void *input, void *weights,
   hrc::time_point start_ts;
   start_ts = hrc::now();
 
-  this->execute(output, input, weights, bias);
+  execute(output, input, weights, bias);
 
   el_log(PERF_TRACE, "%s,ih:%d;oh:%d;ic:%d;oc:%d,"\
          "%s;%x,src:%s;wei:%s;dst:%s,src:%s;wei:%s;dst:%s;b:%s, %lf",
-         this->name.c_str(), this->ih, this->oh, this->ic, this->oc,
-         algorithm_to_string(this->algorithm), this->execution_mode,
-         format_to_string(this->input_fmt), format_to_string(this->weights_fmt),
-         format_to_string(this->output_fmt),
-         datatype_to_string(this->input_data_type),
-         datatype_to_string(this->weights_data_type),
-         datatype_to_string(this->output_data_type),
-         datatype_to_string(this->bias_data_type),
+         ep.name.c_str(), ep.ih, ep.oh, ep.ic, ep.oc,
+         algorithm_to_string(ep.algorithm), ep.execution_mode,
+         format_to_string(ep.input_fmt), format_to_string(ep.weights_fmt),
+         format_to_string(ep.output_fmt),
+         datatype_to_string(ep.input_data_type),
+         datatype_to_string(ep.weights_data_type),
+         datatype_to_string(ep.output_data_type),
+         datatype_to_string(ep.bias_data_type),
          hrc_duration(hrc::now() - start_ts).count());
 }
 
@@ -218,7 +217,7 @@ int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *b
 
   xc->set_scratch_buffers();
 
-  if (xc->eager_mode) {
+  if (xc->ep.eager_mode) {
     if (ego.verbose)
       xc->execute_verbose(output, input, weights, bias);
     else
@@ -226,7 +225,7 @@ int elx_conv(eld_conv_t &desc, void *output, void *input, void *weights, void *b
   } else {
     xc->set_user_buffers(output, input, weights, bias);
     global_stream.submit(xc);
-    if (xc->stream_sync)
+    if (xc->ep.stream_sync)
       global_stream.wait(xc);
     return ELX_OK;
   }

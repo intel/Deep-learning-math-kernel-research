@@ -14,7 +14,7 @@ public:
 
   elx_int8_conv_wino_gemm_t() {};
   virtual ~elx_int8_conv_wino_gemm_t() {};
-  void setup(elx_conv_params_t *xc);
+  void setup(elx_param_t *ep);
 
   // INT8 GEMM
   void execute(ToutputType *toutput, uint8_t *tinput, int8_t *tweights,
@@ -39,7 +39,7 @@ private:
 
   int attr_;
   int mthr_;
-  elx_conv_params_t *xc = nullptr;
+  elx_param_t *ep = nullptr;
 };
 
 // GarrayTypes IN8_FP32

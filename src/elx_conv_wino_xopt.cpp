@@ -35,21 +35,21 @@ void Instance_elx_conv_wino_t::__execute_a061(
 {
   if (is_first_run_) {
     setup_workspace([&](){
-      trans_weights(tweights_, weights, this->O4);
+      trans_weights(tweights_, weights, ep.O4);
     });
   }
   auto t2_history = -1;
 
   estl::parallel_for<2>(mthr_, [&, t2_history](int _t2, int _O4) mutable {
     MD2(TinputType, atinput2, tinput_, mthr_,
-        A * A * this->T * this->IC);
+        A * A * ep.T * ep.IC);
     MD2(ToutputType, atoutput2, toutput_, mthr_,
-        A * A * this->T * this->O3 * this->O2 * V);
-    MD2(TweightsType, atweights2, tweights_, this->O4,
-        A * A * this->IC * this->O3 * this->O2 * V);
-    MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
+        A * A * ep.T * ep.O3 * ep.O2 * V);
+    MD2(TweightsType, atweights2, tweights_, ep.O4,
+        A * A * ep.IC * ep.O3 * ep.O2 * V);
+    MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
 
-    int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+    int Tz = _t2 == (ep.t2 - 1) ? ep.Tr : ep.T;
     int ithr = estl::current_thread_index();
 
     if (t2_history != _t2) {
@@ -63,7 +63,7 @@ void Instance_elx_conv_wino_t::__execute_a061(
         _t2, Tz);
     trans_output(output, &md2(atoutput2, ithr, 0),
         &md2(abias, _O4, 0), Tz, _t2, _O4, 0);
-  }, this->t2, this->O4);
+  }, ep.t2, ep.O4);
 
   if (inference_acc_)
     is_first_run_ = false;
@@ -79,7 +79,7 @@ void Instance_elx_conv_wino_t::__execute_a071(
 {
   if (is_first_run_) {
     setup_workspace([&](){
-      trans_weights(tweights_, weights, this->O4);
+      trans_weights(tweights_, weights, ep.O4);
     });
   }
   int last_I4 = -1, last_t2 = -1;
@@ -87,18 +87,18 @@ void Instance_elx_conv_wino_t::__execute_a071(
   estl::parallel_for<3, 2>(mthr_, [&, last_I4, last_t2]
                            (int _t2, int _O4, int _I4) mutable {
     MD2(TinputType, atinput2, tinput_, mthr_,
-        A * A * this->T * this->I3 * this->I2 * V);
-    MD2(ToutputType, atoutput2, toutput_, this->t2,
-        this->O4 * A * A * this->T * this->O3 * this->O2 * V);
-    MD3(TweightsType, atweights3, tweights_, this->O4, this->I4,
-        A * A * this->I3 * this->I2 * V * this->O3 * this->O2 * V);
-    MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
+        A * A * ep.T * ep.I3 * ep.I2 * V);
+    MD2(ToutputType, atoutput2, toutput_, ep.t2,
+        ep.O4 * A * A * ep.T * ep.O3 * ep.O2 * V);
+    MD3(TweightsType, atweights3, tweights_, ep.O4, ep.I4,
+        A * A * ep.I3 * ep.I2 * V * ep.O3 * ep.O2 * V);
+    MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
 
-    int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+    int Tz = _t2 == (ep.t2 - 1) ? ep.Tr : ep.T;
     int ithr = estl::current_thread_index();
 
     MD2(ToutputType, atoutput3, &md2(atoutput2, _t2, 0),
-        this->O4, A * A * Tz * this->O3 * this->O2 * V);
+        ep.O4, A * A * Tz * ep.O3 * ep.O2 * V);
 
     if (last_I4 != _I4 || last_t2 != _t2) {
       trans_input(&md2(atinput2, ithr, 0), input, Tz, _t2, _I4);
@@ -110,11 +110,11 @@ void Instance_elx_conv_wino_t::__execute_a071(
         &md2(atinput2, ithr, 0),
         &md3(atweights3, _O4, _I4, 0),
         _t2, Tz, _I4);
-    if (_I4 == this->I4 - 1) {
+    if (_I4 == ep.I4 - 1) {
       trans_output(output, &md2(atoutput3, _O4, 0),
           &md2(abias, _O4, 0), Tz, _t2, _O4, _I4);
     }
-  }, this->t2, this->O4, this->I4);
+  }, ep.t2, ep.O4, ep.I4);
 
   if (inference_acc_)
     is_first_run_ = false;
@@ -127,7 +127,7 @@ void Instance_elx_conv_wino_t::__execute_a073(
 {
   if (is_first_run_) {
     setup_workspace([&](){
-      trans_weights(tweights_, weights, this->O4);
+      trans_weights(tweights_, weights, ep.O4);
     });
   }
 
@@ -136,14 +136,14 @@ void Instance_elx_conv_wino_t::__execute_a073(
   estl::parallel_for<3, 2>(mthr_, [&, last_I4, last_t2]
                            (int _t2, int _O4, int _I4) mutable {
     MD2(TinputType, atinput2, tinput_, mthr_,
-        A * A * this->T * this->I3 * this->I2 * V);
+        A * A * ep.T * ep.I3 * ep.I2 * V);
     MD2(ToutputType, atoutput2, toutput_, mthr_,
-        A * A * this->T * this->O3 * this->O2 * V);
-    MD3(TweightsType, atweights3, tweights_, this->O4, this->I4,
-        A * A * this->I3 * this->I2 * V * this->O3 * this->O2 * V);
-    MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
+        A * A * ep.T * ep.O3 * ep.O2 * V);
+    MD3(TweightsType, atweights3, tweights_, ep.O4, ep.I4,
+        A * A * ep.I3 * ep.I2 * V * ep.O3 * ep.O2 * V);
+    MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
 
-    int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+    int Tz = _t2 == (ep.t2 - 1) ? ep.Tr : ep.T;
     int ithr = estl::current_thread_index();
 
     if (last_I4 != _I4 || last_t2 != _t2) {
@@ -158,7 +158,7 @@ void Instance_elx_conv_wino_t::__execute_a073(
         _t2, Tz, _I4);
     trans_output(output, &md2(atoutput2, ithr, 0),
         &md2(abias, _O4, 0), Tz, _t2, _O4, _I4);
-  }, this->t2, this->O4, this->I4);
+  }, ep.t2, ep.O4, ep.I4);
 
   if (inference_acc_)
     is_first_run_ = false;
@@ -174,14 +174,14 @@ void Instance_elx_conv_wino_t::__execute_a07b(
   estl::parallel_for<3, 1>(mthr_, [&, last_I4, last_t2, last_O4]
                            (int _O4, int _I4, int _t2) mutable {
     MD2(TinputType, atinput2, tinput_, mthr_,
-        A * A * this->T * this->I3 * this->I2 * V);
+        A * A * ep.T * ep.I3 * ep.I2 * V);
     MD2(ToutputType, atoutput2, toutput_, mthr_,
-        A * A * this->T * this->O3 * this->O2 * V);
+        A * A * ep.T * ep.O3 * ep.O2 * V);
     MD2(TweightsType, atweights2, tweights_, mthr_,
-        A * A * this->I3 * this->I2 * V * this->O3 * this->O2 * V);
-    MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
+        A * A * ep.I3 * ep.I2 * V * ep.O3 * ep.O2 * V);
+    MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
 
-    int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+    int Tz = _t2 == (ep.t2 - 1) ? ep.Tr : ep.T;
     int ithr = estl::current_thread_index();
 
     if (last_I4 != _I4 || last_O4 != _O4) {
@@ -198,7 +198,7 @@ void Instance_elx_conv_wino_t::__execute_a07b(
     trans_output(output, &md2(atoutput2, ithr, 0),
                  &md2(abias, _O4, 0), Tz, _t2, _O4, _I4);
     last_O4 = _O4; last_I4 = _I4; last_t2 = _t2;
-  }, this->O4, this->I4, this->t2);
+  }, ep.O4, ep.I4, ep.t2);
 }
 
 Template_elx_conv_wino_t
@@ -211,18 +211,18 @@ void Instance_elx_conv_wino_t::__execute_a079(
   estl::parallel_for<3, 1>(mthr_, [&, last_I4, last_t2, last_O4]
                            (int _O4, int _I4, int _t2) mutable {
     MD2(TinputType, atinput2, tinput_, mthr_,
-        A * A * this->T * this->I3 * this->I2 * V);
-    MD2(ToutputType, atoutput2, toutput_, this->t2,
-        this->O4 * A * A * this->T * this->O3 * this->O2 * V);
+        A * A * ep.T * ep.I3 * ep.I2 * V);
+    MD2(ToutputType, atoutput2, toutput_, ep.t2,
+        ep.O4 * A * A * ep.T * ep.O3 * ep.O2 * V);
     MD2(TweightsType, atweights2, tweights_, mthr_,
-        A * A * this->I3 * this->I2 * V * this->O3 * this->O2 * V);
-    MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
+        A * A * ep.I3 * ep.I2 * V * ep.O3 * ep.O2 * V);
+    MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
 
-    int Tz = _t2 == (this->t2 - 1) ? this->Tr : this->T;
+    int Tz = _t2 == (ep.t2 - 1) ? ep.Tr : ep.T;
     int ithr = estl::current_thread_index();
 
     MD2(ToutputType, atoutput3, &md2(atoutput2, _t2, 0),
-        this->O4, A * A * Tz * this->O3 * this->O2 * V);
+        ep.O4, A * A * Tz * ep.O3 * ep.O2 * V);
 
     if (last_I4 != _I4 || last_O4 != _O4) {
       trans_weights(&md2(atweights2, ithr, 0), weights, _I4, _O4);
@@ -235,12 +235,12 @@ void Instance_elx_conv_wino_t::__execute_a079(
          &md2(atinput2, ithr, 0),
          &md2(atweights2, ithr, 0),
          _t2, Tz, _I4);
-    if (_I4 == this->I4 - 1) {
+    if (_I4 == ep.I4 - 1) {
       trans_output(output, &md2(atoutput3, _O4, 0),
                    &md2(abias, _O4, 0), Tz, _t2, _O4, _I4);
     }
     last_O4 = _O4; last_I4 = _I4; last_t2 = _t2;
-  }, this->O4, this->I4, this->t2);
+  }, ep.O4, ep.I4, ep.t2);
 }
 
 // Flat mode
@@ -273,21 +273,21 @@ void Instance_elx_conv_wino_t::__execute_a033(
 {
   if (is_first_run_) {
     setup_workspace([&](){
-      trans_weights(tweights_, weights, this->O4);
+      trans_weights(tweights_, weights, ep.O4);
     });
   }
 
-  MD3(TweightsType, atweights, tweights_, this->O4, this->I4,
-      A * A * this->I3 * this->I2 * V * this->O3 * this->O2 * V);
-  MD2(BiasType, abias, bias, this->O4, this->O3 * this->O2 * V);
-  TinputType *_tinput = this->use_scratch_pad
-      ? (TinputType *)this->scratch_pad : tinput_;
+  MD3(TweightsType, atweights, tweights_, ep.O4, ep.I4,
+      A * A * ep.I3 * ep.I2 * V * ep.O3 * ep.O2 * V);
+  MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
+  TinputType *_tinput = ep.use_scratch_pad
+      ? (TinputType *)ep.scratch_pad : tinput_;
 
   THREAD_PARALLEL()
   {
     int last_I4 = -1;
-    iter_each(_I4, this->I4) {
-    iter_each(_O4, this->O4) {
+    iter_each(_I4, ep.I4) {
+    iter_each(_O4, ep.O4) {
       if (_I4 != last_I4) {
         trans_input(_tinput, input, _I4);
         last_I4 = _I4;
@@ -319,29 +319,29 @@ void Instance_elx_conv_wino_t::execute(
 
     if (input_as_bfmt_) {
       estl::parallel_for<3>(mthr_, [&](int _n, int _ic2, int _ih) {
-        MD5(InputType, abinput, binput_, this->n, this->ic2, this->ih, this->iw, V);
-        MD4(InputType, ainput, (InputType *)input, this->n, this->ic, this->ih, this->iw);
+        MD5(InputType, abinput, binput_, ep.n, ep.ic2, ep.ih, ep.iw, V);
+        MD4(InputType, ainput, (InputType *)input, ep.n, ep.ic, ep.ih, ep.iw);
 
-        int v = _ic2 == this->ic2 - 1 ? this->Ir : V;
-        iter_each (_iw, this->iw) {
+        int v = _ic2 == ep.ic2 - 1 ? ep.Ir : V;
+        iter_each (_iw, ep.iw) {
           #pragma omp simd
           iter_each (_v, v)
             md5(abinput, _n, _ic2, _ih, _iw, _v)
                 = md4(ainput, _n, _ic2 * V + _v, _ih, _iw);
         }
-      }, this->n, this->ic2, this->ih);
+      }, ep.n, ep.ic2, ep.ih);
       in = binput_;
     }
 
     if (weights_as_bfmt_) {
       estl::parallel_for<3>(mthr_, [&](int _oc2, int _ic2, int _kh) {
-        MD6(WeightsType, abweights, bweights_, this->oc2, this->ic2,
-            this->kh, this->kw, V, V);
-        MD4(WeightsType, aweights, (WeightsType *)weights, this->oc, this->ic,
-            this->kh, this->kw);
-        int iv = _ic2 == this->ic2 - 1 ? this->Ir : V;
-        int ov = _oc2 == this->oc2 - 1 ? this->Or : V;
-        iter_each (_kw, this->kw) {
+        MD6(WeightsType, abweights, bweights_, ep.oc2, ep.ic2,
+            ep.kh, ep.kw, V, V);
+        MD4(WeightsType, aweights, (WeightsType *)weights, ep.oc, ep.ic,
+            ep.kh, ep.kw);
+        int iv = _ic2 == ep.ic2 - 1 ? ep.Ir : V;
+        int ov = _oc2 == ep.oc2 - 1 ? ep.Or : V;
+        iter_each (_kw, ep.kw) {
         iter_each (_iv, iv) {
         #pragma omp simd
           iter_each (_ov, ov) {
@@ -349,7 +349,7 @@ void Instance_elx_conv_wino_t::execute(
               = md4(aweights, _oc2 * V + _ov, _ic2 * V + _iv, _kh, _kw);
           }
         }}
-      }, this->oc2, this->ic2, this->kh);
+      }, ep.oc2, ep.ic2, ep.kh);
       wei = bweights_;
     }
 
@@ -360,24 +360,24 @@ void Instance_elx_conv_wino_t::execute(
 
     if (output_as_bfmt_) {
       estl::parallel_for<3>(mthr_, [&](int _n, int _oc2, int _oh) {
-        MD5(OutputType, aboutput, boutput_, this->n, this->oc2, this->oh, this->ow, V);
-        MD4(OutputType, aoutput, (OutputType *)output, this->n, this->oc, this->oh, this->ow);
+        MD5(OutputType, aboutput, boutput_, ep.n, ep.oc2, ep.oh, ep.ow, V);
+        MD4(OutputType, aoutput, (OutputType *)output, ep.n, ep.oc, ep.oh, ep.ow);
 
-        int v = _oc2 == this->oc2 - 1 ? this->Or : V;
-        if (this->with_ip_sum) {
+        int v = _oc2 == ep.oc2 - 1 ? ep.Or : V;
+        if (ep.with_ip_sum) {
           iter_each (_V, v) {
-          iter_each (_ow, this->ow) {
+          iter_each (_ow, ep.ow) {
             md4(aoutput, _n, _oc2 * V + _V, _oh, _ow)
               += md5(aboutput, _n, _oc2, _oh, _ow, _V);
           }}
         } else {
           iter_each (_V, v) {
-          iter_each (_ow, this->ow) {
+          iter_each (_ow, ep.ow) {
             md4(aoutput, _n, _oc2 * V + _V, _oh, _ow)
               = md5(aboutput, _n, _oc2, _oh, _ow, _V);
           }}
         }
-      }, this->n, this->oc2, this->oh);
+      }, ep.n, ep.oc2, ep.oh);
     }
   } // !is_bfmt_
 }

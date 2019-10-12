@@ -14,7 +14,7 @@ public:
 
   elx_conv_wino_gemm_t() {};
   virtual ~elx_conv_wino_gemm_t() {};
-  void setup(elx_conv_params_t *xc);
+  void setup(elx_param_t *ep);
 
   // FP32 GEMM
   void execute(ToutputType *toutput, TinputType *tinput,
@@ -38,7 +38,7 @@ private:
 
   int attr_;
   int mthr_;
-  elx_conv_params_t *xc = nullptr;
+  elx_param_t *ep = nullptr;
 };
 
 // f32f32f32f32

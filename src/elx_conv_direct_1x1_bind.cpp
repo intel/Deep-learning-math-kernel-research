@@ -12,17 +12,17 @@ Instance_elx_conv_direct_1x1_t::bind_execute_functions()
       gemm_kernel_binder::kgemm<TarrayTypes> **func) {
     switch (xopt_) {
     case (0xa061):
-      if (this->input_fmt == nhwc) {
-        if (this->ws == 1)
+      if (ep.input_fmt == nhwc) {
+        if (ep.ws == 1)
           BIND_KERNEL(1, GKF_FCF)
-        else if (this->ws == 2)
+        else if (ep.ws == 2)
           BIND_KERNEL(2, GKF_FCF)
       } else {
         BIND_KERNEL(1, GKF_CCC)
       }
       break;
     case (0xf061):
-      if (this->input_fmt == nhwc)
+      if (ep.input_fmt == nhwc)
         BIND_KERNEL(1, GKF_FCF)
       else
         BIND_KERNEL(1, GKF_CCC)
@@ -39,8 +39,8 @@ Instance_elx_conv_direct_1x1_t::bind_execute_functions()
     }
   };
 
-  bind_kernel(this->O, this->T, &ker_gemm_I_O_T_);
-  bind_kernel(this->O, this->Tr, &ker_gemm_I_O_Tr_);
+  bind_kernel(ep.O, ep.T, &ker_gemm_I_O_T_);
+  bind_kernel(ep.O, ep.Tr, &ker_gemm_I_O_Tr_);
 
 #define EXECUTE_CASE(n)                                                     \
   case 0x##n:                                                               \

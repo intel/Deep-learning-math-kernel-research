@@ -20,19 +20,19 @@ public:
 
   elx_conv_wino_trans_input_base() {}
   virtual ~elx_conv_wino_trans_input_base() {}
-  void setup(elx_conv_params_t *conv_xc) {
-    xc = conv_xc;
-    mthr_ = xc->nthreads;
+  void setup(elx_param_t *conv_ep) {
+    ep = conv_ep;
+    mthr_ = ep->nthreads;
 
-    stream_in_ = xc->streaming_input
-        ? (xc->streaming_input == STORE_STREAMING)
-        : !(xc->execution_mode & FUS_MASK) ? true : false;
+    stream_in_ = ep->streaming_input
+        ? (ep->streaming_input == STORE_STREAMING)
+        : !(ep->execution_mode & FUS_MASK) ? true : false;
 
-    hA_end_ = (xc->ih + xc->tp) - (xc->ht - 1) * (A - K + 1) - 1;
-    wA_end_ = (xc->iw + xc->lp) - (xc->wt - 1) * (A - K + 1) - 1;
+    hA_end_ = (ep->ih + ep->tp) - (ep->ht - 1) * (A - K + 1) - 1;
+    wA_end_ = (ep->iw + ep->lp) - (ep->wt - 1) * (A - K + 1) - 1;
 
-    input_is_bfmt_ = xc->input_fmt == nChw16c;
-    input_as_bfmt_ = xc->input_fmt == nchw && xc->input_as_blocked;
+    input_is_bfmt_ = ep->input_fmt == nChw16c;
+    input_as_bfmt_ = ep->input_fmt == nchw && ep->input_as_blocked;
 
     bind_kernel_functions();
   }
@@ -44,7 +44,7 @@ protected:
           TKF_BLOCKED, false, I, A, V>::execute;
       ker_trans_input0_ = elk_conv_wino_trans_input<op_type, InputType,
           TKF_BLOCKED, true, I, A, V>::execute;
-    } else if (xc->input_fmt == nhwc) {
+    } else if (ep->input_fmt == nhwc) {
       ker_trans_input_ = elk_conv_wino_trans_input<op_type, InputType,
           TKF_NHWC, false, I, A, V>::execute;
       ker_trans_input0_ = elk_conv_wino_trans_input<op_type, InputType,
@@ -57,7 +57,7 @@ protected:
     }
   }
 
-  elx_conv_params_t *xc = nullptr;
+  elx_param_t *ep = nullptr;
 
   decltype(elk_conv_wino_trans_input<
       op_type, InputType, 0, false, I, A, V>::execute) *ker_trans_input_;
@@ -109,7 +109,7 @@ protected:
   inline void __execute_post(TinputType * __restrict tinput,
       op_type *at, int Tz, int _I3, int _I2, int _T);
 
-  using super::xc;
+  using super::ep;
   using super::hA_end_;
   using super::wA_end_;
   using super::input_is_bfmt_;
@@ -139,7 +139,7 @@ public:
   using super = elx_conv_wino_trans_input_base<float, InputType, I, A, K, V>;
 
 protected:
-  using super::xc;
+  using super::ep;
   using op_type = typename super::op_type;
   using super::hA_end_;
   using super::wA_end_;

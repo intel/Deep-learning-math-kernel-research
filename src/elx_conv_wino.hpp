@@ -38,16 +38,6 @@ Template_elx_conv_wino_t
 class elx_conv_wino_t : public elx_conv_t {
 public:
   // Configurable parameters
-  using elx_conv_t::IC;
-  using elx_conv_t::OC;
-  using elx_conv_t::T;
-  using elx_conv_t::I2;
-  using elx_conv_t::O2;
-  using elx_conv_t::O4;
-  using elx_conv_t::I3;
-  using elx_conv_t::O3;
-  using elx_conv_t::V1;
-  using elx_conv_t::Vx;
   using InputType = typename UserTypes::InputType;
   using WeightsType = typename UserTypes::WeightsType;
   using OutputType = typename UserTypes::OutputType;

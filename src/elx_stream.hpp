@@ -13,8 +13,8 @@ class elx_stream {
 public:
   elx_stream();
   ~elx_stream();
-  void submit(elx_conv_t *xc);
-  void wait(elx_conv_t *xc);
+  void submit(elx_conv_t *ep);
+  void wait(elx_conv_t *ep);
   int run();
 
 private:

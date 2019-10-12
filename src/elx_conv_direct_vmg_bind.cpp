@@ -27,14 +27,14 @@ Instance_elx_conv_direct_vmg_t::bind_execute_functions() {
     switch (xopt_) {
     case (0xa060):
     case (0xb060):
-      if (this->input_fmt == nhwc) {
-        if (this->ws == 1) {
+      if (ep.input_fmt == nhwc) {
+        if (ep.ws == 1) {
           BIND_CONV_KERNEL(1, GKF_FCF, K, G);
         } else {
           el_error("Stride > 1 not yet bounded");
         }
       } else {
-        if (this->ws == 1) {
+        if (ep.ws == 1) {
           BIND_CONV_KERNEL(1, GKF_DCD, K, G);
         } else {
           el_error("Stride > 1 not yet bounded");
@@ -47,8 +47,8 @@ Instance_elx_conv_direct_vmg_t::bind_execute_functions() {
     }
   };
 
-  bind_conv_kernel(this->O, this->T, &ker_conv_, this->kw, this->G);
-  bind_conv_kernel(this->O, this->Tr, &ker_conv_Tr_, this->kw, this->G);
+  bind_conv_kernel(ep.O, ep.T, &ker_conv_, ep.kw, ep.G);
+  bind_conv_kernel(ep.O, ep.Tr, &ker_conv_Tr_, ep.kw, ep.G);
 #define EXECUTE_CASE(n)                                                        \
   case 0x##n:                                                                  \
     execute_opt_ = &Instance_elx_conv_direct_vmg_t::__execute_##n;             \

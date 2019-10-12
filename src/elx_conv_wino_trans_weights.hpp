@@ -20,12 +20,12 @@ public:
 
   elx_conv_wino_trans_weights_base() {}
   virtual ~elx_conv_wino_trans_weights_base() {}
-  void setup(elx_conv_params_t *xc) {
-    this->xc = xc;
-    mthr_ = xc->nthreads;
+  void setup(elx_param_t *conv_ep) {
+    ep = conv_ep;
+    mthr_ = ep->nthreads;
 
-    weights_is_bfmt_ = xc->weights_fmt == OIhw16i16o;
-    weights_as_bfmt_ = xc->input_fmt == oihw && xc->weights_as_blocked;
+    weights_is_bfmt_ = ep->weights_fmt == OIhw16i16o;
+    weights_as_bfmt_ = ep->input_fmt == oihw && ep->weights_as_blocked;
 
     bind_kernel_functions();
   }
@@ -36,7 +36,7 @@ protected:
                        WeightsType, I, A, K, V>::execute;
   }
 
-  elx_conv_params_t *xc = nullptr;
+  elx_param_t *ep = nullptr;
 
   decltype(elk_conv_wino_trans_weights<
       op_type, WeightsType, I, A, K, V>::execute) *ker_trans_weights_;
@@ -91,7 +91,7 @@ public:
   }
 
 protected:
-  using super::xc;
+  using super::ep;
   using super::ker_trans_weights_;
   using super::weights_is_bfmt_;
   using super::weights_as_bfmt_;
@@ -132,7 +132,7 @@ public:
     TweightsType *__restrict tweights, int O4);
 
 protected:
-  using super::xc;
+  using super::ep;
   using super::ker_trans_weights_;
   using super::weights_is_bfmt_;
   using super::weights_as_bfmt_;

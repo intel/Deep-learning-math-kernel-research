@@ -28,7 +28,7 @@ struct elk_conv_wino_trans_input<float, InputType, format, is_border,
     ISA_AVX512, 7, V> {
   constexpr static int A = 7;
 
-  static void execute(elx_conv_params_t &xc, float *tinput,
+  static void execute(elx_param_t &ep, float *tinput,
       InputType *input, int hA_start, int hA_end, int wA_start, int wA_end)
   {
     ENABLE_AVX512F();
@@ -72,7 +72,7 @@ struct elk_conv_wino_trans_input<float, InputType, format, is_border,
           return _mm<V>::cvtph_ps(f16);
         }
       } else if (format == TKF_BLOCKED) {
-        MD3(InputType, ainput, input, xc.ih, xc.iw, V);
+        MD3(InputType, ainput, input, ep.ih, ep.iw, V);
         if (is_border
             && (_h < hA_start || _w < wA_start || _h > hA_end || _w > wA_end))
           return z0;
@@ -83,10 +83,10 @@ struct elk_conv_wino_trans_input<float, InputType, format, is_border,
           return _mm<V>::cvtph_ps(f16);
         }
       } else { // TKF_NHWC
-        MD3(InputType, ainput0, input, xc.ih, xc.iw, xc.ic);
+        MD3(InputType, ainput0, input, ep.ih, ep.iw, ep.ic);
         // TODO: overflow on last V
         MD2(InputType, ainput1, &md3(ainput0, _h, _w, 0),
-            xc.I4 * xc.I3 * xc.I2, V);
+            ep.I4 * ep.I3 * ep.I2, V);
         if (is_border
             && (_h < hA_start || _w < wA_start || _h > hA_end || _w > wA_end))
           return z0;

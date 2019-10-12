@@ -29,7 +29,7 @@ class elx_conv_wino_trans_output_t {
 public:
   elx_conv_wino_trans_output_t() {}
   virtual ~elx_conv_wino_trans_output_t() {}
-  void setup(elx_conv_params_t *xc);
+  void setup(elx_param_t *ep);
 
   void execute(OutputType *output, ToutputType *toutput, BiasType *bias, int Tz,
       int _t2, int _O4, int _I4);
@@ -70,7 +70,7 @@ public:
   decltype(elk_conv_wino_trans_output<TrOpType, OutputType, BiasType, 0,
       false, false, false, false, I, A, K, V>::execute) *ker_trans_output0_acc_;
 
-  elx_conv_params_t *xc = nullptr;
+  elx_param_t *ep = nullptr;
   bool stream_out_;
   bool output_is_bfmt_;
   bool output_as_bfmt_;

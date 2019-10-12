@@ -11,78 +11,78 @@ Instance_elx_deconv_direct_t::elx_deconv_direct_t(eld_conv_t &dc)
     : elx_conv_t(dc)
 {
   // user input
-  xopt_ = this->execution_mode;
+  xopt_ = ep.execution_mode;
   mthr_ = estl::max_concurrency();
 
-  this->Vx = 1;
-  this->V1 = V / this->Vx;
-  this->IC = ALIGNUP(this->ic, V);
-  this->OC = ALIGNUP(this->oc, V);
-  this->ocg = this->oc / this->g;
+  ep.Vx = 1;
+  ep.V1 = V / ep.Vx;
+  ep.IC = ALIGNUP(ep.ic, V);
+  ep.OC = ALIGNUP(ep.oc, V);
+  ep.ocg = ep.oc / ep.g;
 
-  if (this->g > 1) {
-    if (this->IC != this->ic || this->OC != this->oc) {
+  if (ep.g > 1) {
+    if (ep.IC != ep.ic || ep.OC != ep.oc) {
       el_error("groups conv with IC/OC tail handling not supported");
     }
-    if (this->ocg % V == 0) {
-      this->ic /= this->g;
-      this->oc /= this->g;
+    if (ep.ocg % V == 0) {
+      ep.ic /= ep.g;
+      ep.oc /= ep.g;
     }
   }
 
-  if (this->I2 == 0) this->I2 = 1;
-  if (this->T == 0)  this->T = 1;
-  if (this->O == 0)  this->O = 1;
-  if (this->O1 == 0) this->O1 = 1;
-  this->O2 = this->O * this->O1;
+  if (ep.I2 == 0) ep.I2 = 1;
+  if (ep.T == 0)  ep.T = 1;
+  if (ep.O == 0)  ep.O = 1;
+  if (ep.O1 == 0) ep.O1 = 1;
+  ep.O2 = ep.O * ep.O1;
 
-  this->O4 = this->O4 == 0 ? 1 : this->O4;
-  this->I4 = this->I4 == 0 ? 1 : this->I4;
+  ep.O4 = ep.O4 == 0 ? 1 : ep.O4;
+  ep.I4 = ep.I4 == 0 ? 1 : ep.I4;
 
-  this->ic2 = this->IC / V;
-  this->oc2 = this->OC / V;
+  ep.ic2 = ep.IC / V;
+  ep.oc2 = ep.OC / V;
 
   // n, t2, (T, Tr)
   if (xopt_ == 0xa060) {
-    this->ht = this->oh;
-    this->wt = (this->ow + this->T - 1)/ this->T;
-    this->Tr = this->ow % this->T ? this->ow % this->T : this->T;
-    this->nt = this->oh * this->ow;
-    this->t2 = this->nt / this->T;
-    this->t = this->nt * this->n;
+    ep.ht = ep.oh;
+    ep.wt = (ep.ow + ep.T - 1)/ ep.T;
+    ep.Tr = ep.ow % ep.T ? ep.ow % ep.T : ep.T;
+    ep.nt = ep.oh * ep.ow;
+    ep.t2 = ep.nt / ep.T;
+    ep.t = ep.nt * ep.n;
 
-    tp_ = this->kh - this->tp - 1;
-    bp_ = this->kh - this->bp - 1;
-    lp_ = this->kw - this->lp - 1;
-    rp_ = this->kw - this->rp - 1;
+    tp_ = ep.kh - ep.tp - 1;
+    bp_ = ep.kh - ep.bp - 1;
+    lp_ = ep.kw - ep.lp - 1;
+    rp_ = ep.kw - ep.rp - 1;
 
-    if (this->T <= lp_ || this->Tr <= rp_) {
+    if (ep.T <= lp_ || ep.Tr <= rp_) {
       el_error("Unimplemented T: (T,Tr) must greater than (lp_, rp_)");
     }
     bool format_ok =
-        estl::any_of(this->weights_fmt, hwio, ghwio, OIhw16i16o, gOIhw16i16o) &&
-        (((this->input_fmt == nhwc) && (this->output_fmt == nhwc)) ||
+        estl::any_of(ep.weights_fmt, hwio, ghwio, OIhw16i16o, gOIhw16i16o) &&
+        (((ep.input_fmt == nhwc) && (ep.output_fmt == nhwc)) ||
          (V == 16 && xopt_ == 0xa060 &&
-          (estl::any_of(this->input_fmt, nchw, nChw16c)) &&
-          (this->output_fmt == nChw16c)));
+          (estl::any_of(ep.input_fmt, nchw, nChw16c)) &&
+          (ep.output_fmt == nChw16c)));
     if (!format_ok) {
       el_error("direct: format not supported");
     }
 
     if (xopt_ == 0xa060) {
-      bool shape_ok = estl::any_of(this->kh, 3, 5, 7)
-          && estl::any_of(this->kw, 3, 5, 7)
-          && (this->ws == 1)
-          && estl::any_of(lp_, 0, this->kw / 2)
-          && estl::any_of(tp_, 0, this->kh / 2);
+      bool shape_ok = estl::any_of(ep.kh, 3, 5, 7)
+          && estl::any_of(ep.kw, 3, 5, 7)
+          && (ep.ws == 1)
+          && estl::any_of(lp_, 0, ep.kw / 2)
+          && estl::any_of(tp_, 0, ep.kh / 2);
       if (!shape_ok) {
         el_error("direct: a060: shape not supported");
       }
     }
 
-    if (this->ic < V) {
-      bool ok = this->input_fmt == nchw
-          && this->weights_fmt == hwio
+    if (ep.ic < V) {
+      bool ok = ep.input_fmt == nchw
+          && ep.weights_fmt == hwio
           && xopt_ == 0xa060;
       if (!ok) {
         el_error("direct: first-conv requries a060 with nchw/hwio");
@@ -90,48 +90,48 @@ Instance_elx_deconv_direct_t::elx_deconv_direct_t(eld_conv_t &dc)
     }
   }
 
-  this->Ir = this->ic % V ? this->ic % V : V;
-  this->Or = this->oc % V ? this->oc % V : V;
-  this->ormask = (1 << this->Or) - 1;
+  ep.Ir = ep.ic % V ? ep.ic % V : V;
+  ep.Or = ep.oc % V ? ep.oc % V : V;
+  ep.ormask = (1 << ep.Or) - 1;
 
   // O4, (O3, O3r), (O2, O2r)
-  this->oc34 = (this->oc2 + this->O2 - 1) / this->O2;
-  this->O2r = this->oc2 % this->O2;
-  if (this->O2r == 0) this->O2r = this->O2;
-  this->O3 = this->O4; // FIXME, swap order
-  this->O4 = (this->oc34 + this->O3 - 1) / this->O3;
-  this->O3r = this->oc34 % this->O3;
-  if (this->O3r == 0) this->O3r = this->O3;
+  ep.oc34 = (ep.oc2 + ep.O2 - 1) / ep.O2;
+  ep.O2r = ep.oc2 % ep.O2;
+  if (ep.O2r == 0) ep.O2r = ep.O2;
+  ep.O3 = ep.O4; // FIXME, swap order
+  ep.O4 = (ep.oc34 + ep.O3 - 1) / ep.O3;
+  ep.O3r = ep.oc34 % ep.O3;
+  if (ep.O3r == 0) ep.O3r = ep.O3;
 
-  if (this->O2r != this->O2 || this->O3r != this->O3) {
+  if (ep.O2r != ep.O2 || ep.O3r != ep.O3) {
     el_error("No oc tailing support");
   }
 
   // I4, I3, I3
-  this->ic34 = this->ic2 / this->I2;
-  this->I3 = this->ic34 / this->I4;
-  if (this->I4 * this->I3 * this->I2 * V != this->IC) {
+  ep.ic34 = ep.ic2 / ep.I2;
+  ep.I3 = ep.ic34 / ep.I4;
+  if (ep.I4 * ep.I3 * ep.I2 * V != ep.IC) {
     el_error("IC blocking error");
   }
 
   attr_ = 0x0;
   is_first_run_ = true;
   inference_acc_ = false;
-  inference_acc_ = this->prop_kind == forward_inference;
+  inference_acc_ = ep.prop_kind == forward_inference;
 
-  attr_ = this->with_bias ? set_bit(attr_, AT_BIAS_MASK) : attr_;
+  attr_ = ep.with_bias ? set_bit(attr_, AT_BIAS_MASK) : attr_;
 
   prepare_execute_opt();
   bind_execute_functions();
 
   // dbg
   el_log(DEBUG, "T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d",
-         this->T, this->Tr, this->t2, this->ht, this->wt, this->t);
+         ep.T, ep.Tr, ep.t2, ep.ht, ep.wt, ep.t);
   el_log(DEBUG, "V=%d, Ir=%d, I2=%d, I3=%d, I4=%d, IC=%d",
-         V, this->Ir, this->I2, this->I3, this->I4, this->IC);
+         V, ep.Ir, ep.I2, ep.I3, ep.I4, ep.IC);
   el_log(DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d",
-         V, this->Or, this->O2, this->O, this->O1,
-         this->O3, this->O4, this->O2r, this->O3r, this->OC);
+         V, ep.Or, ep.O2, ep.O, ep.O1,
+         ep.O3, ep.O4, ep.O2r, ep.O3r, ep.OC);
 }
 
 Template_elx_deconv_direct_t
@@ -144,7 +144,7 @@ int Instance_elx_deconv_direct_t::prepare_execute_opt()
 
   switch (xopt_) {
   case 0xa060:
-    tweights_size_ = this->kh * this->kw * this->IC * this->OC * sizeof(TweightsType);
+    tweights_size_ = ep.kh * ep.kw * ep.IC * ep.OC * sizeof(TweightsType);
     break;
   default:
     el_error("Unknown xopt!");
@@ -186,17 +186,17 @@ void Instance_elx_deconv_direct_t::__trans_weights_post(WeightsType *aweights,
     TweightsType *tweights, int _g, int _O4, int _I4, int _O3, int _I3,
     int _kh, int _kw, int _O1, int _I2, int _iV, int _O)
 {
-  int Vr = this->ic < V ? this->Ir : V;
-  MD12(TweightsType, atweights, tweights, this->g, this->O4, this->I4,
-       this->O3, this->I3, this->kh, this->kw, this->O1, this->I2, Vr,
-       this->O, V);
+  int Vr = ep.ic < V ? ep.Ir : V;
+  MD12(TweightsType, atweights, tweights, ep.g, ep.O4, ep.I4,
+       ep.O3, ep.I3, ep.kh, ep.kw, ep.O1, ep.I2, Vr,
+       ep.O, V);
 
   if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
     if (std::is_same<TweightsType, float>::value) {
       _mm<V>::store_ps(&md12(atweights, _g, _O4, _I4, _O3, _I3, _kh, _kw,
                              _O1, _I2, _iV, _O, 0), *(__m<V> *)aweights);
     } else {
-      if (this->O == 2) { // fp32 -> bf16
+      if (ep.O == 2) { // fp32 -> bf16
         auto mask = _mm<V>::set1_epi32(0xFFFF0000);
         if (_O == 0) {
           auto si512 = _mm<V>::load_si512(aweights);
@@ -234,19 +234,19 @@ Template_elx_deconv_direct_t void
 Instance_elx_deconv_direct_t::__trans_weights_Or_post(
     WeightsType *aweights, TweightsType *tweights, int _g, int _O4, int _I4,
     int _O3, int _I3, int _kh, int _kw, int _O1, int _I2, int _iV, int _O) {
-  int Vr = this->ic < V ? this->Ir : V;
-  MD12(TweightsType, atweights, tweights, this->g, this->O4, this->I4,
-       this->O3, this->I3, this->kh, this->kw, this->O1, this->I2, Vr,
-       this->O, V);
+  int Vr = ep.ic < V ? ep.Ir : V;
+  MD12(TweightsType, atweights, tweights, ep.g, ep.O4, ep.I4,
+       ep.O3, ep.I3, ep.kh, ep.kw, ep.O1, ep.I2, Vr,
+       ep.O, V);
 
   if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
-    __mmask16 k = _mm512_int2mask(this->ormask);
+    __mmask16 k = _mm512_int2mask(ep.ormask);
     if (std::is_same<TweightsType, float>::value) {
       auto w = _mm<V>::maskz_load_ps(k, aweights);
       _mm<V>::store_ps(&md12(atweights, _g, _O4, _I4, _O3, _I3,
                        _kh, _kw, _O1, _I2, _iV, _O, 0), w);
     } else {
-      if (this->O == 2) { // fp32 -> bf16
+      if (ep.O == 2) { // fp32 -> bf16
         // _O index in this path is 1
         auto mask = _mm<V>::set1_epi32(0xFFFF0000);
         auto si512 = _mm<V>::maskz_load_epi32(k, aweights);
@@ -267,7 +267,7 @@ Instance_elx_deconv_direct_t::__trans_weights_Or_post(
     }
   } else {
     #pragma omp simd
-    iter_each(_oV, this->Or) {
+    iter_each(_oV, ep.Or) {
       md12(atweights, _g, _O4, _I4, _O3, _I3, _kh, _kw, _O1, _I2, _iV, _O,
            _oV) = aweights[_oV];
     }
@@ -282,53 +282,53 @@ void Instance_elx_deconv_direct_t::trans_weights_to_compact(
     TweightsType *tweights, WeightsType *weights)
 {
   // clang-format off
-  if (this->weights_fmt == OIhw16i16o || this->weights_fmt == gOIhw16i16o) {
+  if (ep.weights_fmt == OIhw16i16o || ep.weights_fmt == gOIhw16i16o) {
     // skip O for tasks allocation, as O == 2 will be optimized by BF16 type
     estl::parallel_for<8, 4>(mthr_, [&](int _g, int _O4, int _O3, int _O1, int _O,
                                         int _I4, int _I3, int _I2) {
-      MD12(WeightsType, aweights, weights, this->g, this->O4, this->O3, this->O1,
-           this->O, this->I4, this->I3, this->I2, this->kh, this->kw, V, V);
-      iter_each (_kh, this->kh) {
-      iter_each (_kw, this->kw) {
+      MD12(WeightsType, aweights, weights, ep.g, ep.O4, ep.O3, ep.O1,
+           ep.O, ep.I4, ep.I3, ep.I2, ep.kh, ep.kw, V, V);
+      iter_each (_kh, ep.kh) {
+      iter_each (_kw, ep.kw) {
       iter_each (_iV, V) {
         __trans_weights_post(&md12(aweights, _g, _O4, _O3, _O1, _O, _I4,
                                    _I3, _I2, _kh, _kw, _iV, 0),
-            tweights, _g, _O4, _I4, _O3, _I3, this->kh - 1 - _kh,
-            this->kw - 1 - _kw, _O1, _I2, _iV, _O);
+            tweights, _g, _O4, _I4, _O3, _I3, ep.kh - 1 - _kh,
+            ep.kw - 1 - _kw, _O1, _I2, _iV, _O);
       }}}
-    }, this->g, this->O4, this->O3, this->O1, this->O, this->I4, this->I3, this->I2);
-  } else if (this->weights_fmt == hwio || this->weights_fmt == ghwio) {
+    }, ep.g, ep.O4, ep.O3, ep.O1, ep.O, ep.I4, ep.I3, ep.I2);
+  } else if (ep.weights_fmt == hwio || ep.weights_fmt == ghwio) {
     estl::parallel_for<6>(mthr_, [&](int _g, int _kh, int _kw, int _I4, int _I3, int _I2) {
-      MD5(WeightsType, aweights0, weights, this->g, this->kh, this->kw, this->ic, this->oc);
-      auto Ir = _I4 == this->I4 - 1 && _I3 == this->I3 - 1
-           && _I2 == this->I2 - 1 ? this->Ir : V;
+      MD5(WeightsType, aweights0, weights, ep.g, ep.kh, ep.kw, ep.ic, ep.oc);
+      auto Ir = _I4 == ep.I4 - 1 && _I3 == ep.I3 - 1
+           && _I2 == ep.I2 - 1 ? ep.Ir : V;
       iter_each (_iV, Ir) {
-      iter_each (_O4, this->O4) {
-      iter_each (_O3, this->O3) {
-      iter_each (_O1, this->O1) {
+      iter_each (_O4, ep.O4) {
+      iter_each (_O3, ep.O3) {
+      iter_each (_O1, ep.O1) {
         // handling ic/oc != 16x
         MD5(WeightsType, aweights1, &md5(aweights0, _g, _kh, _kw, 0, 0),
-            this->I4, this->I3, this->I2, V, this->oc);
+            ep.I4, ep.I3, ep.I2, V, ep.oc);
         MD5(WeightsType, aweights2, &md5(aweights1, _I4, _I3, _I2, _iV, 0),
-            this->O4, this->O3, this->O1, this->O, V);
+            ep.O4, ep.O3, ep.O1, ep.O, V);
 
-        bool is_Or = this->Or != V && _O4 == this->O4 - 1
-            && _O3 == this->O3 - 1 && _O1 == this->O1 - 1;
-        auto O = is_Or ? this->O - 1: this->O;
+        bool is_Or = ep.Or != V && _O4 == ep.O4 - 1
+            && _O3 == ep.O3 - 1 && _O1 == ep.O1 - 1;
+        auto O = is_Or ? ep.O - 1: ep.O;
         iter_each(_O, O) {
           __trans_weights_post(&md5(aweights2, _O4, _O3, _O1, _O, 0),
-              tweights, _g, _O4, _I4, _O3, _I3, this->kh -1 - _kh,
-              this->kw -1 - _kw, _O1, _I2, _iV, _O);
+              tweights, _g, _O4, _I4, _O3, _I3, ep.kh -1 - _kh,
+              ep.kw -1 - _kw, _O1, _I2, _iV, _O);
         }
 
         // handling Or
         if (is_Or) {
-          __trans_weights_Or_post(&md5(aweights2, _O4, _O3, _O1, this->O - 1, 0),
-              tweights, _g, _O4, _I4, _O3, _I3, this->kh -1 - _kh,
-              this->kw -1 - _kw, _O1, _I2, _iV, this->O - 1);
+          __trans_weights_Or_post(&md5(aweights2, _O4, _O3, _O1, ep.O - 1, 0),
+              tweights, _g, _O4, _I4, _O3, _I3, ep.kh -1 - _kh,
+              ep.kw -1 - _kw, _O1, _I2, _iV, ep.O - 1);
         }
       }}}}
-    }, this->g, this->kh, this->kw, this->I4, this->I3, this->I2);
+    }, ep.g, ep.kh, ep.kw, ep.I4, ep.I3, ep.I2);
   } else {
     el_error("Unimplemented weights format\n");
   }
@@ -343,69 +343,69 @@ Instance_elx_deconv_direct_t::conv_a060(OutputType *output,
 {
   // input:   I3*, I2, V, ht*, hs*, wt*, T, ws
   // output:  O3*, O2, ht*, wt*, T, V
-  int Vr = this->ic < V ? this->Ir : V;
-  MD3(TweightsType, aweights, weights, this->O3, this->I3,
-      this->kh * this->kw * this->O2 * this->I2 * V * Vr);
-  MD2(BiasType, abias, bias, this->O3, this->O2 * V);
+  int Vr = ep.ic < V ? ep.Ir : V;
+  MD3(TweightsType, aweights, weights, ep.O3, ep.I3,
+      ep.kh * ep.kw * ep.O2 * ep.I2 * V * Vr);
+  MD2(BiasType, abias, bias, ep.O3, ep.O2 * V);
 
-  auto ker_conv = _wt == this->wt - 1 ? ker_conv_Tr_ : ker_conv_;
+  auto ker_conv = _wt == ep.wt - 1 ? ker_conv_Tr_ : ker_conv_;
 
-  int khs = estl::max(0, tp_ - this->hs * _ht);
-  int khe = estl::min(this->kh, this->ih + tp_ - this->hs * _ht);
+  int khs = estl::max(0, tp_ - ep.hs * _ht);
+  int khe = estl::min(ep.kh, ep.ih + tp_ - ep.hs * _ht);
   int kws = _wt == 0 ? lp_ : 0;
-  int kwe = _wt == this->wt - 1 ? this->kw - lp_ : this->kw;
+  int kwe = _wt == ep.wt - 1 ? ep.kw - lp_ : ep.kw;
 
-  auto _ih = _ht * this->hs + (this->kh / 2) - this->tp;
-  auto _iw = _wt * this->T * this->ws + (this->kw / 2) - this->lp;
-  int pad_l = (_wt == 0) && (this->lp > 0);
-  int pad_r = (_wt == this->wt - 1) && (this->lp > 0);
+  auto _ih = _ht * ep.hs + (ep.kh / 2) - ep.tp;
+  auto _iw = _wt * ep.T * ep.ws + (ep.kw / 2) - ep.lp;
+  int pad_l = (_wt == 0) && (ep.lp > 0);
+  int pad_r = (_wt == ep.wt - 1) && (ep.lp > 0);
 
-  if (this->input_fmt == nhwc) {
-    MD3(InputType, ainput0, input, this->ih, this->iw, this->ic);
-    MD3(InputType, ainput1, &md3(ainput0, _ih, _iw, 0), this->I4, this->I3, this->I2 * V);
-    MD2(OutputType, aoutput, output, this->O3, this->O2 * V);
+  if (ep.input_fmt == nhwc) {
+    MD3(InputType, ainput0, input, ep.ih, ep.iw, ep.ic);
+    MD3(InputType, ainput1, &md3(ainput0, _ih, _iw, 0), ep.I4, ep.I3, ep.I2 * V);
+    MD2(OutputType, aoutput, output, ep.O3, ep.O2 * V);
 
-    iter_each(_O3, this->O3) {
-    iter_each(_I3, this->I3) {
+    iter_each(_O3, ep.O3) {
+    iter_each(_I3, ep.I3) {
       int attr = (_I4 == 0 && _I3 == 0) ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
-      if (_I4 == this->I4 - 1 && _I3 == this->I3 - 1) {
-        if (this->Ir != V) attr = set_bit(attr, AT_Ir_MASK);
-        if (this->with_relu) attr = set_bit(attr, AT_RELU_MASK);
+      if (_I4 == ep.I4 - 1 && _I3 == ep.I3 - 1) {
+        if (ep.Ir != V) attr = set_bit(attr, AT_Ir_MASK);
+        if (ep.with_relu) attr = set_bit(attr, AT_RELU_MASK);
       }
-      if (this->Or != V && _O4 == this->O4 - 1 && _O3 == this->O3 - 1) {
+      if (ep.Or != V && _O4 == ep.O4 - 1 && _O3 == ep.O3 - 1) {
         attr = set_bit(attr, AT_Or_MASK);
       }
-      ker_conv(*this, &md2(aoutput, _O3, 0),
+      ker_conv(ep, &md2(aoutput, _O3, 0),
           &md3(ainput1, 0, _I3, 0), &md3(aweights, _O3, _I3, 0),
           &md2(abias, _O3, 0), khs, khe, kws, kwe, -1, -1, attr);
     }}
-  } else if (this->input_fmt == nchw) {
-    MD4(InputType, ainput, input, this->I3, this->I2 * V, this->ih, this->iw);
-    MD2(OutputType, aoutput, output, this->O3, this->O2 * this->ht * this->ow * V);
+  } else if (ep.input_fmt == nchw) {
+    MD4(InputType, ainput, input, ep.I3, ep.I2 * V, ep.ih, ep.iw);
+    MD2(OutputType, aoutput, output, ep.O3, ep.O2 * ep.ht * ep.ow * V);
 
-    iter_each(_O3, this->O3) {
-    iter_each(_I3, this->I3) {
+    iter_each(_O3, ep.O3) {
+    iter_each(_I3, ep.I3) {
       int attr = (_I4 == 0 && _I3 == 0) ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
-      if (_I4 == this->I4 - 1 && _I3 == this->I3 - 1) {
-        if (this->Ir != V) attr = set_bit(attr, AT_Ir_MASK);
-        if (this->with_relu) attr = set_bit(attr, AT_RELU_MASK);
+      if (_I4 == ep.I4 - 1 && _I3 == ep.I3 - 1) {
+        if (ep.Ir != V) attr = set_bit(attr, AT_Ir_MASK);
+        if (ep.with_relu) attr = set_bit(attr, AT_RELU_MASK);
       }
-      ker_conv(*this, &md2(aoutput, _O3, 0),
+      ker_conv(ep, &md2(aoutput, _O3, 0),
           &md4(ainput, _I3, 0, _ih, _iw), &md3(aweights, _O3, _I3, 0),
           &md2(abias, _O3, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
     }}
   } else {
-    MD5(InputType, ainput, input, this->I3, this->I2, this->ih, this->iw, V);
-    MD2(OutputType, aoutput, output, this->O3, this->O2 * this->ht * this->ow * V);
+    MD5(InputType, ainput, input, ep.I3, ep.I2, ep.ih, ep.iw, V);
+    MD2(OutputType, aoutput, output, ep.O3, ep.O2 * ep.ht * ep.ow * V);
 
-    iter_each(_O3, this->O3) {
-    iter_each(_I3, this->I3) {
+    iter_each(_O3, ep.O3) {
+    iter_each(_I3, ep.I3) {
       int attr = (_I4 == 0 && _I3 == 0) ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK) : attr_;
-      if (_I4 == this->I4 - 1 && _I3 == this->I3 - 1) {
-        if (this->Ir != V) attr = set_bit(attr, AT_Ir_MASK);
-        if (this->with_relu) attr = set_bit(attr, AT_RELU_MASK);
+      if (_I4 == ep.I4 - 1 && _I3 == ep.I3 - 1) {
+        if (ep.Ir != V) attr = set_bit(attr, AT_Ir_MASK);
+        if (ep.with_relu) attr = set_bit(attr, AT_RELU_MASK);
       }
-      ker_conv(*this, &md2(aoutput, _O3, 0),
+      ker_conv(ep, &md2(aoutput, _O3, 0),
           &md5(ainput, _I3, 0, _ih, _iw, 0), &md3(aweights, _O3, _I3, 0),
           &md2(abias, _O3, 0), khs, khe, kws, kwe, pad_l, pad_r, attr);
     }}

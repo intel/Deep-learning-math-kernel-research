@@ -15,10 +15,10 @@ Instance_elx_int8_conv_direct_depthwise_t::bind_execute_functions()
       int K) {
     switch (xopt_) {
     case (0xa160):
-      if (this->input_fmt == nChw16c && this->output_fmt == nChw16c) {
-        if (this->ws == 1) {
+      if (ep.input_fmt == nChw16c && ep.output_fmt == nChw16c) {
+        if (ep.ws == 1) {
           BIND_CONV_KERNEL(1, GKF_DCD, K);
-        } else if (this->ws == 2) {
+        } else if (ep.ws == 2) {
           BIND_CONV_KERNEL(2, GKF_DCD, K);
         } else {
           el_error("Stride > 2 not yet bounded");
@@ -34,8 +34,8 @@ Instance_elx_int8_conv_direct_depthwise_t::bind_execute_functions()
   };
 
   if (xopt_ == 0xa160) {
-    bind_conv_kernel(this->O, this->T, &ker_conv_, this->kw);
-    bind_conv_kernel(this->O, this->Tr, &ker_conv_Tr_, this->kw);
+    bind_conv_kernel(ep.O, ep.T, &ker_conv_, ep.kw);
+    bind_conv_kernel(ep.O, ep.Tr, &ker_conv_Tr_, ep.kw);
   }
 
 #define EXECUTE_CASE(n)                                                        \
