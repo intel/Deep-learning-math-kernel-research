@@ -97,12 +97,10 @@ void Instance_elx_int8_conv_direct_t::__execute_a160(
 
   if (ep.oh <= 7 && ep.ow <= 7) {
     SET_LOOP_ORDER(5, I4, O4, n, ht, wt);
-    estl::parallel_for<5, 0>(mthr_, loop_for,
-                       ep.I4, ep.O4, ep.n, ep.ht, ep.wt);
+    estl::parallel_for<5, 0>(loop_for, ep.I4, ep.O4, ep.n, ep.ht, ep.wt);
   } else {
     SET_LOOP_ORDER(5, n, I4, O4, ht, wt);
-    estl::parallel_for<5, 1>(mthr_, loop_for,
-                       ep.n, ep.I4, ep.O4, ep.ht, ep.wt);
+    estl::parallel_for<5, 1>(loop_for, ep.n, ep.I4, ep.O4, ep.ht, ep.wt);
   }
 
   if (inference_acc_)
@@ -123,13 +121,12 @@ void Instance_elx_int8_conv_direct_t::__execute_d160(
     });
   }
 
-  estl::parallel_for<5, 1>(mthr_, [&](int _n, int _I4, int _O4, int _ht, int _wt) {
+  estl::parallel_for<5, 1>([&](int _n, int _I4, int _O4, int _ht, int _wt) {
     MD3(int8_t, atweights_s8, tweights_s8_,
         ep.O4, ep.I4, V * V * ep.kh * ep.kw
         * ep.I3 * ep.O3 * ep.I2 * ep.O2);
     MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
-    MD2(TscaleType, atweights_scale, weights_scale_,
-        ep.O4, ep.O3 * ep.O2 * V);
+    MD2(TscaleType, atweights_scale, weights_scale_, ep.O4, ep.O3 * ep.O2 * V);
     MD2(TscaleType, aweights_factor, weights_factor_,
         ep.O4, ep.O3 * ep.O2 * V);
 
@@ -170,12 +167,10 @@ void Instance_elx_int8_conv_direct_t::__execute_d160(
 
   int oc2 = ep.Or ? ep.oc2 - 1 : ep.oc2;
   if (ep.with_argmax) {
-    estl::parallel_for<3>(mthr_, [&](int _n, int _oh, int _ow) {
+    estl::parallel_for<3>([&](int _n, int _oh, int _ow) {
       constexpr int V8 = 8;
-      MD6(float, atoutput_blocked, toutput_,
-          ep.n, ep.oc2, ep.oh, ep.ow, 2, V8);
-      MD6(float, atoutput_nhwc, toutput_,
-          ep.n, ep.oh, ep.ow, ep.oc2, 2, V8);
+      MD6(float, atoutput_blocked, toutput_, ep.n, ep.oc2, ep.oh, ep.ow, 2, V8);
+      MD6(float, atoutput_nhwc, toutput_, ep.n, ep.oh, ep.ow, ep.oc2, 2, V8);
       MD3(int, aoutput, output, ep.n, ep.oh, ep.ow);
 
       auto aout = (ep.input_fmt == nhwc)

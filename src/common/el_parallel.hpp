@@ -177,6 +177,23 @@ static inline void parallel_for(int mthr, F func, Args... args)
 #endif
 }
 
+template <int N, int M, typename F, typename... Args>
+static inline void parallel_for(F func, Args... args)
+{
+  int mthr = estl::max_concurrency();
+#if MT_RUNTIME == MT_RUNTIME_OMP
+#pragma omp parallel num_threads(mthr) proc_bind(close)
+  {
+    int ithr = omp_get_thread_num();
+    thread_parallel_for<N, M>(mthr, ithr, func, args...);
+  }
+#elif MT_RUNTIME == MT_RUNTIME_TBB
+  tbb::parallel_for(0, mthr, [&](int ithr) {
+    thread_parallel_for<N, M>(mthr, ithr, func, args...);
+  }, tbb::static_partitioner());
+#endif
+}
+
 template <int N, typename F, typename... Args>
 static inline void parallel_for(int mthr, F func, Args... args)
 {

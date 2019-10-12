@@ -295,8 +295,8 @@ void Instance_elx_conv_direct_t::trans_weights_to_compact(
   // clang-format off
   if (ep.weights_fmt == OIhw16i16o || ep.weights_fmt == gOIhw16i16o) {
     // skip O for tasks allocation, as O == 2 will be optimized by BF16 type
-    estl::parallel_for<8, 4>(mthr_, [&](int _g, int _O4, int _O3, int _O1,
-                                        int _O, int _I4, int _I3, int _I2) {
+    estl::parallel_for<8, 4>([&](int _g, int _O4, int _O3, int _O1,
+                                 int _O, int _I4, int _I3, int _I2) {
       MD12(WeightsType, aweights, weights, ep.g, ep.O4, ep.O3, ep.O1,
            ep.O, ep.I4, ep.I3, ep.I2, ep.kh, ep.kw, V, V);
       iter_each (_kh, ep.kh) {
@@ -308,8 +308,8 @@ void Instance_elx_conv_direct_t::trans_weights_to_compact(
       }}}
     }, ep.g, ep.O4, ep.O3, ep.O1, ep.O, ep.I4, ep.I3, ep.I2);
   } else if (ep.weights_fmt == hwio || ep.weights_fmt == ghwio) {
-    estl::parallel_for<6>(mthr_, [&](int _g, int _kh, int _kw,
-                                     int _I4, int _I3, int _I2) {
+    estl::parallel_for<6>([&](int _g, int _kh, int _kw,
+                              int _I4, int _I3, int _I2) {
       MD5(WeightsType, aweights0, weights, ep.g, ep.kh, ep.kw, ep.ic, ep.oc);
       auto Ir = _I4 == ep.I4 - 1 && _I3 == ep.I3 - 1
            && _I2 == ep.I2 - 1 ? ep.Ir : V;

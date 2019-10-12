@@ -244,7 +244,7 @@ void Instance_elx_conv_direct_1x1_t::trans_input_2_blocked(
   const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(ep.ih * ep.iw));
 
   if (ep.Ir == V) {
-    estl::parallel_for<3>(mthr_, [&](int _n, int _ic2, int _t) {
+    estl::parallel_for<3>([&](int _n, int _ic2, int _t) {
       MD4(InputType, abinput4, binput, ep.n, ep.ic2, ep.ih * ep.iw, V);
       MD4(InputType, ainput4, input, ep.n, ep.ic2, V, ep.ih * ep.iw);
       if (I == ISA_AVX512 && std::is_same<InputType, float>::value) {
@@ -260,7 +260,7 @@ void Instance_elx_conv_direct_1x1_t::trans_input_2_blocked(
       }
     }, ep.n, ep.ic2, ep.ih * ep.iw);
   } else {
-    estl::parallel_for<3>(mthr_, [&](int _n, int _ic2, int _t) {
+    estl::parallel_for<3>([&](int _n, int _ic2, int _t) {
       MD4(InputType, abinput4, binput, ep.n, ep.ic2, ep.ih * ep.iw, V);
       MD3(InputType, ainput3, input, ep.n, ep.ic, ep.ih * ep.iw);
       bool is_Ir = _ic2 == ep.ic2 - 1;
@@ -296,7 +296,7 @@ void Instance_elx_conv_direct_1x1_t::trans_weights_2_blocked(
   const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(ep.ic));
 
   if (ep.Ir == V && ep.Or == V) {
-    estl::parallel_for<3>(mthr_, [&](int _oc2, int _ic2, int _iV) {
+    estl::parallel_for<3>([&](int _oc2, int _ic2, int _iV) {
       MD4(WeightsType, abweights4, bweights, ep.oc2, ep.ic2, V, V);
       MD4(WeightsType, aweights4, weights, ep.oc2, V, ep.ic2, V);
       if (I == ISA_AVX512 && std::is_same<WeightsType, float>::value) {
@@ -313,7 +313,7 @@ void Instance_elx_conv_direct_1x1_t::trans_weights_2_blocked(
       }
     }, ep.oc2, ep.ic2, V);
   } else {
-    estl::parallel_for<2>(mthr_, [&](int _oc2, int _ic2) {
+    estl::parallel_for<2>([&](int _oc2, int _ic2) {
       MD2(WeightsType, aweights2, weights, ep.oc, ep.ic);
       MD4(WeightsType, abweights4, bweights, ep.oc2, ep.ic2, V, V);
       bool is_Or = _oc2 == ep.oc2 - 1;
@@ -353,7 +353,7 @@ void Instance_elx_conv_direct_1x1_t::trans_output_2_plain(
     OutputType *output, OutputType *boutput)
 {
   if (ep.with_ip_sum) {
-    estl::parallel_for<3>(mthr_, [&](int _n, int _oc2, int _oh) {
+    estl::parallel_for<3>([&](int _n, int _oc2, int _oh) {
       MD5(OutputType, aboutput, boutput, ep.n, ep.oc2, ep.oh, ep.ow, V);
       MD4(OutputType, aoutput, output, ep.n, ep.oc, ep.oh, ep.ow);
       int v = _oc2 == ep.oc2 - 1 ? ep.Or : V;
@@ -364,7 +364,7 @@ void Instance_elx_conv_direct_1x1_t::trans_output_2_plain(
       }}
     }, ep.n, ep.oc2, ep.oh);
   } else {
-    estl::parallel_for<3>(mthr_, [&](int _n, int _oc2, int _oh) {
+    estl::parallel_for<3>([&](int _n, int _oc2, int _oh) {
       MD5(OutputType, aboutput, boutput, ep.n, ep.oc2, ep.oh, ep.ow, V);
       MD4(OutputType, aoutput, output, ep.n, ep.oc, ep.oh, ep.ow);
       int v = _oc2 == ep.oc2 - 1 ? ep.Or : V;
@@ -473,7 +473,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_blocked(
   // O4, (O3, O3r), (O2, O2r), I4, I3, I2, V, V ->
   // I4, O4, I3, (O3, O3r), I2, V, (O2, O2r), V
 
-  estl::parallel_for<4>(mthr_, [&](int _O4, int _I4, int _O3, int _I3) {
+  estl::parallel_for<4>([&](int _O4, int _I4, int _O3, int _I3) {
     iter_each (_I2, ep.I2) {
     iter_each (_iV, V) {
     iter_each (_O2, ep.O2) {
@@ -494,7 +494,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_oihw(
   const __i<V> vindex = _mm<V>::set_epi32(SET_VINDEX_16(ep.ic));
 
   if (ep.Ir == V && ep.Or == V) {
-    estl::parallel_for<5>(mthr_, [&](int _O4, int _I4, int _O3, int _I3, int _I2) {
+    estl::parallel_for<5>([&](int _O4, int _I4, int _O3, int _I3, int _I2) {
       iter_each (_iV, V) {
       iter_each (_O2, ep.O2) {
         MD8(WeightsType, aweights, weights, ep.O4, ep.O3, ep.O2, V,
@@ -540,7 +540,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_oihw(
       }
     };
 
-    estl::parallel_for<5>(mthr_, [&](int _O4, int _I4, int _O3, int _I3, int _I2) {
+    estl::parallel_for<5>([&](int _O4, int _I4, int _O3, int _I3, int _I2) {
       bool is_Ir = (_I4 == ep.I4 - 1) && (_I3 == ep.I3 -1)
           && (_I2 == ep.I2 - 1);
       int iV = is_Ir ? ep.Ir : V;
@@ -562,7 +562,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_hwio(
     TweightsType *tweights, WeightsType *weights)
 {
   if (ep.Ir == V && ep.Or == V) {
-    estl::parallel_for<5>(mthr_, [&](int _O4, int _I4, int _O3, int _I3, int _I2) {
+    estl::parallel_for<5>([&](int _O4, int _I4, int _O3, int _I3, int _I2) {
       MD8(TweightsType, atweights, tweights, ep.O4, ep.I4, ep.O3,
           ep.I3, ep.I2, V, ep.O2, V);
       MD8(WeightsType, aweights, weights, ep.I4, ep.I3, ep.I2, V,
@@ -590,7 +590,7 @@ void Instance_elx_conv_direct_1x1_t::__trans_weights_hwio(
             tweights, _O4, _I4, _O3, _I3, _I2, _iV, _O2);
     };
 
-    estl::parallel_for<5>(mthr_, [&](int _O4, int _I4, int _O3, int _I3, int _I2) {
+    estl::parallel_for<5>([&](int _O4, int _I4, int _O3, int _I3, int _I2) {
       MD8(TweightsType, atweights, tweights, ep.O4, ep.I4, ep.O3,
           ep.I3, ep.I2, V, ep.O2, V);
       MD8(WeightsType, aweights, weights, ep.I4, ep.I3, ep.I2, V,

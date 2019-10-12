@@ -95,12 +95,10 @@ void Instance_elx_int8_conv_direct_1x1_t::__execute_c160(
 
   if (ep.oh <= 14 && ep.ow <= 14) {
     SET_LOOP_ORDER(4, O4, I4, n, t2);
-    estl::parallel_for<4, 1>(mthr_, loop_for,
-                       ep.O4, ep.I4, ep.n, ep.t2);
+    estl::parallel_for<4, 1>(loop_for, ep.O4, ep.I4, ep.n, ep.t2);
   } else {
     SET_LOOP_ORDER(4, n, O4, I4, t2);
-    estl::parallel_for<4, 2>(mthr_, loop_for,
-                       ep.n, ep.O4, ep.I4, ep.t2);
+    estl::parallel_for<4, 2>(loop_for, ep.n, ep.O4, ep.I4, ep.t2);
   }
 
   if (inference_acc_)
@@ -191,12 +189,10 @@ void Instance_elx_int8_conv_direct_1x1_t::__execute_b161(
 
   if (ep.oh <= 7 && ep.ow <= 7) {
     SET_LOOP_ORDER(5, O4, I4, n, ht, wt);
-    estl::parallel_for<5, 1>(mthr_, loop_for,
-                       ep.O4, ep.I4, ep.n, ep.ht, ep.wt);
+    estl::parallel_for<5, 1>(loop_for, ep.O4, ep.I4, ep.n, ep.ht, ep.wt);
   } else {
     SET_LOOP_ORDER(5, n, O4, I4, ht, wt);
-    estl::parallel_for<5, 2>(mthr_, loop_for,
-                       ep.n, ep.O4, ep.I4, ep.ht, ep.wt);
+    estl::parallel_for<5, 2>(loop_for, ep.n, ep.O4, ep.I4, ep.ht, ep.wt);
   }
 
   if (inference_acc_)

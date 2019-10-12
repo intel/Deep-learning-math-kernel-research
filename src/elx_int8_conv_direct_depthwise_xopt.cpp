@@ -31,15 +31,13 @@ void Instance_elx_int8_conv_direct_depthwise_t::__execute_a160(
     });
   }
 
-  estl::parallel_for<4>(mthr_, [&](int _n, int _G3, int _ht, int _wt) {
-    MD3(int8_t, atweights_s8, tweights_s8_,
-        ep.G3, ep.G2, ep.kh * KW * V);
+  estl::parallel_for<4>([&](int _n, int _G3, int _ht, int _wt) {
+    MD3(int8_t, atweights_s8, tweights_s8_, ep.G3, ep.G2, ep.kh * KW * V);
     MD3(BiasType, abias, bias, ep.G3, ep.G2, V);
     MD3(TscaleType, atweights_scale, weights_scale_, ep.G3, ep.G2, V);
     MD3(TscaleType, aweights_factor, weights_factor_, ep.G3, ep.G2, V);
     // blocked input
-    MD4(InputType, ainput_blocked, input,
-        ep.n, ep.G3, ep.G2, ep.ih * ep.iw * V);
+    MD4(InputType, ainput_blocked, input, ep.n, ep.G3, ep.G2, ep.ih * ep.iw * V);
     // blocked output
     MD5(OutputType, aoutput0_blocked, output,
         ep.n, ep.G3, ep.G2, ep.ht, ep.ow * V);

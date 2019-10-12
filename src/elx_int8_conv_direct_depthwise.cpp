@@ -203,7 +203,7 @@ Instance_elx_int8_conv_direct_depthwise_t::trans_weights_3x3(
     WeightsType *weights, BiasType *bias)
 {
   // absmax
-  estl::parallel_for<2>(mthr_, [&](int _g23, int _V) {
+  estl::parallel_for<2>([&](int _g23, int _V) {
     MD4(WeightsType, aweights, weights, ep.g23, V, ep.kh, ep.kw);
     MD2(TscaleType, aweights_scale, weights_scale, ep.g23, V);
     float absmax = 0.0;
@@ -218,7 +218,7 @@ Instance_elx_int8_conv_direct_depthwise_t::trans_weights_3x3(
 
   // quantization
   std::fesetround(FE_TONEAREST);
-  estl::parallel_for<4>(mthr_, [&](int _g23, int _kh, int _V, int _kw) {
+  estl::parallel_for<4>([&](int _g23, int _kh, int _V, int _kw) {
     MD4(int8_t, atweights_s8, tweights_s8, ep.g23, ep.kh, V, KW);
     MD4(WeightsType, aweights, weights, ep.g23, V, ep.kh, ep.kw);
     MD2(TscaleType, aweights_scale, weights_scale, ep.g23, V);
@@ -236,14 +236,14 @@ Instance_elx_int8_conv_direct_depthwise_t::trans_weights_3x3(
 
   // weights-scale
   __m<V> mmscale = _mm<V>::set1_ps(EL_INT8_MAX);
-  estl::parallel_for<1>(mthr_, [&](int _g23) {
+  estl::parallel_for<1>([&](int _g23) {
     MD2(TscaleType, aweights_scale, weights_scale, ep.g23, V);
     auto t0 = *(__m<V> *)&md2(aweights_scale, _g23, 0);
     *(__m<V> *)&md2(aweights_scale, _g23, 0) = t0 / mmscale;
   }, ep.g23);
 
   // weights-acc
-  estl::parallel_for<2>(mthr_, [&](int _g23, int _V) {
+  estl::parallel_for<2>([&](int _g23, int _V) {
     MD4(int8_t, atweights_s8, tweights_s8, ep.g23, ep.kh, V, KW);
     MD2(TscaleType, aweights_factor, weights_factor, ep.g23, V);
     int acc = 0;
@@ -261,7 +261,7 @@ Instance_elx_int8_conv_direct_depthwise_t::trans_weights_3x3(
   auto input_S = _mm<V>::set1_ps(ep.input_quant_S);
   auto input_z = _mm<V>::set1_ps(ep.input_quant_z);
 
-  estl::parallel_for<1>(mthr_, [&](int _g23) {
+  estl::parallel_for<1>([&](int _g23) {
     MD2(TscaleType, aweights_scale, weights_scale, ep.g23, V);
     __m<V> &qs = *(__m<V> *)&md2(aweights_scale, _g23, 0);
     if (std::is_same<OutputType, float>::value) {
@@ -271,7 +271,7 @@ Instance_elx_int8_conv_direct_depthwise_t::trans_weights_3x3(
     }
   }, ep.g23);
 
-  estl::parallel_for<1>(mthr_, [&](int _g23) {
+  estl::parallel_for<1>([&](int _g23) {
     MD2(BiasType, abias, bias, ep.g23, V);
     MD2(TscaleType, aweights_scale, weights_scale, ep.g23, V);
     MD2(TscaleType, aweights_factor, weights_factor, ep.g23, V);

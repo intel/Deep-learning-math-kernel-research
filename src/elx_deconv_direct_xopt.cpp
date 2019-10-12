@@ -28,7 +28,7 @@ void Instance_elx_deconv_direct_t::__execute_a060(
   }
 
   if (ep.input_fmt == nchw) { // nchw => blocked
-    estl::parallel_for<5, 1>(mthr_, [&](int _n, int _I4, int _O4, int _ht, int _wt) {
+    estl::parallel_for<5, 1>([&](int _n, int _I4, int _O4, int _ht, int _wt) {
       int Vr = ep.ic < V ? ep.Ir : V;
       MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
       MD3(TweightsType, atweights, tweights_, ep.O4, ep.I4,
@@ -46,7 +46,7 @@ void Instance_elx_deconv_direct_t::__execute_a060(
           _wt);
     }, ep.n, ep.I4, ep.O4, ep.ht, ep.wt);
   } else if (ep.input_fmt == nhwc) { // nhwc => nhwc
-    estl::parallel_for<5, 1>(mthr_, [&](int _n, int _I4, int _O4, int _ht, int _wt) {
+    estl::parallel_for<5, 1>([&](int _n, int _I4, int _O4, int _ht, int _wt) {
       MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
       MD3(TweightsType, atweights, tweights_, ep.O4, ep.I4,
           V * V * ep.kh * ep.kw * ep.I3 * ep.O3 * ep.I2
@@ -63,7 +63,7 @@ void Instance_elx_deconv_direct_t::__execute_a060(
           _wt);
     },  ep.n, ep.I4, ep.O4, ep.ht, ep.wt);
   } else { // blocked => blocked
-    estl::parallel_for<5, 1>(mthr_, [&](int _n, int _I4, int _O4, int _ht, int _wt) {
+    estl::parallel_for<5, 1>([&](int _n, int _I4, int _O4, int _ht, int _wt) {
       MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
       MD3(TweightsType, atweights, tweights_, ep.O4, ep.I4,
           V * V * ep.kh * ep.kw * ep.I3 * ep.O3 * ep.I2

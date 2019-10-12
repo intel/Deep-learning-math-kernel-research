@@ -79,7 +79,7 @@ void Instance_elx_int8_conv_wino_t::__execute_a161(
   }
 
   auto t2_history = -1;
-  estl::parallel_for<2>(mthr_, [&, t2_history](int _t2, int _O4) mutable {
+  estl::parallel_for<2>([&, t2_history](int _t2, int _O4) mutable {
     int ithr = estl::current_thread_index();
     MD2(TinputType, atinput2, tinput_, mthr_, ep.sampling_kind == COARSE ?
         A * A * ep.IC * ep.T : A * A * ep.I2 * V);
@@ -191,7 +191,7 @@ void Instance_elx_int8_conv_wino_t::execute(
     OutputType *out = output_as_bfmt_ ? boutput_ : (OutputType *)output;
 
     if (input_as_bfmt_) {
-      estl::parallel_for<3>(mthr_, [&](int _n, int _ic2, int _ih) {
+      estl::parallel_for<3>([&](int _n, int _ic2, int _ih) {
         int v = _ic2 == ep.ic2 - 1 ? ep.Ir : V;
         MD5(InputType, abinput, binput_, ep.n, ep.ic2, ep.ih, ep.iw, V);
         MD4(InputType, ainput, input, ep.n, ep.ic, ep.ih, ep.iw);
@@ -206,7 +206,7 @@ void Instance_elx_int8_conv_wino_t::execute(
     }
 
     if (weights_as_bfmt_) {
-      estl::parallel_for<3>(mthr_, [&](int _oc2, int _ic2, int _kh) {
+      estl::parallel_for<3>([&](int _oc2, int _ic2, int _kh) {
         MD6(WeightsType, abweights, bweights_, ep.oc2, ep.ic2,
             ep.kh, ep.kw, V, V);
         MD4(WeightsType, aweights, weights, ep.oc, ep.ic, ep.kh, ep.kw);
@@ -229,7 +229,7 @@ void Instance_elx_int8_conv_wino_t::execute(
         (InputType *)in, (WeightsType *)wei, (BiasType *)bias);
 
     if (output_as_bfmt_) {
-      estl::parallel_for<3>(mthr_, [&](int _n, int _oc2, int _oh) {
+      estl::parallel_for<3>([&](int _n, int _oc2, int _oh) {
         MD5(OutputType, aboutput, boutput_, ep.n, ep.oc2, ep.oh, ep.ow, V);
         MD4(OutputType, aoutput, output, ep.n, ep.oc, ep.oh, ep.ow);
         int v = _oc2 == ep.oc2 - 1 ? ep.Or : V;

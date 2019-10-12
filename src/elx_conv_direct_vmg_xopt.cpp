@@ -26,7 +26,7 @@ void Instance_elx_conv_direct_vmg_t::__execute_a060(
   }
 
   if (ep.input_fmt == nhwc) { // nhwc => nhwc
-    estl::parallel_for<6, 2>(mthr_, [&](int _n, int _g, int _I4, int _O4, int _ht, int _wt) {
+    estl::parallel_for<6, 2>([&](int _n, int _g, int _I4, int _O4, int _ht, int _wt) {
       MD2(BiasType, abias0, bias, ep.g, ep.oc);
       MD2(BiasType, abias1, &md2(abias0, _g, 0), ep.O4, ep.O3 * ep.O2 * V);
       MD4(TweightsType, atweights, tweights_, ep.g, ep.O4, ep.I4,
@@ -48,7 +48,7 @@ void Instance_elx_conv_direct_vmg_t::__execute_a060(
           _I4, _O4, _ht, _wt);
     },  ep.n, ep.g, ep.I4, ep.O4, ep.ht, ep.wt);
   } else { // blocked => blocked
-    estl::parallel_for<6, 2>(mthr_, [&](int _n, int _g, int _I4, int _O4, int _ht, int _wt) {
+    estl::parallel_for<6, 2>([&](int _n, int _g, int _I4, int _O4, int _ht, int _wt) {
       MD2(BiasType, abias0, bias, ep.g, ep.oc);
       MD2(BiasType, abias1, &md2(abias0, _g, 0), ep.O4, ep.O3 * ep.O2 * V);
       MD4(TweightsType, atweights, tweights_, ep.g, ep.O4, ep.I4,

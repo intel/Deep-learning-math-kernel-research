@@ -37,7 +37,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_c060(
     setup_workspace([&]() { trans_weights(tweights_, weights); });
   }
 
-  estl::parallel_for<4, 1>(mthr_, [&](int _n, int _I4, int _O4, int _t2) {
+  estl::parallel_for<4, 1>([&](int _n, int _I4, int _O4, int _t2) {
     MD3(InputType, ainput, input, ep.n, ep.I4,
         ep.I3 * ep.I2 * ep.ih * ep.iw * V);
     MD2(OutputType, aoutput, output, ep.n, ep.OC * ep.oh * ep.ow);
@@ -72,7 +72,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_b061(
   }
 
   if (ep.O4 == 1) {
-    estl::parallel_for<5, 1>(mthr_, [&](int _n, int _I4, int _O4, int _ht, int _wt) {
+    estl::parallel_for<5, 1>([&](int _n, int _I4, int _O4, int _ht, int _wt) {
       MD3(InputType, ainput, input, ep.n, ep.I4,
           ep.I3 * ep.I2 * ep.ih * ep.iw * V);
       MD2(OutputType, aoutput, output, ep.n, ep.OC * ep.oh * ep.ow);
@@ -98,8 +98,8 @@ void Instance_elx_conv_direct_1x1_t::__execute_b061(
   } else {
     int n_history = -1;
 
-    estl::parallel_for<5, 1>(mthr_, [&, n_history](int _n, int _I4, int _O4,
-                                                   int _ht, int _wt) mutable {
+    estl::parallel_for<5, 1>([&, n_history](int _n, int _I4, int _O4,
+                                            int _ht, int _wt) mutable {
       MD3(InputType, ainput, input, ep.n, ep.I4,
           ep.I3 * ep.I2 * ep.ih * ep.iw * V);
       MD2(OutputType, aoutput, output, ep.n, ep.OC * ep.oh * ep.ow);
@@ -150,7 +150,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
   }
 
   if (ep.input_fmt == nhwc) {
-    estl::parallel_for<4>(mthr_, [&](int _n, int _O4, int _ht, int _wt) {
+    estl::parallel_for<4>([&](int _n, int _O4, int _ht, int _wt) {
       MD5(InputType, ainput0, input, ep.n, ep.ht, ep.hs,
           ep.iw, ep.ic);
       MD4(InputType, ainput1, &md5(ainput0, _n, _ht, 0, 0, 0), ep.wt,
@@ -174,7 +174,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
           0);
     }, ep.n, ep.O4, ep.ht, ep.wt);
   } else if (ep.O4 == 1) { // nchw
-    estl::parallel_for<4>(mthr_, [&](int _n, int _O4, int _ht, int _wt) {
+    estl::parallel_for<4>([&](int _n, int _O4, int _ht, int _wt) {
       MD2(InputType, ainput, input, ep.n, ep.ic * ep.ih * ep.iw);
       MD2(OutputType, aoutput, output, ep.n, ep.oc * ep.oh * ep.ow);
       MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
@@ -201,7 +201,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
     }, ep.n, ep.O4, ep.ht, ep.wt);
   } else { // nchw
     int n_history = -1;
-    estl::parallel_for<4>(mthr_, [&, n_history]
+    estl::parallel_for<4>([&, n_history]
                           (int _n, int _O4, int _ht, int _wt) mutable {
       MD2(InputType, ainput, input, ep.n, ep.ic * ep.ih * ep.iw);
       MD2(OutputType, aoutput, output, ep.n, ep.oc * ep.oh * ep.ow);
@@ -251,7 +251,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_f061(
   }
 
   if (ep.input_fmt == nhwc) {
-    estl::parallel_for<3>(mthr_, [&](int _n, int _O4, int _t2) {
+    estl::parallel_for<3>([&](int _n, int _O4, int _t2) {
       MD2(InputType, ainput, input, ep.n, ep.ih * ep.iw * ep.ic);
       MD3(InputType, ainput1, &md2(ainput, _n, 0), ep.t2, ep.T, ep.ic);
       MD2(InputType, ainput2, &md3(ainput1, _t2, 0, 0), ep.I4, ep.I3 * ep.I2 * V);
@@ -271,7 +271,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_f061(
           _t2, 0);
     }, ep.n, ep.O4, ep.t2);
   } else if (ep.O4 == 1) { // nchw
-    estl::parallel_for<3>(mthr_, [&](int _n, int _O4, int _t2) {
+    estl::parallel_for<3>([&](int _n, int _O4, int _t2) {
       MD2(InputType, ainput, input, ep.n, ep.ic * ep.ih * ep.iw);
       MD2(OutputType, aoutput, output, ep.n, ep.oc * ep.oh * ep.ow);
       MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
@@ -299,7 +299,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_f061(
     }, ep.n, ep.O4, ep.t2);
   } else { // nchw
     int n_history = -1;
-    estl::parallel_for<3>(mthr_, [&, n_history]
+    estl::parallel_for<3>([&, n_history]
                           (int _n, int _O4, int _t2) mutable {
       MD2(InputType, ainput, input, ep.n, ep.ic * ep.ih * ep.iw);
       MD2(OutputType, aoutput, output, ep.n, ep.oc * ep.oh * ep.ow);

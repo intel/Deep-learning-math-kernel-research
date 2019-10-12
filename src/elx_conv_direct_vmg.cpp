@@ -179,7 +179,7 @@ void Instance_elx_conv_direct_vmg_t::trans_weights_to_compact(
     TweightsType *tweights, WeightsType *weights)
 {
   if (ep.weights_fmt == hwio || ep.weights_fmt == ghwio) {
-    estl::parallel_for<4>(mthr_, [&](int _g, int _kh, int _kw, int _iV) {
+    estl::parallel_for<4>([&](int _g, int _kh, int _kw, int _iV) {
       MD6(WeightsType, aweights, weights, ep.g, ep.G, ep.kh, ep.kw, C, C);
       MD5(TweightsType, atweights, tweights, ep.g, ep.kh, ep.kw, C, V);
       WeightsType w[V] = { 0 };

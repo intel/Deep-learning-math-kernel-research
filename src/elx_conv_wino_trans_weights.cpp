@@ -141,8 +141,8 @@ void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
     }
   };
 
-  estl::parallel_for<6>(mthr_, [&](int _O4, int _I4, int _O3,
-                                   int _I3, int _O1, int _I2) {
+  estl::parallel_for<6>([&](int _O4, int _I4, int _O3,
+                            int _I3, int _O1, int _I2) {
     // oc2, ic2, hK, wK, V, V => O4, I4, O3, I3, wA, hA, O2, I2, V, V
     MD11(WeightsType, aweights_v, weights, O4, ep->O3, ep->O1, ep->O, V,
         ep->I4, ep->I3, ep->I2, V, K, K);
@@ -176,8 +176,8 @@ template <typename TweightsType, typename WeightsType, int I, int A, int K, int 
 void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
 ::__execute_blocked(TweightsType *__restrict tweights,
     WeightsType *__restrict weights, int O4) {
-  estl::parallel_for<6>(mthr_, [&](int _O4, int _I4, int _O3,
-                                   int _I3, int _O1, int _I2) {
+  estl::parallel_for<6>([&](int _O4, int _I4, int _O3,
+                            int _I3, int _O1, int _I2) {
     // oc2, ic2, hK, wK, V, V => O4, I4, O3, I3, wA, hA, O2, I2, V, V
     MD8(WeightsType, aweights, weights, O4, ep->O3, ep->O1, ep->O,
         ep->I4, ep->I3, ep->I2, K * K * V * V);
@@ -226,8 +226,8 @@ void elx_conv_wino_trans_weights_base<TweightsType, WeightsType, I, A, K, V>
       }
     }}}
   };
-  estl::parallel_for<6>(mthr_, [&](int _O4, int _I4, int _O3,
-                                   int _I3, int _O1, int _I2) {
+  estl::parallel_for<6>([&](int _O4, int _I4, int _O3,
+                            int _I3, int _O1, int _I2) {
     MD3(TweightsType, atweights, tweights, ep->O4, ep->I4,
         ep->O3 * ep->I3 * A * A * ep->O2 * ep->I2 * V * V);
     iter_each (_O, ep->O) {
@@ -444,8 +444,8 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
   __m<V> mmscale = _mm<V>::set1_ps(EL_INT8_MAX);
 
   // abs-max
-  estl::parallel_for<7>(mthr_, [&](int _O4, int _I4, int _O3, int _hA, int _wA,
-                                   int _O1, int _O) {
+  estl::parallel_for<7>([&](int _O4, int _I4, int _O3, int _hA, int _wA,
+                            int _O1, int _O) {
     MD11(TweightsType, atweights, tweights,
         O4, ep->I4, ep->O3, ep->I3, A, A, ep->O1, ep->I2, V, ep->O, V);
     MD8(TscaleType, atweights_quant_scale, tweights_quant_scale,
@@ -464,7 +464,7 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
   }, O4, ep->I4, ep->O3, A, A, ep->O1, ep->O);
 
   // quantization
-  estl::parallel_for<11>(mthr_, [&](int _O4, int _I4, int _O3,
+  estl::parallel_for<11>([&](int _O4, int _I4, int _O3,
       int _I3, int _hA, int _wA, int _O1, int _I2, int _V1, int _O, int _iVx) {
     MD12(int8_t, atweights_s8, tweights_s8, O4, ep->I4, ep->O3, ep->I3,
         A, A, ep->O1, ep->I2, ep->V1, ep->O, V, ep->Vx);
@@ -513,8 +513,8 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
   }, O4, ep->I4, ep->O3, A, A, ep->O1, ep->O, V);
 
   // weights-scale, combine with restore
-  estl::parallel_for<8>(mthr_, [&](int _O4, int _I4, int _O3,
-                                   int _hA, int _wA, int _O1, int _O, int _oV) {
+  estl::parallel_for<8>([&](int _O4, int _I4, int _O3,
+                            int _hA, int _wA, int _O1, int _O, int _oV) {
     MD8(TscaleType, atweights_quant_scale, tweights_quant_scale,
         O4, ep->I4, ep->O3, A, A, ep->O1, ep->O, V);
     MD8(TscaleType, atweights_quant_factor, tweights_quant_factor,

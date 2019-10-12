@@ -309,7 +309,7 @@ Instance_elx_int8_conv_direct_t::__trans_weights_acc(TscaleType *weights_scale,
       (TscaleType *)malloc(wacc_h_ * wacc_w_ * ep.OC * sizeof(TscaleType));
 
   // weights-acc
-  estl::parallel_for<7>(mthr_, [&](int _wacc_h, int _wacc_w, int _O4, int _O3, int _O1, int _O, int _oV) {
+  estl::parallel_for<7>([&](int _wacc_h, int _wacc_w, int _O4, int _O3, int _O1, int _O, int _oV) {
     MD12(int8_t, atweights_s8, tweights_s8, ep.O4, ep.I4, ep.O3,
          ep.I3, ep.kh, ep.kw, ep.O1, ep.I2, V1, ep.O,
          V, ep.Vx);
@@ -351,7 +351,7 @@ Instance_elx_int8_conv_direct_t::__trans_weights_acc(TscaleType *weights_scale,
   auto input_z = _mm<V>::set1_ps(ep.input_quant_z);
 
   // Combine output restore and requantization scale and factor
-  estl::parallel_for<1>(mthr_, [&](int _oc2) {
+  estl::parallel_for<1>([&](int _oc2) {
     MD2(TscaleType, atweights_scale, weights_scale, ep.oc2, V);
     MD2(BiasType, abias, bias, ep.oc2, V);
     __m<V> &qs = *(__m<V> *)&md2(atweights_scale, _oc2, 0);
@@ -363,7 +363,7 @@ Instance_elx_int8_conv_direct_t::__trans_weights_acc(TscaleType *weights_scale,
     }
   }, ep.oc2);
 
-  estl::parallel_for<1>(mthr_, [&](int _oc2) {
+  estl::parallel_for<1>([&](int _oc2) {
     MD2(BiasType, abias, bias, ep.oc2, V);
     MD2(TscaleType, atweights_scale, weights_scale, ep.oc2, V);
     MD5(TscaleType, atweights_factor, weights_factor, wacc_h_, wacc_wt_, ep.oc2, wacc_wT_, V);
@@ -424,7 +424,7 @@ trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
   auto V1 = compact_ir_weights_ ? ep.Ir : ep.V1;
 
   // abs-max
-  estl::parallel_for<1>(mthr_, [&](int _oc2) {
+  estl::parallel_for<1>([&](int _oc2) {
     MD6(WeightsType, aweights, weights, ep.oc2, ep.ic2, ep.kh, ep.kw, V, V);
     MD2(TscaleType, atweights_scale, weights_scale, ep.oc2, V);
 
@@ -442,7 +442,7 @@ trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
   }, ep.oc2);
 
   // quantization
-  estl::parallel_for<11>(mthr_, [&](int _O4, int _O3, int _O1,
+  estl::parallel_for<11>([&](int _O4, int _O3, int _O1,
       int _O, int _I4, int _I3, int _I2, int _kh, int _kw, int _V1, int _Vx) {
     MD12(int8_t, atweights_s8, tweights_s8, ep.O4, ep.I4, ep.O3,
          ep.I3, ep.kh, ep.kw, ep.O1, ep.I2, V1, ep.O, V, ep.Vx);
@@ -480,7 +480,7 @@ trans_weights(TscaleType *weights_scale, TscaleType *weights_factor,
      ep.kh, ep.kw, V1, ep.Vx);
 
   // weights-scale
-  estl::parallel_for<1>(mthr_, [&](int _oc2) {
+  estl::parallel_for<1>([&](int _oc2) {
     MD2(TscaleType, atweights_scale, weights_scale, ep.oc2, V);
     auto t0 = _mm<V>::div_ps(
         *(__m<V> *)&md2(atweights_scale, _oc2, 0), mmscale);
