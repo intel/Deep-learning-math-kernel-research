@@ -77,6 +77,3 @@ shift $((OPTIND-1))
 
 COMMON="-v$v --input-format=$input_format --weights-format=$weights_format --output-format=$output_format -r$r --with-ip-sum=$s -l$l -B$B -A$A --f16c-opt=$H --data-type-cfg=$data_type_cfg --sampling-kind=$sampling_kind"
 
-echo "Common option:" $COMMON
-echo
-
