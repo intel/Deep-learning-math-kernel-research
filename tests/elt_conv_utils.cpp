@@ -527,8 +527,9 @@ int __compare_conv_results_blocked(eld_conv_t &desc, float *out, float *ref,
   }
 
   if (errors > 0) {
-    printf("Error: number of errors: %ld/%ld, percentage: %f%%\n", errors,
-           desc.sizes.output, ((errors * 1.0) / desc.sizes.output) * 100.0);
+    printf("%s: Error: number of errors: %ld/%ld, percentage: %f%%\n",
+           desc.name.c_str(), errors, desc.sizes.output,
+           ((errors * 1.0) / desc.sizes.output) * 100.0);
     return -1;
   }
   return 0;
@@ -576,8 +577,9 @@ int __compare_conv_results_nchw(eld_conv_t &desc, float *out, float *ref,
   }
 
   if (errors > 0) {
-    printf("Error: number of errors: %ld/%ld, percentage: %f%%\n", errors,
-           desc.sizes.output, ((errors * 1.0) / desc.sizes.output) * 100.0);
+    printf("%s: Error: number of errors: %ld/%ld, percentage: %f%%\n",
+           desc.name.c_str(), errors, desc.sizes.output,
+           ((errors * 1.0) / desc.sizes.output) * 100.0);
     return -1;
   }
   return 0;
@@ -625,8 +627,9 @@ int __compare_conv_results_nhwc(eld_conv_t &desc, float *out, float *ref,
   }
 
   if (errors > 0) {
-    printf("Error: number of errors: %ld/%ld, percentage: %f%%\n", errors,
-           desc.sizes.output, ((errors * 1.0) / desc.sizes.output) * 100.0);
+    printf("%s: Error: number of errors: %ld/%ld, percentage: %f%%\n",
+           desc.name.c_str(), errors, desc.sizes.output,
+           ((errors * 1.0) / desc.sizes.output) * 100.0);
     return -1;
   }
   return 0;

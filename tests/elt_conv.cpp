@@ -48,6 +48,7 @@ bool with_real_data = false;
 euler::sampling_kind_t sampling_kind = euler::CALIBRATED;
 float tinput_cali_s = FLT_MAX;
 float tinput_cali_z = FLT_MAX;
+std::string name;
 
 int parse_cmd_options(int argc, char **argv) {
 
@@ -98,6 +99,7 @@ int parse_cmd_options(int argc, char **argv) {
   tinput_cali_s = FLAGS_tinput_cali_s;
   tinput_cali_z = FLAGS_tinput_cali_z;
   disable_autoparam = FLAGS_disable_autoparam;
+  name = FLAGS_name;
 
   std::transform(FLAGS_alg.begin(), FLAGS_alg.end(), FLAGS_alg.begin(),
                  ::toupper);
@@ -337,6 +339,7 @@ static inline eld_conv_t &create_conv_desc(eld_conv_t &desc,
   desc.sampling_kind = sampling_kind;
   desc.use_scratch_pad = false;
   desc.disable_autoparam = disable_autoparam;
+  desc.name = name;
   return desc;
 }
 
@@ -446,7 +449,7 @@ static inline void conv_bench(eld_conv_t convs[], eld_conv_t &conv_ref,
     }
   }
 
-  timer.report_tflops("conv", C * (N / C), num_ops);
+  timer.report_tflops(name, C * (N / C), num_ops);
 }
 
 #define RL_MAX 128
@@ -532,6 +535,7 @@ int main(int argc, char **argv) {
     void *output_val = output[C - 1];
 
     printf("Validation: ");
+
     if (test::ref_conv_deconv_2d<float>(conv_ref, output_ref, input_ref,
                                         weights_ref, bias_ref)) {
       printf("Fail: Convolution ref execution error!\n");
@@ -543,9 +547,9 @@ int main(int argc, char **argv) {
 
       if (test::compare_conv_results(conv_ref, _output, output_ref,
                                      data_type_cfg, is_int8_lp, with_real_data))
-        printf("Fail: Convolution results not correct!\n");
+        printf("%s: Fail: Convolution results not correct!\n", name.c_str());
       else
-        printf("Convolution Pass!\n");
+        printf("%s: Convolution Pass!\n", name.c_str());
       free(_output);
     }
   } else {

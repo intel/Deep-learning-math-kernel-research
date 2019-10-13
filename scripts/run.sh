@@ -41,7 +41,7 @@ function conv_test() {
   with_ip_sum=0; with_argmax=0; f16c_opt=0; data_type_cfg=0
   input_file=""; weights_file=""; bias_file=""
   sampling_kind=2; tinput_cali_s=0; tinput_cali_z=0
-  disable_autoparam=1
+  disable_autoparam=1; name="ioi"
 
   OPTIND=1
   while getopts ":n:g:i:o:h:w:H:W:k:K:p:P:s:S:b:r:v:f:l:B:A:a:-:" opt; do
@@ -185,6 +185,10 @@ function conv_test() {
             ;;
           disable-autoparam=*) disable_autoparam=${OPTARG#*=}
             ;;
+          name) name="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+            ;;
+          name=*) name=${OPTARG#*=}
+            ;;
        esac
        ;;
     esac
@@ -193,11 +197,15 @@ function conv_test() {
   input_file_opt=""
   weights_file_opt=""
   bias_file_opt=""
+  euler_log_level=99
   if [ "x$input_file" != "x" ]; then input_file_opt="--input-data-file=$input_file"; fi
   if [ "x$weights_file" != "x" ]; then weights_file_opt="--weights-data-file=$weights_file"; fi
   if [ "x$bias_file" != "x" ]; then bias_file_opt="--bias-data-file=$bias_file"; fi
+  if [ "x$v" != "x" ] && [ "x$v" != "x0" ]; then
+    euler_log_level=0
+  fi
   #set -v
-  eval $OMP_ENV $ROOT_DIR/$build_dir/tests/elt_conv \
+  eval $OMP_ENV EULER_LOG_LEVEL=$euler_log_level $ROOT_DIR/$build_dir/tests/elt_conv \
     -mb=$n -g=$g -ic=$i -oc=$o -ih=$h -iw=$w -oh=$H -ow=$W -kh=$k -kw=$K -ph=$p -pw=$P -sh=$s -sw=$S \
     -with_bias=$b -with_relu=$r -validate_results=$v -alg=$a -repeated_layer=$l -dbuffering=$B -output_as_input=$A \
     -flt_o=$flt_o -flt_t=$flt_t -blk_i=$blk_i -blk_o=$blk_o \
@@ -219,6 +227,7 @@ function conv_test() {
     -tinput_cali_s=$tinput_cali_s \
     -tinput_cali_z=$tinput_cali_z \
     -disable_autoparam=$disable_autoparam \
+    -name=$name \
     $input_file_opt \
     $weights_file_opt \
     $bias_file_opt

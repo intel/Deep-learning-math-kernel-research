@@ -65,5 +65,6 @@ DEFINE_double(tinput_cali_z, 0.0,
 DEFINE_string(input_data_file, "", "Input data file(nchw)");
 DEFINE_string(weights_data_file, "", "Weights data file(oihw)");
 DEFINE_string(bias_data_file, "", "Bias data file");
+DEFINE_string(name, "ioi", "Name of layer");
 DEFINE_bool(disable_autoparam, true, "Disable autoparam");
 

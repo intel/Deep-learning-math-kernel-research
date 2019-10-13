@@ -59,4 +59,5 @@ DECLARE_double(tinput_cali_z);
 DECLARE_string(input_data_file);
 DECLARE_string(weights_data_file);
 DECLARE_string(bias_data_file);
+DECLARE_string(name);
 DECLARE_bool(disable_autoparam);
