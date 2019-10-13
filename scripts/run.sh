@@ -32,7 +32,7 @@ fi
 function conv_test() {
   # Default
   n=1; g=1; i=0; o=0; h=0; w=0; H=0; W=0; k=3; K=3; p=1; P=1; s=1; S=1
-  b=1; r=0; v=1; a=wino; l=16; B=0; A=0; T=0
+  b=1; r=0; v=1; a=wino; l=1; B=0; A=0; T=0
   flt_o=0; flt_t=0; blk_i=0; blk_o=0; pat_i=1; pat_o=1
   tile_size=5; nthreads=0; execution_mode=0
   streaming_input=0; streaming_output=0
