@@ -1,4 +1,4 @@
-Deep Learning Math Kernel Research(Euler)
+Deep Learning Math Kernel Research (Euler)
 ============================================================
 
 Experimental DNN math kernel based on C++11 and Intel intrinsic instructions.
@@ -10,7 +10,6 @@ Experimental DNN math kernel based on C++11 and Intel intrinsic instructions.
 ## Prerequisites
     Linux x86_64 OS
     CMake >= 3.0
-    Boost >= 1.58.0
     Gflags >= 2.0
     [ICC >= 18.0](https://software.intel.com/en-us/c-compilers)
     (ICC >= 19.0 for Intel DL Boost (VNNI) support on Intel Cascade Lake)
@@ -23,12 +22,14 @@ Experimental DNN math kernel based on C++11 and Intel intrinsic instructions.
     make -j
     cd -
 
-    ; Configuration of ICC 19 with VNNI support
-    cmake .. -DCMAKE_C_COMPILER=icc -DCMAKE_CXX_COMPILER=icpc -DCMAKE_CXX_FLAGS=-xCore-AVX512 -DWITH_TEST=ON -DWITH_VNNI=ON
+    ; CMake build option to enable VNNI support (default: OFF)
+    -DWITH_VNNI=ON
+    ; CMake build option to enable Intel TBB threading runtime (default: OMP)
+    -DMT_RUNTIME=TBB
 
 ## Run Tests
     cd /path/to/euler/root
-    ./scripts/best_configs/vgg-n1-8180-1s.sh 2>&1 | grep tflops
+    ./scripts/best_configs/vgg-n1-8180-1s.sh
 
 ## Link to Euler
     CFLAGS += /path/to/euler/include
