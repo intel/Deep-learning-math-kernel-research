@@ -116,18 +116,24 @@ struct conv_kernel_binder {
         *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_DCD, O, T, K);
       else if (S == 2)
         *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 2, GKF_DCD, O, T, K);
+      else if (S == S2_LLP)
+        *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, S2_LLP, GKF_DCD, O, T, K);
       break;
     case GKF_EBD:
       if (S == 1)
         *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_EBD, O, T, K);
       else if (S == 2)
         *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 2, GKF_EBD, O, T, K);
+      else if (S == S2_LLP)
+        *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, S2_LLP, GKF_EBD, O, T, K);
       break;
     case GKF_FCF:
       if (S == 1)
         *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 1, GKF_FCF, O, T, K);
       else if (S == 2)
         *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, 2, GKF_FCF, O, T, K);
+      else if (S == S2_LLP)
+        *func = LOOKUP_KCONV_TBL(FP32_F16w, 16, 1, ISA_AVX512, S2_LLP, GKF_FCF, O, T, K);
       break;
     default:
       break;
