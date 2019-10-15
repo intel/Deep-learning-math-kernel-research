@@ -81,8 +81,8 @@ Instance_elx_int8_conv_direct_depthwise_t::elx_int8_conv_direct_depthwise_t(eld_
   ep.t2 = ep.nt / ep.T;
   ep.t  = ep.nt * ep.n;
 
-  if (ep.T <= ep.lp || ep.Tr <= ep.rp) {
-    el_error("direct_depthwise: (T,Tr) must greater than (lp,rp)");
+  if (ep.T < ep.lp || ep.Tr < ep.rp) {
+    el_error("direct_depthwise: (T,Tr) < (lp,rp)");
   }
   bool format_ok = estl::any_of(ep.weights_fmt, ghwio, goihw) &&
                    estl::any_of(ep.input_fmt, nchw, nChw16c) &&

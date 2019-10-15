@@ -56,8 +56,8 @@ Instance_elx_deconv_direct_t::elx_deconv_direct_t(eld_conv_t &dc)
     lp_ = ep.kw - ep.lp - 1;
     rp_ = ep.kw - ep.rp - 1;
 
-    if (ep.T <= lp_ || ep.Tr <= rp_) {
-      el_error("Unimplemented T: (T,Tr) must greater than (lp_, rp_)");
+    if (ep.T < lp_ || ep.Tr < rp_) {
+      el_error("Unimplemented T: (T,Tr) < (lp_, rp_)");
     }
     bool format_ok =
         estl::any_of(ep.weights_fmt, hwio, ghwio, OIhw16i16o, gOIhw16i16o) &&

@@ -78,8 +78,8 @@ Instance_elx_conv_direct_vmg_t::elx_conv_direct_vmg_t(eld_conv_t &dc)
   ep.t2 = ep.nt / ep.T;
   ep.t  = ep.nt * ep.n;
 
-  if (ep.T <= ep.lp || ep.Tr <= ep.rp) {
-    el_error("Unimplemented T: (T,Tr) must greater than (lp,rp)");
+  if (ep.T < ep.lp || ep.Tr < ep.rp) {
+    el_error("Unimplemented T: (T,Tr) < (lp,rp)");
   }
   bool format_ok = estl::any_of(ep.weights_fmt, ghwio) &&
                    estl::any_of(ep.input_fmt, nchw, nChw16c) &&

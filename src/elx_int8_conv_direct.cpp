@@ -45,8 +45,8 @@ Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
     ep.t2 = ep.nt / ep.T;
     ep.t = ep.nt * ep.n;
 
-    if (ep.T <= ep.lp || ep.Tr <= ep.rp) {
-      el_error("Unimplemented T: (T,Tr) must greater than (lp,rp)");
+    if (ep.T < ep.lp || ep.Tr < ep.rp) {
+      el_error("Unimplemented T: (T,Tr) < (lp,rp)");
     }
 
     bool format_ok = (ep.weights_fmt == OIhw16i16o) &&
