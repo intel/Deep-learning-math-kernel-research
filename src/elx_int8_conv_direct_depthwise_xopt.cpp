@@ -8,13 +8,13 @@
 // ------+-----+--------+-----+------------------------------------------------
 //       | ker | fusion | dup |             notes
 // ------+-----+--------+-----+------------------------------------------------
-//  a160 |conv |   t+o  |  -  | blocked/nhwc, Tr, K=3 S=1,2
+//  c160 |conv |   t+o  |  -  | blocked/nhwc, Tr, K=3 S=1,2
 // ------+-----+--------+-----+------------------------------------------------
 //
 namespace euler {
 
 Template_elx_int8_conv_direct_depthwise_t
-void Instance_elx_int8_conv_direct_depthwise_t::__execute_a160(
+void Instance_elx_int8_conv_direct_depthwise_t::__execute_c160(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   if (is_first_run_) {
@@ -52,7 +52,7 @@ void Instance_elx_int8_conv_direct_depthwise_t::__execute_a160(
     auto ainput = &md4(ainput_blocked, _n, _G3, 0, 0);
     auto aoutput = &md3(aoutput1_blocked, _wt, 0, 0);
     auto atoutput = &md3(atoutput1_blocked, _wt, 0, 0);
-    conv_a160(aoutput, atoutput, ainput,
+    conv_c160(aoutput, atoutput, ainput,
               &md3(atweights_s8, _G3, 0, 0),
               &md3(abias, _G3, 0, 0), input_scale_,
               &md3(atweights_scale, _G3, 0, 0),

@@ -71,7 +71,7 @@ Instance_elx_int8_conv_direct_depthwise_t::elx_int8_conv_direct_depthwise_t(eld_
   ep.ic2 = ep.G / V;
   ep.oc2 = ep.G / V;
 
-  xopt_ = 0xa160;
+  xopt_ = 0xc160;
 
   // n, t2, (T, Tr)
   ep.ht = ep.oh;
@@ -151,7 +151,7 @@ int Instance_elx_int8_conv_direct_depthwise_t::prepare_execute_opt()
   toutput_ = nullptr;
 
   switch (xopt_) {
-  case 0xa160:
+  case 0xc160:
     tweights_size_ = ep.G * ep.kh * KW * sizeof(TweightsType);
     input_scale_size_ = 2 * ep.T * sizeof(float);
     weights_scale_size_ = ep.G * sizeof(float);
@@ -290,7 +290,7 @@ Instance_elx_int8_conv_direct_depthwise_t::trans_weights_3x3(
 }
 
 Template_elx_int8_conv_direct_depthwise_t
-void Instance_elx_int8_conv_direct_depthwise_t::conv_a160(OutputType *output,
+void Instance_elx_int8_conv_direct_depthwise_t::conv_c160(OutputType *output,
     ToutputType *toutput, InputType *input_u8, int8_t *weights_s8,
     BiasType *bias, float *src_scale, float *weights_scale,
     float *weights_shift, int _ht, int _wt)

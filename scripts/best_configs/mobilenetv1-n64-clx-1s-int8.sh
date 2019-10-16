@@ -42,28 +42,28 @@ NSOCKETS=1 ./scripts/run.sh -c --name=Conv__252 -i1024 -h8 -o1001 -H8 -k1 -K1 -s
 
 # group conv
 # Conv2d_1_depthwise
-NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_1_depthwise -g32 -i32 -h112 -o32 -H112 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=28 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw
+NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_1_depthwise -g32 -i32 -h112 -o32 -H112 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xc160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=28 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw
 
 # Conv2d_2_depthwise
-NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_2_depthwise -g64 -i64 -h112 -o64 -H56 -k3 -K3 -s2 -S2 -p0 -P0 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=28 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
+NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_2_depthwise -g64 -i64 -h112 -o64 -H56 -k3 -K3 -s2 -S2 -p0 -P0 -n64 -adirect --execution-mode=0xc160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=28 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
 
 # Conv2d_3_depthwise
-NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_3_depthwise -g128 -i128 -h56 -o128 -H56 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
+NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_3_depthwise -g128 -i128 -h56 -o128 -H56 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xc160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
 
 # Conv2d_4_depthwise
-NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_4_depthwise -g128 -i128 -h56 -o128 -H28 -k3 -K3 -s2 -S2 -p0 -P0 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=28 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
+NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_4_depthwise -g128 -i128 -h56 -o128 -H28 -k3 -K3 -s2 -S2 -p0 -P0 -n64 -adirect --execution-mode=0xc160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=28 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
 
 # Conv2d_5_depthwise
-NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_5_depthwise -g256 -i256 -h28 -o256 -H28 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=28 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
+NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_5_depthwise -g256 -i256 -h28 -o256 -H28 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xc160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=28 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
 
 # Conv2d_6_depthwise
-NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_6_depthwise -g256 -i256 -h28 -o256 -H14 -k3 -K3 -s2 -S2 -p0 -P0 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
+NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_6_depthwise -g256 -i256 -h28 -o256 -H14 -k3 -K3 -s2 -S2 -p0 -P0 -n64 -adirect --execution-mode=0xc160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
 
 # Conv2d_7_depthwise, Conv2d_8_depthwise, Conv2d_9_depthwise, Conv2d_10_depthwise, Conv2d_11_depthwise
-NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_7_depthwise -g512 -i512 -h14 -o512 -H14 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
+NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_7_depthwise -g512 -i512 -h14 -o512 -H14 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xc160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
 
 # Conv2d_12_depthwise
-NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_12_depthwise -g512 -i512 -h14 -o512 -H7 -k3 -K3 -s2 -S2 -p0 -P0 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=7 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
+NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_12_depthwise -g512 -i512 -h14 -o512 -H7 -k3 -K3 -s2 -S2 -p0 -P0 -n64 -adirect --execution-mode=0xc160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=7 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
 
 # Conv2d_13_depthwise
-NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_13_depthwise -g1024 -i1024 -h7 -o1024 -H7 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=7 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 
+NSOCKETS=1 ./scripts/run.sh -c --name=Conv2d_13_depthwise -g1024 -i1024 -h7 -o1024 -H7 -k3 -K3 -s1 -S1 -p1 -P1 -n64 -adirect --execution-mode=0xc160 --blk-i=1 --blk-o=1 --flt-o=1 --flt-t=7 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2 --input-format=nChw16c --output-format=nChw16c --weights-format=goihw 

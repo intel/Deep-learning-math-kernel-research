@@ -14,7 +14,7 @@ Instance_elx_int8_conv_direct_depthwise_t::bind_execute_functions()
       u8s8_depthwise_conv_kernel_binder::kconv<TarrayTypes, OutputType> **func,
       int K) {
     switch (xopt_) {
-    case (0xa160):
+    case (0xc160):
       if (ep.input_fmt == nChw16c && ep.output_fmt == nChw16c) {
         if (ep.ws == 1) {
           BIND_CONV_KERNEL(1, GKF_DCD, K);
@@ -33,7 +33,7 @@ Instance_elx_int8_conv_direct_depthwise_t::bind_execute_functions()
     }
   };
 
-  if (xopt_ == 0xa160) {
+  if (xopt_ == 0xc160) {
     bind_conv_kernel(ep.O, ep.T, &ker_conv_, ep.kw);
     bind_conv_kernel(ep.O, ep.Tr, &ker_conv_Tr_, ep.kw);
   }
@@ -44,7 +44,7 @@ Instance_elx_int8_conv_direct_depthwise_t::bind_execute_functions()
     break
 
   switch (xopt_) {
-    EXECUTE_CASE(a160);
+    EXECUTE_CASE(c160);
   default:
     el_error("direct_depthwise: int8: Unimplemented xopt");
     break;

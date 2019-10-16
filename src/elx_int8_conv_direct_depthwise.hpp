@@ -35,13 +35,13 @@ Template_elx_int8_conv_direct_depthwise_t class elx_int8_conv_direct_depthwise_t
   virtual void execute(void *output, void *input, void *weights, void *bias);
 
   private:
-  void __execute_a160(OutputType *output, InputType *input,
+  void __execute_c160(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
 
   void trans_weights_3x3(float *weights_scale, float * weights_shift,
       int8_t *weights_s8, WeightsType *weights, BiasType *bias);
 
-  void conv_a160(OutputType *output, ToutputType *toutput, InputType *input,
+  void conv_c160(OutputType *output, ToutputType *toutput, InputType *input,
       int8_t *tweights, BiasType *bias, float *src_scale,
       float *weights_scale, float *weights_shift, int _ht, int _wt);
 
