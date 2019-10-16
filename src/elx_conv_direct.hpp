@@ -39,7 +39,7 @@ Template_elx_conv_direct_t class elx_conv_direct_t : public elx_conv_t {
       WeightsType *weights, BiasType *bias);
   void __execute_c070(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
-  void __execute_d060(OutputType *output, InputType *input,
+  void __execute_a060(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
 
   void trans_weights_to_compact(TweightsType *tweights, WeightsType *weights);
@@ -54,7 +54,7 @@ Template_elx_conv_direct_t class elx_conv_direct_t : public elx_conv_t {
       BiasType *bias, int _I4, int _O4, int _ht, int _wt);
   void conv_c070(OutputType *output, InputType *input, TweightsType *weights,
       BiasType *bias, int _I4, int _I3, int _O4, int _ht, int _wt);
-  void gemm_d060(OutputType *toutput, InputType *tinput, TweightsType *tweights,
+  void gemm_a060(OutputType *toutput, InputType *tinput, TweightsType *tweights,
       BiasType *bias, int _I4, int _O4, int _ht, int _wt);
 
   void set_workspace_buffers(void *base);

@@ -12,7 +12,7 @@
 // ------+-----+--------+-----+------------------------------------------------
 //  c070 |conv |  t+o+i |  -  | nhwc|blocked, Ir/Tr/Or, K=3,5,7 S=1,2 small spatial, group=1
 // ------+-----+--------+-----+------------------------------------------------
-//  d060 |gemm |   t+o  |  -  | nhwc|blocked, Ir/Tr/Or, group
+//  a060 |gemm |   t+o  |  -  | nhwc|blocked, Ir/Tr/Or, group
 // ------+-----+--------+-----+------------------------------------------------
 //
 namespace euler {
@@ -210,7 +210,7 @@ void Instance_elx_conv_direct_t::__execute_c070(
 }
 
 Template_elx_conv_direct_t
-void Instance_elx_conv_direct_t::__execute_d060(
+void Instance_elx_conv_direct_t::__execute_a060(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   // input (blocked): n*, I4*, I3, I2, ih, iw, V(Ir)
@@ -236,7 +236,7 @@ void Instance_elx_conv_direct_t::__execute_d060(
           ep.oc);
       MD2(OutputType, aoutput1, &md4(aoutput0, _n, 0, _g, 0), ep.O4,
           ep.O3 * ep.O2 * V);
-      gemm_d060(&md2(aoutput1, _O4, 0), &md2(ainput1, _I4, 0),
+      gemm_a060(&md2(aoutput1, _O4, 0), &md2(ainput1, _I4, 0),
           &md4(atweights, _g, _O4, _I4, 0), &md2(abias1, _O4, 0),
           _I4, _O4, _ht, _wt);
     }, ep.n, ep.g, ep.I4, ep.O4, ep.ht, ep.wt);
@@ -251,7 +251,7 @@ void Instance_elx_conv_direct_t::__execute_d060(
           ep.I3 * ep.I2, ep.ih * ep.iw * V);
       MD5(OutputType, aoutput, output, ep.n, ep.g, ep.O4,
           ep.O3 * ep.O2, ep.ht * ep.ow * V);
-      gemm_d060(&md5(aoutput, _n, _g, _O4, 0, 0),
+      gemm_a060(&md5(aoutput, _n, _g, _O4, 0, 0),
                 &md5(ainput, _n, _g, _I4, 0, 0),
                 &md4(atweights, _g, _O4, _I4, 0),
                 &md2(abias1, _O4, 0), _I4, _O4, _ht, _wt);

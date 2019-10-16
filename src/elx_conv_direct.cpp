@@ -28,8 +28,8 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
 
     ep.ic /= ep.g;
     ep.oc /= ep.g;
-    if (xopt_ != 0xc060 && xopt_ != 0xd060)
-      el_error("Unimplemented: group conv support only 0xc060|0xd060");
+    if (xopt_ != 0xc060 && xopt_ != 0xa060)
+      el_error("Unimplemented: group conv support only 0xc060|0xa060");
   }
   ep.IC = ALIGNUP(ep.ic, V);
   ep.OC = ALIGNUP(ep.oc, V);
@@ -47,7 +47,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
   ep.oc2 = ep.OC / V;
 
   // n, t2, (T, Tr)
-  if (xopt_ == 0xc060 || xopt_ == 0xc070 || xopt_ == 0xd060) {
+  if (xopt_ == 0xc060 || xopt_ == 0xc070 || xopt_ == 0xa060) {
     ep.ht = ep.oh;
     ep.wt = (ep.ow + ep.T - 1)/ ep.T;
     ep.Tr = ep.ow % ep.T ? ep.ow % ep.T : ep.T;
@@ -66,7 +66,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
           (ep.output_fmt == nChw16c)) ||
          (V == 16 && xopt_ == 0xc070 && ep.g == 1 &&
           (ep.input_fmt == nChw16c) && (ep.output_fmt == nChw16c)) ||
-         (V == 16 && xopt_ == 0xd060 && (ep.input_fmt == nChw16c) &&
+         (V == 16 && xopt_ == 0xa060 && (ep.input_fmt == nChw16c) &&
           (ep.output_fmt == nChw16c)));
     if (!format_ok) {
       el_error("direct: format not supported");
@@ -156,7 +156,7 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
   case 0xc070:
     toutput_size_ = ep.I4 * ep.n * ep.g * ep.OC * ep.oh * ep.ow * sizeof(ToutputType);
   case 0xc060:
-  case 0xd060:
+  case 0xa060:
     tweights_size_ = ep.g * ep.kh * ep.kw * ep.IC * ep.OC * sizeof(TweightsType);
     break;
   default:
@@ -478,7 +478,7 @@ Instance_elx_conv_direct_t::conv_c070(OutputType *output,
 
 // slow path
 Template_elx_conv_direct_t
-void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
+void Instance_elx_conv_direct_t::gemm_a060(OutputType *output, InputType *input,
     TweightsType *weights, BiasType *bias, int _I4, int _O4, int _ht, int _wt)
 {
   // input:   I3*, I2, ht*, hs*, wt*, T, ws, V
@@ -514,7 +514,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
                   ep.O4, ep.O3, ep.O2, V);
               _mm512_mask_store_ps(&md4(aoutput1, 0, _O3, _O2, 0), k, s);
             }
-          } else el_error("direct: d060: unimplemented");
+          } else el_error("direct: a060: unimplemented");
         }
       }
       int attr = attr_;
@@ -559,7 +559,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
                 s = _mm<V>::min_ps(s, upper);
                 _mm512_mask_store_ps(&md4(aoutput1, 0, _O3, _O2, 0), k, s);
               }
-            } else el_error("direct: d060: unimplemented");
+            } else el_error("direct: a060: unimplemented");
           }
         }
       }
@@ -578,7 +578,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
             if (I == ISA_AVX512 && std::is_same<OutputType, float>::value)
               _mm<V>::store_ps(&md5(aoutput, _O3, _O2, _ht, ows0 + _T, 0), s);
             else
-              el_error("direct: d060: unimplemented");
+              el_error("direct: a060: unimplemented");
           }
         }
       }
@@ -608,7 +608,7 @@ void Instance_elx_conv_direct_t::gemm_d060(OutputType *output, InputType *input,
               s = _mm<V>::min_ps(s, upper);
               _mm<V>::store_ps(&md5(aoutput, _O3, _O2, _ht, ows0 + _T, 0), s);
             } else
-              el_error("direct: d060: unimplemented");
+              el_error("direct: a060: unimplemented");
           }}
         }
       }

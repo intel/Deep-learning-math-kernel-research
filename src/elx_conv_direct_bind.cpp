@@ -20,7 +20,7 @@ Instance_elx_conv_direct_t::bind_execute_functions()
   auto bind_gemm_kernel = [&](int O, int T,
       gemm_kernel_binder::kgemm<TarrayTypes> **func) {
     switch (xopt_) {
-    case (0xd060):
+    case (0xa060):
       if (ep.ws == 1) {
         if (ep.input_fmt == nhwc) {
           BIND_GEMM_KERNEL(1, GKF_FCF)
@@ -95,9 +95,9 @@ Instance_elx_conv_direct_t::bind_execute_functions()
   if (xopt_ == 0xc060 || xopt_ == 0xc070) {
     bind_conv_kernel(ep.O, ep.T, &ker_conv_, ep.kw);
     bind_conv_kernel(ep.O, ep.Tr, &ker_conv_Tr_, ep.kw);
-  } else if (xopt_ == 0xd060) {
+  } else if (xopt_ == 0xa060) {
     if (ep.wt > 128) {
-      el_error("direct: d060: wt > max-kernel-slot:128");
+      el_error("direct: a060: wt > max-kernel-slot:128");
     }
     iter_each (_wt, ep.wt) {
       int Tz = _wt == ep.wt - 1 ? ep.Tr : ep.T;
@@ -127,7 +127,7 @@ Instance_elx_conv_direct_t::bind_execute_functions()
   switch (xopt_) {
     EXECUTE_CASE(c060);
     EXECUTE_CASE(c070);
-    EXECUTE_CASE(d060);
+    EXECUTE_CASE(a060);
   default:
     el_error("Unimplemented xopt");
     break;
