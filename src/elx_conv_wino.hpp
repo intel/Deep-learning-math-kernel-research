@@ -73,10 +73,6 @@ private:
       WeightsType *weights, BiasType *bias);
   void __execute_a073(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
-  void __execute_a079(OutputType *output, InputType *input,
-      WeightsType *weights, BiasType *bias);
-  void __execute_a07b(OutputType *output, InputType *input,
-      WeightsType *weights, BiasType *bias);
 
   void set_scratch_buffers(void *base);
   void set_workspace_buffers(void *base);

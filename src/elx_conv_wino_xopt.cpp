@@ -17,10 +17,6 @@ namespace euler {
 // -------------+------------+--------------+-------------
 //     A073     |   FP32     |  i + t + o   |  I + O
 // -------------+------------+--------------+-------------
-//     A079     |   FP32     |  i + t + o   |  I + W
-// -------------+------------+--------------+-------------
-//     A07b     |   FP32     |  i + t + o   |  I + W + O
-// -------------+------------+--------------+-------------
 //
 
 
@@ -162,85 +158,6 @@ void Instance_elx_conv_wino_t::__execute_a073(
 
   if (inference_acc_)
     is_first_run_ = false;
-}
-
-Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::__execute_a07b(
-    OutputType * __restrict output, InputType * __restrict input,
-    WeightsType * __restrict weights, BiasType * __restrict bias)
-{
-  int last_I4 = -1, last_t2 = -1, last_O4 = -1;
-
-  estl::parallel_for<3, 1>([&, last_I4, last_t2, last_O4]
-                           (int _O4, int _I4, int _t2) mutable {
-    MD2(TinputType, atinput2, tinput_, mthr_,
-        A * A * ep.T * ep.I3 * ep.I2 * V);
-    MD2(ToutputType, atoutput2, toutput_, mthr_,
-        A * A * ep.T * ep.O3 * ep.O2 * V);
-    MD2(TweightsType, atweights2, tweights_, mthr_,
-        A * A * ep.I3 * ep.I2 * V * ep.O3 * ep.O2 * V);
-    MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
-
-    int Tz = _t2 == (ep.t2 - 1) ? ep.Tr : ep.T;
-    int ithr = estl::current_thread_index();
-
-    if (last_I4 != _I4 || last_O4 != _O4) {
-      trans_weights(&md2(atweights2, ithr, 0), weights, _I4, _O4);
-    }
-    if (last_I4 != _I4 || last_t2 != _t2) {
-      trans_input(&md2(atinput2, ithr, 0), input, Tz, _t2, _I4);
-    }
-    gemm.execute_na(
-        &md2(atoutput2, ithr, 0),
-        &md2(atinput2, ithr, 0),
-        &md2(atweights2, ithr, 0),
-        _t2, Tz, _I4);
-    trans_output(output, &md2(atoutput2, ithr, 0),
-                 &md2(abias, _O4, 0), Tz, _t2, _O4, _I4);
-    last_O4 = _O4; last_I4 = _I4; last_t2 = _t2;
-  }, ep.O4, ep.I4, ep.t2);
-}
-
-Template_elx_conv_wino_t
-void Instance_elx_conv_wino_t::__execute_a079(
-    OutputType * __restrict output, InputType * __restrict input,
-    WeightsType * __restrict weights, BiasType * __restrict bias)
-{
-  int last_I4 = -1, last_t2 = -1, last_O4 = -1;
-
-  estl::parallel_for<3, 1>([&, last_I4, last_t2, last_O4]
-                           (int _O4, int _I4, int _t2) mutable {
-    MD2(TinputType, atinput2, tinput_, mthr_,
-        A * A * ep.T * ep.I3 * ep.I2 * V);
-    MD2(ToutputType, atoutput2, toutput_, ep.t2,
-        ep.O4 * A * A * ep.T * ep.O3 * ep.O2 * V);
-    MD2(TweightsType, atweights2, tweights_, mthr_,
-        A * A * ep.I3 * ep.I2 * V * ep.O3 * ep.O2 * V);
-    MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
-
-    int Tz = _t2 == (ep.t2 - 1) ? ep.Tr : ep.T;
-    int ithr = estl::current_thread_index();
-
-    MD2(ToutputType, atoutput3, &md2(atoutput2, _t2, 0),
-        ep.O4, A * A * Tz * ep.O3 * ep.O2 * V);
-
-    if (last_I4 != _I4 || last_O4 != _O4) {
-      trans_weights(&md2(atweights2, ithr, 0), weights, _I4, _O4);
-    }
-    if (last_I4 != _I4 || last_t2 != _t2) {
-      trans_input(&md2(atinput2, ithr, 0), input, Tz, _t2, _I4);
-    }
-    gemm.execute(
-         &md2(atoutput3, _O4, 0),
-         &md2(atinput2, ithr, 0),
-         &md2(atweights2, ithr, 0),
-         _t2, Tz, _I4);
-    if (_I4 == ep.I4 - 1) {
-      trans_output(output, &md2(atoutput3, _O4, 0),
-                   &md2(abias, _O4, 0), Tz, _t2, _O4, _I4);
-    }
-    last_O4 = _O4; last_I4 = _I4; last_t2 = _t2;
-  }, ep.O4, ep.I4, ep.t2);
 }
 
 // Flat mode

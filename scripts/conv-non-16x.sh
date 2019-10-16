@@ -1,27 +1,19 @@
 #/bin/bash
 
 # conv: wino:
-# a063
+# a061
 # with_relu=0 with_ip_sum=0
-NSOCKETS=1 ./scripts/run.sh -c -i127 -h56 -o255 -H56 -n1 --blk-i=8 --blk-o=1 --flt-o=2 --flt-t=14 --pat-o=1 --tile-size=6 --execution-mode=0xa063 --input-format=nchw --weights-format=oihw --output-format=nchw -v1
+NSOCKETS=1 ./scripts/run.sh -c -i127 -h56 -o255 -H56 -n1 --blk-i=8 --blk-o=1 --flt-o=2 --flt-t=14 --pat-o=1 --tile-size=6 --execution-mode=0xa061 --input-format=nchw --weights-format=oihw --output-format=nchw -v1
 # with_relu=1 with_ip_sum=0
-NSOCKETS=1 ./scripts/run.sh -c -i127 -h56 -o255 -H56 -n1 --blk-i=8 --blk-o=1 --flt-o=2 --flt-t=14 --pat-o=1 --tile-size=6 --execution-mode=0xa063 --input-format=nchw --weights-format=oihw --output-format=nchw -r1 -v1
+NSOCKETS=1 ./scripts/run.sh -c -i127 -h56 -o255 -H56 -n1 --blk-i=8 --blk-o=1 --flt-o=2 --flt-t=14 --pat-o=1 --tile-size=6 --execution-mode=0xa061 --input-format=nchw --weights-format=oihw --output-format=nchw -r1 -v1
 # with_relu=0 with_ip_sum=1
-NSOCKETS=1 ./scripts/run.sh -c -i127 -h56 -o255 -H56 -n1 --blk-i=8 --blk-o=1 --flt-o=2 --flt-t=14 --pat-o=1 --tile-size=6 --execution-mode=0xa063 --input-format=nchw --weights-format=oihw --output-format=nchw --with-ip-sum=1 -v1
+NSOCKETS=1 ./scripts/run.sh -c -i127 -h56 -o255 -H56 -n1 --blk-i=8 --blk-o=1 --flt-o=2 --flt-t=14 --pat-o=1 --tile-size=6 --execution-mode=0xa061 --input-format=nchw --weights-format=oihw --output-format=nchw --with-ip-sum=1 -v1
 
 # a073
 # with_relu=0 with_ip_sum=0
 NSOCKETS=1 ./scripts/run.sh -c -i255 -h56 -o255 -H56 -n1 --blk-i=8 --blk-o=1 --flt-o=2 --flt-t=14 --pat-i=1 --pat-o=1 --tile-size=6 --execution-mode=0xa073 --input-format=nchw --weights-format=oihw --output-format=nchw -v1
 # with_relu=0 with_ip_sum=1
 NSOCKETS=1 ./scripts/run.sh -c -i255 -h56 -o255 -H56 -n1 --blk-i=8 --blk-o=1 --flt-o=2 --flt-t=14 --pat-i=1 --pat-o=1 --tile-size=6 --execution-mode=0xa073 --input-format=nchw --weights-format=oihw --output-format=nchw --with-ip-sum=1 -v1
-
-# a07b
-# with_relu=0 with_ip_sum=0
-NSOCKETS=1 ./scripts/run.sh -c -i255 -h56 -o255 -H56 -n1 --blk-i=8 --blk-o=1 --flt-o=2 --flt-t=14 --pat-i=1 --pat-o=1 --tile-size=6 --execution-mode=0xa07b --input-format=nchw --weights-format=oihw --output-format=nchw -v1
-# with_relu=0 with_ip_sum=1
-NSOCKETS=1 ./scripts/run.sh -c -i255 -h56 -o255 -H56 -n1 --blk-i=8 --blk-o=1 --flt-o=2 --flt-t=14 --pat-i=1 --pat-o=1 --tile-size=6 --execution-mode=0xa07b --input-format=nchw --weights-format=oihw --output-format=nchw --with-ip-sum=1 -v1
-
-
 
 # conv: direct 1x1:
 # a063

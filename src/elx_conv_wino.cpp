@@ -53,7 +53,7 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
 
   ep.t2 = (ep.t + ep.T - 1) / ep.T;
 
-  if ((xopt_ == 0xa073 || xopt_ == 0xa07b || ep.with_ip_sum)
+  if ((xopt_ == 0xa073 || ep.with_ip_sum)
       && ep.with_relu && !output_is_bfmt_) {
     el_error("Unimplemented: fuse sum (plain format) and relu together");
   }
@@ -154,16 +154,6 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
     tinput_size = A * A * (ep.IC / ep.I4) * ep.T * mthr_ * sizeof(TinputType);
     toutput_size = A * A * (ep.OC / ep.O4) * ep.T * mthr_ * sizeof(ToutputType);
     break;
-  case 0xa079:
-    tweights_size = A * A * (ep.IC / ep.I4) * (ep.OC / ep.O4) * mthr_ * sizeof(TweightsType);
-    tinput_size = A * A * (ep.IC / ep.I4) * ep.T * mthr_ * sizeof(TinputType);
-    toutput_size = A * A * ep.OC * ep.t * sizeof(ToutputType);
-    break;
-  case 0xa07b:
-    tweights_size = A * A * (ep.IC / ep.I4) * (ep.OC / ep.O4) * mthr_ * sizeof(TweightsType);
-    tinput_size = A * A * (ep.IC / ep.I4) * ep.T * mthr_ * sizeof(TinputType);
-    toutput_size = A * A * (ep.OC / ep.O4) * ep.T * mthr_ * sizeof(ToutputType);
-    break;
   default:
       el_error("Config error!");
       return -1;
@@ -186,11 +176,6 @@ int Instance_elx_conv_wino_t::prepare_execute_opt()
   workspace_size_ = tweights_size_;
   scratch_size_ = tinput_size_ + toutput_size_
       + binput_size_ + bweights_size_ + boutput_size_;
-
-  if (xopt_ == 0xa079 || xopt_ == 0xa07b) {
-    scratch_size_ += tweights_size_;
-    workspace_size_ = 0;
-  }
 
   return 0;
 }
