@@ -1271,14 +1271,15 @@ void Instance_elx_conv_direct_1x1_t::gemm_a061(OutputType *output,
   MD2(BiasType, abias, bias, ep.O3, ep.O2 * V);
 
   iter_each (_I3, ep.I3) {
-    int attr
-        = _I4 == 0 && _I3 == 0
+    bool last_ic3 = _I4 == ep.I4 - 1 && _I3 == ep.I3 - 1;
+    int attr = _I4 == 0 && _I3 == 0
         ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK)
         : attr_;
-    attr
-        = ep.with_relu && _I4 == ep.I4 - 1 && _I3 == ep.I3 - 1
+    attr = ep.with_relu && last_ic3
         ? set_bit(attr, AT_RELU_MASK)
         : attr;
+    attr = ep.Ir != V && last_ic3 ? set_bit(attr, AT_Ir_MASK) : attr;
+
     iter_each (_O3, ep.O3) {
       ker_gemm_I_O_T_(
           ep,
@@ -1370,14 +1371,15 @@ void Instance_elx_conv_direct_1x1_t::gemm_a060(OutputType *output,
   auto ker_gemm = (_t2 == ep.t2 - 1) ? ker_gemm_I_O_Tr_ : ker_gemm_I_O_T_;
 
   iter_each (_I3, ep.I3) {
-    int attr
-        = _I4 == 0 && _I3 == 0
+    bool last_ic3 = _I4 == ep.I4 - 1 && _I3 == ep.I3 - 1;
+    int attr = _I4 == 0 && _I3 == 0
         ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK)
         : attr_;
-    attr
-        = ep.with_relu && _I4 == ep.I4 - 1 && _I3 == ep.I3 - 1
+    attr = ep.with_relu && last_ic3
         ? set_bit(attr, AT_RELU_MASK)
         : attr;
+    attr = ep.Ir != V && last_ic3 ? set_bit(attr, AT_Ir_MASK) : attr;
+
     MD2(InputType, ainput2, &md2(ainput, _I3, 0), ep.t2, ep.T * V);
     iter_each (_O3, ep.O3) {
       MD2(OutputType, aoutput2, &md2(aoutput, _O3, 0), ep.t2, ep.T * V);
