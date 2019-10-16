@@ -12,6 +12,12 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
 {
   // user input
   xopt_ = ep.execution_mode;
+  if (xopt_ == 0) {
+    if (estl::any_of(ep.kw, 3, 5, 7))
+      xopt_ = 0xc060; // conv kernel
+    else
+      xopt_ = 0xa060; // gemm kernel
+  }
   mthr_ = estl::max_concurrency();
 
   ep.vmg = 1;

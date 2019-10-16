@@ -10,11 +10,13 @@ Template_elx_int8_conv_direct_t
 Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
     : elx_conv_t(dc)
 {
-  //xopt_ = ep.execution_mode;
-  if (estl::any_of(ep.kw, 3, 5, 7))
-    xopt_ = 0xc160; // conv kernel
-  else
-    xopt_ = 0xa160; // gemm kernel
+  xopt_ = ep.execution_mode;
+  if (xopt_ == 0) {
+    if (estl::any_of(ep.kw, 3, 5, 7))
+      xopt_ = 0xc160; // conv kernel
+    else
+      xopt_ = 0xa160; // gemm kernel
+  }
 
   mthr_ = estl::max_concurrency();
 

@@ -8,11 +8,13 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t &dc)
     : elx_conv_t(dc)
 {
   // user input
-  //xopt_ = ep.execution_mode;
-  if (ep.input_fmt == nChw16c) {
-    xopt_ = ep.ws == 1 ? a060 : a061;
-  } else { // plain
-    xopt_ = ep.ws == 1 ? a061p1 : a061p2;
+  xopt_ = ep.execution_mode;
+  if (xopt_ == 0) {
+    if (ep.input_fmt == nChw16c) {
+      xopt_ = ep.ws == 1 ? a060 : a061;
+    } else { // plain
+      xopt_ = ep.ws == 1 ? a061p1 : a061p2;
+    }
   }
 
   ep.Vx = 1;
