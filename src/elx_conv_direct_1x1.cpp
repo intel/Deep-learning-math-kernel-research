@@ -8,7 +8,12 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t &dc)
     : elx_conv_t(dc)
 {
   // user input
-  xopt_ = ep.execution_mode;
+  //xopt_ = ep.execution_mode;
+  if (ep.input_fmt == nChw16c) {
+    xopt_ = ep.ws == 1 ? a060 : a061;
+  } else { // plain
+    xopt_ = ep.ws == 1 ? a061p1 : a061p2;
+  }
 
   ep.Vx = 1;
   ep.V1 = V / ep.Vx;
@@ -30,17 +35,17 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t &dc)
 
   no_pad_ = ep.lp == 0 && ep.rp == 0 && ep.tp == 0 && ep.bp == 0;
   if (!no_pad_) {
-    if (xopt_ != 0xa061)
-      el_error("Only 0xa061 support padding");
+    if (xopt_ != a061p2)
+      el_error("Only a061p2 support padding");
     bool shape_ok =
       (ep.oh == (ep.ih - 1 + ep.tp + ep.bp) / ep.hs + 1) &&
       (ep.ow == (ep.iw - 1 + ep.lp + ep.rp) / ep.ws + 1);
     if (!shape_ok)
-      el_error("Unmatched paddding shape not supported by a061");
+      el_error("Unmatched paddding shape not supported by a061p2");
   }
 
   // n, t2, (T, Tr)
-  if (xopt_ == 0xa060 || xopt_ == 0xf061) {
+  if (xopt_ == a060 || xopt_ == a061p1) {
     bool shape_ok = ep.hs == 1 && ep.ws == 1 && no_pad_;
     if (!shape_ok)
       el_error("Shape not supported by a060");
@@ -51,7 +56,7 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t &dc)
     ep.t = ep.nt * ep.n;
     ep.t2 = (ep.nt + ep.T - 1) / ep.T;
     ep.Tr = ep.nt % ep.T ? ep.nt % ep.T : ep.T;
-  } else if (xopt_ == 0xa061 || xopt_ == 0xb061) {
+  } else if (xopt_ == a061 || xopt_ == a061p2) {
     ep.ht = ep.oh;
     ep.wt = ep.ow / ep.T;
     ep.nt = ep.oh * ep.ow;
@@ -77,9 +82,9 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t &dc)
   ep.O3r = ep.oc34 % ep.O3;
   if (ep.O3r == 0) ep.O3r = ep.O3;
 
-  if ((xopt_ == 0xa061 || xopt_ == 0xb061 || xopt_ == 0xa060 || xopt_ == 0xf061)
+  if ((xopt_ == a061 || xopt_ == a061p1 || xopt_ == a061p2)
       && (ep.O2r != ep.O2 || ep.O3r != ep.O3)) {
-    el_error("No oc tailing for 0xa061, 0xb061, 0xe060, 0xf061");
+    el_error("No oc tailing for a061");
   }
 
   // I4, I3, I3
@@ -88,8 +93,8 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t &dc)
   if (ep.I4 * ep.I3 * ep.I2 * V != ep.IC)
     el_error("IC blocking error");
 
-  if ((xopt_ == 0xa061 || xopt_ == 0xf061) && ep.I4 != 1) {
-    el_error("I4 != 1 not support in 0xa061 and 0xf061");
+  if ((xopt_ == a061p1 || xopt_ == a061p2) && ep.I4 != 1) {
+    el_error("I4 != 1 not support in a061p1 and a061p2");
   }
 
   attr_ = 0x0;
@@ -99,7 +104,7 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t &dc)
   inference_acc_ = ep.prop_kind == forward_inference;
 
   attr_ = ep.with_bias ? set_bit(attr_, AT_BIAS_MASK) : attr_;
-  if (xopt_ == 0xb061 || xopt_ == 0xa060) {
+  if (xopt_ == a061 || xopt_ == a060) {
     attr_ = ep.with_ip_sum ? set_bit(attr_, AT_INP_SUM_MASK) : attr_;
   }
 
@@ -146,8 +151,8 @@ int  Instance_elx_conv_direct_1x1_t::prepare_execute_opt()
     el_error("Unimplemented: O4 > 1 for OC % V != 0");
   }
 
-  if (!is_bfmt_ && (xopt_ != 0xa061 && xopt_ != 0xf061)) {
-    el_error("Unimplemented: only a061, f061 mode support plain format\n");
+  if (!is_bfmt_ && (xopt_ != a061p1 && xopt_ != a061p2)) {
+    el_error("Unimplemented: only a061p1, a061p2 mode support plain format\n");
   }
 
   if (input_as_bfmt_)
@@ -166,20 +171,20 @@ int  Instance_elx_conv_direct_1x1_t::prepare_execute_opt()
   boutput_ = nullptr;
 
   switch (xopt_) {
-  case 0xa061:
-    toutput_size = mthr_ * ep.O3 * ep.O2 * ep.T * V * sizeof(ToutputType);
-  case 0xb061:
-    tinput_msk_ = (unsigned char *)malloc(mthr_ * ep.I4 * ep.ht * ep.wt);
-    tinput_size = mthr_ * ep.I3 * ep.I2 * V * ep.ht * ep.wt * ep.T * sizeof(TinputType);
-    tweights_size = ep.IC * ep.OC * sizeof(TweightsType);
-    break;
-  case 0xf061:
+  case a061p1:
     tinput_msk_ = (unsigned char *)malloc(mthr_ * ep.t2);
     toutput_size = mthr_ * ep.O3 * ep.O2 * ep.T * V * sizeof(ToutputType);
     tinput_size = mthr_ * ep.I3 * ep.I2 * ep.T * V * ep.t2 * sizeof(TinputType);
     tweights_size = ep.IC * ep.OC * sizeof(TweightsType);
     break;
-  case 0xa060:
+  case a061p2:
+    toutput_size = mthr_ * ep.O3 * ep.O2 * ep.T * V * sizeof(ToutputType);
+  case a061:
+    tinput_msk_ = (unsigned char *)malloc(mthr_ * ep.I4 * ep.ht * ep.wt);
+    tinput_size = mthr_ * ep.I3 * ep.I2 * V * ep.ht * ep.wt * ep.T * sizeof(TinputType);
+    tweights_size = ep.IC * ep.OC * sizeof(TweightsType);
+    break;
+  case a060:
     tweights_size = ep.IC * ep.OC * sizeof(TweightsType);
     break;
   default:
@@ -1172,7 +1177,7 @@ void Instance_elx_conv_direct_1x1_t::trans_output2(
 }
 
 Template_elx_conv_direct_1x1_t
-void Instance_elx_conv_direct_1x1_t::gemm_a061(ToutputType *output,
+void Instance_elx_conv_direct_1x1_t::gemm_a061p2(ToutputType *output,
     TinputType *input, TweightsType *weights, BiasType *bias, int _I4)
 {
   // weights: O3*, I3*, O2, I2, V, V
@@ -1252,7 +1257,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_a061(ToutputType *output,
 }
 
 Template_elx_conv_direct_1x1_t
-void Instance_elx_conv_direct_1x1_t::gemm_b061(OutputType *output,
+void Instance_elx_conv_direct_1x1_t::gemm_a061(OutputType *output,
     TinputType *input, TweightsType *weights, BiasType *bias, int _I4)
 {
   // weights: O3*, I3*, O2, I2, V, V
@@ -1286,7 +1291,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_b061(OutputType *output,
 }
 
 Template_elx_conv_direct_1x1_t
-void Instance_elx_conv_direct_1x1_t::gemm_f061(ToutputType *output,
+void Instance_elx_conv_direct_1x1_t::gemm_a061p1(ToutputType *output,
     TinputType *input, TweightsType *weights, BiasType *bias, int _t2, int Tz)
 {
   MD3(TweightsType, aweights, weights, ep.O3, ep.I3,

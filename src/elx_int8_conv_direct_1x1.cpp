@@ -75,7 +75,7 @@ Instance_elx_int8_conv_direct_1x1_t::elx_int8_conv_direct_1x1_t(eld_conv_t &dc)
   if (ep.O3r == 0) ep.O3r = ep.O3;
 
   if (ep.O2r != ep.O2 || ep.O3r != ep.O3) {
-    el_error("No oc tailing for 0xa061, 0xb061, 0xe060, 0xf061");
+    el_error("direct_1x1: int8: No oc tailing");
   }
 
   // I4, I3, I3

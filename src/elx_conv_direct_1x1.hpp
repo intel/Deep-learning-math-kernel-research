@@ -16,6 +16,11 @@ namespace euler {
 #define Instance_elx_conv_direct_1x1_t                                         \
     elx_conv_direct_1x1_t<UserTypes, TarrayTypes, V, I>
 
+const int a060   = 0xa060;
+const int a061   = 0xa061;
+const int a061p1 = 0xa061 + 1; // plain, s2
+const int a061p2 = 0xa061 + 2; // plain, s1
+
 Template_elx_conv_direct_1x1_t
 class elx_conv_direct_1x1_t : public elx_conv_t {
   using InputType = typename UserTypes::InputType;
@@ -35,9 +40,9 @@ class elx_conv_direct_1x1_t : public elx_conv_t {
   virtual void execute(void *output, void *input, void *weights, void *bias);
 
   private:
+  void __execute_a061p2(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
+  void __execute_a061p1(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
   void __execute_a061(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
-  void __execute_f061(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
-  void __execute_b061(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
   void __execute_a060(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
 
   inline void __trans_input_nchw(TinputType *tinput, InputType *input, int _ht, int _wt);
@@ -69,9 +74,9 @@ class elx_conv_direct_1x1_t : public elx_conv_t {
   inline void __trans_weights_Or_post(WeightsType *aweights, TweightsType *tweights,
       int _O4, int _I4, int _O3, int _I3, int _I2, int _iV, int _O2);
 
-  void gemm_a061(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, BiasType *bias, int _I4);
-  void gemm_f061(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, BiasType *bias, int _t2, int Tz);
-  void gemm_b061(OutputType *output, TinputType *tinput, TweightsType *tweights, BiasType *bias, int _I4);
+  void gemm_a061p2(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, BiasType *bias, int _I4);
+  void gemm_a061p1(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, BiasType *bias, int _t2, int Tz);
+  void gemm_a061(OutputType *output, TinputType *tinput, TweightsType *tweights, BiasType *bias, int _I4);
   void gemm_a060(OutputType *output, InputType *input, TweightsType *weights, BiasType *bias, int _I4, int _O4, int _t2);
 
   void trans_input_2_blocked(InputType *tinput, InputType *input);

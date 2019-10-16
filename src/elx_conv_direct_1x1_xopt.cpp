@@ -3,17 +3,17 @@
 #include "elx_conv_direct_1x1.hpp"
 
 // XOPT
-// ------+-----+--------+-----+--------------------------------------
-//       | ker | fusion | dup |             notes
-// ------+-----+--------+-----+--------------------------------------
-//  a061 |  a  |   t+o  |  I  | plain, stride>=1, padding, Ir, oh=wt*T, I4=1
-// ------+-----+--------+-----+--------------------------------------
-//  f061 |  a  |   t+o  |  I  | plain, stride=1, Ir, Tr, I4=1
-// ------+-----+--------+-----+--------------------------------------
-//  b061 |  b  |   t+o  |  I  | blocked, stride>=1, oh=wt*T
-// ------+-----+--------+-----+--------------------------------------
-//  a060 |  c  |   t+o  |  -  | blocked, Tr, Or, stride=1
-// ------+-----+--------+-----+--------------------------------------
+// --------+-----+--------+-----+--------------------------------------
+//         | ker | fusion | dup |             notes
+// --------+-----+--------+-----+--------------------------------------
+//  a060   | gemm|   t+o  |  -  | blocked, Tr, Or, stride=1
+// --------+-----+--------+-----+--------------------------------------
+//  a061   | gemm|   t+o  |  I  | blocked, stride>=1, oh=wt*T
+// --------+-----+--------+-----+--------------------------------------
+//  a061p1 | gemm|   t+o  |  I  | plain, stride=1, Ir, Tr, I4=1
+// --------+-----+--------+-----+--------------------------------------
+//  a061p2 | gemm|   t+o  |  I  | plain, stride>=1, padding, Ir, oh=wt*T, I4=1
+// --------+-----+--------+-----+--------------------------------------
 //
 
 namespace euler {
@@ -53,7 +53,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_a060(
 }
 
 Template_elx_conv_direct_1x1_t
-void Instance_elx_conv_direct_1x1_t::__execute_b061(
+void Instance_elx_conv_direct_1x1_t::__execute_a061(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   // weights: O4*, O3, O2(O2r), I4*, I3, I2, V, V
@@ -81,7 +81,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_b061(
           &md2(atinput, ithr, 0),
           &md3(ainput, _n, _I4, 0),
           _ht, _wt);
-      gemm_b061(
+      gemm_a061(
           &md5(aoutput2, _O4, 0, _ht, _wt, 0),
           &md2(atinput, ithr, 0),
           &md3(atweights, _O4, _I4, 0),
@@ -120,7 +120,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_b061(
             _ht, _wt);
         md4(atinput_msk, ithr, _I4, _ht, _wt) = 1;
       }
-      gemm_b061(
+      gemm_a061(
           &md5(aoutput2, _O4, 0, _ht, _wt, 0),
           &md4(atinput, ithr, _ht, _wt, 0),
           &md3(atweights, _O4, _I4, 0),
@@ -134,7 +134,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_b061(
 }
 
 Template_elx_conv_direct_1x1_t
-void Instance_elx_conv_direct_1x1_t::__execute_a061(
+void Instance_elx_conv_direct_1x1_t::__execute_a061p2(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
 
@@ -159,7 +159,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
       MD3(TweightsType, atweights, tweights_, ep.O4, ep.I4,
           ep.O3 * ep.I3 * ep.O2 * ep.I2 * V * V);
 
-      gemm_a061(
+      gemm_a061p2(
           &md2(aoutput2, _O4, 0),
           &md2(ainput2, 0, 0),
           &md3(atweights, _O4, 0, 0),
@@ -181,7 +181,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
             &md2(atinput, ithr, 0),
             &md2(ainput, _n, 0),
             _ht, _wt);
-        gemm_a061(
+        gemm_a061p2(
             &md2(atoutput, ithr, 0),
             &md2(atinput, ithr, 0),
             &md3(atweights, _O4, 0, 0),
@@ -218,7 +218,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
             _ht, _wt);
         md3(atinput_msk, ithr, _ht, _wt) = 1;
       }
-      gemm_a061(
+      gemm_a061p2(
           &md2(atoutput, ithr, 0),
           &md4(atinput, ithr, _ht, _wt, 0),
           &md3(atweights, _O4, 0, 0),
@@ -236,7 +236,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_a061(
 }
 
 Template_elx_conv_direct_1x1_t
-void Instance_elx_conv_direct_1x1_t::__execute_f061(
+void Instance_elx_conv_direct_1x1_t::__execute_a061p1(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   if (is_first_run_) {
@@ -256,7 +256,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_f061(
       MD3(TweightsType, atweights, tweights_, ep.O4, ep.I4,
           ep.O3 * ep.I3 * ep.O2 * ep.I2 * V * V);
 
-      gemm_f061(
+      gemm_a061p1(
           &md2(aoutput2, _O4, 0),
           &md2(ainput2, 0, 0),
           &md3(atweights, _O4, 0, 0),
@@ -279,7 +279,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_f061(
            &md2(atinput, ithr, 0),
            &md2(ainput, _n, 0),
            _t2, Tz);
-      gemm_f061(
+      gemm_a061p1(
           &md2(atoutput, ithr, 0),
           &md2(atinput, ithr, 0),
           &md3(atweights, _O4, 0, 0),
@@ -318,7 +318,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_f061(
             _t2, Tz);
         md2(atinput_msk, ithr, _t2) = 1;
       }
-      gemm_f061(
+      gemm_a061p1(
           &md2(atoutput, ithr, 0),
           &md3(atinput, ithr, _t2, 0),
           &md3(atweights, _O4, 0, 0),
