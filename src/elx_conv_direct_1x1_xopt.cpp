@@ -3,13 +3,6 @@
 #include "elx_conv_direct_1x1.hpp"
 
 // XOPT
-// kernel options:
-//   - a: CCC, s1
-//   - b: CCD, s1
-//   - c: DCD: s1
-// fusion:  same as winograd
-// dup:     same as winograd
-//
 // ------+-----+--------+-----+--------------------------------------
 //       | ker | fusion | dup |             notes
 // ------+-----+--------+-----+--------------------------------------
@@ -19,14 +12,14 @@
 // ------+-----+--------+-----+--------------------------------------
 //  b061 |  b  |   t+o  |  I  | blocked, stride>=1, oh=wt*T
 // ------+-----+--------+-----+--------------------------------------
-//  c060 |  c  |   t+o  |  -  | blocked, Tr, Or, stride=1
+//  a060 |  c  |   t+o  |  -  | blocked, Tr, Or, stride=1
 // ------+-----+--------+-----+--------------------------------------
 //
 
 namespace euler {
 
 Template_elx_conv_direct_1x1_t
-void Instance_elx_conv_direct_1x1_t::__execute_c060(
+void Instance_elx_conv_direct_1x1_t::__execute_a060(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   // weights: O4*, O3, O2, I4*, I3, I2, V, V
@@ -47,7 +40,7 @@ void Instance_elx_conv_direct_1x1_t::__execute_c060(
       ep.O3 * ep.I3 * ep.O2 * ep.I2 * V * V);
     MD2(OutputType, aoutput2, &md2(aoutput, _n, 0), ep.O4,
         ep.O3 * ep.O2 * ep.oh * ep.ow * V);
-    gemm_c060(
+    gemm_a060(
         &md2(aoutput2, _O4, 0),
         &md3(ainput, _n, _I4, 0),
         &md3(atweights, _O4, _I4, 0),

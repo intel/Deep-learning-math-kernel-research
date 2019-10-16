@@ -30,7 +30,7 @@ Instance_elx_conv_direct_1x1_t::bind_execute_functions()
     case (0xb061):
       BIND_KERNEL(1, GKF_CCD)
       break;
-    case (0xc060):
+    case (0xa060):
       BIND_KERNEL(1, GKF_DCD)
       break;
     default:
@@ -51,7 +51,7 @@ Instance_elx_conv_direct_1x1_t::bind_execute_functions()
     EXECUTE_CASE(a061);
     EXECUTE_CASE(f061);
     EXECUTE_CASE(b061);
-    EXECUTE_CASE(c060);
+    EXECUTE_CASE(a060);
   default:
     el_error("Unimplemented xopt");
     break;

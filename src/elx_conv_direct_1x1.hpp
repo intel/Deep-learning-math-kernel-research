@@ -38,7 +38,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t {
   void __execute_a061(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
   void __execute_f061(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
   void __execute_b061(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
-  void __execute_c060(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
+  void __execute_a060(OutputType *output, InputType *input, WeightsType *weights, BiasType *bias);
 
   inline void __trans_input_nchw(TinputType *tinput, InputType *input, int _ht, int _wt);
   inline void __trans_input_blocked(TinputType *tinput, InputType *input, int _ht, int _wt);
@@ -72,7 +72,7 @@ class elx_conv_direct_1x1_t : public elx_conv_t {
   void gemm_a061(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, BiasType *bias, int _I4);
   void gemm_f061(ToutputType *toutput, TinputType *tinput, TweightsType *tweights, BiasType *bias, int _t2, int Tz);
   void gemm_b061(OutputType *output, TinputType *tinput, TweightsType *tweights, BiasType *bias, int _I4);
-  void gemm_c060(OutputType *output, InputType *input, TweightsType *weights, BiasType *bias, int _I4, int _O4, int _t2);
+  void gemm_a060(OutputType *output, InputType *input, TweightsType *weights, BiasType *bias, int _I4, int _O4, int _t2);
 
   void trans_input_2_blocked(InputType *tinput, InputType *input);
   void trans_weights_2_blocked(WeightsType *tweghts, WeightsType *weights);

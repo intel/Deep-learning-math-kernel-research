@@ -40,10 +40,10 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t &dc)
   }
 
   // n, t2, (T, Tr)
-  if (xopt_ == 0xc060 || xopt_ == 0xf061) {
+  if (xopt_ == 0xa060 || xopt_ == 0xf061) {
     bool shape_ok = ep.hs == 1 && ep.ws == 1 && no_pad_;
     if (!shape_ok)
-      el_error("Shape not supported by c060");
+      el_error("Shape not supported by a060");
 
     ep.ht = ep.oh;
     ep.wt = ep.ow;
@@ -77,7 +77,7 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t &dc)
   ep.O3r = ep.oc34 % ep.O3;
   if (ep.O3r == 0) ep.O3r = ep.O3;
 
-  if ((xopt_ == 0xa061 || xopt_ == 0xb061 || xopt_ == 0xc060 || xopt_ == 0xf061)
+  if ((xopt_ == 0xa061 || xopt_ == 0xb061 || xopt_ == 0xa060 || xopt_ == 0xf061)
       && (ep.O2r != ep.O2 || ep.O3r != ep.O3)) {
     el_error("No oc tailing for 0xa061, 0xb061, 0xe060, 0xf061");
   }
@@ -99,7 +99,7 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t &dc)
   inference_acc_ = ep.prop_kind == forward_inference;
 
   attr_ = ep.with_bias ? set_bit(attr_, AT_BIAS_MASK) : attr_;
-  if (xopt_ == 0xb061 || xopt_ == 0xc060) {
+  if (xopt_ == 0xb061 || xopt_ == 0xa060) {
     attr_ = ep.with_ip_sum ? set_bit(attr_, AT_INP_SUM_MASK) : attr_;
   }
 
@@ -179,7 +179,7 @@ int  Instance_elx_conv_direct_1x1_t::prepare_execute_opt()
     tinput_size = mthr_ * ep.I3 * ep.I2 * ep.T * V * ep.t2 * sizeof(TinputType);
     tweights_size = ep.IC * ep.OC * sizeof(TweightsType);
     break;
-  case 0xc060:
+  case 0xa060:
     tweights_size = ep.IC * ep.OC * sizeof(TweightsType);
     break;
   default:
@@ -1349,7 +1349,7 @@ void Instance_elx_conv_direct_1x1_t::gemm_f061(ToutputType *output,
 }
 
 Template_elx_conv_direct_1x1_t
-void Instance_elx_conv_direct_1x1_t::gemm_c060(OutputType *output,
+void Instance_elx_conv_direct_1x1_t::gemm_a060(OutputType *output,
     InputType *input, TweightsType *weights, BiasType *bias,
     int _I4, int _O4, int _t2)
 {
