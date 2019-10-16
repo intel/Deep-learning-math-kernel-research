@@ -10,7 +10,12 @@ Template_elx_int8_conv_direct_t
 Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
     : elx_conv_t(dc)
 {
-  xopt_ = ep.execution_mode;
+  //xopt_ = ep.execution_mode;
+  if (estl::any_of(ep.kw, 3, 5, 7))
+    xopt_ = 0xc160;
+  else
+    xopt_ = 0xd160;
+
   mthr_ = estl::max_concurrency();
 
   ep.Vx = 4;
@@ -32,12 +37,12 @@ Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
   ep.oc2 = ep.OC / V;
   attr_ = 0x0;
 
-  if(ep.sampling_kind != CALIBRATED) {
-      el_error("int8 direct: non-calibrated sampling_kind not supported");
+  if (ep.sampling_kind != CALIBRATED) {
+    el_error("int8 direct: non-calibrated sampling_kind not supported");
   }
 
   // n, t2, (T, Tr)
-  if (xopt_ == 0xa160 || xopt_ == 0xd160 /*|| xopt_ == 0xb160*/) {
+  if (xopt_ == 0xc160 || xopt_ == 0xd160 /*|| xopt_ == 0xb160*/) {
     ep.ht = ep.oh;
     ep.wt = (ep.ow + ep.T - 1)/ ep.T;
     ep.Tr = ep.ow % ep.T ? ep.ow % ep.T : ep.T;
@@ -56,7 +61,7 @@ Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
       el_error("direct: format not supported");
     }
 
-    if (xopt_ == 0xa160 /*|| xopt_ == 0xb160*/) {
+    if (xopt_ == 0xc160 /*|| xopt_ == 0xb160*/) {
       bool shape_ok = estl::any_of(ep.kh, 3, 5, 7)
           && estl::any_of(ep.kw, 3, 5, 7)
           && (ep.ws == 1 || ep.ws == 2)
@@ -65,7 +70,7 @@ Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
           && estl::any_of(ep.tp, ep.kh / 2 - 1, ep.kh / 2)
           && estl::any_of(ep.bp, ep.kh / 2 - 1, ep.kh / 2);
       if (!shape_ok) {
-        el_error("direct: a160: shape not supported");
+        el_error("direct: c160: shape not supported");
       }
     }
   }
@@ -75,7 +80,7 @@ Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
   ep.Or = ep.oc % V ? ep.oc % V : V;
 
   compact_ir_weights_ = false;
-  if (ep.ic == 3 && ep.Ir == 1 && xopt_ == 0xa160 &&
+  if (ep.ic == 3 && ep.Ir == 1 && xopt_ == 0xc160 &&
       ep.input_fmt == nhwc) { // FBD/FBF kernel
     compact_ir_weights_ = true;
   }
@@ -107,7 +112,7 @@ Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
   attr_ = set_bit(attr_, AT_FMAOPT_MASK);
   is_first_run_ = true;
   inference_acc_ = ep.prop_kind == forward_inference;
-  if (xopt_ == 0xa160) {
+  if (xopt_ == 0xc160) {
     attr_ = ep.with_bias ? set_bit(attr_, AT_BIAS_MASK) : attr_;
     // attr_ = ep.with_ip_sum ? set_bit(attr_, AT_INP_SUM_MASK) : attr_;
   }
@@ -150,7 +155,7 @@ int Instance_elx_int8_conv_direct_t::prepare_execute_opt()
 
   switch (xopt_) {
   /*case 0xb160:*/
-  case 0xa160:
+  case 0xc160:
   case 0xd160:
     toutput_size = ep.n * ep.OC * ep.oh * ep.ow * sizeof(ToutputType);
     tweights_s8_size = ep.kh * ep.kw * ep.IC * ep.OC * sizeof(int8_t);
@@ -217,7 +222,7 @@ Instance_elx_int8_conv_direct_t::~elx_int8_conv_direct_t()
 
 Template_elx_int8_conv_direct_t void
 Instance_elx_int8_conv_direct_t::prepare_weights_acc() {
-  if (xopt_ == 0xa160) {
+  if (xopt_ == 0xc160) {
     wacc_wT_ = ep.T;
   } else {
     wacc_wT_ = 1;
@@ -491,7 +496,7 @@ trans_weights(float *weights_scale, float *weights_shift,
 }
 
 Template_elx_int8_conv_direct_t
-void Instance_elx_int8_conv_direct_t::conv_a160(OutputType *output,
+void Instance_elx_int8_conv_direct_t::conv_c160(OutputType *output,
     ToutputType *toutput, InputType *input_u8, int8_t *weights_s8,
     BiasType *bias, float *src_scale, float *weights_scale,
     float *weights_shift, int _I4, int _O4, int _ht, int _wt)

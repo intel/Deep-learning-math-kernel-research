@@ -9,7 +9,7 @@ COMMON="$COMMON "
 
 # conv: 7x7
 # conv2d
-NSOCKETS=1 ./scripts/run.sh -c --name=conv2d -i3 -h224 -o64 -H112 -k7 -K7 -s2 -S2 -p3 -P3 -n64 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=2 --flt-o=2 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32z --sampling-kind=2 --input-format=nhwc --output-format=nhwc --weights-format=OIhw16i16o
+NSOCKETS=1 ./scripts/run.sh -c --name=conv2d -i3 -h224 -o64 -H112 -k7 -K7 -s2 -S2 -p3 -P3 -n64 -adirect --execution-mode=0xc160 --blk-i=1 --blk-o=2 --flt-o=2 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32z --sampling-kind=2 --input-format=nhwc --output-format=nhwc --weights-format=OIhw16i16o
 
 # conv: 3x3 s1
 # resnet50_res2a_branch2b, conv2d_3, conv2d_6, conv2d_9
@@ -23,11 +23,11 @@ NSOCKETS=1 ./scripts/run.sh -c --name=conv2d_48 -i512 -h7 -o512 -H7 -n64 --tile-
 
 # conv: 3x3 s2
 # conv2d_13
-NSOCKETS=1 ./scripts/run.sh -c --name=conv2d_13 -i128 -h58 -o128 -H28 -k3 -K3 -s2 -S2 -p0 -P0 -n64 -adirect --execution-mode=0xa160 --blk-i=8 --blk-o=2 --flt-o=2 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
+NSOCKETS=1 ./scripts/run.sh -c --name=conv2d_13 -i128 -h58 -o128 -H28 -k3 -K3 -s2 -S2 -p0 -P0 -n64 -adirect --execution-mode=0xc160 --blk-i=8 --blk-o=2 --flt-o=2 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
 # conv2d_26
-NSOCKETS=1 ./scripts/run.sh -c --name=conv2d_26 -i256 -h30 -o256 -H14 -k3 -K3 -s2 -S2 -p0 -P0 -n64 -adirect --execution-mode=0xa160 --blk-i=16 --blk-o=2 --flt-o=2 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
+NSOCKETS=1 ./scripts/run.sh -c --name=conv2d_26 -i256 -h30 -o256 -H14 -k3 -K3 -s2 -S2 -p0 -P0 -n64 -adirect --execution-mode=0xc160 --blk-i=16 --blk-o=2 --flt-o=2 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
 # conv2d_45
-NSOCKETS=1 ./scripts/run.sh -c --name=conv2d_45 -i512 -h16 -o512 -H7 -k3 -K3 -s2 -S2 -p0 -P0 -n64 -adirect --execution-mode=0xa160 --blk-i=32 --blk-o=2 --flt-o=2 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
+NSOCKETS=1 ./scripts/run.sh -c --name=conv2d_45 -i512 -h16 -o512 -H7 -k3 -K3 -s2 -S2 -p0 -P0 -n64 -adirect --execution-mode=0xc160 --blk-i=32 --blk-o=2 --flt-o=2 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
 
 # conv: 1x1 s2
 # conv2d_11

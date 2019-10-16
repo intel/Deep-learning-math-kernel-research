@@ -64,7 +64,7 @@ Instance_elx_int8_conv_direct_t::bind_execute_functions()
   auto bind_conv_kernel = [&](int O, int T,
       u8s8_conv_kernel_binder::kconv<TarrayTypes, OutputType> **func, int K) {
     switch (xopt_) {
-    case (0xa160):
+    case (0xc160):
       if (compact_ir_weights_ && ep.input_fmt == nhwc && ep.output_fmt == nhwc) {
         if (ep.ws == 1) {
           BIND_CONV_KERNEL(1, GKF_FBF, K);
@@ -149,7 +149,7 @@ Instance_elx_int8_conv_direct_t::bind_execute_functions()
     }
   };
 
-  if (xopt_ == 0xa160 /*|| xopt_ == 0xb160*/) {
+  if (xopt_ == 0xc160 /*|| xopt_ == 0xb160*/) {
     bind_conv_kernel(ep.O, ep.T, &ker_conv_, ep.kw);
     bind_conv_kernel(ep.O, ep.Tr, &ker_conv_Tr_, ep.kw);
   } else if (xopt_ == 0xd160) {
@@ -182,7 +182,7 @@ Instance_elx_int8_conv_direct_t::bind_execute_functions()
     break
 
   switch (xopt_) {
-    EXECUTE_CASE(a160);
+    EXECUTE_CASE(c160);
     //EXECUTE_CASE(b160);
     EXECUTE_CASE(d160);
   default:

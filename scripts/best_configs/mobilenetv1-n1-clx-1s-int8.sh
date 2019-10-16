@@ -5,7 +5,7 @@ COMMON="$COMMON "
 
 # conv: 3x3
 # Conv__224
-NSOCKETS=1 ./scripts/run.sh -c --name=Conv__224 -i3 -h224 -o32 -H112 -k3 -K3 -s2 -S2 -p0 -P0 -n1 -adirect --execution-mode=0xa160 --blk-i=1 --blk-o=1 --flt-o=2 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32z --sampling-kind=2 --input-format=nhwc --output-format=nChw16c --weights-format=OIhw16i16o
+NSOCKETS=1 ./scripts/run.sh -c --name=Conv__224 -i3 -h224 -o32 -H112 -k3 -K3 -s2 -S2 -p0 -P0 -n1 -adirect --execution-mode=0xc160 --blk-i=1 --blk-o=1 --flt-o=2 --flt-t=14 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32z --sampling-kind=2 --input-format=nhwc --output-format=nChw16c --weights-format=OIhw16i16o
 
 # conv 1x1
 # Conv__226
