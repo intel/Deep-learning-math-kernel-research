@@ -46,7 +46,7 @@ Instance_elx_conv_direct_t::bind_execute_functions()
   auto bind_conv_kernel = [&](int O, int T,
       conv_kernel_binder::kconv<TarrayTypes> **func, int K) {
     switch (xopt_) {
-    case (0xa060):
+    case (0xc060):
     case (0xb060):
       if (ep.input_fmt == nchw) {
         if (ep.ws == 1) {
@@ -92,7 +92,7 @@ Instance_elx_conv_direct_t::bind_execute_functions()
     }
   };
 
-  if (xopt_ == 0xa060 || xopt_ == 0xb060) {
+  if (xopt_ == 0xc060 || xopt_ == 0xb060) {
     bind_conv_kernel(ep.O, ep.T, &ker_conv_, ep.kw);
     bind_conv_kernel(ep.O, ep.Tr, &ker_conv_Tr_, ep.kw);
   } else if (xopt_ == 0xd060) {
@@ -125,7 +125,7 @@ Instance_elx_conv_direct_t::bind_execute_functions()
     break
 
   switch (xopt_) {
-    EXECUTE_CASE(a060);
+    EXECUTE_CASE(c060);
     EXECUTE_CASE(b060);
     EXECUTE_CASE(d060);
   default:

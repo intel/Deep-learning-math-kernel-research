@@ -28,8 +28,8 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
 
     ep.ic /= ep.g;
     ep.oc /= ep.g;
-    if (xopt_ != 0xa060 && xopt_ != 0xd060)
-      el_error("Unimplemented: group conv support only 0xa060|0xd060");
+    if (xopt_ != 0xc060 && xopt_ != 0xd060)
+      el_error("Unimplemented: group conv support only 0xc060|0xd060");
   }
   ep.IC = ALIGNUP(ep.ic, V);
   ep.OC = ALIGNUP(ep.oc, V);
@@ -47,7 +47,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
   ep.oc2 = ep.OC / V;
 
   // n, t2, (T, Tr)
-  if (xopt_ == 0xa060 || xopt_ == 0xb060 || xopt_ == 0xd060) {
+  if (xopt_ == 0xc060 || xopt_ == 0xb060 || xopt_ == 0xd060) {
     ep.ht = ep.oh;
     ep.wt = (ep.ow + ep.T - 1)/ ep.T;
     ep.Tr = ep.ow % ep.T ? ep.ow % ep.T : ep.T;
@@ -61,7 +61,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
     bool format_ok =
         estl::any_of(ep.weights_fmt, hwio, ghwio, OIhw16i16o, gOIhw16i16o) &&
         (((ep.input_fmt == nhwc) && (ep.output_fmt == nhwc)) ||
-         (V == 16 && xopt_ == 0xa060 &&
+         (V == 16 && xopt_ == 0xc060 &&
           (estl::any_of(ep.input_fmt, nchw, nChw16c)) &&
           (ep.output_fmt == nChw16c)) ||
          (V == 16 && xopt_ == 0xb060 && ep.g == 1 &&
@@ -72,7 +72,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
       el_error("direct: format not supported");
     }
 
-    if (xopt_ == 0xa060 || xopt_ == 0xb060) {
+    if (xopt_ == 0xc060 || xopt_ == 0xb060) {
       bool shape_ok = estl::any_of(ep.kh, 3, 5, 7)
           && estl::any_of(ep.kw, 3, 5, 7)
           && (ep.ws == 1 || ep.ws == 2)
@@ -81,16 +81,16 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
           && estl::any_of(ep.tp, ep.kh / 2 - 1, ep.kh / 2)
           && estl::any_of(ep.bp, ep.kh / 2 - 1, ep.kh / 2);
       if (!shape_ok) {
-        el_error("direct: a060: shape not supported");
+        el_error("direct: c060: shape not supported");
       }
     }
 
     if (ep.g == 1 && ep.ic < V) {
       bool ok = ep.input_fmt == nchw
           && ep.weights_fmt == hwio
-          && xopt_ == 0xa060;
+          && xopt_ == 0xc060;
       if (!ok) {
-        el_error("direct: first-conv: support only g=1, xopt=a060 with nchw/hwio");
+        el_error("direct: first-conv: support only g=1, xopt=c060 with nchw/hwio");
       }
     }
   }
@@ -155,7 +155,7 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
   switch (xopt_) {
   case 0xb060:
     toutput_size_ = ep.I4 * ep.n * ep.g * ep.OC * ep.oh * ep.ow * sizeof(ToutputType);
-  case 0xa060:
+  case 0xc060:
   case 0xd060:
     tweights_size_ = ep.g * ep.kh * ep.kw * ep.IC * ep.OC * sizeof(TweightsType);
     break;
@@ -346,7 +346,7 @@ void Instance_elx_conv_direct_t::trans_weights_to_compact(
 
 // kh,kw=odd, lp=rp=standard, ih=oh*hs, iw=ow*ws, hs=ws=1
 Template_elx_conv_direct_t void
-Instance_elx_conv_direct_t::conv_a060(OutputType *output,
+Instance_elx_conv_direct_t::conv_c060(OutputType *output,
     InputType *input, TweightsType *weights, BiasType *bias, int _I4, int _O4,
     int _ht, int _wt)
 {

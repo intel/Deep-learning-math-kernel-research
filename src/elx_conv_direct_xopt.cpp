@@ -8,7 +8,7 @@
 // ------+-----+--------+-----+------------------------------------------------
 //       | ker | fusion | dup |             notes
 // ------+-----+--------+-----+------------------------------------------------
-//  a060 |conv |   t+o  |  -  | nhwc|blocked|nchw-input, Ir/Tr/Or, K=3,5,7 S=1,2, group
+//  c060 |conv |   t+o  |  -  | nhwc|blocked|nchw-input, Ir/Tr/Or, K=3,5,7 S=1,2, group
 // ------+-----+--------+-----+------------------------------------------------
 //  b060 |conv |   t+o  |  -  | nhwc|blocked, Ir/Tr/Or, K=3,5,7 S=1,2 small spatial, group=1
 // ------+-----+--------+-----+------------------------------------------------
@@ -18,7 +18,7 @@
 namespace euler {
 
 Template_elx_conv_direct_t
-void Instance_elx_conv_direct_t::__execute_a060(
+void Instance_elx_conv_direct_t::__execute_c060(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   // input (blocked): n*, I4*, I3, I2, ht*, S, wt*, T, S, V(Ir)
@@ -47,7 +47,7 @@ void Instance_elx_conv_direct_t::__execute_a060(
           ep.O3 * ep.O2, ep.ht, ep.ow * V);
       MD3(OutputType, aoutput1, &md5(aoutput0, _n, _O4, 0, _ht, 0), ep.wt,
           ep.T, V);
-      conv_a060(&md3(aoutput1, _wt, 0, 0), &md3(ainput1, _I4, 0, 0),
+      conv_c060(&md3(aoutput1, _wt, 0, 0), &md3(ainput1, _I4, 0, 0),
           &md3(atweights, _O4, _I4, 0), &md2(abias, _O4, 0), _I4, _O4, _ht,
           _wt);
     }, ep.n, ep.I4, ep.O4, ep.ht, ep.wt);
@@ -67,7 +67,7 @@ void Instance_elx_conv_direct_t::__execute_a060(
           ep.T, ep.g, ep.oc);
       MD2(OutputType, aoutput2, &md4(aoutput1, _wt, 0, _g, 0), ep.O4,
           ep.O3 * ep.O2 * V);
-      conv_a060(&md2(aoutput2, _O4, 0), &md2(ainput1, _I4, 0),
+      conv_c060(&md2(aoutput2, _O4, 0), &md2(ainput1, _I4, 0),
           &md4(atweights, _g, _O4, _I4, 0), &md2(abias1, _O4, 0),
           _I4, _O4, _ht, _wt);
     },  ep.n, ep.g, ep.I4, ep.O4, ep.ht, ep.wt);
@@ -84,7 +84,7 @@ void Instance_elx_conv_direct_t::__execute_a060(
           ep.O3 * ep.O2, ep.ht, ep.ow * V);
       MD3(OutputType, aoutput1, &md6(aoutput0, _n, _g, _O4, 0, _ht, 0),
           ep.wt, ep.T, V);
-      conv_a060(&md3(aoutput1, _wt, 0, 0), &md5(ainput, _n, _g, _I4, 0, 0),
+      conv_c060(&md3(aoutput1, _wt, 0, 0), &md5(ainput, _n, _g, _I4, 0, 0),
           &md4(atweights, _g, _O4, _I4, 0), &md2(abias1, _O4, 0),
           _I4, _O4, _ht, _wt);
     }, ep.n, ep.g, ep.I4, ep.O4, ep.ht, ep.wt);

@@ -35,7 +35,7 @@ Template_elx_conv_direct_t class elx_conv_direct_t : public elx_conv_t {
   virtual void execute(void *output, void *input, void *weights, void *bias);
 
   private:
-  void __execute_a060(OutputType *output, InputType *input,
+  void __execute_c060(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
   void __execute_b060(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
@@ -50,7 +50,7 @@ Template_elx_conv_direct_t class elx_conv_direct_t : public elx_conv_t {
       int _g, int _O4, int _I4, int _O3, int _I3, int _kh, int _kw, int _O1,
       int _I2, int _iV, int _O);
 
-  void conv_a060(OutputType *output, InputType *input, TweightsType *weights,
+  void conv_c060(OutputType *output, InputType *input, TweightsType *weights,
       BiasType *bias, int _I4, int _O4, int _ht, int _wt);
   void conv_b060(OutputType *output, InputType *input, TweightsType *weights,
       BiasType *bias, int _I4, int _I3, int _O4, int _ht, int _wt);
