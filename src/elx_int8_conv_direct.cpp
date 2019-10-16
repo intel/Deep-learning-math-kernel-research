@@ -12,9 +12,9 @@ Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
 {
   //xopt_ = ep.execution_mode;
   if (estl::any_of(ep.kw, 3, 5, 7))
-    xopt_ = 0xc160;
+    xopt_ = 0xc160; // conv kernel
   else
-    xopt_ = 0xd160;
+    xopt_ = 0xa160; // gemm kernel
 
   mthr_ = estl::max_concurrency();
 
@@ -42,7 +42,7 @@ Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
   }
 
   // n, t2, (T, Tr)
-  if (xopt_ == 0xc160 || xopt_ == 0xd160 /*|| xopt_ == 0xb160*/) {
+  if (xopt_ == 0xc160 || xopt_ == 0xa160 /*|| xopt_ == 0xb160*/) {
     ep.ht = ep.oh;
     ep.wt = (ep.ow + ep.T - 1)/ ep.T;
     ep.Tr = ep.ow % ep.T ? ep.ow % ep.T : ep.T;
@@ -156,7 +156,7 @@ int Instance_elx_int8_conv_direct_t::prepare_execute_opt()
   switch (xopt_) {
   /*case 0xb160:*/
   case 0xc160:
-  case 0xd160:
+  case 0xa160:
     toutput_size = ep.n * ep.OC * ep.oh * ep.ow * sizeof(ToutputType);
     tweights_s8_size = ep.kh * ep.kw * ep.IC * ep.OC * sizeof(int8_t);
     input_scale_size = 2 * ep.T * sizeof(float);
@@ -568,7 +568,7 @@ void Instance_elx_int8_conv_direct_t::conv_c160(OutputType *output,
 
 // slow path
 Template_elx_int8_conv_direct_t
-void Instance_elx_int8_conv_direct_t::gemm_d160(OutputType *output,
+void Instance_elx_int8_conv_direct_t::gemm_a160(OutputType *output,
     ToutputType *toutput, InputType *input_u8, int8_t *weights_s8,
     BiasType *bias, float *src_scale, float *weights_scale,
     float *weights_shift, int _I4, int _O4, int _ht, int _wt)
@@ -617,7 +617,7 @@ void Instance_elx_int8_conv_direct_t::gemm_d160(OutputType *output,
         if (I == ISA_AVX512 && std::is_same<ToutputType, float>::value)
           _mm<V>::store_ps(atout, s);
         else
-          el_error("direct: d160: unimplemented");
+          el_error("direct: a160: unimplemented");
       }}
     }
     int attr = attr_;
@@ -704,10 +704,10 @@ void Instance_elx_int8_conv_direct_t::gemm_d160(OutputType *output,
               }
             }
           } else {
-            el_error("direct: d160: unimplemented");
+            el_error("direct: a160: unimplemented");
           }
         } else
-          el_error("direct: d060: unimplemented");
+          el_error("direct: a160: unimplemented");
       }}
     }
   }}

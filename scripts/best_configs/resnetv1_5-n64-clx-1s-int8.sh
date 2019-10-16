@@ -71,4 +71,4 @@ NSOCKETS=1 ./scripts/run.sh -c --name=conv2d_47 -i2048 -h7 -o512 -H7 -k1 -K1 -s1
 
 # gemm: 1x2048, 2048x1001
 # FC
-NSOCKETS=1 ./scripts/run.sh -c --name=FC -i2048 -h8 -o1008 -H8 -k1 -K1 -s1 -S1 -p0 -P0 -n1 -adirect --execution-mode=0xd160 --blk-i=128 --blk-o=1 --flt-o=3 --flt-t=4 --pat-i=1 --pat-o=1 $COMMON --data-type-cfg=U8F32F32F32 --sampling-kind=2 --input-format=nhwc --output-format=nhwc
+NSOCKETS=1 ./scripts/run.sh -c --name=FC -i2048 -h8 -o1008 -H8 -k1 -K1 -s1 -S1 -p0 -P0 -n1 -adirect --execution-mode=0xa160 --blk-i=128 --blk-o=1 --flt-o=3 --flt-t=4 --pat-i=1 --pat-o=1 $COMMON --data-type-cfg=U8F32F32F32 --sampling-kind=2 --input-format=nhwc --output-format=nhwc

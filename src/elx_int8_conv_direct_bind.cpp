@@ -20,7 +20,7 @@ Instance_elx_int8_conv_direct_t::bind_execute_functions()
   auto bind_gemm_kernel = [&](int O, int T,
       u8s8_gemm_kernel_binder::kgemm<TarrayTypes, float> **func) {
     switch (xopt_) {
-    case (0xd160):
+    case (0xa160):
       if (ep.input_fmt == nhwc && ep.output_fmt == nhwc) {
         if (ep.ws == 1) {
           BIND_GEMM_KERNEL(1, GKF_FCF)
@@ -152,9 +152,9 @@ Instance_elx_int8_conv_direct_t::bind_execute_functions()
   if (xopt_ == 0xc160 /*|| xopt_ == 0xb160*/) {
     bind_conv_kernel(ep.O, ep.T, &ker_conv_, ep.kw);
     bind_conv_kernel(ep.O, ep.Tr, &ker_conv_Tr_, ep.kw);
-  } else if (xopt_ == 0xd160) {
+  } else if (xopt_ == 0xa160) {
     if (ep.wt > 128) {
-      el_error("direct: d160: wt > max-kernel-slot:128");
+      el_error("direct: a160: wt > max-kernel-slot:128");
     }
     iter_each (_wt, ep.wt) {
       int Tz = _wt == ep.wt - 1 ? ep.Tr : ep.T;
@@ -183,8 +183,7 @@ Instance_elx_int8_conv_direct_t::bind_execute_functions()
 
   switch (xopt_) {
     EXECUTE_CASE(c160);
-    //EXECUTE_CASE(b160);
-    EXECUTE_CASE(d160);
+    EXECUTE_CASE(a160);
   default:
     el_error("Unimplemented direct lp xopt");
     break;

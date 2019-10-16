@@ -10,7 +10,7 @@
 // ------+-----+--------+-----+------------------------------------------------
 //  c160 |conv |   t+o  |  -  | blocked<->nhwc, Ir, Tr, K=3,5,7 S=1,2
 // ------+-----+--------+-----+------------------------------------------------
-//  d160 |gemm |   t+o  |  -  | blocked<->nhwc, Ir, Tr
+//  a160 |gemm |   t+o  |  -  | blocked<->nhwc, Ir, Tr
 // ------+-----+--------+-----+------------------------------------------------
 //
 namespace euler {
@@ -108,7 +108,7 @@ void Instance_elx_int8_conv_direct_t::__execute_c160(
 }
 
 Template_elx_int8_conv_direct_t
-void Instance_elx_int8_conv_direct_t::__execute_d160(
+void Instance_elx_int8_conv_direct_t::__execute_a160(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   // input (blocked): n*, I4*, I3, I2, ih, iw, V(V1, Vx)
@@ -159,7 +159,7 @@ void Instance_elx_int8_conv_direct_t::__execute_d160(
     auto atout = ep.output_fmt == nhwc
            ? &md2(atoutput1_nhwc, _O4, 0) : &md3(atoutput_blocked, _n, _O4, 0);
 
-      gemm_d160(aout, atout, ain,
+      gemm_a160(aout, atout, ain,
                 &md3(atweights_s8, _O4, _I4, 0), &md2(abias, _O4, 0),
                 input_scale_, &md2(atweights_scale, _O4, 0),
                 &md2(aweights_shift, _O4, 0), _I4, _O4, _ht, _wt);

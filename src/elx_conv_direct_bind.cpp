@@ -97,7 +97,7 @@ Instance_elx_conv_direct_t::bind_execute_functions()
     bind_conv_kernel(ep.O, ep.Tr, &ker_conv_Tr_, ep.kw);
   } else if (xopt_ == 0xd060) {
     if (ep.wt > 128) {
-      el_error("direct: d160: wt > max-kernel-slot:128");
+      el_error("direct: d060: wt > max-kernel-slot:128");
     }
     iter_each (_wt, ep.wt) {
       int Tz = _wt == ep.wt - 1 ? ep.Tr : ep.T;

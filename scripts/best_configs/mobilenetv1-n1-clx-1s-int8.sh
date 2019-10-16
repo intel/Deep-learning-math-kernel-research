@@ -37,7 +37,7 @@ NSOCKETS=1 ./scripts/run.sh -c --name=Conv__250 -i1024 -h7 -o1024 -H7 -k1 -K1 -s
 
 # Conv__252
 # FC
-NSOCKETS=1 ./scripts/run.sh -c --name=Conv__252 -i1024 -h1 -o1001 -H1 -k1 -K1 -s1 -S1 -p0 -P0 -n1 -adirect --execution-mode=0xd160 --blk-i=64 --blk-o=1 --flt-o=3 --flt-t=1 --pat-i=1 --pat-o=1 $COMMON --data-type-cfg=U8F32F32F32 --sampling-kind=2 --input-format=nhwc --output-format=nhwc
+NSOCKETS=1 ./scripts/run.sh -c --name=Conv__252 -i1024 -h1 -o1001 -H1 -k1 -K1 -s1 -S1 -p0 -P0 -n1 -adirect --execution-mode=0xa160 --blk-i=64 --blk-o=1 --flt-o=3 --flt-t=1 --pat-i=1 --pat-o=1 $COMMON --data-type-cfg=U8F32F32F32 --sampling-kind=2 --input-format=nhwc --output-format=nhwc
 
 
 # group conv
