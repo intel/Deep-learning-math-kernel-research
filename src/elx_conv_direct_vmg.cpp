@@ -11,7 +11,8 @@ Instance_elx_conv_direct_vmg_t::elx_conv_direct_vmg_t(eld_conv_t &dc)
     : elx_conv_t(dc)
 {
   // user input
-  xopt_ = ep.execution_mode;
+  //xopt_ = ep.execution_mode;
+  xopt_ = 0xc060;
   mthr_ = estl::max_concurrency();
 
   ep.G = 1;
@@ -67,8 +68,6 @@ Instance_elx_conv_direct_vmg_t::elx_conv_direct_vmg_t(eld_conv_t &dc)
 
   ep.ic2 = ep.IC / V;
   ep.oc2 = ep.OC / V;
-
-  xopt_ = 0xa060;
 
   // n, t2, (T, Tr)
   ep.ht = ep.oh;
@@ -136,7 +135,7 @@ int Instance_elx_conv_direct_vmg_t::prepare_execute_opt()
   toutput_ = nullptr;
 
   switch (xopt_) {
-  case 0xa060:
+  case 0xc060:
     tweights_size_ = ep.g * ep.G * ep.kh * ep.kw * C * C * sizeof(TweightsType);
     break;
   default:
@@ -208,7 +207,7 @@ void Instance_elx_conv_direct_vmg_t::trans_weights_to_compact(
 
 // kh,kw=odd, lp=rp=standard, ih=oh*hs, iw=ow*ws, hs=ws=1
 Template_elx_conv_direct_vmg_t void
-Instance_elx_conv_direct_vmg_t::conv_a060(OutputType *output,
+Instance_elx_conv_direct_vmg_t::conv_c060(OutputType *output,
     InputType *input, TweightsType *weights, BiasType *bias, int _I4, int _O4,
     int _ht, int _wt)
 {

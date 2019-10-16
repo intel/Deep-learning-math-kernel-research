@@ -34,12 +34,12 @@ Template_elx_conv_direct_vmg_t class elx_conv_direct_vmg_t : public elx_conv_t {
   virtual void execute(void *output, void *input, void *weights, void *bias);
 
   private:
-  void __execute_a060(OutputType *output, InputType *input,
+  void __execute_c060(OutputType *output, InputType *input,
       WeightsType *weights, BiasType *bias);
 
   void trans_weights_to_compact(TweightsType *tweights, WeightsType *weights);
 
-  void conv_a060(OutputType *output, InputType *input, TweightsType *weights,
+  void conv_c060(OutputType *output, InputType *input, TweightsType *weights,
       BiasType *bias, int _I4, int _O4, int _ht, int _wt);
 
   void set_scratch_buffers(void *base);

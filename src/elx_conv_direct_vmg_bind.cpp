@@ -25,8 +25,7 @@ Instance_elx_conv_direct_vmg_t::bind_execute_functions() {
                               vmg_conv_kernel_binder::kconv<TarrayTypes> **func,
                               int K, int G) {
     switch (xopt_) {
-    case (0xa060):
-    case (0xb060):
+    case (0xc060):
       if (ep.input_fmt == nhwc) {
         if (ep.ws == 1) {
           BIND_CONV_KERNEL(1, GKF_FCF, K, G);
@@ -55,7 +54,7 @@ Instance_elx_conv_direct_vmg_t::bind_execute_functions() {
     break
 
   switch (xopt_) {
-    EXECUTE_CASE(a060);
+    EXECUTE_CASE(c060);
   default:
     el_error("Unimplemented xopt");
     break;
