@@ -62,7 +62,7 @@ void Instance_elx_int8_conv_wino_t::__execute_a133(
     }}
   }
 
-  if (inference_acc_)
+  if (is_first_run_ && inference_acc_)
     is_first_run_ = false;
 }
 
@@ -115,7 +115,7 @@ void Instance_elx_int8_conv_wino_t::__execute_a161(
                  &md2(abias, _O4, 0), Tz, _t2, _O4, 0);
   }, ep.t2, ep.O4);
 
-  if (inference_acc_)
+  if (is_first_run_ && inference_acc_)
     is_first_run_ = false;
 }
 
@@ -173,7 +173,7 @@ void Instance_elx_int8_conv_wino_t::__execute_a173(
         &md2(abias, _O4, 0), Tz, _t2, _O4, _I4);
   }, ep.t2, ep.I4, ep.O4);
 
-  if (inference_acc_)
+  if (is_first_run_ && inference_acc_)
     is_first_run_ = false;
 }
 

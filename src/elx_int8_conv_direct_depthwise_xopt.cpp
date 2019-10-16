@@ -59,7 +59,7 @@ void Instance_elx_int8_conv_direct_depthwise_t::__execute_c160(
               &md3(aweights_shift, _G3, 0, 0), _ht, _wt);
   }, ep.n, ep.G3, ep.ht, ep.wt);
 
-  if (inference_acc_)
+  if (is_first_run_ && inference_acc_)
     is_first_run_ = false;
 }
 

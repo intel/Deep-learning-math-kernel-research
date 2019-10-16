@@ -61,7 +61,7 @@ void Instance_elx_conv_wino_t::__execute_a061(
         &md2(abias, _O4, 0), Tz, _t2, _O4, 0);
   }, ep.t2, ep.O4);
 
-  if (inference_acc_)
+  if (is_first_run_ && inference_acc_)
     is_first_run_ = false;
 }
 
@@ -112,7 +112,7 @@ void Instance_elx_conv_wino_t::__execute_a071(
     }
   }, ep.t2, ep.O4, ep.I4);
 
-  if (inference_acc_)
+  if (is_first_run_ && inference_acc_)
     is_first_run_ = false;
 }
 
@@ -156,7 +156,7 @@ void Instance_elx_conv_wino_t::__execute_a073(
         &md2(abias, _O4, 0), Tz, _t2, _O4, _I4);
   }, ep.t2, ep.O4, ep.I4);
 
-  if (inference_acc_)
+  if (is_first_run_ && inference_acc_)
     is_first_run_ = false;
 }
 
@@ -180,7 +180,7 @@ void Instance_elx_conv_wino_t::__execute_a000(
     THREAD_BARRIER();
     trans_output(output, toutput_, bias, 0, 0);
   }
-  if (inference_acc_) is_first_run_ = false;
+  if (is_first_run_ && inference_acc_) is_first_run_ = false;
 }
 
 Template_elx_conv_wino_t
@@ -217,7 +217,7 @@ void Instance_elx_conv_wino_t::__execute_a033(
     }}
   }
 
-  if (inference_acc_)
+  if (is_first_run_ && inference_acc_)
     is_first_run_ = false;
 }
 

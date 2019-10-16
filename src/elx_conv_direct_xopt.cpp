@@ -90,7 +90,7 @@ void Instance_elx_conv_direct_t::__execute_c060(
     }, ep.n, ep.g, ep.I4, ep.O4, ep.ht, ep.wt);
   }
 
-  if (inference_acc_)
+  if (is_first_run_ && inference_acc_)
     is_first_run_ = false;
 }
 
@@ -205,7 +205,7 @@ void Instance_elx_conv_direct_t::__execute_c070(
     }
   }
 
-  if (inference_acc_)
+  if (is_first_run_ && inference_acc_)
     is_first_run_ = false;
 }
 
@@ -258,7 +258,7 @@ void Instance_elx_conv_direct_t::__execute_a060(
     }, ep.n, ep.g, ep.I4, ep.O4, ep.ht, ep.wt);
   }
 
-  if (inference_acc_)
+  if (is_first_run_ && inference_acc_)
     is_first_run_ = false;
 }
 

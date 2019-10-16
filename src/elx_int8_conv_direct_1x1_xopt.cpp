@@ -94,7 +94,7 @@ void Instance_elx_int8_conv_direct_1x1_t::__execute_a160_s1(
     estl::parallel_for<4, 2>(loop_for, ep.n, ep.O4, ep.I4, ep.t2);
   }
 
-  if (inference_acc_)
+  if (is_first_run_ && inference_acc_)
     is_first_run_ = false;
 }
 
@@ -188,7 +188,7 @@ void Instance_elx_int8_conv_direct_1x1_t::__execute_a160_s2(
     estl::parallel_for<5, 2>(loop_for, ep.n, ep.O4, ep.I4, ep.ht, ep.wt);
   }
 
-  if (inference_acc_)
+  if (is_first_run_ && inference_acc_)
     is_first_run_ = false;
 }
 
