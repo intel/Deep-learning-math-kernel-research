@@ -10,7 +10,7 @@
 // ------+-----+--------+-----+------------------------------------------------
 //  c060 |conv |   t+o  |  -  | nhwc|blocked|nchw-input, Ir/Tr/Or, K=3,5,7 S=1,2, group
 // ------+-----+--------+-----+------------------------------------------------
-//  b060 |conv |   t+o  |  -  | nhwc|blocked, Ir/Tr/Or, K=3,5,7 S=1,2 small spatial, group=1
+//  c070 |conv |  t+o+i |  -  | nhwc|blocked, Ir/Tr/Or, K=3,5,7 S=1,2 small spatial, group=1
 // ------+-----+--------+-----+------------------------------------------------
 //  d060 |gemm |   t+o  |  -  | nhwc|blocked, Ir/Tr/Or, group
 // ------+-----+--------+-----+------------------------------------------------
@@ -95,7 +95,7 @@ void Instance_elx_conv_direct_t::__execute_c060(
 }
 
 Template_elx_conv_direct_t
-void Instance_elx_conv_direct_t::__execute_b060(
+void Instance_elx_conv_direct_t::__execute_c070(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   // input (blocked): n*, I4*, I3, I2, ht*, S, wt*, T, S, V(Ir)
@@ -127,7 +127,7 @@ void Instance_elx_conv_direct_t::__execute_b060(
             ep.wt, ep.T, ep.oc);
         MD2(OutputType, atoutput2, &md3(atoutput1, _wt, 0, 0), ep.O4,
             ep.O3 * ep.O2 * V);
-        conv_b060(&md2(atoutput2, _O4, 0), &md3(ainput1, _I4, _I3, 0),
+        conv_c070(&md2(atoutput2, _O4, 0), &md3(ainput1, _I4, _I3, 0),
             &md5(atweights, _O4, _I4, 0, _I3, 0), &md2(abias, _O4, 0),
             _I4, _I3, _O4, _ht, _wt);
       }, ep.I4, ep.n, ep.I3, ep.O4, ep.ht, ep.wt);
@@ -175,7 +175,7 @@ void Instance_elx_conv_direct_t::__execute_b060(
             ep.O3 * ep.O2, ep.ht, ep.ow * V);
         MD3(OutputType, atoutput1, &md6(atoutput0, _I4, _n, _O4, 0, _ht, 0),
             ep.wt, ep.T, V);
-        conv_b060(&md3(atoutput1, _wt, 0, 0), &md5(ainput, _n, _I4, _I3, 0, 0),
+        conv_c070(&md3(atoutput1, _wt, 0, 0), &md5(ainput, _n, _I4, _I3, 0, 0),
             &md5(atweights, _O4, _I4, 0, _I3, 0), &md2(abias, _O4, 0), _I4,
             _I3, _O4, _ht, _wt);
       }, ep.I4, ep.n, ep.I3, ep.O4, ep.ht, ep.wt);

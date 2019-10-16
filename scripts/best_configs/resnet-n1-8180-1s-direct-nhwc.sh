@@ -23,4 +23,4 @@ NSOCKETS=1 ./scripts/run.sh -c -i64 -h56 -o64 -H28 -k3 -s2 -S2 -n1 -adirect --ex
 sleep 1
 NSOCKETS=1 ./scripts/run.sh -c -i128 -h28 -o128 -H14 -k3 -s2 -S2 -n1 -adirect --execution-mode=0xc060 --blk-i=8 --blk-o=2 --flt-o=2 --flt-t=14 --pat-i=1 $COMMON --f16c-opt=1
 sleep 1
-NSOCKETS=1 ./scripts/run.sh -c -i256 -h14 -o256 -H7 -k3 -s2 -S2 -n1 -adirect --execution-mode=0xb060 --blk-i=4 --blk-o=1 --flt-o=2 --flt-t=7 --pat-i=4 $COMMON --f16c-opt=1
+NSOCKETS=1 ./scripts/run.sh -c -i256 -h14 -o256 -H7 -k3 -s2 -S2 -n1 -adirect --execution-mode=0xc070 --blk-i=4 --blk-o=1 --flt-o=2 --flt-t=7 --pat-i=4 $COMMON --f16c-opt=1

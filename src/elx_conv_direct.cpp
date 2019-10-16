@@ -47,7 +47,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
   ep.oc2 = ep.OC / V;
 
   // n, t2, (T, Tr)
-  if (xopt_ == 0xc060 || xopt_ == 0xb060 || xopt_ == 0xd060) {
+  if (xopt_ == 0xc060 || xopt_ == 0xc070 || xopt_ == 0xd060) {
     ep.ht = ep.oh;
     ep.wt = (ep.ow + ep.T - 1)/ ep.T;
     ep.Tr = ep.ow % ep.T ? ep.ow % ep.T : ep.T;
@@ -64,7 +64,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
          (V == 16 && xopt_ == 0xc060 &&
           (estl::any_of(ep.input_fmt, nchw, nChw16c)) &&
           (ep.output_fmt == nChw16c)) ||
-         (V == 16 && xopt_ == 0xb060 && ep.g == 1 &&
+         (V == 16 && xopt_ == 0xc070 && ep.g == 1 &&
           (ep.input_fmt == nChw16c) && (ep.output_fmt == nChw16c)) ||
          (V == 16 && xopt_ == 0xd060 && (ep.input_fmt == nChw16c) &&
           (ep.output_fmt == nChw16c)));
@@ -72,7 +72,7 @@ Instance_elx_conv_direct_t::elx_conv_direct_t(eld_conv_t &dc)
       el_error("direct: format not supported");
     }
 
-    if (xopt_ == 0xc060 || xopt_ == 0xb060) {
+    if (xopt_ == 0xc060 || xopt_ == 0xc070) {
       bool shape_ok = estl::any_of(ep.kh, 3, 5, 7)
           && estl::any_of(ep.kw, 3, 5, 7)
           && (ep.ws == 1 || ep.ws == 2)
@@ -153,7 +153,7 @@ int Instance_elx_conv_direct_t::prepare_execute_opt()
   toutput_ = nullptr;
 
   switch (xopt_) {
-  case 0xb060:
+  case 0xc070:
     toutput_size_ = ep.I4 * ep.n * ep.g * ep.OC * ep.oh * ep.ow * sizeof(ToutputType);
   case 0xc060:
   case 0xd060:
@@ -424,7 +424,7 @@ Instance_elx_conv_direct_t::conv_c060(OutputType *output,
 
 // kh,kw=odd, lp=rp=standard, ih=oh*hs, iw=ow*ws, hs=ws=1
 Template_elx_conv_direct_t void
-Instance_elx_conv_direct_t::conv_b060(OutputType *output,
+Instance_elx_conv_direct_t::conv_c070(OutputType *output,
     InputType *input, TweightsType *weights, BiasType *bias, int _I4, int _I3,
     int _O4, int _ht, int _wt)
 {
