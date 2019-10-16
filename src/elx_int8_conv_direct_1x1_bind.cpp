@@ -9,51 +9,27 @@ Instance_elx_int8_conv_direct_1x1_t::bind_execute_functions() {
   auto bind_kernel = [&](int O, int T,
                          u8s8_gemm_kernel_binder::kgemm<TarrayTypes,
                          OutputType> **func) {
-    switch (xopt_) {
-      case (0xc160):
-        if (ep.input_fmt == nChw16c && ep.output_fmt == nChw16c)
-          BIND_KERNEL(1, GKF_DCD)
-        else if (ep.input_fmt == nhwc && ep.output_fmt == nChw16c)
-          BIND_KERNEL(1, GKF_FCD)
-        else if (ep.input_fmt == nChw16c && ep.output_fmt == nhwc)
-          BIND_KERNEL(1, GKF_DCF)
-        else
-          BIND_KERNEL(1, GKF_FCF)
-        break;
-      case (0xb161):
-        if (ep.input_fmt == nChw16c && ep.output_fmt == nChw16c) {
-          if (ep.ws == 1)
-            BIND_KERNEL(1, GKF_DCD)
-          else if (ep.ws == 2)
-            BIND_KERNEL(2, GKF_DCD)
-          else
-            el_error("");
-        } else if (ep.input_fmt == nhwc && ep.output_fmt == nChw16c) {
-          if (ep.ws == 1)
-            BIND_KERNEL(1, GKF_FCD)
-          else if (ep.ws == 2)
-            BIND_KERNEL(2, GKF_FCD)
-          else
-            el_error("");
-        } else if (ep.input_fmt == nChw16c && ep.output_fmt == nhwc) {
-          if (ep.ws == 1)
-            BIND_KERNEL(1, GKF_DCF)
-          else if (ep.ws == 2)
-            BIND_KERNEL(2, GKF_DCF)
-          else
-            el_error("");
-        } else { // nhwc -> nhwc
-          if (ep.ws == 1)
-            BIND_KERNEL(1, GKF_FCF)
-          else if (ep.ws == 2)
-            BIND_KERNEL(2, GKF_FCF)
-          else
-            el_error("");
-        }
-        break;
-      default:
-        el_error("Unknown xopt");
-        break;
+    if (ep.ws == 1) {
+      if (ep.input_fmt == nChw16c && ep.output_fmt == nChw16c)
+        BIND_KERNEL(1, GKF_DCD)
+      else if (ep.input_fmt == nhwc && ep.output_fmt == nChw16c)
+        BIND_KERNEL(1, GKF_FCD)
+      else if (ep.input_fmt == nChw16c && ep.output_fmt == nhwc)
+        BIND_KERNEL(1, GKF_DCF)
+      else
+        BIND_KERNEL(1, GKF_FCF)
+    } else if (ep.ws == 2) {
+      if (ep.input_fmt == nChw16c && ep.output_fmt == nChw16c) {
+        BIND_KERNEL(2, GKF_DCD)
+      } else if (ep.input_fmt == nhwc && ep.output_fmt == nChw16c) {
+        BIND_KERNEL(2, GKF_FCD)
+      } else if (ep.input_fmt == nChw16c && ep.output_fmt == nhwc) {
+        BIND_KERNEL(2, GKF_DCF)
+      } else { // nhwc -> nhwc
+        BIND_KERNEL(2, GKF_FCF)
+      }
+    } else {
+      el_error("ws > 2 not enabled");
     }
   };
 
@@ -66,8 +42,7 @@ Instance_elx_int8_conv_direct_1x1_t::bind_execute_functions() {
     break
 
   switch (xopt_) {
-    EXECUTE_CASE(c160);
-    EXECUTE_CASE(b161);
+    EXECUTE_CASE(a160);
   default:
     el_error("Unimplemented xopt");
     break;

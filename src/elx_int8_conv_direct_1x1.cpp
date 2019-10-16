@@ -8,7 +8,8 @@ Instance_elx_int8_conv_direct_1x1_t::elx_int8_conv_direct_1x1_t(eld_conv_t &dc)
     : elx_conv_t(dc)
 {
   // user input
-  xopt_ = ep.execution_mode;
+  //xopt_ = ep.execution_mode;
+  xopt_ = 0xa160;
   attr_ = 0x0;
 
   ep.Vx = 4;
@@ -37,14 +38,14 @@ Instance_elx_int8_conv_direct_1x1_t::elx_int8_conv_direct_1x1_t(eld_conv_t &dc)
   if (!shape_ok)
     el_error("direct_1x1: int8: Shape not supported");
 
-  if (xopt_ == 0xc160) {
+  if (ep.ws == 1) {
     ep.ht = ep.oh;
     ep.wt = ep.ow;
     ep.nt = ep.ht * ep.wt;
     ep.t = ep.nt * ep.n;
     ep.t2 = (ep.nt + ep.T - 1) / ep.T;
     ep.Tr = ep.nt % ep.T ? ep.nt % ep.T : ep.T;
-  } else if (xopt_ == 0xb161){
+  } else if (ep.ws == 2) {
     ep.ht = ep.oh;
     ep.wt = ep.ow / ep.T;
     ep.nt = ep.oh * ep.ow;
@@ -52,10 +53,10 @@ Instance_elx_int8_conv_direct_1x1_t::elx_int8_conv_direct_1x1_t(eld_conv_t &dc)
     ep.Tr = ep.T;
     ep.t = ep.nt * ep.n;
     if (ep.ow % ep.T != 0) {
-      el_error("direct_1x1: int8: b161: No Tr support");
+      el_error("direct_1x1: int8: No Tr support for ws == 2");
     }
   } else {
-    el_error("direct_1x1: int8: xopt not supported");
+    el_error("direct_1x1: int8: ws > 2 not supported");
   }
 
   ep.Ir = ep.ic % V ? ep.ic % V : V;
@@ -152,8 +153,7 @@ int Instance_elx_int8_conv_direct_1x1_t::prepare_execute_opt()
     toutput_opt_ = true;
 
   switch (xopt_) {
-  case 0xc160:
-  case 0xb161:
+  case 0xa160:
     input_scale_size = ep.T * 2 * sizeof(float);
     tweights_s8_size = ep.IC * ep.OC * sizeof(int8_t);
     weights_scale_size = ep.OC * 2 * sizeof(float);
@@ -377,7 +377,7 @@ void Instance_elx_int8_conv_direct_1x1_t::requant_output(
 }
 
 Template_elx_int8_conv_direct_1x1_t
-void Instance_elx_int8_conv_direct_1x1_t::gemm_b161(ToutputType *toutput,
+void Instance_elx_int8_conv_direct_1x1_t::gemm_a160_s2(ToutputType *toutput,
     OutputType *output, uint8_t *input, int8_t *weights, float *input_scale,
     float *weights_scale, BiasType *bias, int _I4)
 {
@@ -429,7 +429,7 @@ void Instance_elx_int8_conv_direct_1x1_t::gemm_b161(ToutputType *toutput,
 }
 
 Template_elx_int8_conv_direct_1x1_t
-void Instance_elx_int8_conv_direct_1x1_t::gemm_c160(ToutputType *toutput,
+void Instance_elx_int8_conv_direct_1x1_t::gemm_a160_s1(ToutputType *toutput,
     OutputType *output, uint8_t *input, int8_t *weights_s8, float *input_scale,
     float *weights_scale, BiasType *bias, int _I4, int _O4, int _t2)
 {

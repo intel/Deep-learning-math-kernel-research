@@ -37,18 +37,19 @@ public:
   virtual void execute(void *, void *, void *, void *);
 
   private:
-  void __execute_b161(OutputType *, InputType *, WeightsType *, BiasType *);
-  void __execute_c160(OutputType *, InputType *, WeightsType *, BiasType *);
+  void __execute_a160(OutputType *, InputType *, WeightsType *, BiasType *);
+  void __execute_a160_s1(OutputType *, InputType *, WeightsType *, BiasType *);
+  void __execute_a160_s2(OutputType *, InputType *, WeightsType *, BiasType *);
 
   inline void trans_weights_s8_blocked_oc(float *, int8_t *, WeightsType *, BiasType *);
 
   void requant_output(OutputType *, ToutputType *);
 
 
-  void gemm_b161(ToutputType *, OutputType *, uint8_t *, int8_t *,
-      float *, float *, BiasType *, int);
-  void gemm_c160(ToutputType *, OutputType *, uint8_t *, int8_t *,
+  void gemm_a160_s1(ToutputType *, OutputType *, uint8_t *, int8_t *,
       float *, float *, BiasType *, int, int, int);
+  void gemm_a160_s2(ToutputType *, OutputType *, uint8_t *, int8_t *,
+      float *, float *, BiasType *, int);
 
   void prepare_quant_calibration(eld_conv_t &);
   void set_scratch_buffers(void *base);

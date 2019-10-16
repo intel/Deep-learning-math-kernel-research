@@ -4,26 +4,19 @@
 
 
 // XOPT
-// kernel options:
-//   - a: CCC, s1
-//   - b: CCD, s1
-//   - c: DCD: s1
-// fusion:  same as winograd
-// dup:     same as winograd
-//
-// ------+-----+--------+-----+--------------------------------------
-//       | ker | fusion | dup |             notes
-// ------+-----+--------+-----+--------------------------------------
-//  c060 |  c  |   t+o  |  -  | blocked/nhwc, Tr, Or, stride=1
-// ------+-----+--------+-----+--------------------------------------
-//  b061 |  b  |   t+o  |  I  | blocked, stride>=1, ow = wt*T
-// ------+-----+--------+-----+--------------------------------------
+// --------+-----+--------+-----------+--------------------------------------
+//         | ker | fusion | transform |             notes
+// --------+-----+--------+-----------+--------------------------------------
+// a160_s1 | gemm|   t+o  |     -     | blocked/nhwc, Tr, Or, stride=1
+// --------+-----+--------+-----------+--------------------------------------
+// a160_s2 | gemm|   t+o  |     -     | blocked/nhwc, stride>=1, ow = wt*T
+// --------+-----+--------+-----------+--------------------------------------
 //
 
 namespace euler {
 
 Template_elx_int8_conv_direct_1x1_t
-void Instance_elx_int8_conv_direct_1x1_t::__execute_c160(
+void Instance_elx_int8_conv_direct_1x1_t::__execute_a160_s1(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   // weights: O4*, O3, O2, I4*, I3, I2, V, V
@@ -85,7 +78,7 @@ void Instance_elx_int8_conv_direct_1x1_t::__execute_c160(
              ? &md2(atoutput_opt, ithr, 0) : ep.output_fmt == nhwc
                ? &md2(atoutput_nhwc, _n, 0) : &md2(atoutput_blocked, _n, 0);
 
-    gemm_c160(atout, aout, ain,
+    gemm_a160_s1(atout, aout, ain,
         &md3(atweights_s8, _O4, _I4, 0),
         &md2(ainput_scale, 0, 0),
         &md2(aweights_scale, _O4, 0),
@@ -106,7 +99,7 @@ void Instance_elx_int8_conv_direct_1x1_t::__execute_c160(
 }
 
 Template_elx_int8_conv_direct_1x1_t
-void Instance_elx_int8_conv_direct_1x1_t::__execute_b161(
+void Instance_elx_int8_conv_direct_1x1_t::__execute_a160_s2(
     OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
 {
   // weights: O4*, O3, O2, I4*, I3, I2, V, V
@@ -179,7 +172,7 @@ void Instance_elx_int8_conv_direct_1x1_t::__execute_b161(
              : ep.output_fmt == nhwc
                ? &md2(atoutput1_nhwc, _O4, 0)
                : &md6(atoutput_blocked, _n, _O4, 0, _ht, _wt, 0);
-    gemm_b161(atout, aout, ain,
+    gemm_a160_s2(atout, aout, ain,
         &md3(atweights_s8, _O4, _I4, 0),
         &md2(ainput_scale, 0, 0),
         &md2(aweights_scale, _O4, 0),
@@ -197,6 +190,16 @@ void Instance_elx_int8_conv_direct_1x1_t::__execute_b161(
 
   if (inference_acc_)
     is_first_run_ = false;
+}
+
+Template_elx_int8_conv_direct_1x1_t
+void Instance_elx_int8_conv_direct_1x1_t::__execute_a160(
+    OutputType *output, InputType *input, WeightsType *weights, BiasType *bias)
+{
+  if (ep.ws == 1)
+    __execute_a160_s1(output, input, weights, bias);
+  else
+    __execute_a160_s2(output, input, weights, bias);
 }
 
 Template_elx_int8_conv_direct_1x1_t
