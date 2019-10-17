@@ -5,9 +5,10 @@
 #include "el_stl.hpp"
 #include "el_def.hpp"
 #include "el_utils.hpp"
+#include "el_init.hpp"
+#include "el_parallel.hpp"
 #include "elx_conv.hpp"
 #include "elx_stream.hpp"
-#include "el_init.hpp"
 
 namespace euler {
 
@@ -59,6 +60,11 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   ep.prop_kind = dc.prop_kind;
 
   ep.nthreads = dc.nthreads;
+  auto mthr = estl::max_concurrency();
+  if (ep.nthreads == 0 || ep.nthreads > mthr) {
+    ep.nthreads = mthr;
+  }
+
   ep.algorithm = dc.algorithm;
   ep.input_data_type = dc.data_type.input;
   ep.weights_data_type = dc.data_type.weights;

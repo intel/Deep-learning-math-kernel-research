@@ -9,6 +9,7 @@ Template_elx_int8_conv_wino_t Instance_elx_int8_conv_wino_t::elx_int8_conv_wino_
 {
   // TODO: error when V!=16 && fmt=OIhw16i16o
   xopt_ = ep.execution_mode;
+  mthr_ = ep.nthreads;
 
   ep.Vx = 4;
   ep.V1 = V / ep.Vx;
@@ -37,12 +38,6 @@ Template_elx_int8_conv_wino_t Instance_elx_int8_conv_wino_t::elx_int8_conv_wino_
 
   is_first_run_ = true;
   inference_acc_ = false;
-  mthr_ = estl::max_concurrency();
-  if (ep.nthreads == 0 || ep.nthreads > mthr_) {
-    ep.nthreads = mthr_;
-  } else {
-    mthr_ = ep.nthreads;
-  }
   inference_acc_ = ep.prop_kind == forward_inference;
 
   ep.O4 = ep.O4 == 0 ? 1 : ep.O4;
