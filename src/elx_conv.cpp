@@ -76,10 +76,10 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   ep.O = dc.flatting.o;
   ep.T = dc.flatting.t;
 
-  ep.I2 = dc.blocking.i;
+  ep.I2 = dc.blocking.i == 0 ? 1 : dc.blocking.i;
   ep.O1 = dc.blocking.o;
 
-  ep.I4 = dc.partition.i;
+  ep.I4 = dc.partition.i == 0 ? 1 : dc.partition.i;
   ep.O4 = dc.partition.o;
   ep.G3 = dc.partition.g;
 
