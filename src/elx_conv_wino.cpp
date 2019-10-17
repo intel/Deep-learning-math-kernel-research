@@ -53,6 +53,11 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
 
   ep.t2 = (ep.t + ep.T - 1) / ep.T;
 
+  if (xopt_ == 0) {
+    auto t2_th = ep.t2 / mthr_;
+    xopt_ = t2_th > 1 ? 0xa061 : 0xa033;
+  }
+
   if ((xopt_ == 0xa073 || ep.with_ip_sum)
       && ep.with_relu && !output_is_bfmt_) {
     el_error("Unimplemented: fuse sum (plain format) and relu together");

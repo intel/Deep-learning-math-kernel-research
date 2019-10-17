@@ -53,6 +53,10 @@ Template_elx_int8_conv_wino_t Instance_elx_int8_conv_wino_t::elx_int8_conv_wino_
   ep.I3 = ep.ic2 / ep.I2;
 
   ep.t2 = (ep.t + ep.T - 1) / ep.T;
+  if (xopt_ == 0) {
+    auto t2_th = ep.t2 / mthr_;
+    xopt_ = t2_th > 1 ? 0xa161 : 0xa133;
+  }
 
   if (ep.sampling_kind != CALIBRATED) {
     el_error("Winograd: to enable sampling from elk_u8s8_gemm");
