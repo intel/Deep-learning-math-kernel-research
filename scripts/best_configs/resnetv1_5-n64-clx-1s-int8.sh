@@ -13,7 +13,7 @@ NSOCKETS=1 ./scripts/run.sh -c --name=conv2d -i3 -h224 -o64 -H112 -k7 -K7 -s2 -S
 
 # conv: 3x3 s1
 # resnet50_res2a_branch2b, conv2d_3, conv2d_6, conv2d_9
-NSOCKETS=1 ./scripts/run.sh -c --name=conv2d_3 -i64 -h56 -o64 -H56 -n64 --tile-size=6 --execution-mode=0xa161 --blk-i=4 --blk-o=2 --flt-o=2 --flt-t=13 --pat-o=1 --output-as-blocked=true $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
+NSOCKETS=1 ./scripts/run.sh -c --name=conv2d_3 -i64 -h56 -o64 -H56 -n64 --tile-size=6 --execution-mode=0xa161 --blk-i=4 --blk-o=2 --flt-o=2 --flt-t=13 --pat-o=1 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
 # resnet50_res3a_branch2b, conv2d_16, conv2d_19, conv2d_22
 NSOCKETS=1 ./scripts/run.sh -c --name=conv2d_16 -i128 -h28 -o128 -H28 -n64 --tile-size=6 --execution-mode=0xa161 --blk-i=8 --blk-o=2 --flt-o=2 --flt-t=13 --pat-o=2 $COMMON --data-type-cfg=U8F32S8F32 --sampling-kind=2
 # resnet50_res4a_branch2b, conv2d_29, conv2d_32, conv2d_35, conv2d_38, conv2d_41

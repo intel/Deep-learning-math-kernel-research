@@ -27,8 +27,8 @@ DEFINE_bool(output_as_input, false,
             "Output of layer n used as input of layer n+1. Default: off");
 DEFINE_string(alg, "wino",
               "deconv|auto|wino|direct|direct_1x1. Algorithm. Default: wino");
-DEFINE_int32(tile_size, 5, "Winograd tile size: 5");
-DEFINE_int32(nthreads, 1, "Number of threads per team");
+DEFINE_int32(tile_size, 0, "Winograd tile size: 0");
+DEFINE_int32(nthreads, 0, "Number of threads per team");
 DEFINE_string(execution_mode, "0x0", "Execution mode");
 DEFINE_int32(flt_o, 1, "OC flatting");
 DEFINE_int32(flt_t, 1, "Tile flatting");
