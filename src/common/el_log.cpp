@@ -9,7 +9,7 @@ int el_log(int severity, const char *fmt, ...) {
   if (severity >= ego.log_level) {
     va_list ap;
 
-    fprintf(stdout, "Euler: %s: ", log_severity_to_string(severity));
+    fprintf(stdout, "euler-%s, ", log_severity_to_string(severity));
     va_start(ap, fmt);
     ret = vfprintf(stdout, fmt, ap);
     va_end(ap);
