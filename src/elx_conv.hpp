@@ -109,6 +109,11 @@ struct elx_param_t {
   alignas(64) float sum_quant_S_vec[16];
 };
 
+
+const int ELX_EVENT_NORMAL = 0;
+const int ELX_EVENT_TEARDOWN = 1;
+const int ELX_EVENT_EXIT = 2;
+
 struct elx_conv_t {
 public:
   elx_conv_t(eld_conv_t &dc);
@@ -121,7 +126,7 @@ public:
   virtual void execute(void *output, void *input, void *weights, void *bias) = 0;
   virtual ~elx_conv_t();
   void teardown();
-  bool on_destroy() { return on_destroy_; }
+  int on_destroy() { return on_destroy_; }
   template <typename F> void setup_workspace(F func) {
     if (ep.prop_kind == forward_inference && ep.shared_workspace_enabled) {
       const char *key = ep.shared_workspace_key.c_str();
@@ -143,7 +148,8 @@ public:
 
   void *workspace_, *output_, *input_, *weights_, *bias_;
   size_t scratch_size_, workspace_size_;
-  bool has_scratch_, on_destroy_;
+  int on_destroy_;
+  bool has_scratch_;
   std::mutex mu_;
 
 private:

@@ -126,7 +126,7 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   scratch_size_ = 0;
   workspace_size_ = 0;
   has_scratch_ = false;
-  on_destroy_ = false;
+  on_destroy_ = ELX_EVENT_NORMAL;
 }
 
 void elx_conv_t::set_workspace_buffers() {
@@ -172,7 +172,8 @@ elx_conv_t::~elx_conv_t() {
   } else {
     // submit an end-of-life request
     ep.stream_sync = true;
-    on_destroy_ = true;
+    if (on_destroy_ == ELX_EVENT_NORMAL)
+      on_destroy_ = ELX_EVENT_TEARDOWN;
     global_stream.submit(this);
     global_stream.wait(this);
   }
