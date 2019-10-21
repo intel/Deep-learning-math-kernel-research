@@ -43,9 +43,6 @@ public:
 
   inline void trans_weights_s8_blocked_oc(float *, int8_t *, WeightsType *, BiasType *);
 
-  void requant_output(OutputType *, ToutputType *);
-
-
   void gemm_a160_s1(ToutputType *, OutputType *, uint8_t *, int8_t *,
       float *, float *, BiasType *, int, int, int);
   void gemm_a160_s2(ToutputType *, OutputType *, uint8_t *, int8_t *,

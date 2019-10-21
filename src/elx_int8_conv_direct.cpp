@@ -10,7 +10,7 @@ Template_elx_int8_conv_direct_t
 Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
     : elx_conv_t(dc)
 {
-  xopt_ = ep.execution_mode;
+  xopt_ = 0; //ep.execution_mode;
   if (xopt_ == 0) {
     if (estl::any_of(ep.kw, 3, 5, 7))
       xopt_ = 0xc160; // conv kernel
@@ -77,7 +77,7 @@ Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
     }
   }
 
-  int V1r = ALIGNUP(ep.ic % V, 4) / ep.V1;
+  int V1r = ALIGNUP(ep.ic % V, 4) / ep.Vx;
   ep.Ir = V1r % ep.V1 ? V1r % ep.V1 : ep.V1;
   ep.Or = ep.oc % V ? ep.oc % V : V;
 

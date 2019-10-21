@@ -59,11 +59,9 @@ Instance_elx_int8_conv_direct_1x1_t::elx_int8_conv_direct_1x1_t(eld_conv_t &dc)
     el_error("direct_1x1: int8: ws > 2 not supported");
   }
 
-  ep.Ir = ep.ic % V ? ep.ic % V : V;
+  int V1r = ALIGNUP(ep.ic % V, 4) / ep.Vx;
+  ep.Ir = V1r % ep.V1 ? V1r % ep.V1 : ep.V1;
   ep.Or = ep.oc % V ? ep.oc % V : V;
-
-  if (ep.Ir != V)
-    el_error("ic / 16 != 0 is not implement while doing int8 gemm");
 
   // O4, (O3, O3r), (O2, O2r)
   ep.oc34 = (ep.oc2 + ep.O2 - 1) / ep.O2;
@@ -84,9 +82,6 @@ Instance_elx_int8_conv_direct_1x1_t::elx_int8_conv_direct_1x1_t(eld_conv_t &dc)
   if (ep.I4 * ep.I3 * ep.I2 * V != ep.IC)
     el_error("IC blocking error");
 
-  if (ep.Ir != V) {
-    el_error("direct_1x1: int8: Ir not support");
-  }
   if ((ep.output_fmt != nChw16c || ep.weights_fmt != OIhw16i16o) &&
       ep.Or != V) {
     el_error("direct_1x1: int8: Or not support");
@@ -242,6 +237,9 @@ void Instance_elx_int8_conv_direct_1x1_t::trans_weights_s8_blocked_oc(
   __m<V> mmscale = _mm<V>::set1_ps(EL_INT8_MAX);
 
   // abs max
+  int Vr = ep.ic % V;
+  if (Vr == 0) Vr = V;
+
   estl::parallel_for<3>([&](int _O4, int _O3, int _O2) {
     MD5(float, aweights_scale, weights_scale,
         ep.O4, ep.O3, 2, ep.O2, V);
@@ -249,13 +247,14 @@ void Instance_elx_int8_conv_direct_1x1_t::trans_weights_s8_blocked_oc(
     iter_each (_I4, ep.I4) {
     iter_each (_I3, ep.I3) {
     iter_each (_I2, ep.I2) {
-    iter_each (_iV1, ep.V1) {
-    iter_each (_iVx, ep.Vx) {
-      MD9(WeightsType, aweights, weights, ep.O4, ep.O3, ep.O2,
-          ep.I4, ep.I3, ep.I2, ep.V1, ep.Vx, V);
-      mmabs_max = _mm<V>::max_ps(mmabs_max, _mm512_abs_ps(*(__m<V> *)
-          &md9(aweights, _O4, _O3, _O2, _I4, _I3, _I2, _iV1, _iVx, 0)));
-    }}}}}
+      auto r = last_I2(_I2, _I3, _I4) ? Vr : V;
+      iter_each (_iV, r) {
+        MD8(WeightsType, aweights, weights, ep.O4, ep.O3, ep.O2,
+            ep.I4, ep.I3, ep.I2, V, V);
+        mmabs_max = _mm<V>::max_ps(mmabs_max, _mm512_abs_ps(*(__m<V> *)
+            &md8(aweights, _O4, _O3, _O2, _I4, _I3, _I2, _iV, 0)));
+      }
+    }}}
     _mm<V>::store_ps(
         &md5(aweights_scale, _O4, _O3, 0, _O2, 0), mmabs_max);
   }, ep.O4, ep.O3, ep.O2);
@@ -272,18 +271,24 @@ void Instance_elx_int8_conv_direct_1x1_t::trans_weights_s8_blocked_oc(
     MD6(float, aweights_scale, weights_scale,
         ep.O4, ep.O3, 2, ep.O1, ep.O, V);
 
-    auto mmresf32 = _mm<V>::mul_ps(
-        *(__m<V> *)&md10(aweights, _O4, _O3, _O1, _O, _I4, _I3, _I2, _iV1, _iVx, 0),
-        mmscale);
-    mmresf32 = _mm<V>::div_ps(mmresf32,
-        *(__m<V> *)&md6(aweights_scale, _O4, _O3, 0, _O1, _O, 0));
-    mmresf32 = _mm<V>::roundscale_ps(
-        mmresf32, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-    float *resf32 = (float *)&mmresf32;
+    if (last_I2(_I2, _I3, _I4) && _iV1 * ep.Vx + _iVx >= Vr) {
 #pragma omp simd
-    iter_each (_oV, V) {
-      md10(atweights_s8, _O4, _I4, _O3, _I3, _O1, _I2, _iV1, _O, _oV, _iVx) =
-          (int8_t)resf32[_oV];
+      iter_each (_oV, V)
+        md10(atweights_s8,
+             _O4, _I4, _O3, _I3, _O1, _I2, _iV1, _O, _oV, _iVx) = 0;
+    } else {
+      auto mmresf32 = _mm<V>::mul_ps(*(__m<V> *)&md10(aweights,
+          _O4, _O3, _O1, _O, _I4, _I3, _I2, _iV1, _iVx, 0), mmscale);
+      mmresf32 = _mm<V>::div_ps(mmresf32,
+          *(__m<V> *)&md6(aweights_scale, _O4, _O3, 0, _O1, _O, 0));
+      mmresf32 = _mm<V>::roundscale_ps(
+          mmresf32, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+      float *resf32 = (float *)&mmresf32;
+#pragma omp simd
+      iter_each (_oV, V) {
+        md10(atweights_s8, _O4, _I4, _O3, _I3, _O1, _I2, _iV1, _O, _oV, _iVx) =
+            (int8_t)resf32[_oV];
+      }
     }
   }, ep.O4, ep.I4, ep.O3, ep.I3, ep.O1, ep.I2, ep.V1, ep.O, ep.Vx);
 
@@ -348,35 +353,6 @@ void Instance_elx_int8_conv_direct_1x1_t::trans_weights_s8_blocked_oc(
 }
 
 Template_elx_int8_conv_direct_1x1_t
-void Instance_elx_int8_conv_direct_1x1_t::requant_output(
-    OutputType *output, ToutputType *toutput)
-{
-  __m<V> mmorepS = _mm<V>::set1_ps(ep.output_quant_repS);
-  __m<V> mmoz = _mm<V>::set1_ps(ep.output_quant_z);
-
-  estl::parallel_for<4>([&](int _n, int _o, int _oh, int _ow) {
-    MD5(ToutputType, atoutput, toutput,
-        ep.n, ep.OC / V, ep.oh, ep.ow, V);
-    MD5(OutputType, aoutput, output,
-        ep.n, ep.OC / V, ep.oh, ep.ow, V);
-    __m<V> mmres = *(__m<V> *)&md5(atoutput, _n, _o, _oh, _ow, 0);
-    __m<V> mmresf32 = mmres * mmorepS + mmoz;
-    __i<V> mmress32 = _mm<V>::cvt_roundps_epi32(
-        mmresf32, _MM_FROUND_TO_NEAREST_INT  | _MM_FROUND_NO_EXC);
-    __m128i mmresx8;
-    if (std::is_same<OutputType, int8_t>::value)
-      mmresx8 = _mm<V>::cvtsepi32_epi8(mmress32);
-    else if (std::is_same<OutputType, uint8_t>::value)
-      mmresx8 = _mm<V>::cvtusepi32_epi8(mmress32);
-    else {
-      mmresx8 = _mm_setzero_si128();
-      el_error("Unsupported output type for int8 direct 1x1");
-    }
-    _mm_store_si128((__m128i *)&md5(aoutput, _n, _o, _oh, _ow, 0), mmresx8);
-  }, ep.n, ep.OC / V, ep.oh, ep.ow);
-}
-
-Template_elx_int8_conv_direct_1x1_t
 void Instance_elx_int8_conv_direct_1x1_t::gemm_a160_s2(ToutputType *toutput,
     OutputType *output, uint8_t *input, int8_t *weights, float *input_scale,
     float *weights_scale, BiasType *bias, int _I4)
@@ -405,9 +381,9 @@ void Instance_elx_int8_conv_direct_1x1_t::gemm_a160_s2(ToutputType *toutput,
         ? set_bit(attr_, AT_CLEAR_OUTPUT_MASK)
         : attr_;
     if (_I4 == ep.I4 - 1 && _I3 == ep.I3 - 1) {
-      if (ep.with_relu)
-        attr = set_bit(attr, AT_RELU_MASK);
       attr = set_bit(attr, AT_RESTORE_OUTPUT_MASK);
+      if (ep.with_relu) attr = set_bit(attr, AT_RELU_MASK);
+      if (ep.Ir != ep.V1) attr = set_bit(attr, AT_Ir_MASK);
     }
     auto ain = ep.input_fmt == nhwc
         ? &md2(ainput_nhwc, _I3, 0) : &md2(ainput_blocked, _I3, 0);
@@ -465,9 +441,9 @@ void Instance_elx_int8_conv_direct_1x1_t::gemm_a160_s1(ToutputType *toutput,
         : attr_;
 
     if (_I4 == ep.I4 - 1 && _I3 == ep.I3 - 1) {
-      if (ep.with_relu)
-        attr = set_bit(attr, AT_RELU_MASK);
       attr = set_bit(attr, AT_RESTORE_OUTPUT_MASK);
+      if (ep.with_relu) attr = set_bit(attr, AT_RELU_MASK);
+      if (ep.Ir != ep.V1) attr = set_bit(attr, AT_Ir_MASK);
     }
 
     auto ain = ep.input_fmt == nhwc

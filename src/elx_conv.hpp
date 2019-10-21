@@ -152,6 +152,10 @@ public:
   bool has_scratch_;
   std::mutex mu_;
 
+  inline bool last_I2(int _I2, int _I3, int _I4) {
+    return _I4 == ep.I4 - 1 && _I3 == ep.I3 - 1 && _I2 == ep.I2 - 1;
+  }
+
 private:
   virtual void set_workspace_buffers(void *base) = 0;
   virtual void set_scratch_buffers(void *base) = 0;
