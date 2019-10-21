@@ -11,6 +11,24 @@ namespace euler {
 
 elx_stream global_stream;
 
+
+struct elx_eol_t : public elx_conv_t {
+public:
+  elx_eol_t(eld_conv_t &dc) : elx_conv_t(dc) {
+    this->eager_mode = false;
+    this->stream_sync = true;
+    this->shared_workspace_enabled = false;
+    this->exit_thread = true;
+  }
+
+  virtual void execute(void *output, void *input, void *weights, void *bias) {}
+  virtual ~elx_eol_t() {}
+
+private:
+  virtual void set_workspace_buffers(void *base) {}
+  virtual void set_scratch_buffers(void *base) {}
+};
+
 int set_cpu_affinity() {
   // TODO
   return 0;
@@ -20,14 +38,16 @@ elx_stream::elx_stream() {
   _threadx = new std::thread([&]{
     set_cpu_affinity();
     // executor thread
-    while (true) {
-      run();
-    }
+    while (run());
   });
   _threadx->detach();
 }
 
 elx_stream::~elx_stream() {
+
+  eld_conv_t dc;
+  elx_eol_t eol(dc);
+
   delete _threadx;
 }
 
@@ -50,9 +70,13 @@ int elx_stream::run() {
   _stream.pop();
   mlock.unlock();
 
+  int ret = 1;
   if (xc != nullptr) {
     if (xc->on_destroy()) {
-      xc->teardown();
+      if (xc->exit_thread)
+        ret = 0;
+      else
+        xc->teardown();
     } else {
       if (ego.verbose) {
         xc->execute_verbose(
@@ -66,7 +90,7 @@ int elx_stream::run() {
       xc->mu.unlock();
     }
   }
-  return 0;
+  return ret;
 }
 
 void elx_stream::wait(elx_conv_t *xc) {

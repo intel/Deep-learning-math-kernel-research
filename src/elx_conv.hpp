@@ -96,6 +96,7 @@ struct elx_conv_params_t {
 
   bool eager_mode;
   bool stream_sync;
+  bool exit_thread;
 
   std::string name;
   std::string shared_workspace_key;

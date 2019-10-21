@@ -104,6 +104,7 @@ elx_conv_t::elx_conv_t(eld_conv_t &dc)
   this->eager_mode = dc.eager_mode;
   this->stream_sync = dc.stream_sync;
   this->name = dc.name;
+  this->exit_thread = false;
  
   auto env_numa_node = getenv("EULER_NUMA_NODE");
   auto env_shared_workspace = getenv("EULER_SHARED_WORKSPACE");
