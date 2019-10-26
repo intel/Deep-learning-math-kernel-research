@@ -143,13 +143,12 @@ void elx_conv_t::set_workspace_buffers() {
 }
 
 void elx_conv_t::set_scratch_buffers() {
-  void *scratch = nullptr;
   if (scratch_size_ != 0 && !has_scratch_) {
-    scratch = galloc::acquire(scratch_size_);
-    has_scratch_ = true;
+    void *scratch = scratch = galloc::acquire(scratch_size_);
+    if (scratch != nullptr)
+      has_scratch_ = true;
   }
-  if (scratch != nullptr)
-    set_scratch_buffers(galloc::get());
+  set_scratch_buffers(galloc::get());
 }
 
 void elx_conv_t::teardown() {
