@@ -31,6 +31,8 @@ Template_elx_int8_conv_wino_t Instance_elx_int8_conv_wino_t::elx_int8_conv_wino_
   if (ep.T == 0)  ep.T = 1; // TODO: T selection
   ep.O2 = ep.O * ep.O1;
 
+  if (ep.t < ep.T) ep.T = ep.t;
+
   // Tailing
   ep.Tr = ep.t % ep.T ? ep.t % ep.T : ep.T;
   ep.Ir = ep.ic % V ? ep.ic % V : V;
@@ -206,7 +208,7 @@ int Instance_elx_int8_conv_wino_t::prepare_execute_opt()
 
   workspace_size_ = tweights_size_ + tweights_s8_size_
       + tweights_scale_size_ + tweights_shift_size_;
-  scratch_size_ = estl::max(tinput_size_, toutput_size_)
+  scratch_size_ = tinput_size_ + toutput_size_
       + binput_size_ + bweights_size_ + boutput_size_ + tinput_u8_size_;
 
   if (ep.sampling_kind == CALIBRATED)
@@ -239,8 +241,8 @@ void Instance_elx_int8_conv_wino_t::set_scratch_buffers(void *base)
 {
   if (base != nullptr) {
     tinput_ = (TinputType *)base;
-    toutput_ = (ToutputType *)tinput_;
-    binput_ = (InputType *)((char *)toutput_ + estl::max(tinput_size_, toutput_size_));
+    toutput_ = (ToutputType *)((char*)tinput_ + tinput_size_);
+    binput_ = (InputType *)((char *)toutput_ + toutput_size_);
     bweights_ = (WeightsType *)((char *)binput_ + binput_size_);
     boutput_ = (OutputType *)((char *)bweights_ + bweights_size_);
     if (ep.sampling_kind == CALIBRATED) {
