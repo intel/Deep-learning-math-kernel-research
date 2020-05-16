@@ -1,18 +1,16 @@
+# supress gflags warning #3280
+remove_definitions(-Werror)
+
 file (GLOB __test_sources
   elt_conv.cpp
   elt_conv_utils.cpp
   elt_gflag.cpp)
 
-include (Findgflags.cmake)
-if (GFLAGS_FOUND)
-  message(STATUS "Found gflags include dirs: ${GFLAGS_INCLUDE_DIRS}")
-  message(STATUS "Found gflags libraries: ${GFLAGS_LIBRARIES}")
-  message(STATUS "Found gflags namespace: ${GFLAGS_NAMESPACE}")
-else (GFLAGS_FOUND)
-  message(FATAL_ERROR "Gflags not found")
-endif (GFLAGS_FOUND)
+set(gflags_BUILD_STATIC_LIBS ON)
+set(GFLAGS_SRC_DIR gflags CACHE STRING "gflags source from submodules")
+add_subdirectory("${GFLAGS_SRC_DIR}")
+include_directories(gflags)
 
-include_directories("${GFLAGS_INCLUDE_DIRS}")
 add_executable(elt_conv ${__test_sources})
-target_link_libraries(elt_conv ${lib_name} iomp5 ${GFLAGS_LIBRARIES})
+target_link_libraries(elt_conv ${lib_name} iomp5 gflags)
 add_test(NAME elt_conv COMMAND elt_conv)
