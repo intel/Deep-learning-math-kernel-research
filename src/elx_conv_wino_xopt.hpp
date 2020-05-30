@@ -196,15 +196,16 @@ void Instance_elx_conv_wino_t::__execute_a033(
     });
   }
 
-  MD3(TweightsType, atweights, tweights_, ep.O4, ep.I4,
-      A * A * ep.I3 * ep.I2 * V * ep.O3 * ep.O2 * V);
-  MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
   TinputType *_tinput = ep.use_scratch_pad
       ? (TinputType *)ep.scratch_pad : tinput_;
 
   THREAD_PARALLEL()
   {
     int last_I4 = -1;
+    MD3(TweightsType, atweights, tweights_, ep.O4, ep.I4,
+        A * A * ep.I3 * ep.I2 * V * ep.O3 * ep.O2 * V);
+    MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
+
     iter_each(_I4, ep.I4) {
     iter_each(_O4, ep.O4) {
       if (_I4 != last_I4) {

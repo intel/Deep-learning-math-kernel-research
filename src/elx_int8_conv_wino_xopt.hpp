@@ -30,21 +30,20 @@ void Instance_elx_int8_conv_wino_t::__execute_a133(
     });
   }
 
-  MD3(TweightsType, atweights, tweights_, ep.O4, ep.I4,
-      A * A * ep.I3 * ep.I2 * V * ep.O3 * ep.O2 * V);
-  MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
-
-  MD3(int8_t, atweights_s8, tweights_s8_, ep.O4, ep.I4,
-      A * A * ep.I3 * ep.I2 * V * ep.O3 * ep.O2 * V);
-
-  MD3(float, atweights_scale, tweights_scale_,
-      ep.O4, ep.I4, ep.O3 * ep.O2 * V * A * A);
-  MD3(float, aweights_shift, tweights_shift_,
-      ep.O4, ep.I4, ep.O3 * ep.O2 * V * A * A);
-
   THREAD_PARALLEL()
   {
     int last_I4 = -1;
+    MD3(TweightsType, atweights, tweights_, ep.O4, ep.I4,
+        A * A * ep.I3 * ep.I2 * V * ep.O3 * ep.O2 * V);
+    MD2(BiasType, abias, bias, ep.O4, ep.O3 * ep.O2 * V);
+
+    MD3(int8_t, atweights_s8, tweights_s8_, ep.O4, ep.I4,
+        A * A * ep.I3 * ep.I2 * V * ep.O3 * ep.O2 * V);
+    MD3(float, atweights_scale, tweights_scale_,
+        ep.O4, ep.I4, ep.O3 * ep.O2 * V * A * A);
+    MD3(float, aweights_shift, tweights_shift_,
+        ep.O4, ep.I4, ep.O3 * ep.O2 * V * A * A);
+
     iter_each (_I4, ep.I4) {
     iter_each (_O4, ep.O4) {
       if (_I4 != last_I4) {
