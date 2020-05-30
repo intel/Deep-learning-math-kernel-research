@@ -206,4 +206,29 @@ reorder<Type, ghwio, goihw>::reorder(
   }, g, h, w, i, o);
 }
 
+template struct reorder<float,   nchw, nhwc>;
+template struct reorder<float,   nhwc, nchw>;
+template struct reorder<float,   nchw, nChw16c>;
+template struct reorder<float,   nChw16c, nchw>;
+template struct reorder<float,   oihw, OIhw16i16o>;
+template struct reorder<float,   goihw, gOIhw16i16o>;
+template struct reorder<float,   OIhw16i16o, oihw>;
+template struct reorder<float,   gOIhw16i16o, goihw>;
+template struct reorder<float,   oihw, hwio>;
+template struct reorder<float,   goihw, ghwio>;
+template struct reorder<float,   hwio, oihw>;
+template struct reorder<float,   ghwio, goihw>;
+template struct reorder<uint8_t, nchw, nhwc>;
+template struct reorder<uint8_t, nhwc, nchw>;
+template struct reorder<uint8_t, nchw, nChw16c>;
+template struct reorder<uint8_t, nChw16c, nchw>;
+template struct reorder<uint8_t, oihw, OIhw16i16o>;
+template struct reorder<uint8_t, goihw, gOIhw16i16o>;
+template struct reorder<uint8_t, OIhw16i16o, oihw>;
+template struct reorder<uint8_t, gOIhw16i16o, goihw>;
+template struct reorder<uint8_t, oihw, hwio>;
+template struct reorder<uint8_t, goihw, ghwio>;
+template struct reorder<uint8_t, hwio, oihw>;
+template struct reorder<uint8_t, ghwio, goihw>;
+
 } // namespace euler

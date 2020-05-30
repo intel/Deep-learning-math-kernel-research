@@ -1,4 +1,6 @@
 #include "elx_conv_direct_1x1.hpp"
+#include "elx_conv_direct_1x1_bind.hpp"
+#include "elx_conv_direct_1x1_xopt.hpp"
 #include "el_parallel.hpp"
 
 namespace euler {
@@ -114,11 +116,11 @@ Instance_elx_conv_direct_1x1_t::elx_conv_direct_1x1_t(eld_conv_t &dc)
   bind_execute_functions();
 
   // dbg
-  el_log(DEBUG, "T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d",
+  el_log(__DEBUG, "T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d",
          ep.T, ep.Tr, ep.t2, ep.ht, ep.wt, ep.t);
-  el_log(DEBUG, "V=%d, Ir=%d, I2=%d, I3=%d, I4=%d, IC=%d",
+  el_log(__DEBUG, "V=%d, Ir=%d, I2=%d, I3=%d, I4=%d, IC=%d",
          V, ep.Ir, ep.I2, ep.I3, ep.I4, ep.IC);
-  el_log(DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d",
+  el_log(__DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d",
          V, ep.Or, ep.O2, ep.O, ep.O1,
          ep.O3, ep.O4, ep.O2r, ep.O3r, ep.OC);
 }
@@ -174,7 +176,7 @@ int  Instance_elx_conv_direct_1x1_t::prepare_execute_opt()
 
   switch (xopt_) {
   case a061p1:
-    tinput_msk_ = (unsigned char *)malloc(mthr_ * ep.t2);
+    tinput_msk_ = (unsigned char *)aligned_alloc(64, mthr_ * ep.t2);
     toutput_size = mthr_ * ep.O3 * ep.O2 * ep.T * V * sizeof(ToutputType);
     tinput_size = mthr_ * ep.I3 * ep.I2 * ep.T * V * ep.t2 * sizeof(TinputType);
     tweights_size = ep.IC * ep.OC * sizeof(TweightsType);
@@ -182,7 +184,7 @@ int  Instance_elx_conv_direct_1x1_t::prepare_execute_opt()
   case a061p2:
     toutput_size = mthr_ * ep.O3 * ep.O2 * ep.T * V * sizeof(ToutputType);
   case a061:
-    tinput_msk_ = (unsigned char *)malloc(mthr_ * ep.I4 * ep.ht * ep.wt);
+    tinput_msk_ = (unsigned char *)aligned_alloc(64, mthr_ * ep.I4 * ep.ht * ep.wt);
     tinput_size = mthr_ * ep.I3 * ep.I2 * V * ep.ht * ep.wt * ep.T * sizeof(TinputType);
     tweights_size = ep.IC * ep.OC * sizeof(TweightsType);
     break;
@@ -1394,5 +1396,11 @@ void Instance_elx_conv_direct_1x1_t::gemm_a060(OutputType *output,
     }
   }
 }
+
+//fp32-f32f32f32
+template class elx_conv_direct_1x1_t<conv::FP32, conv_impl::FP32, 16, ISA_AVX512>;
+
+//fp32-f32f16f32
+template class elx_conv_direct_1x1_t<conv::FP32, conv_impl::FP32_F16w, 16, ISA_AVX512>;
 
 } // namespace euler

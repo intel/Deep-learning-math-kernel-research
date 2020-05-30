@@ -14,7 +14,7 @@ namespace euler {
 // wino-gemm toutput : t2, A*A, oc3, O2, T, V
 // wino-gemm tweights: oc3, I3, A*A, O2, I2, V, V
 
-struct elx_param_t {
+struct alignas(64) elx_param_t {
   // dimensions
   int g, ic, oc, ih, iw, oh, ow, n, kh, kw;
   // padding, stride, dilation
@@ -114,7 +114,7 @@ const int ELX_EVENT_NORMAL = 0;
 const int ELX_EVENT_TEARDOWN = 1;
 const int ELX_EVENT_EXIT = 2;
 
-struct elx_conv_t {
+struct alignas(64) elx_conv_t {
 public:
   elx_conv_t(eld_conv_t &dc);
 

@@ -415,11 +415,11 @@ void elx_conv_wino_trans_weights_t<TweightsType, WeightsType, I, A, K, V>
 ::execute(TweightsType *__restrict tweights,
     WeightsType *__restrict weights, int O4) {
   if (weights_is_bfmt_ || weights_as_bfmt_)
-    __execute_blocked(tweights, weights, O4);
+    this->__execute_blocked(tweights, weights, O4);
   else if (ep->weights_fmt == hwio)
-    __execute_hwio(tweights, weights, O4);
+    this->__execute_hwio(tweights, weights, O4);
   else
-    __execute_oihw(tweights, weights, O4);
+    this->__execute_oihw(tweights, weights, O4);
 }
 
 template <typename TweightsType, typename WeightsType, int I, int A, int K, int V>
@@ -427,11 +427,11 @@ void elx_conv_wino_trans_weights_t<TweightsType, WeightsType, I, A, K, V>
 ::execute(TweightsType *__restrict tweights,
     WeightsType *__restrict weights, int _I4, int _O4) {
   if (weights_is_bfmt_ || weights_as_bfmt_)
-    __execute_blocked(tweights, weights, _I4, _O4);
+    this->__execute_blocked(tweights, weights, _I4, _O4);
   else if (ep->weights_fmt == hwio)
-    __execute_hwio(tweights, weights, _I4, _O4);
+    this->__execute_hwio(tweights, weights, _I4, _O4);
   else
-    __execute_oihw(tweights, weights, _I4, _O4);
+    this->__execute_oihw(tweights, weights, _I4, _O4);
 }
 
 template <typename WeightsType, int I, int A, int K, int V>
@@ -543,12 +543,45 @@ void elx_conv_wino_trans_weights_t<int8_t, WeightsType, I, A, K, V>
     WeightsType *__restrict weights, int O4) {
   {
     if (weights_is_bfmt_ || weights_as_bfmt_)
-      __execute_blocked(tweights, weights, O4);
+      this->__execute_blocked(tweights, weights, O4);
     else
-      __execute_oihw(tweights, weights, O4);
+      this->__execute_oihw(tweights, weights, O4);
 
     quantization(tweights_scale, tweights_shift,
                  tweights_s8, tweights, O4);
   }
 }
+
+template class elx_conv_wino_trans_weights_t<float, float, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_weights_t<float, float, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_weights_t<float, float, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_weights_t<float, float, ISA_AVX512, 7, 3, 16>;
+
+template class elx_conv_wino_trans_weights_t<short, float, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_weights_t<short, float, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_weights_t<short, float, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_weights_t<short, float, ISA_AVX512, 7, 3, 16>;
+
+template class elx_conv_wino_trans_weights_t<int8_t, float, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_weights_t<int8_t, float, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_weights_t<int8_t, float, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_weights_t<int8_t, float, ISA_AVX512, 7, 3, 16>;
+
+#ifdef ENABLE_USER_FP16
+template class elx_conv_wino_trans_weights_t<float, short, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_weights_t<float, short, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_weights_t<float, short, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_weights_t<float, short, ISA_AVX512, 7, 3, 16>;
+
+template class elx_conv_wino_trans_weights_t<short, short, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_weights_t<short, short, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_weights_t<short, short, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_weights_t<short, short, ISA_AVX512, 7, 3, 16>;
+
+template class elx_conv_wino_trans_weights_t<int8_t, short, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_weights_t<int8_t, short, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_weights_t<int8_t, short, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_weights_t<int8_t, short, ISA_AVX512, 7, 3, 16>;
+#endif
+
 } // namespace euler

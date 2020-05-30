@@ -1,3 +1,5 @@
+#pragma once
+
 #include "elx_int8_conv_direct.hpp"
 #include "el_parallel.hpp"
 

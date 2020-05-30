@@ -896,4 +896,35 @@ void elx_conv_wino_trans_input_t<uint8_t, InputType, I, A, K, V>
     __execute_nchw(tinput_scale, tinput_u8, tinput, input, _t2, Tz);
 }
 
+template class elx_conv_wino_trans_input_t<float, float, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_input_t<float, float, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_input_t<float, float, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_input_t<float, float, ISA_AVX512, 7, 3, 16>;
+
+template class elx_conv_wino_trans_input_t<short, float, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_input_t<short, float, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_input_t<short, float, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_input_t<short, float, ISA_AVX512, 7, 3, 16>;
+
+template class elx_conv_wino_trans_input_t<uint8_t, float, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_input_t<uint8_t, float, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_input_t<uint8_t, float, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_input_t<uint8_t, float, ISA_AVX512, 7, 3, 16>;
+
+template class elx_conv_wino_trans_input_t<uint8_t, uint8_t, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_input_t<uint8_t, uint8_t, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_input_t<uint8_t, uint8_t, ISA_AVX512, 6, 3, 16>;
+
+#ifdef ENABLE_USER_FP16
+template class elx_conv_wino_trans_input_t<float, short, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_input_t<float, short, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_input_t<float, short, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_input_t<float, short, ISA_AVX512, 7, 3, 16>;
+
+template class elx_conv_wino_trans_input_t<uint8_t, short, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_input_t<uint8_t, short, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_input_t<uint8_t, short, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_input_t<uint8_t, short, ISA_AVX512, 7, 3, 16>;
+#endif
+
 } // namespace euler

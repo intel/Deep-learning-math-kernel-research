@@ -3,6 +3,8 @@
 #include "el_utils.hpp"
 #include "el_parallel.hpp"
 #include "elx_int8_conv_direct.hpp"
+#include "elx_int8_conv_direct_bind.hpp"
+#include "elx_int8_conv_direct_xopt.hpp"
 
 namespace euler {
 
@@ -125,11 +127,11 @@ Instance_elx_int8_conv_direct_t::elx_int8_conv_direct_t(eld_conv_t &dc)
   bind_execute_functions();
 
   // dbg
-  el_log(DEBUG, "T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d",
+  el_log(__DEBUG, "T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d",
          ep.T, ep.Tr, ep.t2, ep.ht, ep.wt, ep.t);
-  el_log(DEBUG, "V=%d, Ir=%d, Vx=%d, I2=%d, I3=%d, I4=%d, IC=%d",
+  el_log(__DEBUG, "V=%d, Ir=%d, Vx=%d, I2=%d, I3=%d, I4=%d, IC=%d",
          V, ep.Ir, ep.Vx, ep.I2, ep.I3, ep.I4, ep.IC);
-  el_log(DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d",
+  el_log(__DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d",
          V, ep.Or, ep.O2, ep.O, ep.O1,
          ep.O3, ep.O4, ep.O2r, ep.O3r, ep.OC);
 }
@@ -266,7 +268,7 @@ Instance_elx_int8_conv_direct_t::prepare_weights_acc() {
       wacc_h_ranges_.push_back(*t);
     }
     for (auto i : wacc_h_ranges_) {
-      el_log(DEBUG, "kh_ranges: %d, %d", std::get<0>(i), std::get<1>(i));
+      el_log(__DEBUG, "kh_ranges: %d, %d", std::get<0>(i), std::get<1>(i));
     }
 
     // kw-ranges
@@ -285,7 +287,7 @@ Instance_elx_int8_conv_direct_t::prepare_weights_acc() {
       wacc_w_ranges_.push_back(*t);
     }
     for (auto i : wacc_w_ranges_) {
-      el_log(DEBUG, "kw_ranges: %d, %d", std::get<0>(i), std::get<1>(i));
+      el_log(__DEBUG, "kw_ranges: %d, %d", std::get<0>(i), std::get<1>(i));
     }
 
     wacc_wt_ = ep.wt >= 3 ? 3 : ep.wt; // left T, middle T (full), right Tr
@@ -298,7 +300,7 @@ Instance_elx_int8_conv_direct_t::prepare_weights_acc() {
   }
 
   // Debug
-  el_log(DEBUG, 
+  el_log(__DEBUG, 
          "wacc_h_:%d, wacc_w_:%d, _wacc_hf_:%d, _wacc_wf_:%d, _wacc_hfr_:%d, "
          "_wacc_wfr_:%d, wacc_wt_:%d, wacc_wT_:%d, _wacc_ohfs_:%d, "
          "_wacc_ohfe_:%d, _wacc_owfs_:%d, _wacc_owfe_:%d",
@@ -313,7 +315,7 @@ Instance_elx_int8_conv_direct_t::__trans_weights_acc(float *weights_scale,
                                                    BiasType *bias) {
   auto V1 = compact_ir_weights_ ? ep.Ir : ep.V1;
   float *weights_shift_buf =
-      (float *)malloc(wacc_h_ * wacc_w_ * ep.OC * sizeof(float));
+      (float *)aligned_alloc(64, wacc_h_ * wacc_w_ * ep.OC * sizeof(float));
 
   // weights-acc
   estl::parallel_for<7>([&](int _wacc_h, int _wacc_w, int _O4, int _O3, int _O1, int _O, int _oV) {
@@ -714,5 +716,12 @@ void Instance_elx_int8_conv_direct_t::gemm_a160(OutputType *output,
     }
   }}
 }
+
+// int8-u8f32u8f32
+template class elx_int8_conv_direct_t<conv::U8F32U8F32, conv_impl::INT8_F32, 16, ISA_AVX512>;
+// int8-u8f32s8f32
+template class elx_int8_conv_direct_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_AVX512>;
+// int8-u8f32f32f32
+template class elx_int8_conv_direct_t<conv::U8F32F32F32, conv_impl::INT8_F32, 16, ISA_AVX512>;
 
 } // namespace euler

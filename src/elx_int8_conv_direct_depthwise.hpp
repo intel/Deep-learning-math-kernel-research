@@ -78,8 +78,5 @@ Template_elx_int8_conv_direct_depthwise_t class elx_int8_conv_direct_depthwise_t
   int mthr_;
 };
 
-template class elx_int8_conv_direct_depthwise_t<conv::U8F32U8F32, conv_impl::INT8_F32, 16, ISA_AVX512>;
-template class elx_int8_conv_direct_depthwise_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_AVX512>;
-
 } // namespace euler
 #endif // __ELX_CONV_DIRECT_DEPTHWISE_LP_HPP__

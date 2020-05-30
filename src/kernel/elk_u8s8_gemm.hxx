@@ -202,7 +202,7 @@ struct u8s8_gemm_kernel<GarrayTypes, OoutputType, V, Vx, ISA_AVX512,
     // requantization
     // global sampling for input/output
     // XXX: fixme
-    if (ep.sampling_kind == CALIBRATED, 1) {
+    if (/* ep.sampling_kind == CALIBRATED */1) {
       __m<V> s = *(__m<V> *)&md2(aweights_scale, _O, 0);
       __m<V> z = *(__m<V> *)&md2(aweights_shift, _O, 0);
       fout = fout * s + z;

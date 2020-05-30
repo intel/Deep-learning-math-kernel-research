@@ -1,3 +1,5 @@
+#pragma once
+
 #include <string.h>
 #include "el_parallel.hpp"
 #include "elx_conv_direct_1x1.hpp"

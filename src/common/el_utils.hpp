@@ -48,7 +48,7 @@
 #define __tend(n)                                                              \
   _(std::chrono::high_resolution_clock::time_point __e##n =                    \
     std::chrono::high_resolution_clock::now());                                \
-  _(el_log(DEBUG, "time: %s, th=%d, %.2f ms", #n,                              \
+  _(el_log(__DEBUG, "time: %s, th=%d, %.2f ms", #n,                            \
            estl::current_thread_index(),                                       \
            std::chrono::duration<float, std::milli>(__e##n - __s##n).count()));
 
@@ -90,13 +90,13 @@ static inline uint32_t clear_bit(const uint32_t v, const uint32_t mask) {
 
 static inline const char *log_severity_to_string(int severity) {
   switch (severity) {
-  case TRACE: return "trace";
-  case DEBUG: return "debug";
-  case INFO: return "info";
-  case WARN: return "warn";
-  case ERROR: return "error";
-  case FATAL: return "fatal";
-  case PERF_TRACE: return "perf";
+  case __TRACE: return "trace";
+  case __DEBUG: return "debug";
+  case __INFO: return "info";
+  case __WARN: return "warn";
+  case __ERROR: return "error";
+  case __FATAL: return "fatal";
+  case __PERF_TRACE: return "perf";
   default: return "log-severity-unknown";
   }
   return "unknown";

@@ -1,4 +1,6 @@
 #include "elx_int8_conv_direct_1x1.hpp"
+#include "elx_int8_conv_direct_1x1_bind.hpp"
+#include "elx_int8_conv_direct_1x1_xopt.hpp"
 #include "el_parallel.hpp"
 
 namespace euler {
@@ -102,11 +104,11 @@ Instance_elx_int8_conv_direct_1x1_t::elx_int8_conv_direct_1x1_t(eld_conv_t &dc)
   bind_execute_functions();
 
   // dbg
-  el_log(DEBUG, "T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d",
+  el_log(__DEBUG, "T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d",
          ep.T, ep.Tr, ep.t2, ep.ht, ep.wt, ep.t);
-  el_log(DEBUG, "V=%d, Vx=%d, Ir=%d, I2=%d, I3=%d, I4=%d, IC=%d",
+  el_log(__DEBUG, "V=%d, Vx=%d, Ir=%d, I2=%d, I3=%d, I4=%d, IC=%d",
          V, ep.Vx, ep.Ir, ep.I2, ep.I3, ep.I4, ep.IC);
-  el_log(DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d",
+  el_log(__DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d",
          V, ep.Or, ep.O2, ep.O, ep.O1,
          ep.O3, ep.O4, ep.O2r, ep.O3r, ep.OC);
 }
@@ -476,5 +478,10 @@ void Instance_elx_int8_conv_direct_1x1_t::gemm_a160_s1(ToutputType *toutput,
     }
   }
 }
+
+//u8f32u8f32-u8s8f32
+template class elx_int8_conv_direct_1x1_t<conv::U8F32U8F32, conv_impl::INT8_F32, 16, ISA_AVX512>;
+//u8f32s8f32-u8s8f32
+template class elx_int8_conv_direct_1x1_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_AVX512>;
 
 } // namespace euler

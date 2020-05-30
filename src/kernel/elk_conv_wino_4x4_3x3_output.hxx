@@ -110,7 +110,7 @@ struct elk_conv_wino_trans_output<float,OutputType, BiasType, format,
     STORE_SI256((__m256i *)out_ptr(i, j), f16);                                \
   }
 
-    float M[4][6][16];
+    alignas(64) float M[4][6][16];
 
     __m<V> z0 = _mm<V>::set1_ps(1.5f);
     __m<V> z1 = _mm<V>::set1_ps(2.25f);

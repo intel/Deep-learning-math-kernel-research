@@ -127,38 +127,5 @@ private:
   float *tweights_shift_;
 };
 
-// fp32-u8s8f32
-template class elx_int8_conv_wino_t<conv::FP32, conv_impl::INT8_F32, 4, 3, 16, ISA_AVX512>;
-template class elx_int8_conv_wino_t<conv::FP32, conv_impl::INT8_F32, 5, 3, 16, ISA_AVX512>;
-template class elx_int8_conv_wino_t<conv::FP32, conv_impl::INT8_F32, 6, 3, 16, ISA_AVX512>;
-template class elx_int8_conv_wino_t<conv::FP32, conv_impl::INT8_F32, 7, 3, 16, ISA_AVX512>;
-
-// u8f32u8f32-u8s8f32
-template class elx_int8_conv_wino_t<conv::U8F32U8F32, conv_impl::INT8_F32, 4, 3, 16, ISA_AVX512>;
-template class elx_int8_conv_wino_t<conv::U8F32U8F32, conv_impl::INT8_F32, 5, 3, 16, ISA_AVX512>;
-template class elx_int8_conv_wino_t<conv::U8F32U8F32, conv_impl::INT8_F32, 6, 3, 16, ISA_AVX512>;
-
-// u8f32s8f32-u8s8f32
-template class elx_int8_conv_wino_t<conv::U8F32S8F32, conv_impl::INT8_F32, 4, 3, 16, ISA_AVX512>;
-template class elx_int8_conv_wino_t<conv::U8F32S8F32, conv_impl::INT8_F32, 5, 3, 16, ISA_AVX512>;
-template class elx_int8_conv_wino_t<conv::U8F32S8F32, conv_impl::INT8_F32, 6, 3, 16, ISA_AVX512>;
-
-// u8f32f32f32-u8s8f32
-template class elx_int8_conv_wino_t<conv::U8F32F32F32, conv_impl::INT8_F32, 4, 3, 16, ISA_AVX512>;
-template class elx_int8_conv_wino_t<conv::U8F32F32F32, conv_impl::INT8_F32, 5, 3, 16, ISA_AVX512>;
-template class elx_int8_conv_wino_t<conv::U8F32F32F32, conv_impl::INT8_F32, 6, 3, 16, ISA_AVX512>;
-
-// fp32-u8s8f16
-template class elx_int8_conv_wino_t<conv::FP32, conv_impl::INT8_F16o, 4, 3, 16, ISA_AVX512>;
-template class elx_int8_conv_wino_t<conv::FP32, conv_impl::INT8_F16o, 5, 3, 16, ISA_AVX512>;
-template class elx_int8_conv_wino_t<conv::FP32, conv_impl::INT8_F16o, 6, 3, 16, ISA_AVX512>;
-
-#ifdef ENABLE_USER_FP16
-// fp16-u8s8f32
-template class elx_int8_conv_wino_t<conv::FP16, conv_impl::INT8_F16b, 4, 3, 16, ISA_AVX512>;
-template class elx_int8_conv_wino_t<conv::FP16, conv_impl::INT8_F16b, 5, 3, 16, ISA_AVX512>;
-template class elx_int8_conv_wino_t<conv::FP16, conv_impl::INT8_F16b, 6, 3, 16, ISA_AVX512>;
-#endif
-
 }  // namespace euler
 #endif  // __ELX_CONV_WINO_LP_HPP__

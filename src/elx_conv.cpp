@@ -197,7 +197,7 @@ void elx_conv_t::execute_verbose(void *output, void *input, void *weights,
 
   execute(output, input, weights, bias);
 
-  el_log(PERF_TRACE, "%s,ih:%d;oh:%d;ic:%d;oc:%d,"\
+  el_log(__PERF_TRACE, "%s,ih:%d;oh:%d;ic:%d;oc:%d,"\
          "%s;%x,src:%s;wei:%s;dst:%s,src:%s;wei:%s;dst:%s;b:%s, %lf",
          ep.name.c_str(), ep.ih, ep.oh, ep.ic, ep.oc,
          algorithm_to_string(ep.algorithm), ep.execution_mode,

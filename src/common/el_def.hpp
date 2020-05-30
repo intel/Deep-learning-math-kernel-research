@@ -15,14 +15,14 @@ enum {
 };
 
 enum {
-  ALL = 0,
-  TRACE = 1,
-  DEBUG = 2,
-  INFO = 3,
-  WARN = 4,
-  ERROR = 5,
-  FATAL = 6,
-  PERF_TRACE = 999, // ensure EULER_VERBOSE always work once set
+  __ALL = 0,
+  __TRACE = 1,
+  __DEBUG = 2,
+  __INFO = 3,
+  __WARN = 4,
+  __ERROR = 5,
+  __FATAL = 6,
+  __PERF_TRACE = 999, // ensure EULER_VERBOSE always work once set
 };
 
 constexpr size_t PAGE_SIZE = 4096;

@@ -278,9 +278,11 @@ template <> struct _mm<16> {
   static inline __m<V> roundscale_ps(__m<V> m, int imm8) noexcept {
     rounding_case(_mm512_roundscale_ps, __m<V>, imm8, m);
   }
+/*
   static inline __m<V> range_ps(__m<V> m0, __m<V> m1, int imm8) noexcept {
     return _mm512_range_ps(m0, m1, imm8);
   }
+*/
   static inline __m512i cvtepi16_epi32(__m256i a) noexcept {
     return _mm512_cvtepi16_epi32(a);
   }
@@ -462,9 +464,11 @@ template <> struct _mm<8> {
   static inline __m128i cvtsepi32_epi8(__i<V> m) noexcept {
     return _mm256_cvtsepi32_epi8(m);
   }
+/*
   static inline __m<V> range_ps(__m<V> m0, __m<V> m1, int imm8) noexcept {
     return _mm256_range_ps(m0, m1, imm8);
   }
+*/
   static inline __m256i load_si256(__m256i const *a) noexcept {
     return _mm256_load_si256(a);
   }

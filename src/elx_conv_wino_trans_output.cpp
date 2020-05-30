@@ -593,4 +593,39 @@ void elx_conv_wino_trans_output_t<OutputType, BiasType, ToutputType, I, A, K,
     __execute_nchw(output, toutput, bias, _O4, _I4);
 }
 
+
+// user: float, tarray: float
+template class elx_conv_wino_trans_output_t<float, float, float, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_output_t<float, float, float, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_output_t<float, float, float, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_output_t<float, float, float, ISA_AVX512, 7, 3, 16>;
+
+// user: float, tarray: fp16
+template class elx_conv_wino_trans_output_t<float, float, short, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_output_t<float, float, short, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_output_t<float, float, short, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_output_t<float, float, short, ISA_AVX512, 7, 3, 16>;
+
+template class elx_conv_wino_trans_output_t<uint8_t, float, float, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_output_t<uint8_t, float, float, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_output_t<uint8_t, float, float, ISA_AVX512, 6, 3, 16>;
+
+template class elx_conv_wino_trans_output_t<int8_t, float, float, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_output_t<int8_t, float, float, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_output_t<int8_t, float, float, ISA_AVX512, 6, 3, 16>;
+
+#ifdef ENABLE_USER_FP16
+// user: fp16, tarray: float
+template class elx_conv_wino_trans_output_t<short, short, float, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_output_t<short, short, float, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_output_t<short, short, float, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_output_t<short, short, float, ISA_AVX512, 7, 3, 16>;
+
+// user: fp16, tarray: fp16
+template class elx_conv_wino_trans_output_t<short, short, short, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_output_t<short, short, short, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_output_t<short, short, short, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_output_t<short, short, short, ISA_AVX512, 7, 3, 16>;
+#endif
+
 } // namespace euler

@@ -1,5 +1,7 @@
 #include "el_parallel.hpp"
 #include "elx_int8_conv_wino.hpp"
+#include "elx_int8_conv_wino_bind.hpp"
+#include "elx_int8_conv_wino_xopt.hpp"
 
 namespace euler {
 
@@ -76,10 +78,10 @@ Template_elx_int8_conv_wino_t Instance_elx_int8_conv_wino_t::elx_int8_conv_wino_
   }
 
   // dbg
-  el_log(DEBUG, "T=%d, Tr=%d, t2=%d, t=%d", ep.T, ep.Tr, ep.t2, ep.t);
-  el_log(DEBUG, "V=%d, Ir=%d, Vx=%d, I2=%d, I3=%d, I4=%d, IC=%d",
+  el_log(__DEBUG, "T=%d, Tr=%d, t2=%d, t=%d", ep.T, ep.Tr, ep.t2, ep.t);
+  el_log(__DEBUG, "V=%d, Ir=%d, Vx=%d, I2=%d, I3=%d, I4=%d, IC=%d",
          V, ep.Ir, ep.Vx, ep.I2, ep.I3, ep.I4, ep.IC);
-  el_log(DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, OC=%d",
+  el_log(__DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, OC=%d",
          V, ep.Or, ep.O2, ep.O, ep.O1, ep.O3, ep.O4, ep.OC);
 }
 
@@ -279,5 +281,38 @@ Template_elx_int8_conv_wino_t
 Instance_elx_int8_conv_wino_t::~elx_int8_conv_wino_t()
 {
 }
+
+// fp32-u8s8f32
+template class elx_int8_conv_wino_t<conv::FP32, conv_impl::INT8_F32, 4, 3, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_t<conv::FP32, conv_impl::INT8_F32, 5, 3, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_t<conv::FP32, conv_impl::INT8_F32, 6, 3, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_t<conv::FP32, conv_impl::INT8_F32, 7, 3, 16, ISA_AVX512>;
+
+// u8f32u8f32-u8s8f32
+template class elx_int8_conv_wino_t<conv::U8F32U8F32, conv_impl::INT8_F32, 4, 3, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_t<conv::U8F32U8F32, conv_impl::INT8_F32, 5, 3, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_t<conv::U8F32U8F32, conv_impl::INT8_F32, 6, 3, 16, ISA_AVX512>;
+
+// u8f32s8f32-u8s8f32
+template class elx_int8_conv_wino_t<conv::U8F32S8F32, conv_impl::INT8_F32, 4, 3, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_t<conv::U8F32S8F32, conv_impl::INT8_F32, 5, 3, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_t<conv::U8F32S8F32, conv_impl::INT8_F32, 6, 3, 16, ISA_AVX512>;
+
+// u8f32f32f32-u8s8f32
+template class elx_int8_conv_wino_t<conv::U8F32F32F32, conv_impl::INT8_F32, 4, 3, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_t<conv::U8F32F32F32, conv_impl::INT8_F32, 5, 3, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_t<conv::U8F32F32F32, conv_impl::INT8_F32, 6, 3, 16, ISA_AVX512>;
+
+// fp32-u8s8f16
+template class elx_int8_conv_wino_t<conv::FP32, conv_impl::INT8_F16o, 4, 3, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_t<conv::FP32, conv_impl::INT8_F16o, 5, 3, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_t<conv::FP32, conv_impl::INT8_F16o, 6, 3, 16, ISA_AVX512>;
+
+#ifdef ENABLE_USER_FP16
+// fp16-u8s8f32
+template class elx_int8_conv_wino_t<conv::FP16, conv_impl::INT8_F16b, 4, 3, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_t<conv::FP16, conv_impl::INT8_F16b, 5, 3, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_t<conv::FP16, conv_impl::INT8_F16b, 6, 3, 16, ISA_AVX512>;
+#endif
 
 } // namespace euler

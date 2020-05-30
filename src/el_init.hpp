@@ -10,7 +10,7 @@
 namespace euler {
 
 struct el_global_option {
-  int log_level = INFO;
+  int log_level = __INFO;
   bool verbose = false; // for EULER_VERBOSE
   bool initialized = false;
 };

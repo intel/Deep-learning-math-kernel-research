@@ -27,7 +27,7 @@ __attribute__((constructor)) void el_init() {
   }
 
   if (ego.verbose > 0)
-    el_log(INFO, "Version: %s, MT_RUNTIME: %s",
+    el_log(__INFO, "Version: %s, MT_RUNTIME: %s",
            XSTRINGIFY(EULER_VERSION), mt_runtime_to_string(MT_RUNTIME));
 
   ego.initialized = true;

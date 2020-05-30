@@ -3,6 +3,8 @@
 #include "el_utils.hpp"
 #include "el_parallel.hpp"
 #include "elx_deconv_direct.hpp"
+#include "elx_deconv_direct_bind.hpp"
+#include "elx_deconv_direct_xopt.hpp"
 
 namespace euler {
 
@@ -125,11 +127,11 @@ Instance_elx_deconv_direct_t::elx_deconv_direct_t(eld_conv_t &dc)
   bind_execute_functions();
 
   // dbg
-  el_log(DEBUG, "T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d",
+  el_log(__DEBUG, "T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d",
          ep.T, ep.Tr, ep.t2, ep.ht, ep.wt, ep.t);
-  el_log(DEBUG, "V=%d, Ir=%d, I2=%d, I3=%d, I4=%d, IC=%d",
+  el_log(__DEBUG, "V=%d, Ir=%d, I2=%d, I3=%d, I4=%d, IC=%d",
          V, ep.Ir, ep.I2, ep.I3, ep.I4, ep.IC);
-  el_log(DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d",
+  el_log(__DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d",
          V, ep.Or, ep.O2, ep.O, ep.O1,
          ep.O3, ep.O4, ep.O2r, ep.O3r, ep.OC);
 }
@@ -411,5 +413,8 @@ Instance_elx_deconv_direct_t::conv_a060(OutputType *output,
     }}
   }
 }
+
+// fp32-f32f32f32
+template class elx_deconv_direct_t<conv::FP32, conv_impl::FP32, 16, ISA_AVX512>;
 
 } // namespace euler

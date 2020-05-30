@@ -16,7 +16,7 @@ int el_log(int severity, const char *fmt, ...) {
     fputs("\n", stdout);
   }
 
-  if (severity >= ERROR && severity != PERF_TRACE) {
+  if (severity >= __ERROR && severity != __PERF_TRACE) {
     fputs("Euler abort due to error\n", stdout);
     abort();
   }

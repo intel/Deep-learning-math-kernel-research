@@ -15,10 +15,13 @@ Experimental DNN math kernel based on C++11 and Intel intrinsic instructions.
     (ICC >= 19.0 for Intel DL Boost (VNNI) support on Intel Cascade Lake)
 
 ## Build
-    ; ICC
+    ; ICC/ICX
     source /opt/intel/compilers_and_libraries/linux/bin/compilervars.sh -arch intel64 -platform linux
     mkdir -p build && cd build
+    ; ICC
     cmake .. -DCMAKE_C_COMPILER=icc -DCMAKE_CXX_COMPILER=icpc -DCMAKE_CXX_FLAGS=-xCore-AVX512 -DWITH_TEST=ON
+    ; ICX
+    cmake .. -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DCMAKE_CXX_FLAGS=-xCore-AVX512 -DWITH_TEST=ON
     make -j
     cd -
 

@@ -127,11 +127,5 @@ class elx_conv_direct_1x1_t : public elx_conv_t {
   size_t boutput_size_;
 };
 
-//fp32-f32f32f32
-template class elx_conv_direct_1x1_t<conv::FP32, conv_impl::FP32, 16, ISA_AVX512>;
-
-//fp32-f32f16f32
-template class elx_conv_direct_1x1_t<conv::FP32, conv_impl::FP32_F16w, 16, ISA_AVX512>;
-
 }  // namespace euler
 #endif  // __ELX_CONV_DIRECT_1X1_HPP__

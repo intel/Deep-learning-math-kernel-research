@@ -1,5 +1,7 @@
 #include "el_parallel.hpp"
 #include "elx_conv_wino.hpp"
+#include "elx_conv_wino_bind.hpp"
+#include "elx_conv_wino_xopt.hpp"
 
 namespace euler {
 
@@ -74,10 +76,10 @@ Template_elx_conv_wino_t Instance_elx_conv_wino_t::elx_conv_wino_t(
   }
 
   // dbg
-  el_log(DEBUG, "T=%d, Tr=%d, t2=%d, t=%d", ep.T, ep.Tr, ep.t2, ep.t);
-  el_log(DEBUG, "V=%d, Ir=%d, Vx=%d, I2=%d, I3=%d, I4=%d, IC=%d",
+  el_log(__DEBUG, "T=%d, Tr=%d, t2=%d, t=%d", ep.T, ep.Tr, ep.t2, ep.t);
+  el_log(__DEBUG, "V=%d, Ir=%d, Vx=%d, I2=%d, I3=%d, I4=%d, IC=%d",
          V, ep.Ir, ep.Vx, ep.I2, ep.I3, ep.I4, ep.IC);
-  el_log(DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, OC=%d",
+  el_log(__DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, OC=%d",
          V, ep.Or, ep.O2, ep.O, ep.O1, ep.O3, ep.O4, ep.OC);
 }
 
@@ -204,5 +206,25 @@ Template_elx_conv_wino_t
 Instance_elx_conv_wino_t::~elx_conv_wino_t()
 {
 }
+
+// fp32-f32f32f32
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, 4, 3, 16, ISA_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, 5, 3, 16, ISA_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, 6, 3, 16, ISA_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, 7, 3, 16, ISA_AVX512>;
+
+// fp32-f16f16f16
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16iwo, 4, 3, 16, ISA_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16iwo, 5, 3, 16, ISA_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16iwo, 6, 3, 16, ISA_AVX512>;
+template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16iwo, 7, 3, 16, ISA_AVX512>;
+
+#ifdef ENABLE_USER_FP16
+// fp16-f32f16f16
+template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, 4, 3, 16, ISA_AVX512>;
+template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, 5, 3, 16, ISA_AVX512>;
+template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, 6, 3, 16, ISA_AVX512>;
+template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, 7, 3, 16, ISA_AVX512>;
+#endif
 
 } // namespace euler

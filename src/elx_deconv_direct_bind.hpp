@@ -1,3 +1,5 @@
+#pragma once
+
 #include "elx_deconv_direct.hpp"
 
 namespace euler {

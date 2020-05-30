@@ -204,4 +204,22 @@ void elx_int8_conv_wino_gemm_t<GarrayTypes, A, V, I>::execute_na(
   }, A, A, ep->I3, ep->O3, ep->t2);
 }
 
+// GarrayTypes IN8_FP32
+template class elx_int8_conv_wino_gemm_t<conv_impl::INT8_F32, 4, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_gemm_t<conv_impl::INT8_F32, 5, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_gemm_t<conv_impl::INT8_F32, 6, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_gemm_t<conv_impl::INT8_F32, 7, 16, ISA_AVX512>;
+
+// GarrayTypes IN8_F16o
+template class elx_int8_conv_wino_gemm_t<conv_impl::INT8_F16o, 4, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_gemm_t<conv_impl::INT8_F16o, 5, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_gemm_t<conv_impl::INT8_F16o, 6, 16, ISA_AVX512>;
+
+#ifdef ENABLE_USER_FP16
+// GarrayTypes IN8_F16b
+template class elx_int8_conv_wino_gemm_t<conv_impl::INT8_F16b, 4, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_gemm_t<conv_impl::INT8_F16b, 5, 16, ISA_AVX512>;
+template class elx_int8_conv_wino_gemm_t<conv_impl::INT8_F16b, 6, 16, ISA_AVX512>;
+#endif
+
 } // namespace euler

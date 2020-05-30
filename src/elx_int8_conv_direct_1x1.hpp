@@ -100,10 +100,5 @@ public:
   size_t weights_scale_size_;
 };
 
-//u8f32u8f32-u8s8f32
-template class elx_int8_conv_direct_1x1_t<conv::U8F32U8F32, conv_impl::INT8_F32, 16, ISA_AVX512>;
-//u8f32s8f32-u8s8f32
-template class elx_int8_conv_direct_1x1_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_AVX512>;
-
 }  // namespace euler
 #endif  // __ELX_CONV_DIRECT_1X1_HPP__

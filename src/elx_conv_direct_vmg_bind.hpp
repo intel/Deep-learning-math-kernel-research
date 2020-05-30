@@ -1,3 +1,5 @@
+#pragma once
+
 #include "elx_conv_direct_vmg.hpp"
 
 namespace euler {

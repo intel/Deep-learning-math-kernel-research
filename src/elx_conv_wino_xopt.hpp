@@ -1,3 +1,5 @@
+#pragma once
+
 #include "el_parallel.hpp"
 #include "elx_conv_wino.hpp"
 

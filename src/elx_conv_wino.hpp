@@ -119,25 +119,5 @@ private:
   OutputType *boutput_;
 };
 
-// fp32-f32f32f32
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, 4, 3, 16, ISA_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, 5, 3, 16, ISA_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, 6, 3, 16, ISA_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32, 7, 3, 16, ISA_AVX512>;
-
-// fp32-f16f16f16
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16iwo, 4, 3, 16, ISA_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16iwo, 5, 3, 16, ISA_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16iwo, 6, 3, 16, ISA_AVX512>;
-template class elx_conv_wino_t<conv::FP32, conv_impl::FP32_F16iwo, 7, 3, 16, ISA_AVX512>;
-
-#ifdef ENABLE_USER_FP16
-// fp16-f32f16f16
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, 4, 3, 16, ISA_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, 5, 3, 16, ISA_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, 6, 3, 16, ISA_AVX512>;
-template class elx_conv_wino_t<conv::FP16, conv_impl::FP32_F16wob, 7, 3, 16, ISA_AVX512>;
-#endif
-
 }  // namespace euler
 #endif  // __ELX_CONV_WINO_HPP__

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "elx_int8_conv_direct_depthwise.hpp"
 
 namespace euler {

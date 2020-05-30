@@ -86,33 +86,15 @@ file (GLOB __euler_source
   src/elx_conv_wino_gemm.cpp
   src/elx_conv_wino_trans_output.cpp
   src/elx_conv_wino.cpp
-  src/elx_conv_wino_xopt.cpp
-  src/elx_conv_wino_bind.cpp
   src/elx_int8_conv_wino_gemm.cpp
   src/elx_int8_conv_wino.cpp
-  src/elx_int8_conv_wino_xopt.cpp
-  src/elx_int8_conv_wino_bind.cpp
-  src/elx_conv_direct_1x1_bind.cpp
   src/elx_conv_direct_1x1.cpp
-  src/elx_conv_direct_1x1_xopt.cpp
-  src/elx_int8_conv_direct_1x1_bind.cpp
   src/elx_int8_conv_direct_1x1.cpp
-  src/elx_int8_conv_direct_1x1_xopt.cpp
-  src/elx_conv_direct_bind.cpp
   src/elx_conv_direct.cpp
-  src/elx_conv_direct_xopt.cpp
-  src/elx_conv_direct_vmg_bind.cpp
   src/elx_conv_direct_vmg.cpp
-  src/elx_conv_direct_vmg_xopt.cpp
-  src/elx_int8_conv_direct_bind.cpp
   src/elx_int8_conv_direct.cpp
-  src/elx_int8_conv_direct_xopt.cpp
-  src/elx_deconv_direct_bind.cpp
   src/elx_deconv_direct.cpp
-  src/elx_deconv_direct_xopt.cpp
   src/elx_int8_conv_direct_depthwise.cpp
-  src/elx_int8_conv_direct_depthwise_xopt.cpp
-  src/elx_int8_conv_direct_depthwise_bind.cpp
   src/elx_stream.cpp
   src/elx_reorder.cpp
   src/el_init.cpp)

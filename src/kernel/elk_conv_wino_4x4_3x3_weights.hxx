@@ -20,7 +20,7 @@ struct elk_conv_wino_trans_weights<float, WeightsType, ISA_AVX512,
   {
     ENABLE_AVX512F();
 
-    float M[6][3][16];
+    alignas(64) float M[6][3][16];
 
     auto z0 = _mm<V>::set1_ps(0.26890756302521f);
     auto z1 = _mm<V>::set1_ps(-0.688403361344538f);

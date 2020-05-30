@@ -5,6 +5,8 @@
 #include "el_utils.hpp"
 #include "el_parallel.hpp"
 #include "elx_int8_conv_direct_depthwise.hpp"
+#include "elx_int8_conv_direct_depthwise_bind.hpp"
+#include "elx_int8_conv_direct_depthwise_xopt.hpp"
 
 namespace euler {
 
@@ -119,11 +121,11 @@ Instance_elx_int8_conv_direct_depthwise_t::elx_int8_conv_direct_depthwise_t(eld_
   bind_execute_functions();
 
   // dbg
-  el_log(DEBUG, "T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d",
+  el_log(__DEBUG, "T=%d, Tr=%d, t2=%d, ht=%d, wt=%d, t=%d",
          ep.T, ep.Tr, ep.t2, ep.ht, ep.wt, ep.t);
-  el_log(DEBUG, "V=%d, Ir=%d, I2=%d, I3=%d, I4=%d, IC=%d, G2=%d, G3=%d, g=%d, G=%d",
+  el_log(__DEBUG, "V=%d, Ir=%d, I2=%d, I3=%d, I4=%d, IC=%d, G2=%d, G3=%d, g=%d, G=%d",
          V, ep.Ir, ep.I2, ep.I3, ep.I4, ep.IC, ep.G2, ep.G3, ep.g, ep.G);
-  el_log(DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d",
+  el_log(__DEBUG, "V=%d, Or=%d, O2=%d (O=%d, O1=%d), O3=%d, O4=%d, O2r=%d, O3r=%d, OC=%d",
          V, ep.Or, ep.O2, ep.O, ep.O1,
          ep.O3, ep.O4, ep.O2r, ep.O3r, ep.OC);
 }
@@ -315,5 +317,8 @@ void Instance_elx_int8_conv_direct_depthwise_t::conv_c160(OutputType *output,
            &md2(asrc_scale, 0, 0), &md2(asrc_scale, 1, 0), weights_scale,
            weights_shift, khs, khe, kws, kwe, pad_l, pad_r, attr_);
 }
+
+template class elx_int8_conv_direct_depthwise_t<conv::U8F32U8F32, conv_impl::INT8_F32, 16, ISA_AVX512>;
+template class elx_int8_conv_direct_depthwise_t<conv::U8F32S8F32, conv_impl::INT8_F32, 16, ISA_AVX512>;
 
 } // namespace euler
