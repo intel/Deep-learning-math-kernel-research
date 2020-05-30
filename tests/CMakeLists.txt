@@ -1,5 +1,6 @@
 # supress gflags warning #3280
 remove_definitions(-Werror)
+remove_definitions(-Wshadow)
 
 file (GLOB __test_sources
   elt_conv.cpp
