@@ -5,7 +5,8 @@ include(CMakeDependentOption)
 project(Euler CXX C)
 
 option(WITH_TEST "Build with test cases" ON)
-option(WITH_VNNI "With CLX VNNI support" OFF)
+option(WITH_VNNI "With VNNI/INT8 support" OFF)
+option(WITH_DPBF16 "With BF16 dot-product support" OFF)
 option(ENABLE_USER_FP16 "User FP16 type support" OFF)
 
 if (NOT DEFINED MT_RUNTIME)
