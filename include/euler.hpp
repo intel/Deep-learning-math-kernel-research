@@ -9,6 +9,9 @@
 
 namespace euler {
 
+using float16 = short;
+using bfloat16 = unsigned short;
+
 template <typename... Types> struct ConvTypes {
   static_assert(sizeof...(Types) == 4,
       "Contolution types: input-type, weights-type, output-type, bias-type.");
@@ -20,8 +23,8 @@ template <typename... Types> struct ConvTypes {
 
 namespace conv {
   using FP32 = ConvTypes<float, float, float, float>;
-  using FP16 = ConvTypes<short, short, short, short>;
-  using FP16O = ConvTypes<float, float, short, float>;
+  using FP16 = ConvTypes<float16, float16, float16, float16>;
+  using FP16O = ConvTypes<float, float, float16, float>;
   using U8S8F32F32 = ConvTypes<uint8_t, int8_t, float, float>;
   using U8F32F32F32 = ConvTypes<uint8_t, float, float, float>;
   using U8F32U8F32 = ConvTypes<uint8_t, float, uint8_t, float>;

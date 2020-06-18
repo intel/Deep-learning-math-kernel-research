@@ -113,7 +113,7 @@ int eld_conv_t::setup(bool fully_setup)
   auto get_elem_size = [](uint8_t dtype) -> size_t {
     switch (dtype) {
     case f32: return sizeof(float);
-    case f16: return sizeof(short);
+    case f16: return sizeof(float16);
     case u8:
     case s8: return sizeof(uint8_t);
     default: return 0;

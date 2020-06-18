@@ -47,8 +47,6 @@ constexpr uint32_t AT_Ir_MASK               { 1 << 6 };
 constexpr uint32_t AT_Or_MASK               { 1 << 7 };
 constexpr uint32_t AT_FMAOPT_MASK           { 1 << 8 }; // FMA optimization
 
-typedef short float16;
-
 template <typename... Types> struct ConvImplTypes {
   static_assert(sizeof...(Types) == 4,
       "Inner types input/weights/output/bias scale data type");

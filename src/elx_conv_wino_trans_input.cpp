@@ -901,10 +901,10 @@ template class elx_conv_wino_trans_input_t<float, float, ISA_AVX512, 5, 3, 16>;
 template class elx_conv_wino_trans_input_t<float, float, ISA_AVX512, 6, 3, 16>;
 template class elx_conv_wino_trans_input_t<float, float, ISA_AVX512, 7, 3, 16>;
 
-template class elx_conv_wino_trans_input_t<short, float, ISA_AVX512, 4, 3, 16>;
-template class elx_conv_wino_trans_input_t<short, float, ISA_AVX512, 5, 3, 16>;
-template class elx_conv_wino_trans_input_t<short, float, ISA_AVX512, 6, 3, 16>;
-template class elx_conv_wino_trans_input_t<short, float, ISA_AVX512, 7, 3, 16>;
+template class elx_conv_wino_trans_input_t<float16, float, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_input_t<float16, float, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_input_t<float16, float, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_input_t<float16, float, ISA_AVX512, 7, 3, 16>;
 
 template class elx_conv_wino_trans_input_t<uint8_t, float, ISA_AVX512, 4, 3, 16>;
 template class elx_conv_wino_trans_input_t<uint8_t, float, ISA_AVX512, 5, 3, 16>;
@@ -916,15 +916,15 @@ template class elx_conv_wino_trans_input_t<uint8_t, uint8_t, ISA_AVX512, 5, 3, 1
 template class elx_conv_wino_trans_input_t<uint8_t, uint8_t, ISA_AVX512, 6, 3, 16>;
 
 #ifdef ENABLE_USER_FP16
-template class elx_conv_wino_trans_input_t<float, short, ISA_AVX512, 4, 3, 16>;
-template class elx_conv_wino_trans_input_t<float, short, ISA_AVX512, 5, 3, 16>;
-template class elx_conv_wino_trans_input_t<float, short, ISA_AVX512, 6, 3, 16>;
-template class elx_conv_wino_trans_input_t<float, short, ISA_AVX512, 7, 3, 16>;
+template class elx_conv_wino_trans_input_t<float, float16, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_input_t<float, float16, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_input_t<float, float16, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_input_t<float, float16, ISA_AVX512, 7, 3, 16>;
 
-template class elx_conv_wino_trans_input_t<uint8_t, short, ISA_AVX512, 4, 3, 16>;
-template class elx_conv_wino_trans_input_t<uint8_t, short, ISA_AVX512, 5, 3, 16>;
-template class elx_conv_wino_trans_input_t<uint8_t, short, ISA_AVX512, 6, 3, 16>;
-template class elx_conv_wino_trans_input_t<uint8_t, short, ISA_AVX512, 7, 3, 16>;
+template class elx_conv_wino_trans_input_t<uint8_t, float16, ISA_AVX512, 4, 3, 16>;
+template class elx_conv_wino_trans_input_t<uint8_t, float16, ISA_AVX512, 5, 3, 16>;
+template class elx_conv_wino_trans_input_t<uint8_t, float16, ISA_AVX512, 6, 3, 16>;
+template class elx_conv_wino_trans_input_t<uint8_t, float16, ISA_AVX512, 7, 3, 16>;
 #endif
 
 } // namespace euler
