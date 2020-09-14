@@ -29,6 +29,8 @@ Experimental DNN math kernel based on C++11 and Intel intrinsic instructions.
     -DWITH_VNNI=ON
     ; CMake build option to enable Intel TBB threading runtime (default: OMP)
     -DMT_RUNTIME=TBB
+    ; CMake build option to enable FP16 user inputs (default: OFF)
+    -DENABLE_USER_FP16=ON
 
 ## Run Tests
     cd /path/to/euler/root

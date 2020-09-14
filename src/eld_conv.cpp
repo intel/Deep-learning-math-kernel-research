@@ -193,10 +193,6 @@ int eld_conv_t::setup(bool fully_setup)
         xc = new elx_conv_direct_vmg_t<conv::FP32, conv_impl::FP32_F16w, 16, ISA_AVX512>(*this);
       else
         xc = new elx_conv_direct_vmg_t<conv::FP32, conv_impl::FP32, 16, ISA_AVX512>(*this);
-#ifdef ENABLE_USER_FP16
-    } else if (user_type == user_type_f16o)
-      xc = new elx_conv_direct_vmg_t<conv::FP16O, conv_impl::FP32_F16o, 16, ISA_AVX512>(*this);
-#endif
     } else
       el_error("TODO: FP16 UserTypes for DIRECT_VMG.");
 
